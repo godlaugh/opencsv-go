@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>opencsv</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Workspace">
+        <div class="brand">opencsv</div>
+        <button class="file-button active" type="button">
+          <span class="file-name">synthetic-preview.csv</span>
+          <span class="file-meta">120,000 rows</span>
+        </button>
+        <button class="file-button" type="button">
+          <span class="file-name">customers.tsv</span>
+          <span class="file-meta">not loaded</span>
+        </button>
+      </aside>
+
+      <section class="workspace">
+        <header class="toolbar">
+          <div class="segmented" aria-label="View mode">
+            <button class="active" type="button">Grid</button>
+            <button type="button">SQL</button>
+            <button type="button">Profile</button>
+          </div>
+          <div class="tool-actions">
+            <button type="button" title="Filter">Filter</button>
+            <button type="button" title="Sort">Sort</button>
+            <button type="button" title="Find">Find</button>
+          </div>
+        </header>
+
+        <section class="grid-frame" aria-label="CSV grid prototype">
+          <canvas id="grid" width="1200" height="760"></canvas>
+          <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
+        </section>
+
+        <footer class="statusbar">
+          <span id="status">Ready</span>
+          <span>UTF-8</span>
+          <span>Comma</span>
+          <span>Header row</span>
+        </footer>
+      </section>
+
+      <aside class="inspector" aria-label="Column inspector">
+        <h2>Column</h2>
+        <div class="metric">
+          <span>Name</span>
+          <strong id="columnName">id</strong>
+        </div>
+        <div class="metric">
+          <span>Type</span>
+          <strong>integer</strong>
+        </div>
+        <div class="metric">
+          <span>Nulls</span>
+          <strong>0%</strong>
+        </div>
+        <div class="metric">
+          <span>Distinct</span>
+          <strong>120k</strong>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

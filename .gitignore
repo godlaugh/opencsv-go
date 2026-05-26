@@ -1,0 +1,11 @@
+.DS_Store
+.idea/
+.vscode/
+dist/
+build/
+node_modules/
+coverage/
+.cache/
+*.log
+*.tmp
+*.csv.bak
