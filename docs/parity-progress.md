@@ -32,6 +32,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-006 | Excel-like value checklist filter foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column menu verification |
 | FR-007 | Basic selected-column sort | Started | `/api/sort`, Browser verification |
 | FR-007 | Stable multi-column sort foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
+| FR-007 | Smart sort modes for number/date/length and full-width numerals | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
 | FR-006/007 | Column quick filter/sort menu foundation | Started | Browser column-header menu verification |
 | FR-009 | CSV diff/compare foundation and visual view | Started | `pkg/csvdiff` tests, `/api/diff`, CLI diff smoke, Browser Diff View verification |
 | FR-009 | Compare ignore options, header-name alignment, and inline character diff foundation | Started | `pkg/csvdiff`/`pkg/appserver` tests, Browser Diff View verification |
@@ -99,6 +100,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Hidden panel regression verification: `#profilePanel[hidden]` computes to `display: none`, so hidden SQL/Diff/Profile layers no longer intercept grid/header clicks.
 - Column menu verification on `/tmp/opencsv-column-menu.csv`: clicking the `amount` header opens a menu, `Sort descending` reports `Sorted amount descending`, the numeric sampling path places the row with `group = B` first, clicking the `group` header then offers `Filter: B`, filtering reports `Filtered group matched 1 rows`, clearing reports `Filter/sort cleared`, and `Show blanks` reports `Blank group matched 1 rows` with query `where c2 = ''`.
 - Multi-column sort verification on `/tmp/opencsv-multisort-ui.csv`: clicking the `group` column menu and choosing `Sort ascending` reports `Sorted group ascending`; clicking the `score` column menu and choosing `Then sort descending` reports `Sorted group ascending, then score descending`. Backend tests verify stable row order for `group ASC, score DESC`.
+- Smart sort verification on `/tmp/opencsv-smart-sort.csv`: sorting the `amount` column through the column menu orders full-width numeric value `２/９/１０` numerically, sorting `date` descending places `2026-05-02` first, and the new `Sort length descending` menu item orders `bbbb` before shorter labels.
 - Read-only/refresh verification on `/tmp/opencsv-readonly-refresh.csv`: toggling `Read Only` sets status `Read-only`, disables Save, sets `aria-pressed=true`, and pressing Enter on the grid reports `Edit blocked: document is read-only` without opening the editor. Toggling back restores editing controls. After an external file rewrite from 1 data row to 2 data rows, file-status polling auto-refreshes the document and status returns to `2 rows, 2 columns` with `Synced`.
 - Transpose verification on `/tmp/opencsv-transpose.csv`: Command Palette search `transpose` shows `Transpose`; executing it changes `2 rows, 2 columns` into `2 rows, 3 columns`, clears header-row interpretation to generic columns, marks the document edited, and `Cmd+Z` restores `2 rows, 2 columns`.
 - Transform tools verification on `/tmp/opencsv-transform-tools.csv`: selecting `name` cells and pressing `Shift+Alt+T` trims whitespace through `/api/text-transform`; `Shift+Alt+U` uppercases selected text; `Shift+Alt+D` removes duplicate data rows while preserving the header row and creates an undoable dirty state.
@@ -139,6 +141,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend grid now draws the sticky header on the main canvas instead of a second overlay canvas, removing header/body layer desynchronization during wheel scrolling.
 - Frontend grid now distinguishes source-missing cells in ragged rows from real blank cells by painting missing cell interiors with the grid canvas background before drawing separators.
 - Frontend column headers expose a quick menu for replacing the active sort, appending secondary sort keys, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
+- Sort keys now carry an explicit mode. The backend supports `auto`, `number`, `date`, `length`, and `text`, normalizes full-width numeric glyphs for number/date sorting, and the column menu exposes length-based sorting.
 - `pkg/document` stores `ReadOnly` session state plus last-known file size/mod time, rejects write operations while read-only, exposes file-status checks, and can refresh a clean document from disk.
 - `/api/read-only`, `/api/file-status`, and `/api/refresh` expose read-only and external-change behavior to the frontend.
 - Frontend status bar shows editable/read-only and synced/changed-on-disk states. Clean, editable documents auto-refresh when the backing file changes; dirty or read-only documents surface the external-change state instead of overwriting local context.
@@ -157,7 +160,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 ## Known Gaps
 
-- Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, and multi-column sort exist, but saved filter chips, persisted sort specs, and richer type-aware menus are still missing.
+- Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, multi-column sort, and smart number/date/length sorting exist, but saved filter chips, persisted sort specs, and richer condition-builder menus are still missing.
 - Replace supports current/all and regex/case/whole-cell modes, but replace preview and search-within-selection are still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.

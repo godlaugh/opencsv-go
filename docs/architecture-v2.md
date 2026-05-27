@@ -70,6 +70,7 @@ flowchart TD
   - Window reads with edits applied.
   - Save policy.
   - Find, replace, contains-filter, SQL WHERE filter, and stable multi-column sort view mapping.
+  - Smart sort mode comparison for auto, number, date, text, and length.
   - Column value frequency summaries and selected-value row filtering.
 
 - `pkg/sqlexpr`
@@ -147,6 +148,7 @@ flowchart TD
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
+  - Length-based column sort entry point and frontend sort-mode inference for numeric/date-looking columns.
   - Column value checklist inside the header quick menu.
   - View-only hidden columns through visible-column to source-column mapping.
   - Hidden SQL/Diff/Profile overlays explicitly use `[hidden]` display suppression so inactive panels cannot intercept grid input.

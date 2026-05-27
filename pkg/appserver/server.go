@@ -716,6 +716,7 @@ type sortRequest struct {
 	Column     int                `json:"column"`
 	Descending bool               `json:"descending"`
 	Numeric    bool               `json:"numeric"`
+	Mode       docstore.SortMode  `json:"mode,omitempty"`
 	HasHeader  bool               `json:"hasHeader"`
 	Keys       []docstore.SortKey `json:"keys"`
 }
@@ -730,6 +731,7 @@ func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
 		Column:     request.Column,
 		Descending: request.Descending,
 		Numeric:    request.Numeric,
+		Mode:       request.Mode,
 		HasHeader:  request.HasHeader,
 		Keys:       request.Keys,
 	})

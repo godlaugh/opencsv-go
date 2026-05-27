@@ -73,6 +73,8 @@ const columnMenu = document.querySelector("#columnMenu");
 const columnMenuTitle = document.querySelector("#columnMenuTitle");
 const columnSortAsc = document.querySelector("#columnSortAsc");
 const columnSortDesc = document.querySelector("#columnSortDesc");
+const columnSortLengthAsc = document.querySelector("#columnSortLengthAsc");
+const columnSortLengthDesc = document.querySelector("#columnSortLengthDesc");
 const columnAddSortAsc = document.querySelector("#columnAddSortAsc");
 const columnAddSortDesc = document.querySelector("#columnAddSortDesc");
 const columnFilterValue = document.querySelector("#columnFilterValue");
@@ -2093,9 +2095,9 @@ async function sortSelectedColumn() {
   await sortColumn(selected.col, !sortDescending, false);
 }
 
-async function sortColumn(column, descending, append) {
+async function sortColumn(column, descending, append, modeOverride = "") {
   if (!documentId || columns.length === 0 || !columns[column]) return;
-  const nextKeys = nextSortKeys(column, descending, append);
+  const nextKeys = nextSortKeys(column, descending, append, modeOverride);
   const primaryKey = nextKeys[0];
   const response = await fetch("/api/sort", {
     method: "POST",
@@ -2105,6 +2107,7 @@ async function sortColumn(column, descending, append) {
       column: primaryKey.column,
       descending: primaryKey.descending,
       numeric: primaryKey.numeric,
+      mode: primaryKey.mode,
       keys: nextKeys,
       hasHeader: metadata?.dialect?.hasHeader ?? false,
     }),
@@ -2130,25 +2133,36 @@ async function sortColumn(column, descending, append) {
   status.textContent = `Sorted ${formatSortKeys(sortKeys)}`;
 }
 
-function nextSortKeys(column, descending, append) {
-  const key = sortKeyForColumn(column, descending);
+function nextSortKeys(column, descending, append, modeOverride = "") {
+  const key = sortKeyForColumn(column, descending, modeOverride);
   if (!append || sortKeys.length === 0) return [key];
   return [...sortKeys.filter((item) => item.column !== key.column), key];
 }
 
-function sortKeyForColumn(column, descending) {
+function sortKeyForColumn(column, descending, modeOverride = "") {
   const type = columns[column]?.type ?? "string";
+  const mode = modeOverride || sortModeForColumn(column, type);
   return {
     column: sourceColFor(column),
     descending,
-    numeric: type === "integer" || type === "decimal" || columnLooksNumeric(column),
+    numeric: mode === "number",
+    mode,
   };
 }
 
 function formatSortKeys(keys) {
   return keys
-    .map((key) => `${columnNameForSource(key.column)} ${key.descending ? "descending" : "ascending"}`)
+    .map((key) => {
+      const modeLabel = key.mode && key.mode !== "auto" ? ` ${key.mode}` : "";
+      return `${columnNameForSource(key.column)}${modeLabel} ${key.descending ? "descending" : "ascending"}`;
+    })
     .join(", then ");
+}
+
+function sortModeForColumn(column, type) {
+  if (type === "integer" || type === "decimal" || columnLooksNumeric(column)) return "number";
+  if (type === "date" || columnLooksDate(column)) return "date";
+  return "auto";
 }
 
 function columnLooksNumeric(column) {
@@ -2158,9 +2172,32 @@ function columnLooksNumeric(column) {
     const value = valueAt(row, column);
     if (value == null || String(value).trim() === "") continue;
     inspected++;
-    if (Number.isFinite(Number(String(value).trim()))) numeric++;
+    if (Number.isFinite(Number(normalizeNumericForSort(value)))) numeric++;
   }
   return inspected > 0 && numeric === inspected;
+}
+
+function columnLooksDate(column) {
+  let inspected = 0;
+  let dates = 0;
+  for (let row = 0; row < Math.min(totalRows, 80); row++) {
+    const value = valueAt(row, column);
+    const normalized = normalizeNumericForSort(value);
+    if (!normalized) continue;
+    inspected++;
+    if (Number.isFinite(Date.parse(normalized))) dates++;
+  }
+  return inspected > 0 && dates === inspected;
+}
+
+function normalizeNumericForSort(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xff10 + 0x30))
+    .replace(/．/g, ".")
+    .replace(/－/g, "-")
+    .replace(/＋/g, "+")
+    .replace(/[，,]/g, "");
 }
 
 async function filterColumnBySelectedValue() {
@@ -3534,6 +3571,16 @@ columnSortDesc.addEventListener("click", async () => {
   const column = columnMenuColumn;
   closeColumnMenu();
   await sortColumn(column, true, false);
+});
+columnSortLengthAsc.addEventListener("click", async () => {
+  const column = columnMenuColumn;
+  closeColumnMenu();
+  await sortColumn(column, false, false, "length");
+});
+columnSortLengthDesc.addEventListener("click", async () => {
+  const column = columnMenuColumn;
+  closeColumnMenu();
+  await sortColumn(column, true, false, "length");
 });
 columnAddSortAsc.addEventListener("click", async () => {
   const column = columnMenuColumn;

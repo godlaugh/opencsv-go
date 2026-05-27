@@ -581,6 +581,36 @@ func TestServerSortMultipleColumns(t *testing.T) {
 	}
 }
 
+func TestServerSortMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sort-mode.csv")
+	if err := os.WriteFile(path, []byte("id,label\n1,aa\n2,bbbb\n3,c\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	postJSON(t, handler, "/api/sort", map[string]any{
+		"documentId": documentID,
+		"hasHeader":  true,
+		"column":     1,
+		"mode":       "length",
+		"descending": true,
+	})
+
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	got := rows[0].([]any)[0].(string)
+	if got != "2" {
+		t.Fatalf("first length-sorted id = %q, want 2", got)
+	}
+}
+
 func TestServerUploadOpen(t *testing.T) {
 	handler := New(t.TempDir()).Handler()
 	var body bytes.Buffer

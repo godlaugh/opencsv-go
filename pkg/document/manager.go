@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+	"unicode/utf8"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/sqlexpr"
@@ -1114,14 +1116,26 @@ type SortOptions struct {
 	Column     int       `json:"column"`
 	Descending bool      `json:"descending"`
 	Numeric    bool      `json:"numeric"`
+	Mode       SortMode  `json:"mode,omitempty"`
 	HasHeader  bool      `json:"hasHeader"`
 	Keys       []SortKey `json:"keys"`
 }
 
+type SortMode string
+
+const (
+	SortAuto   SortMode = "auto"
+	SortText   SortMode = "text"
+	SortNumber SortMode = "number"
+	SortDate   SortMode = "date"
+	SortLength SortMode = "length"
+)
+
 type SortKey struct {
-	Column     int  `json:"column"`
-	Descending bool `json:"descending"`
-	Numeric    bool `json:"numeric"`
+	Column     int      `json:"column"`
+	Descending bool     `json:"descending"`
+	Numeric    bool     `json:"numeric"`
+	Mode       SortMode `json:"mode,omitempty"`
 }
 
 func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
@@ -1168,12 +1182,14 @@ func normalizeSortKeys(options SortOptions) ([]SortKey, error) {
 			Column:     options.Column,
 			Descending: options.Descending,
 			Numeric:    options.Numeric,
+			Mode:       options.Mode,
 		}}
 	}
-	for _, key := range keys {
+	for index, key := range keys {
 		if key.Column < 0 {
 			return nil, errors.New("column must be non-negative")
 		}
+		keys[index].Mode = normalizeSortMode(key.Mode, key.Numeric)
 	}
 	return keys, nil
 }
@@ -1182,7 +1198,7 @@ func compareSortRecords(leftRecord []string, rightRecord []string, keys []SortKe
 	for _, key := range keys {
 		left := cellValue(leftRecord, key.Column)
 		right := cellValue(rightRecord, key.Column)
-		result := compareSortValues(left, right, key.Numeric)
+		result := compareSortValues(left, right, key.Mode)
 		if result == 0 {
 			continue
 		}
@@ -1194,22 +1210,142 @@ func compareSortRecords(leftRecord []string, rightRecord []string, keys []SortKe
 	return 0
 }
 
-func compareSortValues(left string, right string, numeric bool) int {
-	if numeric {
-		leftNum, leftErr := strconv.ParseFloat(strings.TrimSpace(left), 64)
-		rightNum, rightErr := strconv.ParseFloat(strings.TrimSpace(right), 64)
-		if leftErr == nil && rightErr == nil {
-			switch {
-			case leftNum < rightNum:
-				return -1
-			case leftNum > rightNum:
-				return 1
-			default:
-				return 0
-			}
+func normalizeSortMode(mode SortMode, numeric bool) SortMode {
+	if mode == "" {
+		if numeric {
+			return SortNumber
+		}
+		return SortAuto
+	}
+	switch mode {
+	case SortAuto, SortText, SortNumber, SortDate, SortLength:
+		return mode
+	default:
+		return SortAuto
+	}
+}
+
+func compareSortValues(left string, right string, mode SortMode) int {
+	switch mode {
+	case SortNumber:
+		if result, ok := compareNumbers(left, right); ok {
+			return result
+		}
+	case SortDate:
+		if result, ok := compareDates(left, right); ok {
+			return result
+		}
+	case SortLength:
+		return compareInts(utf8.RuneCountInString(left), utf8.RuneCountInString(right))
+	case SortAuto:
+		if result, ok := compareNumbers(left, right); ok {
+			return result
+		}
+		if result, ok := compareDates(left, right); ok {
+			return result
 		}
 	}
 	return strings.Compare(left, right)
+}
+
+func compareNumbers(left string, right string) (int, bool) {
+	leftNum, leftErr := parseSortNumber(left)
+	rightNum, rightErr := parseSortNumber(right)
+	if leftErr == nil && rightErr == nil {
+		return compareFloats(leftNum, rightNum), true
+	}
+	return 0, false
+}
+
+func parseSortNumber(value string) (float64, error) {
+	normalized := strings.TrimSpace(normalizeFullWidthNumeric(value))
+	normalized = strings.ReplaceAll(normalized, ",", "")
+	if normalized == "" {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.ParseFloat(normalized, 64)
+}
+
+func compareDates(left string, right string) (int, bool) {
+	leftTime, leftErr := parseSortDate(left)
+	rightTime, rightErr := parseSortDate(right)
+	if leftErr == nil && rightErr == nil {
+		return compareTimes(leftTime, rightTime), true
+	}
+	return 0, false
+}
+
+func parseSortDate(value string) (time.Time, error) {
+	normalized := strings.TrimSpace(normalizeFullWidthNumeric(value))
+	for _, layout := range []string{
+		time.RFC3339,
+		"2006-01-02",
+		"2006/01/02",
+		"2006-01-02 15:04",
+		"2006-01-02 15:04:05",
+		"2006/01/02 15:04",
+		"2006/01/02 15:04:05",
+		"01/02/2006",
+		"01/02/2006 15:04",
+		"01/02/2006 15:04:05",
+	} {
+		if parsed, err := time.Parse(layout, normalized); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("not a supported date")
+}
+
+func normalizeFullWidthNumeric(value string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= '０' && r <= '９':
+			return '0' + (r - '０')
+		case r == '．':
+			return '.'
+		case r == '－':
+			return '-'
+		case r == '＋':
+			return '+'
+		case r == '，':
+			return ','
+		default:
+			return r
+		}
+	}, value)
+}
+
+func compareFloats(left float64, right float64) int {
+	switch {
+	case left < right:
+		return -1
+	case left > right:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func compareTimes(left time.Time, right time.Time) int {
+	switch {
+	case left.Before(right):
+		return -1
+	case left.After(right):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func compareInts(left int, right int) int {
+	switch {
+	case left < right:
+		return -1
+	case left > right:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func textTransformFunc(mode TextTransformMode) (func(string) string, error) {

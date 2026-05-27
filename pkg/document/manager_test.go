@@ -179,6 +179,55 @@ func TestManagerSortMultipleColumns(t *testing.T) {
 	}
 }
 
+func TestManagerSmartSortModes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "smart-sort.csv")
+	if err := os.WriteFile(path, []byte("id,date,label,amount\n1,2026-05-02,aa,１０\n2,2025-01-01,bbbb,2\n3,2026-04-01,c,９\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "smart-sort.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := manager.Sort(session.ID, SortOptions{Column: 3, Mode: SortAuto, HasHeader: true}); err != nil {
+		t.Fatal(err)
+	}
+	assertSortedIDs(t, manager, session.ID, []string{"2", "3", "1"})
+
+	if _, err := manager.Sort(session.ID, SortOptions{Column: 1, Mode: SortDate, HasHeader: true}); err != nil {
+		t.Fatal(err)
+	}
+	assertSortedIDs(t, manager, session.ID, []string{"2", "3", "1"})
+
+	if _, err := manager.Sort(session.ID, SortOptions{Column: 2, Descending: true, Mode: SortLength, HasHeader: true}); err != nil {
+		t.Fatal(err)
+	}
+	assertSortedIDs(t, manager, session.ID, []string{"2", "1", "3"})
+}
+
+func assertSortedIDs(t *testing.T, manager *Manager, sessionID string, want []string) {
+	t.Helper()
+	window, err := manager.Window(sessionID, 0, len(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, row := range window.Rows {
+		got = append(got, row[0])
+	}
+	if len(got) != len(want) {
+		t.Fatalf("sorted ids = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("sorted ids = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "find.csv")
