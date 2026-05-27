@@ -173,7 +173,8 @@ button:disabled {
 
 .segmented,
 .tool-actions,
-.file-open {
+.file-open,
+.find-options {
   display: flex;
   gap: 6px;
 }
@@ -204,6 +205,21 @@ button:disabled {
   width: 118px;
 }
 
+.find-options {
+  gap: 2px;
+}
+
+.find-options button {
+  min-width: 30px;
+  padding: 0;
+}
+
+.find-options button.active {
+  border-color: var(--accent);
+  background: var(--accent-quiet);
+  color: var(--text);
+}
+
 .segmented button,
 .tool-actions button,
 .file-open button {
@@ -211,6 +227,11 @@ button:disabled {
   min-width: 56px;
   border-radius: 6px;
   padding: 0 9px;
+}
+
+.tool-actions .find-options button {
+  min-width: 30px;
+  padding: 0;
 }
 
 @media (max-width: 1280px) {

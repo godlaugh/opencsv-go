@@ -34,6 +34,11 @@
           <div class="tool-actions">
             <input id="commandInput" type="text" placeholder="Find/filter..." aria-label="Find or filter text" />
             <input id="replaceInput" type="text" placeholder="Replace..." aria-label="Replace text" />
+            <div class="find-options" aria-label="Find options">
+              <button id="findCaseButton" type="button" title="Match case" aria-pressed="false">Aa</button>
+              <button id="findWholeButton" type="button" title="Match whole cell" aria-pressed="false">=</button>
+              <button id="findRegexButton" type="button" title="Use regular expression" aria-pressed="false">.*</button>
+            </div>
             <button id="filterButton" type="button" title="Filter" data-command="view.filter">Filter</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>
             <button id="findButton" type="button" title="Find" data-command="edit.find">Find</button>
@@ -141,6 +146,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-theme"></script>
+    <script type="module" src="./src/app.js?v=m2-find-options"></script>
   </body>
 </html>

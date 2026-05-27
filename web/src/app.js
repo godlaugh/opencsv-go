@@ -31,6 +31,9 @@ const sortButton = document.querySelector("#sortButton");
 const findButton = document.querySelector("#findButton");
 const replaceButton = document.querySelector("#replaceButton");
 const replaceAllButton = document.querySelector("#replaceAllButton");
+const findCaseButton = document.querySelector("#findCaseButton");
+const findWholeButton = document.querySelector("#findWholeButton");
+const findRegexButton = document.querySelector("#findRegexButton");
 const diffButton = document.querySelector("#diffButton");
 const saveButton = document.querySelector("#saveButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
@@ -109,6 +112,9 @@ let externalFileChanged = false;
 let fileStatusTimer = 0;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
+let findCaseSensitive = false;
+let findWholeCell = false;
+let findRegex = false;
 const quotePolicy = "minimal";
 const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -1467,6 +1473,7 @@ async function findCurrentQuery() {
       query,
       regex: search.regex,
       caseSensitive: search.caseSensitive,
+      wholeCell: search.wholeCell,
       limit: 1,
     }),
   });
@@ -1508,6 +1515,7 @@ async function replaceCurrentQuery(all) {
       replacement: replaceInput.value,
       regex: search.regex,
       caseSensitive: search.caseSensitive,
+      wholeCell: search.wholeCell,
       all,
     }),
   });
@@ -1543,9 +1551,29 @@ async function replaceCurrentQuery(all) {
 function parseSearchQuery(raw) {
   const trimmed = raw.trim();
   const match = trimmed.match(/^\/(.+)\/([i]*)$/);
-  return match
-    ? { query: match[1], regex: true, caseSensitive: !match[2].includes("i") }
-    : { query: trimmed, regex: false, caseSensitive: false };
+  const query = match ? match[1] : trimmed;
+  const slashRegex = Boolean(match);
+  const regex = findRegex || slashRegex;
+  const caseSensitive = findCaseSensitive || (slashRegex && !match[2].includes("i"));
+  return { query, regex, caseSensitive, wholeCell: findWholeCell };
+}
+
+function toggleFindOption(option) {
+  if (option === "case") findCaseSensitive = !findCaseSensitive;
+  if (option === "whole") findWholeCell = !findWholeCell;
+  if (option === "regex") findRegex = !findRegex;
+  updateFindOptionButtons();
+}
+
+function updateFindOptionButtons() {
+  setPressed(findCaseButton, findCaseSensitive);
+  setPressed(findWholeButton, findWholeCell);
+  setPressed(findRegexButton, findRegex);
+}
+
+function setPressed(button, pressed) {
+  button.classList.toggle("active", pressed);
+  button.setAttribute("aria-pressed", String(pressed));
 }
 
 async function filterCurrentQuery() {
@@ -2562,6 +2590,9 @@ openCellLink.addEventListener("click", (event) => {
 findButton.addEventListener("click", findCurrentQuery);
 replaceButton.addEventListener("click", () => replaceCurrentQuery(false));
 replaceAllButton.addEventListener("click", () => replaceCurrentQuery(true));
+findCaseButton.addEventListener("click", () => toggleFindOption("case"));
+findWholeButton.addEventListener("click", () => toggleFindOption("whole"));
+findRegexButton.addEventListener("click", () => toggleFindOption("regex"));
 filterButton.addEventListener("click", filterCurrentQuery);
 sortButton.addEventListener("click", sortSelectedColumn);
 commandInput.addEventListener("keydown", async (event) => {

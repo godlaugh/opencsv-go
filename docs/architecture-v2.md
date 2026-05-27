@@ -145,6 +145,10 @@ flowchart TD
   - Column value checklist inside the header quick menu.
   - Hidden SQL/Diff/Profile overlays explicitly use `[hidden]` display suppression so inactive panels cannot intercept grid input.
 
+- `web Search Controls`
+  - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, and regex mode.
+  - Toggles map directly to existing `/api/find` and `/api/replace` request options.
+
 - `web File State`
   - Read-only toggle wired through command metadata and API state.
   - UI blocks edit/paste/save/undo/redo/replace/structural mutations while read-only, and backend APIs reject writes as the final guard.
@@ -453,6 +457,7 @@ Output:
 - Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, and TSV paste.
 - Command registry endpoint.
 - Theme command metadata.
+- Find/Replace option request coverage.
 - Diff endpoint.
 - SQL endpoint.
 - SQL aggregate query unit/API tests.
@@ -482,6 +487,7 @@ Output:
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
+- Find/Replace toggles can drive case-sensitive, whole-cell, and regex searches from the toolbar.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
 
 ### Performance Tests

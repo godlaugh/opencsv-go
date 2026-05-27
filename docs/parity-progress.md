@@ -20,6 +20,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-005 | Find text | Started | `/api/find`, toolbar query, Browser verification |
 | FR-005 | Replace current/all foundation | Started | `/api/replace`, `pkg/document` tests, Browser verification |
+| FR-005 | Find/Replace mode toggles | Started | API support, Browser toolbar verification |
 | FR-006 | Basic contains filter | Started | `/api/filter`, toolbar query, Browser verification |
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
 | FR-006 | Excel-like value checklist filter foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column menu verification |
@@ -51,6 +52,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Sort selected `id` column reports descending sort.
 - SQL WHERE filter `where field_01 = 'segment_7' and cast(id as number) > 700000` reports `1,667` rows.
 - Replace UI opens a 720,000-row file and replaces the first `segment_7` match with `segment_x`, reporting `Replaced 1 cell`.
+- Find mode verification on `/tmp/opencsv-find-modes.csv`: default case-insensitive search for `ada` selects row 1; enabling `Aa` selects row 2; enabling `=` whole-cell mode matches exact `Ada`; enabling `.*` regex mode matches `^Ada Byron$` at row 3. The three toolbar toggles expose correct `aria-pressed` state.
 - Command registry disables document-scoped commands before open and enables implemented commands after opening a CSV, including SQL and Profile.
 - `/api/diff` compares `/tmp/opencsv-diff-left.csv` and `/tmp/opencsv-diff-right.csv`, reporting `changed: 1`, `added: 1`, `deleted: 0`.
 - Diff View opens from Compare, accepts left/right paths, runs the same files, shows unchanged/changed/added rows, and displays changed cell `c2: Linus -> Ken`.
@@ -90,6 +92,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands.
 - CLI open applies delimiter, encoding, and header-row overrides to `csvcore.OpenDocument`; quote and quote-mode are parsed and preserved in invocation metadata but not yet applied by the CSV reader/writer.
 - Find now supports regex/case/whole-cell options in the API layer. Replace current/all stores edits through the document edit overlay and marks the session dirty.
+- Frontend Find/Replace now exposes `Aa`, `=`, and `.*` toggles for case-sensitive, whole-cell, and regex modes, and sends those options to `/api/find` and `/api/replace`.
 - Toolbar wraps into two rows on narrower workspaces so Find/Replace buttons stay clickable instead of sliding under the inspector.
 - `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key.
 - `/api/diff` exposes diff results for two local paths, and root CLI `--diff` now includes a diff result payload in prototype mode.
@@ -120,7 +123,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 ## Known Gaps
 
 - Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, and multi-column sort exist, but saved filter chips, persisted sort specs, and richer type-aware menus are still missing.
-- Replace supports current/all and regex basics, but the UI still needs explicit toggles for case sensitivity, whole-cell, and regex mode.
+- Replace supports current/all and regex/case/whole-cell modes, but match navigation, replace preview, search-within-selection, and visible match counts are still missing.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through Command Palette and whole-document materialization; direct grid context menus, multi-row/multi-column operations, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing is a keyboard-first foundation; mouse drag selection, fill handle, Excel-specific paste behavior, and richer copy/export surfaces are still missing.
