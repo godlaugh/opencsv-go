@@ -61,6 +61,8 @@ const columnMenu = document.querySelector("#columnMenu");
 const columnMenuTitle = document.querySelector("#columnMenuTitle");
 const columnSortAsc = document.querySelector("#columnSortAsc");
 const columnSortDesc = document.querySelector("#columnSortDesc");
+const columnAddSortAsc = document.querySelector("#columnAddSortAsc");
+const columnAddSortDesc = document.querySelector("#columnAddSortDesc");
 const columnFilterValue = document.querySelector("#columnFilterValue");
 const columnFilterBlank = document.querySelector("#columnFilterBlank");
 const columnFilterFilled = document.querySelector("#columnFilterFilled");
@@ -93,6 +95,7 @@ let dirty = false;
 let dataStartRow = 0;
 let viewMapped = false;
 let sortDescending = false;
+let sortKeys = [];
 let commandsById = new Map();
 let viewMode = "grid";
 let profileData = null;
@@ -1083,6 +1086,8 @@ function loadDocument(document) {
   profileSummary.replaceChildren();
   dataStartRow = document.metadata.dialect.hasHeader ? 1 : 0;
   viewMapped = false;
+  sortDescending = false;
+  sortKeys = [];
   document.preview.forEach((record, index) => {
     if (index < dataStartRow) return;
     const displayRow = index - dataStartRow;
@@ -1446,6 +1451,8 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
     return;
   }
   viewMapped = true;
+  sortDescending = false;
+  sortKeys = [];
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, preserveCol)) };
@@ -1473,21 +1480,22 @@ function stripWherePrefix(query) {
 
 async function sortSelectedColumn() {
   if (!documentId || columns.length === 0) return;
-  await sortColumn(selected.col, !sortDescending);
+  await sortColumn(selected.col, !sortDescending, false);
 }
 
-async function sortColumn(column, descending) {
+async function sortColumn(column, descending, append) {
   if (!documentId || columns.length === 0 || !columns[column]) return;
-  sortDescending = descending;
-  const type = columns[column]?.type ?? "string";
+  const nextKeys = nextSortKeys(column, descending, append);
+  const primaryKey = nextKeys[0];
   const response = await fetch("/api/sort", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       documentId,
-      column,
-      descending: sortDescending,
-      numeric: type === "integer" || type === "decimal" || columnLooksNumeric(column),
+      column: primaryKey.column,
+      descending: primaryKey.descending,
+      numeric: primaryKey.numeric,
+      keys: nextKeys,
       hasHeader: metadata?.dialect?.hasHeader ?? false,
     }),
   });
@@ -1497,6 +1505,8 @@ async function sortColumn(column, descending) {
     return;
   }
   viewMapped = true;
+  sortKeys = nextKeys;
+  sortDescending = descending;
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: column };
@@ -1506,7 +1516,28 @@ async function sortColumn(column, descending) {
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `Sorted ${columns[column]?.name ?? "column"} ${sortDescending ? "descending" : "ascending"}`;
+  status.textContent = `Sorted ${formatSortKeys(sortKeys)}`;
+}
+
+function nextSortKeys(column, descending, append) {
+  const key = sortKeyForColumn(column, descending);
+  if (!append || sortKeys.length === 0) return [key];
+  return [...sortKeys.filter((item) => item.column !== column), key];
+}
+
+function sortKeyForColumn(column, descending) {
+  const type = columns[column]?.type ?? "string";
+  return {
+    column,
+    descending,
+    numeric: type === "integer" || type === "decimal" || columnLooksNumeric(column),
+  };
+}
+
+function formatSortKeys(keys) {
+  return keys
+    .map((key) => `${columns[key.column]?.name ?? `column ${key.column + 1}`} ${key.descending ? "descending" : "ascending"}`)
+    .join(", then ");
 }
 
 function columnLooksNumeric(column) {
@@ -1578,6 +1609,8 @@ async function applyColumnValueChecklist() {
     return;
   }
   viewMapped = true;
+  sortDescending = false;
+  sortKeys = [];
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: column };
@@ -1603,6 +1636,8 @@ async function clearView() {
     return;
   }
   viewMapped = false;
+  sortDescending = false;
+  sortKeys = [];
   rows = new Map();
   rowSource = new Map();
   totalRows = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
@@ -2249,21 +2284,16 @@ editor.addEventListener("keydown", (event) => {
 
 openForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const path = pathInput.value.trim();
-  if (!path) {
-    fileInput.click();
-    return;
-  }
-  try {
-    await openPath(path);
-  } catch (error) {
-    status.textContent = `Open failed: ${error.message}`;
-  }
+  await openPathInputOrPicker();
 });
 
 pathInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
+  await openPathInputOrPicker();
+});
+
+async function openPathInputOrPicker() {
   const path = pathInput.value.trim();
   if (!path) {
     fileInput.click();
@@ -2274,11 +2304,9 @@ pathInput.addEventListener("keydown", async (event) => {
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
   }
-});
+}
 
-openButton.addEventListener("click", () => {
-  fileInput.click();
-});
+openButton.addEventListener("click", openPathInputOrPicker);
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
@@ -2362,12 +2390,22 @@ window.addEventListener("mousedown", (event) => {
 columnSortAsc.addEventListener("click", async () => {
   const column = columnMenuColumn;
   closeColumnMenu();
-  await sortColumn(column, false);
+  await sortColumn(column, false, false);
 });
 columnSortDesc.addEventListener("click", async () => {
   const column = columnMenuColumn;
   closeColumnMenu();
-  await sortColumn(column, true);
+  await sortColumn(column, true, false);
+});
+columnAddSortAsc.addEventListener("click", async () => {
+  const column = columnMenuColumn;
+  closeColumnMenu();
+  await sortColumn(column, false, true);
+});
+columnAddSortDesc.addEventListener("click", async () => {
+  const column = columnMenuColumn;
+  closeColumnMenu();
+  await sortColumn(column, true, true);
 });
 columnFilterValue.addEventListener("click", filterColumnBySelectedValue);
 columnFilterBlank.addEventListener("click", () => filterColumnBlank(true));

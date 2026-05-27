@@ -760,15 +760,23 @@ func (manager *Manager) FilterSQL(id string, expression string) (int, error) {
 }
 
 type SortOptions struct {
+	Column     int       `json:"column"`
+	Descending bool      `json:"descending"`
+	Numeric    bool      `json:"numeric"`
+	HasHeader  bool      `json:"hasHeader"`
+	Keys       []SortKey `json:"keys"`
+}
+
+type SortKey struct {
 	Column     int  `json:"column"`
 	Descending bool `json:"descending"`
 	Numeric    bool `json:"numeric"`
-	HasHeader  bool `json:"hasHeader"`
 }
 
 func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
-	if options.Column < 0 {
-		return 0, errors.New("column must be non-negative")
+	keys, err := normalizeSortKeys(options)
+	if err != nil {
+		return 0, err
 	}
 	session, ok := manager.snapshot(id)
 	if !ok {
@@ -789,20 +797,7 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 		viewRows = append(viewRows, row)
 	}
 	sort.SliceStable(viewRows, func(i, j int) bool {
-		left := cellValue(records[viewRows[i]], options.Column)
-		right := cellValue(records[viewRows[j]], options.Column)
-		less := left < right
-		if options.Numeric {
-			leftNum, leftErr := strconv.ParseFloat(strings.TrimSpace(left), 64)
-			rightNum, rightErr := strconv.ParseFloat(strings.TrimSpace(right), 64)
-			if leftErr == nil && rightErr == nil {
-				less = leftNum < rightNum
-			}
-		}
-		if options.Descending {
-			return !less && left != right
-		}
-		return less
+		return compareSortRecords(records[viewRows[i]], records[viewRows[j]], keys) < 0
 	})
 
 	manager.mu.Lock()
@@ -813,6 +808,57 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 	}
 	current.ViewRows = viewRows
 	return len(viewRows), nil
+}
+
+func normalizeSortKeys(options SortOptions) ([]SortKey, error) {
+	keys := append([]SortKey(nil), options.Keys...)
+	if len(keys) == 0 {
+		keys = []SortKey{{
+			Column:     options.Column,
+			Descending: options.Descending,
+			Numeric:    options.Numeric,
+		}}
+	}
+	for _, key := range keys {
+		if key.Column < 0 {
+			return nil, errors.New("column must be non-negative")
+		}
+	}
+	return keys, nil
+}
+
+func compareSortRecords(leftRecord []string, rightRecord []string, keys []SortKey) int {
+	for _, key := range keys {
+		left := cellValue(leftRecord, key.Column)
+		right := cellValue(rightRecord, key.Column)
+		result := compareSortValues(left, right, key.Numeric)
+		if result == 0 {
+			continue
+		}
+		if key.Descending {
+			return -result
+		}
+		return result
+	}
+	return 0
+}
+
+func compareSortValues(left string, right string, numeric bool) int {
+	if numeric {
+		leftNum, leftErr := strconv.ParseFloat(strings.TrimSpace(left), 64)
+		rightNum, rightErr := strconv.ParseFloat(strings.TrimSpace(right), 64)
+		if leftErr == nil && rightErr == nil {
+			switch {
+			case leftNum < rightNum:
+				return -1
+			case leftNum > rightNum:
+				return 1
+			default:
+				return 0
+			}
+		}
+	}
+	return strings.Compare(left, right)
 }
 
 func (manager *Manager) ClearView(id string) (int, error) {

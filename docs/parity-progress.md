@@ -23,6 +23,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
 | FR-006 | Excel-like value checklist filter foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column menu verification |
 | FR-007 | Basic selected-column sort | Started | `/api/sort`, Browser verification |
+| FR-007 | Stable multi-column sort foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
 | FR-006/007 | Column quick filter/sort menu foundation | Started | Browser column-header menu verification |
 | FR-009 | CSV diff/compare foundation and visual view | Started | `pkg/csvdiff` tests, `/api/diff`, CLI diff smoke, Browser Diff View verification |
 | FR-008 | SQL Console foundation plus aggregate query support | Started | `pkg/sqlconsole` tests, `/api/sql`, Browser verification |
@@ -39,6 +40,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 - Initial UI shows no fake files.
 - Path input can open `/tmp/opencsv-m1-100mb.csv`.
+- Open button opens a typed local path when the path field is populated, and falls back to the browser file picker when it is empty.
 - Workspace shows `opencsv-m1-100mb.csv`.
 - Status shows `720,000 rows, 12 columns`.
 - Find query `segment_7` reports a match at row 8, column 2.
@@ -64,6 +66,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Header regression verification after wheel scroll: `#frozenGrid` keeps `clientHeight`, CSS height, and bounding height at `36px`.
 - Hidden panel regression verification: `#profilePanel[hidden]` computes to `display: none`, so hidden SQL/Diff/Profile layers no longer intercept grid/header clicks.
 - Column menu verification on `/tmp/opencsv-column-menu.csv`: clicking the `amount` header opens a menu, `Sort descending` reports `Sorted amount descending`, the numeric sampling path places the row with `group = B` first, clicking the `group` header then offers `Filter: B`, filtering reports `Filtered group matched 1 rows`, clearing reports `Filter/sort cleared`, and `Show blanks` reports `Blank group matched 1 rows` with query `where c2 = ''`.
+- Multi-column sort verification on `/tmp/opencsv-multisort-ui.csv`: clicking the `group` column menu and choosing `Sort ascending` reports `Sorted group ascending`; clicking the `score` column menu and choosing `Then sort descending` reports `Sorted group ascending, then score descending`. Backend tests verify stable row order for `group ASC, score DESC`.
 - Read-only/refresh verification on `/tmp/opencsv-readonly-refresh.csv`: toggling `Read Only` sets status `Read-only`, disables Save, sets `aria-pressed=true`, and pressing Enter on the grid reports `Edit blocked: document is read-only` without opening the editor. Toggling back restores editing controls. After an external file rewrite from 1 data row to 2 data rows, file-status polling auto-refreshes the document and status returns to `2 rows, 2 columns` with `Synced`.
 - Transpose verification on `/tmp/opencsv-transpose.csv`: Command Palette search `transpose` shows `Transpose`; executing it changes `2 rows, 2 columns` into `2 rows, 3 columns`, clears header-row interpretation to generic columns, marks the document edited, and `Cmd+Z` restores `2 rows, 2 columns`.
 - Cell value panel verification on `/tmp/opencsv-cell-panel.csv`: selecting a URL cell sets Cell Value to `https://example.com/demo`, enables `Open Link`, and exposes the same href. Selecting a non-URL `note` cell disables `Open Link`; editing the Cell Value panel to `long note with spaces updated` enables `Apply`, commits through the normal edit path, leaves the updated value visible, and marks the document edited. In read-only mode, the Cell Value textarea and Apply button are disabled.
@@ -71,7 +74,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 ## Implementation Notes
 
-- `pkg/document` now owns document sessions, edit overlay, window reads, save, find, contains-filter, sort, and view mapping.
+- `pkg/document` now owns document sessions, edit overlay, window reads, save, find, contains-filter, stable multi-column sort, and view mapping.
 - `pkg/document` now includes full-record snapshot history for first-pass undo/redo and materializes row/column structural edits into temporary working copies so the original file is not modified before Save.
 - `pkg/document.EditCells` and `/api/edit-batch` apply multi-cell edits as one undoable operation.
 - `pkg/appserver` delegates document behavior to `pkg/document` instead of owning session logic directly.
@@ -93,7 +96,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/row/column/filter/sort/clear/sql/profile/diff.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
-- Frontend column headers expose a quick menu for ascending/descending sort, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
+- Frontend column headers expose a quick menu for replacing the active sort, appending secondary sort keys, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
 - `pkg/document` stores `ReadOnly` session state plus last-known file size/mod time, rejects write operations while read-only, exposes file-status checks, and can refresh a clean document from disk.
 - `/api/read-only`, `/api/file-status`, and `/api/refresh` expose read-only and external-change behavior to the frontend.
 - Frontend status bar shows editable/read-only and synced/changed-on-disk states. Clean, editable documents auto-refresh when the backing file changes; dirty or read-only documents surface the external-change state instead of overwriting local context.
@@ -109,7 +112,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 ## Known Gaps
 
-- Find/Filter/Sort are first-pass implementations. Column quick actions and value checklist filtering exist, but saved filter chips, multi-column sort, and richer type-aware menus are still missing.
+- Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, and multi-column sort exist, but saved filter chips, persisted sort specs, and richer type-aware menus are still missing.
 - Replace supports current/all and regex basics, but the UI still needs explicit toggles for case sensitivity, whole-cell, and regex mode.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through Command Palette and whole-document materialization; direct grid context menus, multi-row/multi-column operations, and virtualized structural mutation are still missing.

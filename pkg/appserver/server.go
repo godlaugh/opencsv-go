@@ -573,11 +573,12 @@ func (server *Server) handleFilterValues(w http.ResponseWriter, r *http.Request)
 }
 
 type sortRequest struct {
-	DocumentID string `json:"documentId"`
-	Column     int    `json:"column"`
-	Descending bool   `json:"descending"`
-	Numeric    bool   `json:"numeric"`
-	HasHeader  bool   `json:"hasHeader"`
+	DocumentID string             `json:"documentId"`
+	Column     int                `json:"column"`
+	Descending bool               `json:"descending"`
+	Numeric    bool               `json:"numeric"`
+	HasHeader  bool               `json:"hasHeader"`
+	Keys       []docstore.SortKey `json:"keys"`
 }
 
 func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
@@ -591,6 +592,7 @@ func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
 		Descending: request.Descending,
 		Numeric:    request.Numeric,
 		HasHeader:  request.HasHeader,
+		Keys:       request.Keys,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

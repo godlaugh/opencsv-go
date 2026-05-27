@@ -58,6 +58,7 @@ Goal: beat the feel of existing CSV editors.
 - Range selection and copy/paste.
 - Keyboard shortcuts and command palette.
 - Column menu with sort, filter, profile, rename, clean.
+- Multi-column sort composition from column headers.
 - Responsive inspector for selected column and cell.
 
 Acceptance target: million-row scrolling stays fluid and selection feels native.

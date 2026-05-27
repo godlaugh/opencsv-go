@@ -68,7 +68,7 @@ flowchart TD
   - File-status check and clean-document refresh from disk.
   - Window reads with edits applied.
   - Save policy.
-  - Find, replace, contains-filter, SQL WHERE filter, and single-column sort view mapping.
+  - Find, replace, contains-filter, SQL WHERE filter, and stable multi-column sort view mapping.
   - Column value frequency summaries and selected-value row filtering.
 
 - `pkg/sqlexpr`
@@ -135,7 +135,7 @@ flowchart TD
   - Frozen header layer with body clipping.
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
-  - Column header quick menu for sort ascending/descending, selected-value filter, blank/non-blank SQL filters, and clear view.
+  - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
   - Column value checklist inside the header quick menu.
   - Hidden SQL/Diff/Profile overlays explicitly use `[hidden]` display suppression so inactive panels cannot intercept grid input.
 
@@ -157,8 +157,8 @@ flowchart TD
   - Regex/case/whole-cell command metadata.
 
 - `pkg/sort`
-  - Stable multi-column sort.
-  - Text/number/date modes.
+  - Dedicated sorting worker package if sorting grows beyond `pkg/document`.
+  - Text/number/date modes beyond the current string/numeric foundation.
 
 - `pkg/sqlitebridge`
   - Future SQLite-compatible query execution.
@@ -453,12 +453,13 @@ Output:
 ### Browser Tests
 
 - Initial UI has no fake file.
-- Open button triggers file chooser.
+- Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
 - Header remains stable after wheel scroll.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.
+- Column header quick menu can append a secondary sort key and report the composed sort order.
 - Column header value checklist can load distinct values with counts and filter by multiple selected values.
 - Cell Value panel follows the active cell, applies edits through `/api/edit`, respects read-only mode, and exposes URL-like cell values as links.
 - Read-only mode prevents frontend edit entry and backend writes.

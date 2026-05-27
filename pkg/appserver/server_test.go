@@ -362,6 +362,50 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerSortMultipleColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi-sort.csv")
+	if err := os.WriteFile(path, []byte("id,group,score\n1,A,2\n2,B,1\n3,A,1\n4,B,2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	sortPayload := postJSON(t, handler, "/api/sort", map[string]any{
+		"documentId": documentID,
+		"hasHeader":  true,
+		"keys": []map[string]any{
+			{"column": 1},
+			{"column": 2, "descending": true, "numeric": true},
+		},
+	})
+	if sortPayload["totalRows"].(float64) != 4 {
+		t.Fatalf("sort totalRows = %#v, want 4", sortPayload["totalRows"])
+	}
+
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	var got []string
+	for _, item := range rows {
+		row := item.([]any)
+		got = append(got, row[0].(string))
+	}
+	want := []string{"1", "3", "4", "2"}
+	if len(got) != len(want) {
+		t.Fatalf("sorted ids = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("sorted ids = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestServerUploadOpen(t *testing.T) {
 	handler := New(t.TempDir()).Handler()
 	var body bytes.Buffer

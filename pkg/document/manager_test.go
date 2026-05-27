@@ -134,6 +134,51 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 }
 
+func TestManagerSortMultipleColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi-sort.csv")
+	if err := os.WriteFile(path, []byte("id,group,score\n1,A,2\n2,B,1\n3,A,1\n4,B,2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "multi-sort.csv", csvcore.OpenOptions{PreviewRows: 5, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	count, err := manager.Sort(session.ID, SortOptions{
+		HasHeader: true,
+		Keys: []SortKey{
+			{Column: 1},
+			{Column: 2, Descending: true, Numeric: true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Fatalf("sort count = %d, want 4", count)
+	}
+
+	window, err := manager.Window(session.ID, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, row := range window.Rows {
+		got = append(got, row[0])
+	}
+	want := []string{"1", "3", "4", "2"}
+	if len(got) != len(want) {
+		t.Fatalf("sorted ids = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("sorted ids = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestManagerStructuralMutationsUndoRedo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")
