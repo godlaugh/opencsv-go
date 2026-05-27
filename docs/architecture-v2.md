@@ -148,6 +148,7 @@ flowchart TD
 - `web Search Controls`
   - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, and regex mode.
   - Toggles map directly to existing `/api/find` and `/api/replace` request options.
+  - Match count display plus Previous/Next navigation for the current result window.
 
 - `web File State`
   - Read-only toggle wired through command metadata and API state.
@@ -458,6 +459,7 @@ Output:
 - Command registry endpoint.
 - Theme command metadata.
 - Find/Replace option request coverage.
+- Find detailed total/truncation coverage.
 - Diff endpoint.
 - SQL endpoint.
 - SQL aggregate query unit/API tests.
@@ -488,6 +490,7 @@ Output:
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, and regex searches from the toolbar.
+- Find toolbar shows current/total match count and navigates previous/next matches.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
 
 ### Performance Tests

@@ -29,6 +29,9 @@ const replaceInput = document.querySelector("#replaceInput");
 const filterButton = document.querySelector("#filterButton");
 const sortButton = document.querySelector("#sortButton");
 const findButton = document.querySelector("#findButton");
+const findPrevButton = document.querySelector("#findPrevButton");
+const findNextButton = document.querySelector("#findNextButton");
+const findMatchCount = document.querySelector("#findMatchCount");
 const replaceButton = document.querySelector("#replaceButton");
 const replaceAllButton = document.querySelector("#replaceAllButton");
 const findCaseButton = document.querySelector("#findCaseButton");
@@ -115,6 +118,7 @@ let cellValueInputKey = "";
 let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
+let findState = emptyFindState();
 const quotePolicy = "minimal";
 const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -302,6 +306,10 @@ function updateCommandState() {
   readOnlyButton.setAttribute("aria-pressed", String(readOnly));
   sqlTabButton.disabled = !hasDocument || commandsById.get("view.sql")?.implemented === false;
   profileTabButton.disabled = !hasDocument || commandsById.get("view.profile")?.implemented === false;
+  if (!hasDocument) {
+    findPrevButton.disabled = true;
+    findNextButton.disabled = true;
+  }
 }
 
 function isCommandDisabled(command) {
@@ -1164,6 +1172,7 @@ function loadDocument(document) {
   viewMapped = false;
   sortDescending = false;
   sortKeys = [];
+  invalidateFindState();
   document.preview.forEach((record, index) => {
     if (index < dataStartRow) return;
     const displayRow = index - dataStartRow;
@@ -1458,35 +1467,70 @@ async function maybeLoadWindow(row) {
 }
 
 async function findCurrentQuery() {
+  await runFind(0, true);
+}
+
+async function findNextMatch(direction) {
+  if (!documentId) return;
+  await runFind(direction, false);
+}
+
+async function runFind(direction, forceRefresh) {
   if (!documentId) return;
   const search = parseSearchQuery(commandInput.value);
   const query = search.query;
   if (!query) {
     status.textContent = "Type text to find.";
+    findState = emptyFindState();
+    updateFindMatchCount();
     return;
   }
+  const key = findKey(search);
+  if (forceRefresh || findState.key !== key || findState.matches.length === 0) {
+    const ok = await refreshFindState(search, key);
+    if (!ok) return;
+  }
+  if (findState.matches.length === 0) {
+    status.textContent = `No matches for ${query}`;
+    updateFindMatchCount();
+    return;
+  }
+  if (direction !== 0) {
+    findState.index = (findState.index + direction + findState.matches.length) % findState.matches.length;
+  }
+  await selectFindMatch(findState.matches[findState.index], search.query);
+}
+
+async function refreshFindState(search, key) {
   const response = await fetch("/api/find", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       documentId,
-      query,
+      query: search.query,
       regex: search.regex,
       caseSensitive: search.caseSensitive,
       wholeCell: search.wholeCell,
-      limit: 1,
+      limit: 5000,
     }),
   });
   const payload = await response.json();
   if (!response.ok) {
     status.textContent = `Find failed: ${payload.error ?? "unknown error"}`;
-    return;
+    return false;
   }
-  const match = payload.matches?.[0];
-  if (!match) {
-    status.textContent = `No matches for ${query}`;
-    return;
-  }
+  findState = {
+    key,
+    matches: payload.matches ?? [],
+    total: payload.total ?? payload.matches?.length ?? 0,
+    truncated: Boolean(payload.truncated),
+    index: 0,
+  };
+  updateFindMatchCount();
+  return true;
+}
+
+async function selectFindMatch(match, query) {
   if (viewMapped) await clearView();
   const displayRow = Math.max(0, match.row - dataStartRow);
   selected = { row: displayRow, col: match.col };
@@ -1494,7 +1538,11 @@ async function findCurrentQuery() {
   scrollY = Math.max(0, displayRow * rowHeight - rowHeight * 2);
   await maybeLoadWindow(displayRow);
   draw();
-  status.textContent = `Found ${query} at row ${displayRow + 1}, column ${match.col + 1}`;
+  updateFindMatchCount();
+  const ordinal = findState.index + 1;
+  const total = findState.total;
+  const loadedNote = findState.truncated ? ` (showing first ${findState.matches.length.toLocaleString()})` : "";
+  status.textContent = `Found ${ordinal.toLocaleString()} of ${total.toLocaleString()} for ${query} at row ${displayRow + 1}, column ${match.col + 1}${loadedNote}`;
 }
 
 async function replaceCurrentQuery(all) {
@@ -1530,6 +1578,7 @@ async function replaceCurrentQuery(all) {
   }
   dirty = payload.dirty ?? true;
   profileData = null;
+  invalidateFindState();
   const first = payload.changes?.[0];
   rows = new Map();
   rowSource = new Map();
@@ -1558,10 +1607,39 @@ function parseSearchQuery(raw) {
   return { query, regex, caseSensitive, wholeCell: findWholeCell };
 }
 
+function findKey(search) {
+  return JSON.stringify({
+    documentId,
+    query: search.query,
+    regex: search.regex,
+    caseSensitive: search.caseSensitive,
+    wholeCell: search.wholeCell,
+  });
+}
+
+function emptyFindState() {
+  return { key: "", matches: [], total: 0, truncated: false, index: 0 };
+}
+
+function invalidateFindState() {
+  findState = emptyFindState();
+  updateFindMatchCount();
+}
+
+function updateFindMatchCount() {
+  const current = findState.matches.length ? findState.index + 1 : 0;
+  const total = findState.total || 0;
+  findMatchCount.textContent = `${current.toLocaleString()}/${total.toLocaleString()}`;
+  const enabled = Boolean(documentId && total > 0);
+  findPrevButton.disabled = !enabled;
+  findNextButton.disabled = !enabled;
+}
+
 function toggleFindOption(option) {
   if (option === "case") findCaseSensitive = !findCaseSensitive;
   if (option === "whole") findWholeCell = !findWholeCell;
   if (option === "regex") findRegex = !findRegex;
+  invalidateFindState();
   updateFindOptionButtons();
 }
 
@@ -2588,6 +2666,8 @@ openCellLink.addEventListener("click", (event) => {
   }
 });
 findButton.addEventListener("click", findCurrentQuery);
+findPrevButton.addEventListener("click", () => findNextMatch(-1));
+findNextButton.addEventListener("click", () => findNextMatch(1));
 replaceButton.addEventListener("click", () => replaceCurrentQuery(false));
 replaceAllButton.addEventListener("click", () => replaceCurrentQuery(true));
 findCaseButton.addEventListener("click", () => toggleFindOption("case"));
@@ -2598,8 +2678,9 @@ sortButton.addEventListener("click", sortSelectedColumn);
 commandInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
-  await findCurrentQuery();
+  await findNextMatch(event.shiftKey ? -1 : 1);
 });
+commandInput.addEventListener("input", invalidateFindState);
 window.addEventListener("resize", resize);
 if ("ResizeObserver" in window) {
   const gridResizeObserver = new ResizeObserver(resize);

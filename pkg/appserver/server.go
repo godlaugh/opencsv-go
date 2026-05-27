@@ -444,7 +444,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	matches, err := server.documents.Find(request.DocumentID, docstore.FindOptions{
+	result, err := server.documents.FindDetailed(request.DocumentID, docstore.FindOptions{
 		Query:         request.Query,
 		Column:        request.Column,
 		CaseSensitive: request.CaseSensitive,
@@ -456,7 +456,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"matches": matches})
+	writeJSON(w, http.StatusOK, result)
 }
 
 type replaceRequest struct {

@@ -179,6 +179,27 @@ func TestManagerSortMultipleColumns(t *testing.T) {
 	}
 }
 
+func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,ada\n3,Ada Byron\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FindDetailed(session.ID, FindOptions{Query: "ada", Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 3 || len(result.Matches) != 1 || !result.Truncated {
+		t.Fatalf("find result = %#v, want total 3, one stored match, truncated", result)
+	}
+}
+
 func TestManagerStructuralMutationsUndoRedo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

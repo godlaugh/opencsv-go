@@ -438,43 +438,58 @@ type Match struct {
 	Value string `json:"value"`
 }
 
+type FindResult struct {
+	Matches   []Match `json:"matches"`
+	Total     int     `json:"total"`
+	Truncated bool    `json:"truncated"`
+}
+
 func (manager *Manager) Find(id string, options FindOptions) ([]Match, error) {
+	result, err := manager.FindDetailed(id, options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Matches, nil
+}
+
+func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult, error) {
 	session, ok := manager.snapshot(id)
 	if !ok {
-		return nil, errors.New("document not found")
+		return FindResult{}, errors.New("document not found")
 	}
 	if options.Query == "" {
-		return nil, nil
+		return FindResult{}, nil
 	}
 	if options.Limit <= 0 {
 		options.Limit = 100
 	}
 	matcher, err := newMatcher(options)
 	if err != nil {
-		return nil, err
+		return FindResult{}, err
 	}
 
 	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
 	if err != nil {
-		return nil, err
+		return FindResult{}, err
 	}
 	applyEdits(records, 0, session.Edits)
 
 	var matches []Match
+	total := 0
 	for row, record := range records {
 		for col, value := range record {
 			if options.Column != nil && col != *options.Column {
 				continue
 			}
 			if matcher.matches(value) {
-				matches = append(matches, Match{Row: row, Col: col, Value: value})
-				if len(matches) >= options.Limit {
-					return matches, nil
+				total++
+				if len(matches) < options.Limit {
+					matches = append(matches, Match{Row: row, Col: col, Value: value})
 				}
 			}
 		}
 	}
-	return matches, nil
+	return FindResult{Matches: matches, Total: total, Truncated: total > len(matches)}, nil
 }
 
 type ReplaceOptions struct {

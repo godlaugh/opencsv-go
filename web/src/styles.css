@@ -220,6 +220,17 @@ button:disabled {
   color: var(--text);
 }
 
+.find-match-count {
+  display: grid;
+  min-width: 46px;
+  height: 30px;
+  place-items: center;
+  color: var(--muted);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
 .segmented button,
 .tool-actions button,
 .file-open button {

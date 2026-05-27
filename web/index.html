@@ -42,6 +42,9 @@
             <button id="filterButton" type="button" title="Filter" data-command="view.filter">Filter</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>
             <button id="findButton" type="button" title="Find" data-command="edit.find">Find</button>
+            <button id="findPrevButton" type="button" title="Previous match">↑</button>
+            <span id="findMatchCount" class="find-match-count" aria-live="polite">0/0</span>
+            <button id="findNextButton" type="button" title="Next match">↓</button>
             <button id="replaceButton" type="button" title="Replace first match" data-command="edit.replace">Replace</button>
             <button id="replaceAllButton" type="button" title="Replace all matches" data-command="edit.replaceAll">All</button>
             <button id="diffButton" type="button" title="Compare files" data-command="diff.open">Compare</button>
@@ -146,6 +149,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-find-options"></script>
+    <script type="module" src="./src/app.js?v=m2-find-nav"></script>
   </body>
 </html>

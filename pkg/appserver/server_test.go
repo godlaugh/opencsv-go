@@ -250,6 +250,9 @@ func TestServerFindFilterSort(t *testing.T) {
 	if !ok || len(matches) != 1 {
 		t.Fatalf("matches = %#v, want one match", findPayload["matches"])
 	}
+	if findPayload["total"].(float64) != 1 || findPayload["truncated"].(bool) {
+		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
+	}
 
 	replacePayload := postJSON(t, handler, "/api/replace", map[string]any{
 		"documentId":  documentID,
