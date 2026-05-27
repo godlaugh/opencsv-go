@@ -12,6 +12,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-002 | Detect delimiter, encoding, line ending, header | In progress | `pkg/csvcore` tests |
 | FR-002/004 | Minimal quote-policy detection and quote indicators | Started | `pkg/csvcore` tests, Browser Inspector/status verification |
 | FR-003 | Canvas grid with stable header/body clipping | In progress | Browser DOM workflow plus JS check |
+| FR-003 | Mouse drag, row-label, and column-header selection foundation | Started | Browser selection-range verification |
 | FR-003 | Cell value panel and hyperlink opening foundation | Started | Browser Inspector verification |
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
 | FR-004 | Undo/redo and row/column insert/delete foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser command-palette verification |
@@ -19,6 +20,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-013 | Clipboard copy/paste foundation | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy with headers foundation | Started | `pkg/clipboard` tests, command registry, Browser generated-copy verification |
+| FR-013/015 | Toggle header in selection foundation | Started | command registry, Browser shortcut verification |
 | FR-005 | Find text | Started | `/api/find`, toolbar query, Browser verification |
 | FR-005 | Replace current/all foundation | Started | `/api/replace`, `pkg/document` tests, Browser verification |
 | FR-005 | Find/Replace mode toggles | Started | API support, Browser toolbar verification |
@@ -57,6 +59,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find mode verification on `/tmp/opencsv-find-modes.csv`: default case-insensitive search for `ada` selects row 1; enabling `Aa` selects row 2; enabling `=` whole-cell mode matches exact `Ada`; enabling `.*` regex mode matches `^Ada Byron$` at row 3. The three toolbar toggles expose correct `aria-pressed` state.
 - Find navigation verification on `/tmp/opencsv-find-nav.csv`: searching `Ada` reports `1/3`, Next advances to `2/3`, and Previous returns to `1/3` while the selected grid row follows the active match.
 - Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the frozen header at a constant 36px without clipped body text touching its lower edge.
+- Mouse selection verification on `/tmp/opencsv-m0-bench.csv`: URL boot open via `?open=/tmp/opencsv-m0-bench.csv` loads the file, body drag selects `0:0-2:1`, row-label click selects `1:0-1:11`, column-header click selects `0:0-9999:0`, `Shift+Alt+H` toggles header inclusion so the selection marker becomes `0:0-9999:0:headers`, and clicking the header menu glyph still opens the `id` column menu.
 - Command registry disables document-scoped commands before open and enables implemented commands after opening a CSV, including SQL and Profile.
 - `/api/diff` compares `/tmp/opencsv-diff-left.csv` and `/tmp/opencsv-diff-right.csv`, reporting `changed: 1`, `added: 1`, `deleted: 0`.
 - Diff View opens from Compare, accepts left/right paths, runs the same files, shows unchanged/changed/added rows, and displays changed cell `c2: Linus -> Ken`.
@@ -132,9 +135,9 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace supports current/all and regex/case/whole-cell modes, but replace preview and search-within-selection are still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through Command Palette and whole-document materialization; direct grid context menus, multi-row/multi-column operations, and virtualized structural mutation are still missing.
-- Multi-cell selection/editing is a keyboard-first foundation; mouse drag selection, fill handle, Excel-specific paste behavior, and richer copy/export surfaces are still missing.
+- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, and column-header selection; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces are still missing.
 - Cell Value panel and hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
-- Clipboard support is implemented as a foundation, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, persistent header-in-selection controls, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
+- Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
 - SQL console is implemented as a useful subset, including basic aggregation, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, HAVING, or query history.

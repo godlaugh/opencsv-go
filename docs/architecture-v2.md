@@ -429,6 +429,7 @@ Output:
 - Body rows are clipped to `y >= headerHeight`.
 - Vertical wheel movement is accumulated and applied in whole-row steps so body text never appears as a clipped partial row directly under the frozen header.
 - Selection is clipped to body area.
+- Large selections render only the visible row/column intersection, and aggregate statistics fall back to a count-only summary past the synchronous sample limit.
 - Row gutter is separate visual region.
 - No body row may draw over header.
 - Canvas dimensions are stable after resize.
@@ -470,9 +471,11 @@ Output:
 ### Browser Tests
 
 - Initial UI has no fake file.
+- Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows.
 - Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
 - Header remains stable after wheel scroll.
+- Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.

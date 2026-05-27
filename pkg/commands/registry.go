@@ -31,6 +31,7 @@ func Registry() []Command {
 		{ID: "edit.redo", Title: "Redo", Description: "Redo the last undone editing operation.", Shortcut: "Cmd+Shift+Z", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.copy", Title: "Copy", Description: "Copy the selected cells as tab-separated text.", Shortcut: "Cmd+C", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.copyWithHeaders", Title: "Copy with Headers", Description: "Copy the selected cells as tab-separated text with a header row.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"copy header", "header copy"}},
+		{ID: "selection.toggleHeaders", Title: "Toggle Header in Selection", Description: "Include or exclude column headers when copying the current selection.", Shortcut: "Shift+Alt+H", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"header selection", "include headers"}},
 		{ID: "edit.copyCsv", Title: "Copy as CSV", Description: "Copy the selected cells as CSV text.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"csv copy"}},
 		{ID: "edit.copyMarkdown", Title: "Copy as Markdown", Description: "Copy the selected cells as a Markdown table.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"markdown copy"}},
 		{ID: "edit.copyJson", Title: "Copy as JSON", Description: "Copy the selected cells as a JSON array.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"json copy"}},

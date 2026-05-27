@@ -89,6 +89,8 @@ let scrollY = 0;
 let wheelRemainderY = 0;
 let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
+let draggingSelection = false;
+let dragSelectionMode = "cell";
 let editing = false;
 let documentId = "";
 let metadata = null;
@@ -120,6 +122,7 @@ let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
 let findState = emptyFindState();
+let includeHeadersInSelection = false;
 const quotePolicy = "minimal";
 const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -252,6 +255,7 @@ function draw() {
   const aggregate = selectionAggregate();
   const modeLabel = readOnly ? " - read-only" : "";
   const externalLabel = externalFileChanged ? " - external change" : "";
+  document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   status.textContent =
     documentId
       ? `${totalRows.toLocaleString()} rows, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
@@ -485,10 +489,20 @@ function selectionCellCount() {
   return (range.endRow - range.startRow + 1) * (range.endCol - range.startCol + 1);
 }
 
+function selectionSummary(range = normalizedSelection()) {
+  if (!documentId || columns.length === 0 || totalRows === 0) return "";
+  const base = `${range.startRow}:${range.startCol}-${range.endRow}:${range.endCol}`;
+  return includeHeadersInSelection ? `${base}:headers` : base;
+}
+
 function selectionAggregate() {
   const count = selectionCellCount();
   if (count <= 1) return "";
   const range = normalizedSelection();
+  if (count > 5000) {
+    const headerNote = includeHeadersInSelection ? ", headers included" : "";
+    return ` - selected ${formatCount(count)} cells${headerNote}`;
+  }
   let numericCount = 0;
   let sum = 0;
   let minValue = Number.POSITIVE_INFINITY;
@@ -621,6 +635,9 @@ async function executeCommand(commandID) {
       break;
     case "edit.copyWithHeaders":
       await copySelection("tsv", { includeHeaders: true });
+      break;
+    case "selection.toggleHeaders":
+      toggleHeaderInSelection();
       break;
     case "edit.copyCsv":
       await copySelection("csv");
@@ -882,9 +899,16 @@ function drawSelection() {
   ctx.rect(0, headerHeight, canvas.clientWidth, Math.max(0, canvas.clientHeight - headerHeight));
   ctx.clip();
 
+  const firstVisibleRow = Math.max(range.startRow, Math.floor(scrollY / rowHeight));
+  const lastVisibleRow = Math.min(
+    range.endRow,
+    Math.ceil((scrollY + canvas.clientHeight - headerHeight) / rowHeight),
+  );
+  const visibleColumns = visibleColumnIndexes(range);
+
   ctx.fillStyle = themeColors.selectionBg;
-  for (let row = range.startRow; row <= range.endRow; row++) {
-    for (let col = range.startCol; col <= range.endCol; col++) {
+  for (let row = firstVisibleRow; row <= lastVisibleRow; row++) {
+    for (const col of visibleColumns) {
       const rect = cellRect(row, col);
       if (!rect) continue;
       ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
@@ -903,6 +927,24 @@ function drawSelection() {
   ctx.restore();
 }
 
+function visibleColumnIndexes(range = normalizedSelection()) {
+  const visible = [];
+  let x = rowNumberWidth - scrollX;
+  for (let col = 0; col < columns.length; col++) {
+    const width = columns[col].width;
+    if (
+      col >= range.startCol &&
+      col <= range.endCol &&
+      x + width >= rowNumberWidth &&
+      x <= canvas.clientWidth
+    ) {
+      visible.push(col);
+    }
+    x += width;
+  }
+  return visible;
+}
+
 function cellRect(row, col) {
   if (!columns[col]) return null;
   const y = headerHeight + row * rowHeight - scrollY;
@@ -914,6 +956,12 @@ function cellRect(row, col) {
   return { x, y, width, height: rowHeight };
 }
 
+function columnLeft(col) {
+  let x = rowNumberWidth - scrollX;
+  for (let index = 0; index < col; index++) x += columns[index]?.width ?? 0;
+  return x;
+}
+
 function columnAt(x) {
   let current = rowNumberWidth - scrollX;
   for (let col = 0; col < columns.length; col++) {
@@ -922,6 +970,66 @@ function columnAt(x) {
     current += width;
   }
   return -1;
+}
+
+function rowAt(y) {
+  if (totalRows <= 0) return -1;
+  const row = Math.floor((y - headerHeight + scrollY) / rowHeight);
+  return Math.max(0, Math.min(totalRows - 1, row));
+}
+
+function clampColumn(col) {
+  return Math.max(0, Math.min(columns.length - 1, col));
+}
+
+function isHeaderMenuTarget(x, col) {
+  if (!columns[col]) return false;
+  const left = columnLeft(col);
+  return x >= left + columns[col].width - 28;
+}
+
+function columnAtOrNearest(x) {
+  if (columns.length === 0) return -1;
+  const col = columnAt(x);
+  if (col >= 0) return col;
+  return x < rowNumberWidth ? 0 : columns.length - 1;
+}
+
+function selectRowRange(row, extend = false) {
+  if (totalRows <= 0 || columns.length === 0) return;
+  const clampedRow = Math.max(0, Math.min(totalRows - 1, row));
+  if (extend) {
+    selectionAnchor = { row: selectionAnchor.row, col: columns.length - 1 };
+  } else {
+    selectionAnchor = { row: clampedRow, col: columns.length - 1 };
+  }
+  selected = { row: clampedRow, col: 0 };
+}
+
+function selectColumnRange(col, extend = false) {
+  if (totalRows <= 0 || columns.length === 0) return;
+  const clampedCol = clampColumn(col);
+  if (extend) {
+    selectionAnchor = { row: totalRows - 1, col: selectionAnchor.col };
+  } else {
+    selectionAnchor = { row: totalRows - 1, col: clampedCol };
+  }
+  selected = { row: 0, col: clampedCol };
+}
+
+function updateDragSelection(event) {
+  if (!draggingSelection) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (dragSelectionMode === "row") {
+    selected = { row: rowAt(y), col: 0 };
+  } else if (dragSelectionMode === "column") {
+    selected = { row: 0, col: columnAtOrNearest(x) };
+  } else {
+    selected = { row: rowAt(y), col: columnAtOrNearest(x) };
+  }
+  draw();
 }
 
 function openColumnMenu(col, clientX, clientY) {
@@ -1218,6 +1326,8 @@ function loadDocument(document) {
   scrollX = 0;
   scrollY = 0;
   wheelRemainderY = 0;
+  includeHeadersInSelection = false;
+  window.document.body.dataset.headerInSelection = "false";
   dirty = false;
 }
 
@@ -1275,10 +1385,21 @@ function selectedHeaders() {
   return headers;
 }
 
+function toggleHeaderInSelection() {
+  if (!documentId) return;
+  includeHeadersInSelection = !includeHeadersInSelection;
+  document.body.dataset.headerInSelection = includeHeadersInSelection ? "true" : "false";
+  draw();
+  status.textContent = includeHeadersInSelection
+    ? "Header included when copying selection"
+    : "Header excluded from selection copy";
+}
+
 async function copySelection(format = "tsv", options = {}) {
   if (!documentId) return;
   const matrix = selectedMatrix();
-  const copyMatrix = options.includeHeaders
+  const includeHeaders = options.includeHeaders ?? includeHeadersInSelection;
+  const copyMatrix = includeHeaders
     ? [selectedHeaders(), ...matrix]
     : matrix;
   const text = formatMatrix(copyMatrix, format);
@@ -1290,7 +1411,7 @@ async function copySelection(format = "tsv", options = {}) {
   document.body.dataset.copyPreview = text.slice(0, 500);
   try {
     await writeClipboardText(text);
-    const headerLabel = options.includeHeaders ? " with headers" : "";
+    const headerLabel = includeHeaders ? " with headers" : "";
     status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel} as ${format.toUpperCase()}`;
   } catch (error) {
     status.textContent = `Copy failed: ${error.message}`;
@@ -2443,6 +2564,7 @@ canvas.addEventListener("wheel", (event) => {
 
 canvas.addEventListener("mousedown", (event) => {
   canvas.focus();
+  if (!documentId || columns.length === 0 || totalRows === 0) return;
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -2451,31 +2573,79 @@ canvas.addEventListener("mousedown", (event) => {
     if (x >= rowNumberWidth && col >= 0) {
       event.preventDefault();
       if (editing) commitEditor();
-      openColumnMenu(col, event.clientX, rect.top + headerHeight + 4);
+      if (isHeaderMenuTarget(x, col)) {
+        openColumnMenu(col, event.clientX, rect.top + headerHeight + 4);
+      } else {
+        closeColumnMenu();
+        if (event.altKey) {
+          includeHeadersInSelection = true;
+          document.body.dataset.headerInSelection = "true";
+        }
+        selectColumnRange(col, event.shiftKey);
+        draggingSelection = true;
+        dragSelectionMode = "column";
+        draw();
+      }
     }
     return;
   }
   closeColumnMenu();
-  if (x < rowNumberWidth) return;
+  if (x < rowNumberWidth) {
+    event.preventDefault();
+    if (editing) commitEditor();
+    selectRowRange(rowAt(y), event.shiftKey);
+    draggingSelection = true;
+    dragSelectionMode = "row";
+    draw();
+    return;
+  }
   const row = Math.floor((y - headerHeight + scrollY) / rowHeight);
   const col = columnAt(x);
   if (row >= 0 && row < totalRows && col >= 0) {
+    event.preventDefault();
     selected = { row, col };
     if (!event.shiftKey) {
       selectionAnchor = { ...selected };
     }
+    draggingSelection = true;
+    dragSelectionMode = "cell";
     if (editing) commitEditor();
     draw();
   }
 });
 
-canvas.addEventListener("dblclick", openEditor);
+window.addEventListener("mousemove", (event) => {
+  if (!draggingSelection) return;
+  event.preventDefault();
+  updateDragSelection(event);
+});
+
+window.addEventListener("mouseup", () => {
+  if (!draggingSelection) return;
+  draggingSelection = false;
+  dragSelectionMode = "cell";
+});
+
+canvas.addEventListener("dblclick", (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (y < headerHeight || x < rowNumberWidth) return;
+  openEditor();
+});
 
 window.addEventListener("copy", (event) => {
   if (!documentId || isTypingTarget(event.target)) return;
   event.preventDefault();
-  event.clipboardData.setData("text/plain", formatMatrix(selectedMatrix(), "tsv"));
-  status.textContent = `Copied ${formatCount(selectionCellCount())} cells`;
+  const matrix = includeHeadersInSelection
+    ? [selectedHeaders(), ...selectedMatrix()]
+    : selectedMatrix();
+  const text = formatMatrix(matrix, "tsv");
+  event.clipboardData.setData("text/plain", text);
+  window.__opencsvLastCopiedText = text;
+  document.body.dataset.copyPreview = text.slice(0, 500);
+  const headerLabel = includeHeadersInSelection ? " with headers" : "";
+  status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel}`;
 });
 
 window.addEventListener("paste", (event) => {
@@ -2514,6 +2684,12 @@ window.addEventListener("keydown", (event) => {
 
 function handleGlobalShortcut(event) {
   const primary = event.metaKey || event.ctrlKey;
+  const key = event.key.toLowerCase();
+  if (event.shiftKey && event.altKey && key === "h") {
+    event.preventDefault();
+    toggleHeaderInSelection();
+    return true;
+  }
   if (primary && event.shiftKey && event.key.toLowerCase() === "p") {
     event.preventDefault();
     openCommandPalette();
@@ -2536,7 +2712,6 @@ function handleGlobalShortcut(event) {
     return true;
   }
   if (!primary || paletteOpen) return false;
-  const key = event.key.toLowerCase();
   if (key === "enter" && event.target === cellValueInput) {
     event.preventDefault();
     applyCellValue();
@@ -2612,6 +2787,18 @@ async function openPathInputOrPicker() {
     fileInput.click();
     return;
   }
+  try {
+    await openPath(path);
+  } catch (error) {
+    status.textContent = `Open failed: ${error.message}`;
+  }
+}
+
+async function openInitialURLTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const path = params.get("open");
+  if (!path) return;
+  pathInput.value = path;
   try {
     await openPath(path);
   } catch (error) {
@@ -2770,3 +2957,4 @@ canvas.tabIndex = 0;
 profilePanel.tabIndex = -1;
 loadCommandRegistry();
 resize();
+openInitialURLTarget();
