@@ -48,6 +48,17 @@ func TestCopyFormats(t *testing.T) {
 	}
 }
 
+func TestWithHeaders(t *testing.T) {
+	matrix := WithHeaders([][]string{{"1", "Ada"}, {"2", "Linus"}}, []string{"id", "name"})
+	if len(matrix) != 3 || matrix[0][0] != "id" || matrix[1][1] != "Ada" {
+		t.Fatalf("matrix with headers = %#v", matrix)
+	}
+	matrix[0][0] = "changed"
+	if got := ToTSV(WithHeaders([][]string{{"1"}}, []string{"id"})); got != "id\n1" {
+		t.Fatalf("header copy tsv = %q", got)
+	}
+}
+
 func TestParseTSV(t *testing.T) {
 	matrix := ParseTSV("a\tb\r\n1\t2\n3\t4\n")
 	if len(matrix) != 3 || matrix[1][1] != "2" || matrix[2][0] != "3" {

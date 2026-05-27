@@ -30,6 +30,7 @@ func Registry() []Command {
 		{ID: "edit.undo", Title: "Undo", Description: "Undo the last editing operation.", Shortcut: "Cmd+Z", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.redo", Title: "Redo", Description: "Redo the last undone editing operation.", Shortcut: "Cmd+Shift+Z", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.copy", Title: "Copy", Description: "Copy the selected cells as tab-separated text.", Shortcut: "Cmd+C", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
+		{ID: "edit.copyWithHeaders", Title: "Copy with Headers", Description: "Copy the selected cells as tab-separated text with a header row.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"copy header", "header copy"}},
 		{ID: "edit.copyCsv", Title: "Copy as CSV", Description: "Copy the selected cells as CSV text.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"csv copy"}},
 		{ID: "edit.copyMarkdown", Title: "Copy as Markdown", Description: "Copy the selected cells as a Markdown table.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"markdown copy"}},
 		{ID: "edit.copyJson", Title: "Copy as JSON", Description: "Copy the selected cells as a JSON array.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"json copy"}},

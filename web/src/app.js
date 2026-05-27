@@ -592,6 +592,9 @@ async function executeCommand(commandID) {
     case "edit.copy":
       await copySelection("tsv");
       break;
+    case "edit.copyWithHeaders":
+      await copySelection("tsv", { includeHeaders: true });
+      break;
     case "edit.copyCsv":
       await copySelection("csv");
       break;
@@ -1235,20 +1238,64 @@ function selectedMatrix() {
   return matrix;
 }
 
-async function copySelection(format = "tsv") {
+function selectedHeaders() {
+  const range = normalizedSelection();
+  const headers = [];
+  for (let col = range.startCol; col <= range.endCol; col++) {
+    headers.push(columns[col]?.name ?? `Column ${col + 1}`);
+  }
+  return headers;
+}
+
+async function copySelection(format = "tsv", options = {}) {
   if (!documentId) return;
   const matrix = selectedMatrix();
-  const text = formatMatrix(matrix, format);
+  const copyMatrix = options.includeHeaders
+    ? [selectedHeaders(), ...matrix]
+    : matrix;
+  const text = formatMatrix(copyMatrix, format);
   if (!text) {
     status.textContent = "No cells selected to copy.";
     return;
   }
+  window.__opencsvLastCopiedText = text;
+  document.body.dataset.copyPreview = text.slice(0, 500);
   try {
-    await navigator.clipboard.writeText(text);
-    status.textContent = `Copied ${formatCount(selectionCellCount())} cells as ${format.toUpperCase()}`;
+    await writeClipboardText(text);
+    const headerLabel = options.includeHeaders ? " with headers" : "";
+    status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel} as ${format.toUpperCase()}`;
   } catch (error) {
     status.textContent = `Copy failed: ${error.message}`;
   }
+}
+
+async function writeClipboardText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch (error) {
+    if (!fallbackCopyText(text)) throw error;
+  }
+}
+
+function fallbackCopyText(text) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  area.style.top = "0";
+  document.body.append(area);
+  area.focus();
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } finally {
+    area.remove();
+    canvas.focus();
+  }
+  return ok;
 }
 
 async function pasteClipboard() {

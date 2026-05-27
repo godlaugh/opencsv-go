@@ -113,6 +113,7 @@ flowchart TD
 
 - `pkg/clipboard`
   - TSV, CSV, Markdown table, JSON, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization.
+  - Header-row prepending for selected-column copy workflows.
   - TSV matrix parsing for spreadsheet-style paste.
 
 - `web Profile View`
@@ -135,7 +136,7 @@ flowchart TD
   - Shift-arrow and Shift-click range expansion.
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
-  - Clipboard event handlers for TSV copy/paste and command handlers for CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy.
+  - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
   - Frozen header layer with body clipping.
@@ -455,7 +456,7 @@ Output:
 - Filter/sort/search endpoints.
 - Undo/redo and row/column mutation endpoints.
 - Batch edit endpoint.
-- Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, and TSV paste.
+- Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, header prepending, and TSV paste.
 - Command registry endpoint.
 - Theme command metadata.
 - Find/Replace option request coverage.
@@ -488,6 +489,7 @@ Output:
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, and Delete Column without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
+- Copy with Headers prepends selected column labels before formatting the selected matrix.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, and regex searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.

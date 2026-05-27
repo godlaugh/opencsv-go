@@ -16,6 +16,15 @@ func ToRaw(matrix [][]string) string {
 	return joinMatrix(matrix, "\t")
 }
 
+func WithHeaders(matrix [][]string, headers []string) [][]string {
+	result := make([][]string, 0, len(matrix)+1)
+	result = append(result, append([]string(nil), headers...))
+	for _, row := range matrix {
+		result = append(result, append([]string(nil), row...))
+	}
+	return result
+}
+
 func ToCSV(matrix [][]string) (string, error) {
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)
