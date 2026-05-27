@@ -620,9 +620,13 @@ func (server *Server) handleViewClear(w http.ResponseWriter, r *http.Request) {
 }
 
 type diffRequest struct {
-	LeftPath  string `json:"leftPath"`
-	RightPath string `json:"rightPath"`
-	MaxRows   int    `json:"maxRows"`
+	LeftPath           string `json:"leftPath"`
+	RightPath          string `json:"rightPath"`
+	MaxRows            int    `json:"maxRows"`
+	IgnoreWhitespace   bool   `json:"ignoreWhitespace"`
+	IgnoreCase         bool   `json:"ignoreCase"`
+	IgnoredColumns     []int  `json:"ignoredColumns"`
+	MatchColumnsByName bool   `json:"matchColumnsByName"`
 }
 
 func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
@@ -642,7 +646,13 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	if request.MaxRows <= 0 {
 		request.MaxRows = 500
 	}
-	result, err := csvdiff.CompareFiles(request.LeftPath, request.RightPath, csvdiff.Options{MaxRows: request.MaxRows})
+	result, err := csvdiff.CompareFiles(request.LeftPath, request.RightPath, csvdiff.Options{
+		MaxRows:            request.MaxRows,
+		IgnoreWhitespace:   request.IgnoreWhitespace,
+		IgnoreCase:         request.IgnoreCase,
+		IgnoredColumns:     request.IgnoredColumns,
+		MatchColumnsByName: request.MatchColumnsByName,
+	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

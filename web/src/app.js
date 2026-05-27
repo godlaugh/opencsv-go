@@ -54,6 +54,10 @@ const diffPanel = document.querySelector("#diffPanel");
 const leftDiffPath = document.querySelector("#leftDiffPath");
 const rightDiffPath = document.querySelector("#rightDiffPath");
 const runDiffButton = document.querySelector("#runDiffButton");
+const diffIgnoreCase = document.querySelector("#diffIgnoreCase");
+const diffIgnoreWhitespace = document.querySelector("#diffIgnoreWhitespace");
+const diffMatchHeaders = document.querySelector("#diffMatchHeaders");
+const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
 const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
@@ -2461,7 +2465,15 @@ async function runDiffCompare() {
   const response = await fetch("/api/diff", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ leftPath, rightPath, maxRows: 1000 }),
+    body: JSON.stringify({
+      leftPath,
+      rightPath,
+      maxRows: 1000,
+      ignoreCase: diffIgnoreCase.checked,
+      ignoreWhitespace: diffIgnoreWhitespace.checked,
+      ignoredColumns: parseColumnList(diffIgnoredColumns.value),
+      matchColumnsByName: diffMatchHeaders.checked,
+    }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -2472,6 +2484,13 @@ async function runDiffCompare() {
   renderDiffResult(payload);
   status.textContent =
     `Diff: ${payload.summary.changed} changed, ${payload.summary.added} added, ${payload.summary.deleted} deleted`;
+}
+
+function parseColumnList(value) {
+  return String(value ?? "")
+    .split(/[,\s]+/)
+    .map((item) => Number.parseInt(item, 10))
+    .filter((item) => Number.isInteger(item) && item > 0);
 }
 
 function renderDiffResult(result) {
@@ -2507,14 +2526,36 @@ function renderDiffResult(result) {
     appendCell(tr, (row.rightRecord ?? []).join(" | "));
     const cells = document.createElement("td");
     cells.className = "diff-cells";
-    cells.textContent = (row.changedCells ?? [])
-      .map((cell) => `c${cell.col}: ${cell.left} -> ${cell.right}`)
-      .join("; ");
+    appendChangedCells(cells, row.changedCells ?? []);
     tr.append(cells);
     tbody.append(tr);
   }
   table.append(tbody);
   diffResult.replaceChildren(table);
+}
+
+function appendChangedCells(container, changedCells) {
+  if (!changedCells.length) return;
+  changedCells.forEach((cell, index) => {
+    if (index > 0) container.append(document.createTextNode("; "));
+    const item = document.createElement("span");
+    item.className = "diff-cell-change";
+    item.append(document.createTextNode(`c${cell.col}: `));
+    appendDiffSpans(item, cell.leftSpans, cell.left);
+    item.append(document.createTextNode(" -> "));
+    appendDiffSpans(item, cell.rightSpans, cell.right);
+    container.append(item);
+  });
+}
+
+function appendDiffSpans(container, spans, fallback) {
+  const source = spans?.length ? spans : [{ text: fallback ?? "", changed: true }];
+  for (const span of source) {
+    const node = document.createElement("span");
+    node.textContent = span.text;
+    if (span.changed) node.className = "diff-inline-change";
+    container.append(node);
+  }
 }
 
 function appendCell(row, value) {
@@ -2861,6 +2902,21 @@ async function openPathInputOrPicker() {
 
 async function openInitialURLTarget() {
   const params = new URLSearchParams(window.location.search);
+  const diffLeft = params.get("diffLeft");
+  const diffRight = params.get("diffRight");
+  if (diffLeft || diffRight) {
+    leftDiffPath.value = diffLeft ?? "";
+    rightDiffPath.value = diffRight ?? "";
+    diffIgnoreCase.checked = truthyParam(params.get("diffIgnoreCase"));
+    diffIgnoreWhitespace.checked = truthyParam(params.get("diffIgnoreWhitespace"));
+    diffMatchHeaders.checked = truthyParam(params.get("diffMatchHeaders"));
+    diffIgnoredColumns.value = params.get("diffIgnoredColumns") ?? "";
+    openDiffPanel();
+    if (truthyParam(params.get("diffRun")) && diffLeft && diffRight) {
+      await runDiffCompare();
+    }
+    return;
+  }
   const path = params.get("open");
   if (!path) return;
   pathInput.value = path;
@@ -2869,6 +2925,10 @@ async function openInitialURLTarget() {
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
   }
+}
+
+function truthyParam(value) {
+  return value === "1" || value === "true" || value === "yes";
 }
 
 openButton.addEventListener("click", openPathInputOrPicker);

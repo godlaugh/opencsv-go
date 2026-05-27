@@ -16,8 +16,12 @@ const (
 )
 
 type Options struct {
-	PreviewRows int
-	MaxRows     int
+	PreviewRows        int
+	MaxRows            int
+	IgnoreWhitespace   bool
+	IgnoreCase         bool
+	IgnoredColumns     []int
+	MatchColumnsByName bool
 }
 
 type Result struct {
@@ -45,9 +49,16 @@ type RowDiff struct {
 }
 
 type CellDiff struct {
-	Col   int    `json:"col"`
-	Left  string `json:"left"`
-	Right string `json:"right"`
+	Col        int        `json:"col"`
+	Left       string     `json:"left"`
+	Right      string     `json:"right"`
+	LeftSpans  []TextSpan `json:"leftSpans,omitempty"`
+	RightSpans []TextSpan `json:"rightSpans,omitempty"`
+}
+
+type TextSpan struct {
+	Text    string `json:"text"`
+	Changed bool   `json:"changed"`
 }
 
 func CompareFiles(leftPath string, rightPath string, options Options) (Result, error) {
@@ -74,8 +85,11 @@ func CompareFiles(leftPath string, rightPath string, options Options) (Result, e
 }
 
 func CompareRecords(leftPath string, rightPath string, leftRecords [][]string, rightRecords [][]string, options Options) Result {
-	ops := diffOps(leftRecords, rightRecords)
-	rows := materializeRows(leftRecords, rightRecords, ops)
+	displayLeft, displayRight := displayRecords(leftRecords, rightRecords, options)
+	compareLeft := comparableRecords(displayLeft, options)
+	compareRight := comparableRecords(displayRight, options)
+	ops := diffOps(compareLeft, compareRight)
+	rows := materializeRows(displayLeft, displayRight, compareLeft, compareRight, ops, options)
 	result := Result{LeftPath: leftPath, RightPath: rightPath, Rows: rows}
 	if options.MaxRows > 0 && len(result.Rows) > options.MaxRows {
 		result.Rows = result.Rows[:options.MaxRows]
@@ -117,7 +131,7 @@ func diffOps(left [][]string, right [][]string) []op {
 	}
 	for i := len(left) - 1; i >= 0; i-- {
 		for j := len(right) - 1; j >= 0; j-- {
-			if sameRecord(left[i], right[j]) {
+			if recordsEqual(left[i], right[j]) {
 				lcs[i][j] = lcs[i+1][j+1] + 1
 			} else if lcs[i+1][j] >= lcs[i][j+1] {
 				lcs[i][j] = lcs[i+1][j]
@@ -130,7 +144,7 @@ func diffOps(left [][]string, right [][]string) []op {
 	var ops []op
 	i, j := 0, 0
 	for i < len(left) && j < len(right) {
-		if sameRecord(left[i], right[j]) {
+		if recordsEqual(left[i], right[j]) {
 			ops = append(ops, op{kind: opEqual, left: i, right: j})
 			i++
 			j++
@@ -153,7 +167,7 @@ func diffOps(left [][]string, right [][]string) []op {
 	return ops
 }
 
-func materializeRows(left [][]string, right [][]string, ops []op) []RowDiff {
+func materializeRows(left [][]string, right [][]string, compareLeft [][]string, compareRight [][]string, ops []op, options Options) []RowDiff {
 	var rows []RowDiff
 	for index := 0; index < len(ops); {
 		if ops[index].kind == opEqual {
@@ -174,12 +188,12 @@ func materializeRows(left [][]string, right [][]string, ops []op) []RowDiff {
 		for index < len(ops) && ops[index].kind != opEqual {
 			index++
 		}
-		rows = append(rows, materializeChangeBlock(left, right, ops[start:index])...)
+		rows = append(rows, materializeChangeBlock(left, right, compareLeft, compareRight, ops[start:index], options)...)
 	}
 	return rows
 }
 
-func materializeChangeBlock(left [][]string, right [][]string, ops []op) []RowDiff {
+func materializeChangeBlock(left [][]string, right [][]string, compareLeft [][]string, compareRight [][]string, ops []op, options Options) []RowDiff {
 	var deleted []int
 	var added []int
 	for _, op := range ops {
@@ -196,7 +210,7 @@ func materializeChangeBlock(left [][]string, right [][]string, ops []op) []RowDi
 	for leftPos < len(deleted) && rightPos < len(added) {
 		leftIndex := deleted[leftPos]
 		rightIndex := added[rightPos]
-		if likelySameLogicalRow(left[leftIndex], right[rightIndex]) {
+		if likelySameLogicalRow(compareLeft[leftIndex], compareRight[rightIndex]) {
 			leftRow := displayRow(leftIndex)
 			rightRow := displayRow(rightIndex)
 			rows = append(rows, RowDiff{
@@ -205,7 +219,7 @@ func materializeChangeBlock(left [][]string, right [][]string, ops []op) []RowDi
 				RightRow:     &rightRow,
 				LeftRecord:   left[leftIndex],
 				RightRecord:  right[rightIndex],
-				ChangedCells: changedCells(left[leftIndex], right[rightIndex]),
+				ChangedCells: changedCells(left[leftIndex], right[rightIndex], compareLeft[leftIndex], compareRight[rightIndex], options),
 			})
 			leftPos++
 			rightPos++
@@ -245,21 +259,212 @@ func likelySameLogicalRow(left []string, right []string) bool {
 	return left[0] == right[0]
 }
 
-func changedCells(left []string, right []string) []CellDiff {
+func changedCells(left []string, right []string, compareLeft []string, compareRight []string, options Options) []CellDiff {
 	width := max(len(left), len(right))
 	cells := make([]CellDiff, 0)
 	for col := 0; col < width; col++ {
 		leftValue := cell(left, col)
 		rightValue := cell(right, col)
-		if leftValue != rightValue {
-			cells = append(cells, CellDiff{Col: col + 1, Left: leftValue, Right: rightValue})
+		if cell(compareLeft, col) != cell(compareRight, col) {
+			leftSpans, rightSpans := inlineSpans(leftValue, rightValue, options)
+			cells = append(cells, CellDiff{
+				Col:        col + 1,
+				Left:       leftValue,
+				Right:      rightValue,
+				LeftSpans:  leftSpans,
+				RightSpans: rightSpans,
+			})
 		}
 	}
 	return cells
 }
 
-func sameRecord(left []string, right []string) bool {
+func recordsEqual(left []string, right []string) bool {
 	return strings.Join(left, "\x00") == strings.Join(right, "\x00")
+}
+
+func displayRecords(left [][]string, right [][]string, options Options) ([][]string, [][]string) {
+	if options.MatchColumnsByName {
+		left, right = alignColumnsByHeader(left, right)
+	}
+	if len(options.IgnoredColumns) > 0 {
+		ignored := ignoredColumnSet(options.IgnoredColumns)
+		left = removeIgnoredColumns(left, ignored)
+		right = removeIgnoredColumns(right, ignored)
+	}
+	return cloneRecords(left), cloneRecords(right)
+}
+
+func alignColumnsByHeader(left [][]string, right [][]string) ([][]string, [][]string) {
+	if len(left) == 0 || len(right) == 0 {
+		return left, right
+	}
+	leftHeader := left[0]
+	rightHeader := right[0]
+	rightByHeader := make(map[string]int, len(rightHeader))
+	for index, header := range rightHeader {
+		if _, exists := rightByHeader[header]; !exists {
+			rightByHeader[header] = index
+		}
+	}
+
+	usedRight := make(map[int]bool, len(rightHeader))
+	leftColumns := make([]int, 0, len(leftHeader)+len(rightHeader))
+	rightColumns := make([]int, 0, len(leftHeader)+len(rightHeader))
+	for leftIndex, header := range leftHeader {
+		leftColumns = append(leftColumns, leftIndex)
+		if rightIndex, ok := rightByHeader[header]; ok {
+			rightColumns = append(rightColumns, rightIndex)
+			usedRight[rightIndex] = true
+		} else {
+			rightColumns = append(rightColumns, -1)
+		}
+	}
+	for rightIndex := range rightHeader {
+		if usedRight[rightIndex] {
+			continue
+		}
+		leftColumns = append(leftColumns, -1)
+		rightColumns = append(rightColumns, rightIndex)
+	}
+	return projectRecords(left, leftColumns), projectRecords(right, rightColumns)
+}
+
+func ignoredColumnSet(columns []int) map[int]bool {
+	ignored := make(map[int]bool, len(columns))
+	for _, column := range columns {
+		if column > 0 {
+			ignored[column-1] = true
+		}
+	}
+	return ignored
+}
+
+func removeIgnoredColumns(records [][]string, ignored map[int]bool) [][]string {
+	result := make([][]string, 0, len(records))
+	for _, record := range records {
+		next := make([]string, 0, len(record))
+		for index, value := range record {
+			if ignored[index] {
+				continue
+			}
+			next = append(next, value)
+		}
+		result = append(result, next)
+	}
+	return result
+}
+
+func projectRecords(records [][]string, columns []int) [][]string {
+	result := make([][]string, 0, len(records))
+	for _, record := range records {
+		next := make([]string, len(columns))
+		for index, source := range columns {
+			if source >= 0 && source < len(record) {
+				next[index] = record[source]
+			}
+		}
+		result = append(result, next)
+	}
+	return result
+}
+
+func cloneRecords(records [][]string) [][]string {
+	result := make([][]string, len(records))
+	for index, record := range records {
+		result[index] = append([]string(nil), record...)
+	}
+	return result
+}
+
+func comparableRecords(records [][]string, options Options) [][]string {
+	result := make([][]string, len(records))
+	for rowIndex, record := range records {
+		next := make([]string, len(record))
+		for colIndex, value := range record {
+			next[colIndex] = comparableCell(value, options)
+		}
+		result[rowIndex] = next
+	}
+	return result
+}
+
+func comparableCell(value string, options Options) string {
+	if options.IgnoreWhitespace {
+		value = strings.Join(strings.Fields(value), "")
+	}
+	if options.IgnoreCase {
+		value = strings.ToLower(value)
+	}
+	return value
+}
+
+func inlineSpans(left string, right string, options Options) ([]TextSpan, []TextSpan) {
+	leftRunes := []rune(left)
+	rightRunes := []rune(right)
+	lcs := make([][]int, len(leftRunes)+1)
+	for index := range lcs {
+		lcs[index] = make([]int, len(rightRunes)+1)
+	}
+	for i := len(leftRunes) - 1; i >= 0; i-- {
+		for j := len(rightRunes) - 1; j >= 0; j-- {
+			if sameInlineRune(leftRunes[i], rightRunes[j], options) {
+				lcs[i][j] = lcs[i+1][j+1] + 1
+			} else if lcs[i+1][j] >= lcs[i][j+1] {
+				lcs[i][j] = lcs[i+1][j]
+			} else {
+				lcs[i][j] = lcs[i][j+1]
+			}
+		}
+	}
+
+	var leftSpans []TextSpan
+	var rightSpans []TextSpan
+	i, j := 0, 0
+	for i < len(leftRunes) && j < len(rightRunes) {
+		if sameInlineRune(leftRunes[i], rightRunes[j], options) {
+			leftSpans = appendSpan(leftSpans, string(leftRunes[i]), false)
+			rightSpans = appendSpan(rightSpans, string(rightRunes[j]), false)
+			i++
+			j++
+		} else if lcs[i+1][j] >= lcs[i][j+1] {
+			leftSpans = appendSpan(leftSpans, string(leftRunes[i]), true)
+			i++
+		} else {
+			rightSpans = appendSpan(rightSpans, string(rightRunes[j]), true)
+			j++
+		}
+	}
+	for i < len(leftRunes) {
+		leftSpans = appendSpan(leftSpans, string(leftRunes[i]), true)
+		i++
+	}
+	for j < len(rightRunes) {
+		rightSpans = appendSpan(rightSpans, string(rightRunes[j]), true)
+		j++
+	}
+	return leftSpans, rightSpans
+}
+
+func sameInlineRune(left rune, right rune, options Options) bool {
+	if left == right {
+		return true
+	}
+	if options.IgnoreCase {
+		return strings.EqualFold(string(left), string(right))
+	}
+	return false
+}
+
+func appendSpan(spans []TextSpan, text string, changed bool) []TextSpan {
+	if text == "" {
+		return spans
+	}
+	if len(spans) > 0 && spans[len(spans)-1].Changed == changed {
+		spans[len(spans)-1].Text += text
+		return spans
+	}
+	return append(spans, TextSpan{Text: text, Changed: changed})
 }
 
 func cell(record []string, col int) string {

@@ -337,8 +337,24 @@ button:disabled {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 72px;
 }
 
+.diff-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diff-options label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
 #sqlInput,
-.diff-editor-row input {
+.diff-editor-row input,
+.diff-options input[type="text"] {
   min-height: 78px;
   resize: vertical;
   border: 1px solid var(--border);
@@ -355,6 +371,13 @@ button:disabled {
 
 .diff-editor-row input {
   min-height: 34px;
+  resize: none;
+  font: inherit;
+}
+
+.diff-options input[type="text"] {
+  width: 180px;
+  min-height: 28px;
   resize: none;
   font: inherit;
 }
@@ -439,6 +462,16 @@ button:disabled {
 .diff-cells {
   color: var(--muted);
   font-size: 12px;
+}
+
+.diff-cell-change {
+  color: var(--text);
+}
+
+.diff-inline-change {
+  border-radius: 3px;
+  background: rgba(180, 71, 71, 0.18);
+  color: var(--danger);
 }
 
 .diff-summary,

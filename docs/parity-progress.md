@@ -33,6 +33,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-007 | Stable multi-column sort foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
 | FR-006/007 | Column quick filter/sort menu foundation | Started | Browser column-header menu verification |
 | FR-009 | CSV diff/compare foundation and visual view | Started | `pkg/csvdiff` tests, `/api/diff`, CLI diff smoke, Browser Diff View verification |
+| FR-009 | Compare ignore options, header-name alignment, and inline character diff foundation | Started | `pkg/csvdiff`/`pkg/appserver` tests, Browser Diff View verification |
 | FR-008 | SQL Console foundation plus aggregate query support | Started | `pkg/sqlconsole` tests, `/api/sql`, Browser verification |
 | FR-014/016 | Column profile and CSVLint-style validation foundation | Started | `pkg/dataprofile` tests, `/api/profile`, Browser Profile View verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
@@ -65,6 +66,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Command registry disables document-scoped commands before open and enables implemented commands after opening a CSV, including SQL and Profile.
 - `/api/diff` compares `/tmp/opencsv-diff-left.csv` and `/tmp/opencsv-diff-right.csv`, reporting `changed: 1`, `added: 1`, `deleted: 0`.
 - Diff View opens from Compare, accepts left/right paths, runs the same files, shows unchanged/changed/added rows, and displays changed cell `c2: Linus -> Ken`.
+- Diff options verification on `/tmp/opencsv-diff-options-left.csv` and `/tmp/opencsv-diff-options-right.csv`: URL boot `?diffLeft=...&diffRight=...&diffRun=1&diffIgnoreCase=1&diffIgnoreWhitespace=1&diffMatchHeaders=1&diffIgnoredColumns=3` opens Diff View, checks the three option toggles, ignores the reordered `updated` column and whitespace-only change, aligns columns by header name, reports `Diff: 1 changed, 0 added, 0 deleted`, and inline character highlighting marks only `s|x` for `Linus` -> `linux`.
 - SQL Console opens after loading `/tmp/opencsv-diff-right.csv`; query `SELECT name FROM current WHERE id >= 2 ORDER BY id DESC LIMIT 2` returns `Grace` and `Ken`, status `SQL returned 2 of 2 rows`.
 - SQL Console aggregate query on `/tmp/opencsv-sql-agg.csv` returns grouped results for `SELECT region, COUNT(*) AS rows, SUM(amount) AS total FROM current GROUP BY region ORDER BY total DESC`: `APAC / 2 / 13` and `EU / 2 / 12`.
 - Profile View opens after loading `/tmp/opencsv-profile.csv`, reports `4 rows`, `4 columns`, `3 issues`, and displays column type/null/distinct/min/max/average/top-value statistics.
@@ -105,7 +107,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend Find/Replace now exposes `Aa`, `=`, and `.*` toggles for case-sensitive, whole-cell, and regex modes, and sends those options to `/api/find` and `/api/replace`.
 - Frontend Find now caches the current result window, shows `current/total`, and supports Previous/Next navigation from the toolbar and Enter/Shift+Enter in the query field.
 - Toolbar wraps into two rows on narrower workspaces so Find/Replace buttons stay clickable instead of sliding under the inspector.
-- `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key.
+- `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key. It supports ignore-case, ignore-whitespace, ignored columns, header-name column alignment, and inline character spans for changed cells.
 - `/api/diff` exposes diff results for two local paths, and root CLI `--diff` now includes a diff result payload in prototype mode.
 - Frontend Diff View provides a side-by-side-ish result table with status, left row/record, right row/record, and changed cell details.
 - `pkg/commands` exposes command IDs, labels, descriptions, shortcuts, scope, implementation status, and document requirements. The frontend fetches `/api/commands` and applies disabled states/titles to toolbar buttons.
@@ -143,7 +145,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
 - SQL console is implemented as a useful subset, including basic aggregation, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, HAVING, or query history.
-- Diff engine/API/CLI payload and a basic visual Diff View exist, but navigation between diffs and a fully virtualized side-by-side editor remain incomplete.
+- Diff engine/API/CLI payload and a basic visual Diff View exist, with ignore options, header-name alignment, and inline character spans. Navigation between diffs, merge actions, compare-with-clipboard, and a fully virtualized side-by-side editor remain incomplete.
 - Profile/validation exists as a useful foundation, but CSVLint-compatible rule sets, saved schemas, quick fixes, and incremental profiling for very large files remain incomplete.
 - Command Palette is implemented as a first-pass command runner, but fuzzy scoring, command history, keybinding customization, and full action coverage remain incomplete.
 - Theme support now covers the main app shell and Canvas grid, but a full Settings UI, high-contrast variants, per-OS native title/menu integration, and design-token audit across every future surface remain incomplete.

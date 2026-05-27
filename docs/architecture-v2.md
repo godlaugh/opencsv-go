@@ -365,6 +365,8 @@ Output:
 - changed cells.
 - summary counts.
 - truncation flag.
+- compare options: ignore case, ignore whitespace, ignored columns, and header-name column alignment.
+- inline character-level spans for changed cells.
 
 ### SQL
 
@@ -477,6 +479,7 @@ Output:
 - Header remains stable after wheel scroll.
 - Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
 - Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.
+- Diff View can boot from URL parameters for regression and protocol workflows, including compare options and immediate run.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.

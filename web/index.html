@@ -70,6 +70,12 @@
               <input id="rightDiffPath" type="text" placeholder="/tmp/new.csv" aria-label="Right CSV path" />
               <button id="runDiffButton" type="button">Run</button>
             </div>
+            <div class="diff-options" aria-label="Compare options">
+              <label><input id="diffIgnoreCase" type="checkbox" /> Ignore case</label>
+              <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
+              <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
+              <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3,5" aria-label="Ignored diff columns" />
+            </div>
             <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
             <div id="diffResult" class="diff-result"></div>
           </section>
@@ -149,6 +155,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-url-hover"></script>
+    <script type="module" src="./src/app.js?v=m2-diff-options"></script>
   </body>
 </html>

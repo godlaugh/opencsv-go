@@ -3,6 +3,7 @@ package csvdiff
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -90,5 +91,98 @@ func TestCompareRecordsCanLimitRows(t *testing.T) {
 	}
 	if len(result.Rows) != 1 {
 		t.Fatalf("rows = %d, want 1", len(result.Rows))
+	}
+}
+
+func TestCompareRecordsCanIgnoreCaseWhitespaceAndColumns(t *testing.T) {
+	left := [][]string{
+		{"id", "name", "updated"},
+		{"1", "Ada Lovelace", "2026-01-01"},
+	}
+	right := [][]string{
+		{"id", "name", "updated"},
+		{"1", "ada   lovelace", "2026-02-01"},
+	}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{
+		IgnoreCase:       true,
+		IgnoreWhitespace: true,
+		IgnoredColumns:   []int{3},
+	})
+	if result.Summary.Changed != 0 || result.Summary.Unchanged != 2 {
+		t.Fatalf("unexpected summary: %#v rows=%#v", result.Summary, result.Rows)
+	}
+}
+
+func TestCompareRecordsCanMatchColumnsByHeaderName(t *testing.T) {
+	left := [][]string{
+		{"id", "name", "score"},
+		{"1", "Ada", "9"},
+	}
+	right := [][]string{
+		{"score", "id", "name"},
+		{"9", "1", "Ada"},
+	}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{MatchColumnsByName: true})
+	if result.Summary.Changed != 0 || result.Summary.Unchanged != 2 {
+		t.Fatalf("unexpected summary with header matching: %#v rows=%#v", result.Summary, result.Rows)
+	}
+	if got := result.Rows[1].RightRecord; got[0] != "1" || got[1] != "Ada" || got[2] != "9" {
+		t.Fatalf("right record was not aligned to left header order: %#v", got)
+	}
+}
+
+func TestCompareRecordsIncludesInlineSpans(t *testing.T) {
+	left := [][]string{{"id", "name"}, {"1", "Linus"}}
+	right := [][]string{{"id", "name"}, {"1", "Linux"}}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{})
+	var changed CellDiff
+	for _, row := range result.Rows {
+		if row.Status == RowChanged && len(row.ChangedCells) > 0 {
+			changed = row.ChangedCells[0]
+			break
+		}
+	}
+	if changed.Col != 2 || len(changed.LeftSpans) == 0 || len(changed.RightSpans) == 0 {
+		t.Fatalf("missing inline spans: %#v", changed)
+	}
+	foundChanged := false
+	for _, span := range changed.RightSpans {
+		if span.Changed && span.Text == "x" {
+			foundChanged = true
+		}
+	}
+	if !foundChanged {
+		t.Fatalf("right spans did not highlight changed x: %#v", changed.RightSpans)
+	}
+}
+
+func TestCompareRecordsInlineSpansRespectIgnoreCase(t *testing.T) {
+	left := [][]string{{"id", "name"}, {"1", "Linus"}}
+	right := [][]string{{"id", "name"}, {"1", "linux"}}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{IgnoreCase: true})
+	var changed CellDiff
+	for _, row := range result.Rows {
+		if row.Status == RowChanged && len(row.ChangedCells) > 0 {
+			changed = row.ChangedCells[0]
+			break
+		}
+	}
+	var highlighted []string
+	for _, span := range changed.LeftSpans {
+		if span.Changed {
+			highlighted = append(highlighted, span.Text)
+		}
+	}
+	for _, span := range changed.RightSpans {
+		if span.Changed {
+			highlighted = append(highlighted, span.Text)
+		}
+	}
+	if strings.Join(highlighted, "|") != "s|x" {
+		t.Fatalf("highlighted = %#v, want only s/x", highlighted)
 	}
 }

@@ -487,6 +487,31 @@ func TestServerDiff(t *testing.T) {
 	}
 }
 
+func TestServerDiffOptions(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name,updated\n1,Ada Lovelace,2026-01-01\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("updated,id,name\n2026-02-01,1,ada   lovelace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff", map[string]any{
+		"leftPath":           left,
+		"rightPath":          right,
+		"ignoreCase":         true,
+		"ignoreWhitespace":   true,
+		"matchColumnsByName": true,
+		"ignoredColumns":     []int{3},
+	})
+	summary := payload["summary"].(map[string]any)
+	if summary["changed"].(float64) != 0 {
+		t.Fatalf("unexpected diff summary with options: %#v", summary)
+	}
+}
+
 func TestServerSQLFileReference(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")
