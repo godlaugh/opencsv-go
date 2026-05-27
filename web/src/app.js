@@ -148,18 +148,20 @@ let themeColors = {};
 initializeTheme();
 
 function resize() {
-  const rect = gridFrame.getBoundingClientRect();
-  const scale = window.devicePixelRatio || 1;
-  resizeCanvas(canvas, ctx, rect.width, rect.height, scale);
   draw();
 }
 
-function resizeCanvas(targetCanvas, targetCtx, width, height, scale) {
-  const pixelWidth = Math.max(1, Math.floor(width * scale));
-  const pixelHeight = Math.max(1, Math.floor(height * scale));
-  if (targetCanvas.width !== pixelWidth) targetCanvas.width = pixelWidth;
-  if (targetCanvas.height !== pixelHeight) targetCanvas.height = pixelHeight;
-  targetCtx.setTransform(scale, 0, 0, scale, 0, 0);
+function syncCanvasSize() {
+  const rect = gridFrame.getBoundingClientRect();
+  const scale = window.devicePixelRatio || 1;
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const pixelWidth = Math.max(1, Math.round(width * scale));
+  const pixelHeight = Math.max(1, Math.round(height * scale));
+  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  return { width, height };
 }
 
 function maxVerticalScroll() {
@@ -274,8 +276,7 @@ function draw() {
     updateCommandState();
     return;
   }
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
+  const { width, height } = syncCanvasSize();
   ctx.clearRect(0, 0, width, height);
 
   ctx.fillStyle = themeColors.gridBg;
