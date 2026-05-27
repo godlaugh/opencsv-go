@@ -40,6 +40,21 @@
               <button id="findRegexButton" type="button" title="Use regular expression" aria-pressed="false">.*</button>
               <button id="findSelectionButton" type="button" title="Search in selection" aria-pressed="false">Sel</button>
             </div>
+            <select id="copyFormatSelect" class="copy-format-select" aria-label="Copy format">
+              <option value="tsv">TSV</option>
+              <option value="csv">CSV</option>
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
+              <option value="html">HTML</option>
+              <option value="sql">SQL</option>
+              <option value="latex">LaTeX</option>
+              <option value="raw">Raw</option>
+            </select>
+            <button id="copyFormatButton" type="button" title="Copy selected cells using selected format" data-command="edit.copySelectedFormat">Copy</button>
+            <label class="copy-header-toggle" title="Include headers when copying">
+              <input id="copyHeadersToggle" type="checkbox" />
+              <span>Headers</span>
+            </label>
             <button id="filterButton" type="button" title="Filter" data-command="view.filter">Filter</button>
             <button id="filterBuilderButton" type="button" title="Filter Builder" data-command="view.filterBuilder">Builder</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>

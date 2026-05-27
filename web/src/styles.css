@@ -232,6 +232,30 @@ button:disabled {
   color: var(--text);
 }
 
+.copy-format-select {
+  width: 98px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.copy-header-toggle {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.copy-header-toggle input {
+  margin: 0;
+}
+
 .find-match-count {
   display: grid;
   min-width: 46px;

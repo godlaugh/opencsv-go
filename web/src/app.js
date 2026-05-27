@@ -25,6 +25,9 @@ const pathInput = document.querySelector("#pathInput");
 const fileInput = document.querySelector("#fileInput");
 const commandInput = document.querySelector("#commandInput");
 const replaceInput = document.querySelector("#replaceInput");
+const copyFormatSelect = document.querySelector("#copyFormatSelect");
+const copyFormatButton = document.querySelector("#copyFormatButton");
+const copyHeadersToggle = document.querySelector("#copyHeadersToggle");
 const filterButton = document.querySelector("#filterButton");
 const filterBuilderButton = document.querySelector("#filterBuilderButton");
 const sortButton = document.querySelector("#sortButton");
@@ -332,6 +335,7 @@ function draw() {
   const externalLabel = externalFileChanged ? " - external change" : "";
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
+  copyHeadersToggle.checked = includeHeadersInSelection;
   updateAggregateStatus(aggregateStats);
   status.textContent =
     documentId
@@ -402,6 +406,8 @@ function applyCommandMetadata() {
       button.textContent = "Compare";
     } else if (button.dataset.command === "file.exportView") {
       button.textContent = "Export";
+    } else if (button.dataset.command === "edit.copySelectedFormat") {
+      button.textContent = "Copy";
     } else if (button.dataset.command === "view.filterBuilder") {
       button.textContent = "Builder";
     } else if (button.dataset.command === "sql.copyResultCsv") {
@@ -433,6 +439,8 @@ function updateCommandState() {
     findPrevButton.disabled = true;
     findNextButton.disabled = true;
   }
+  copyFormatSelect.disabled = !hasDocument;
+  copyHeadersToggle.disabled = !hasDocument;
 }
 
 function isCommandDisabled(command) {
@@ -1300,6 +1308,9 @@ async function executeCommand(commandID) {
     case "edit.copy":
       await copySelection("tsv");
       break;
+    case "edit.copySelectedFormat":
+      await copyUsingSelectedFormat();
+      break;
     case "edit.copyWithHeaders":
       await copySelection("tsv", { includeHeaders: true });
       break;
@@ -2133,8 +2144,7 @@ function loadDocument(document) {
   scrollX = 0;
   scrollY = 0;
   wheelRemainderY = 0;
-  includeHeadersInSelection = false;
-  window.document.body.dataset.headerInSelection = "false";
+  setHeaderInSelection(false);
   clearURLHover();
   dirty = false;
 }
@@ -2227,12 +2237,24 @@ function selectedCellsForTransform(maxCells = 100_000) {
 
 function toggleHeaderInSelection() {
   if (!documentId) return;
-  includeHeadersInSelection = !includeHeadersInSelection;
-  document.body.dataset.headerInSelection = includeHeadersInSelection ? "true" : "false";
+  setHeaderInSelection(!includeHeadersInSelection);
   draw();
   status.textContent = includeHeadersInSelection
     ? "Header included when copying selection"
     : "Header excluded from selection copy";
+}
+
+function setHeaderInSelection(value) {
+  includeHeadersInSelection = Boolean(value);
+  copyHeadersToggle.checked = includeHeadersInSelection;
+  document.body.dataset.headerInSelection = includeHeadersInSelection ? "true" : "false";
+}
+
+async function copyUsingSelectedFormat() {
+  const format = copyFormatSelect.value || "tsv";
+  setHeaderInSelection(copyHeadersToggle.checked);
+  document.body.dataset.copyFormat = `${format}:${includeHeadersInSelection ? "headers" : "body"}`;
+  await copySelection(format, { includeHeaders: includeHeadersInSelection });
 }
 
 async function copySelection(format = "tsv", options = {}) {
@@ -4607,6 +4629,14 @@ sqlTabButton.addEventListener("click", () => {
 });
 profileTabButton.addEventListener("click", openProfilePanel);
 paletteButton.addEventListener("click", openCommandPalette);
+copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));
+copyFormatSelect.addEventListener("change", () => {
+  document.body.dataset.copyFormat = `${copyFormatSelect.value}:${copyHeadersToggle.checked ? "headers" : "body"}`;
+});
+copyHeadersToggle.addEventListener("change", () => {
+  setHeaderInSelection(copyHeadersToggle.checked);
+  draw();
+});
 aggregateStatusButton.addEventListener("click", async (event) => {
   if (event.metaKey || event.ctrlKey) {
     await copyActiveAggregate();
