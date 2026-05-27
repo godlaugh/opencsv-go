@@ -12,20 +12,30 @@ Goal: prove the Go-first core and UI performance path.
 - Add static Canvas grid prototype.
 - Document architecture and next milestones.
 
-Status: in progress.
+Status: complete in `v0.1`.
 
 ## M1: Real File Opening
 
 Goal: make opencsv useful for read-only inspection of real CSV and TSV files.
 
+- Core and CLI open path.
+- Encoding detection for UTF-8, UTF-8 BOM, UTF-16 LE/BE with BOM, heuristic UTF-16, and legacy single-byte fallback.
+- Line ending detection for LF, CRLF, and CR.
+- Delimiter and header detection.
+- Fast preview loading without waiting on full-file indexing.
+- Row offset indexing.
+- Basic save, automatic backup, and preservation of detected encoding and line endings.
+- Local API and Canvas prototype integration through `opencsv serve`.
 - File picker through the chosen desktop shell.
 - Background row indexing with progress and cancellation.
 - Cell window API: fetch rows by offset range.
-- Encoding detection plan for UTF-8, UTF-8 BOM, UTF-16, Shift-JIS, GBK, and Windows-1252.
+- Encoding conversion support for Shift-JIS, GBK, and Windows-1252.
 - Delimiter and header override UI.
 - Error row reporting for malformed records.
 
 Acceptance target: 100 MB CSV opens to first screen in under 2 seconds on a modern laptop.
+
+Core verification: a 112,857,510 byte generated CSV opened to first preview in 0 ms and completed full row indexing in 318 ms on 2026-05-26.
 
 ## M2: Editing MVP
 

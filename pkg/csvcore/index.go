@@ -1,8 +1,6 @@
 package csvcore
 
 import (
-	"encoding/csv"
-	"errors"
 	"io"
 	"os"
 )
@@ -27,10 +25,7 @@ func BuildRowIndex(path string, dialect Dialect, maxRows int) (RowIndex, error) 
 		return RowIndex{}, err
 	}
 
-	reader := csv.NewReader(file)
-	reader.Comma = dialect.Delimiter
-	reader.FieldsPerRecord = -1
-	reader.LazyQuotes = true
+	_ = dialect
 
 	index := RowIndex{
 		Path:      path,
@@ -38,22 +33,89 @@ func BuildRowIndex(path string, dialect Dialect, maxRows int) (RowIndex, error) 
 		Offsets:   make([]int64, 0, 4096),
 	}
 
-	nextOffset := int64(0)
+	index.Offsets = append(index.Offsets, 0)
+	scanner := rowBoundaryScanner{}
+	buffer := make([]byte, 256*1024)
+	fileOffset := int64(0)
+	lastBoundary := int64(-1)
 	for maxRows <= 0 || index.Rows < maxRows {
-		index.Offsets = append(index.Offsets, nextOffset)
-		_, err := reader.Read()
-		if errors.Is(err, io.EOF) {
-			index.Offsets = index.Offsets[:len(index.Offsets)-1]
+		n, err := file.Read(buffer)
+		if n > 0 {
+			boundaries := scanner.scan(buffer[:n], fileOffset)
+			for _, offset := range boundaries {
+				lastBoundary = offset
+				index.Rows++
+				if maxRows > 0 && index.Rows >= maxRows {
+					return index, nil
+				}
+				if offset < info.Size() {
+					index.Offsets = append(index.Offsets, offset)
+				}
+			}
+			fileOffset += int64(n)
+		}
+		if err == io.EOF {
 			index.Complete = true
 			break
 		}
 		if err != nil {
-			index.Offsets = index.Offsets[:len(index.Offsets)-1]
 			return index, err
 		}
+	}
+	if info.Size() > 0 && lastBoundary != info.Size() {
 		index.Rows++
-		nextOffset = reader.InputOffset()
 	}
 
 	return index, nil
+}
+
+type rowBoundaryScanner struct {
+	inQuotes     bool
+	pendingQuote bool
+	prevCR       bool
+}
+
+func (scanner *rowBoundaryScanner) scan(input []byte, baseOffset int64) []int64 {
+	var boundaries []int64
+	for i, b := range input {
+		offset := baseOffset + int64(i)
+
+		if scanner.pendingQuote {
+			if b == '"' {
+				scanner.pendingQuote = false
+				continue
+			}
+			scanner.inQuotes = false
+			scanner.pendingQuote = false
+		}
+
+		if b == '"' {
+			if scanner.inQuotes {
+				scanner.pendingQuote = true
+			} else {
+				scanner.inQuotes = true
+			}
+			scanner.prevCR = false
+			continue
+		}
+
+		if scanner.inQuotes {
+			scanner.prevCR = false
+			continue
+		}
+
+		if b == '\n' {
+			boundaries = append(boundaries, offset+1)
+			scanner.prevCR = false
+			continue
+		}
+		if scanner.prevCR {
+			boundaries = append(boundaries, offset)
+			scanner.prevCR = false
+		}
+		if b == '\r' {
+			scanner.prevCR = true
+		}
+	}
+	return boundaries
 }

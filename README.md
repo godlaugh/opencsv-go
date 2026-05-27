@@ -8,6 +8,7 @@ This repository starts with a Go-first M0 milestone:
 - CLI for inspection and benchmark runs.
 - Static Canvas grid prototype for UI and virtual scrolling experiments.
 - Architecture and milestone notes for the desktop app that will follow.
+- Product PRD and architecture v2 notes for parity development.
 
 ## Why Go
 
@@ -32,7 +33,15 @@ Generate and inspect a CSV:
 
 ```sh
 go run ./cmd/opencsv generate -rows 1000 -cols 12 /tmp/opencsv-sample.csv
+go run ./cmd/opencsv open -rows 5 -index-rows 5 /tmp/opencsv-sample.csv
 go run ./cmd/opencsv inspect -rows 5 /tmp/opencsv-sample.csv
+```
+
+Round-trip save a CSV while preserving detected encoding and line endings:
+
+```sh
+go run ./cmd/opencsv save -out /tmp/opencsv-sample-copy.csv /tmp/opencsv-sample.csv
+go run ./cmd/opencsv save /tmp/opencsv-sample.csv
 ```
 
 Run the M0 benchmark:
@@ -44,7 +53,7 @@ make bench
 Run the grid prototype:
 
 ```sh
-make web
+make serve
 ```
 
 Then open `http://localhost:43255`.
@@ -53,10 +62,18 @@ Then open `http://localhost:43255`.
 
 ```text
 cmd/opencsv       CLI entrypoint
+pkg/appserver     Local browser prototype API
 pkg/csvcore       CSV dialect, preview, indexing, sample generation
 web/              static Canvas grid prototype
 docs/             planning and architecture notes
 ```
+
+Key planning documents:
+
+- [Product PRD](docs/product-prd.md)
+- [Architecture v2](docs/architecture-v2.md)
+- [Product Parity Progress](docs/parity-progress.md)
+- [M1 Verification](docs/m1-verification.md)
 
 ## M0 Acceptance Criteria
 
@@ -65,3 +82,32 @@ docs/             planning and architecture notes
 - Row indexing records byte offsets for future random access.
 - A local UI prototype demonstrates large-grid scrolling and cell editing.
 - Benchmarks give us a baseline before adding DuckDB/DataFusion-style query capabilities.
+
+## M1 Core Progress
+
+The core and CLI now support:
+
+- Encoding detection for UTF-8, UTF-8 BOM, UTF-16 LE/BE with BOM, heuristic UTF-16, and a conservative legacy single-byte fallback.
+- Line ending detection for LF, CRLF, and CR.
+- Delimiter and header detection.
+- Fast document open with preview rows that does not wait for full-file indexing.
+- Row offset indexing as a separate operation.
+- CSV save with automatic backup and preservation of detected encoding and line endings.
+- Local web API and Canvas grid integration through `opencsv serve`.
+
+Current local benchmark:
+
+```text
+112,857,510 byte CSV
+openDurationMs: 0
+indexDurationMs: 318
+indexedRows: 720001
+```
+
+Open a real file in the prototype:
+
+```sh
+make serve
+```
+
+Then click Open with an empty path field to use the browser file picker, or enter an absolute CSV path in the toolbar. Browser-picked files are uploaded into a local temporary copy before parsing; absolute paths are opened directly by the local server. Edit a cell and press Save. In-place saves create a timestamped `.bak` file first.

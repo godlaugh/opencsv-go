@@ -9,6 +9,7 @@
   --accent: #0f7f78;
   --accent-quiet: #dff1ee;
   --danger: #b44747;
+  --grid-header-height: 36px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -34,6 +35,10 @@ button {
   color: var(--text);
   cursor: default;
   font: inherit;
+}
+
+button:disabled {
+  opacity: 0.45;
 }
 
 .app-shell {
@@ -62,7 +67,13 @@ button {
   letter-spacing: 0;
 }
 
-.file-button {
+.file-list {
+  display: grid;
+  gap: 4px;
+}
+
+.file-button,
+.empty-file-list {
   display: grid;
   width: 100%;
   min-height: 56px;
@@ -70,6 +81,11 @@ button {
   padding: 8px;
   border-radius: 6px;
   text-align: left;
+}
+
+.empty-file-list {
+  border: 1px dashed var(--border);
+  background: var(--panel-subtle);
 }
 
 .file-button.active {
@@ -92,37 +108,81 @@ button {
 .workspace {
   display: grid;
   min-width: 0;
-  grid-template-rows: 48px minmax(0, 1fr) 28px;
+  grid-template-rows: auto minmax(0, 1fr) 28px;
 }
 
 .toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 12px;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
 
 .segmented,
-.tool-actions {
+.tool-actions,
+.file-open {
   display: flex;
   gap: 6px;
 }
 
-.segmented button,
-.tool-actions button {
+.tool-actions {
+  align-items: center;
+  min-width: 0;
+}
+
+.file-open {
+  min-width: 180px;
+}
+
+.file-open input,
+.tool-actions input {
+  width: 100%;
+  min-width: 0;
   height: 30px;
-  min-width: 64px;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0 10px;
+  padding: 0 9px;
+  color: var(--text);
+  font: inherit;
+}
+
+.tool-actions input {
+  width: 118px;
+}
+
+.segmented button,
+.tool-actions button,
+.file-open button {
+  height: 30px;
+  min-width: 56px;
+  border-radius: 6px;
+  padding: 0 9px;
+}
+
+@media (max-width: 1280px) {
+  .toolbar {
+    grid-template-columns: auto minmax(180px, 1fr);
+  }
+
+  .tool-actions {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
 }
 
 .segmented button.active {
   border-color: var(--accent);
   background: var(--accent);
   color: white;
+}
+
+.tool-actions button.active {
+  border-color: var(--accent);
+  background: var(--accent-quiet);
 }
 
 .grid-frame {
@@ -134,9 +194,358 @@ button {
 }
 
 #grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
+}
+
+#frozenGrid {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: var(--grid-header-height);
+  pointer-events: none;
+}
+
+.grid-frame.sql-mode #grid,
+.grid-frame.sql-mode #frozenGrid,
+.grid-frame.diff-mode #grid,
+.grid-frame.diff-mode #frozenGrid,
+.grid-frame.profile-mode #grid,
+.grid-frame.profile-mode #frozenGrid {
+  visibility: hidden;
+}
+
+.sql-panel,
+.diff-panel,
+.profile-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  background: #fbfcfc;
+}
+
+.sql-panel[hidden],
+.diff-panel[hidden],
+.profile-panel[hidden] {
+  display: none;
+}
+
+.profile-panel {
+  grid-template-rows: auto minmax(0, 1fr) minmax(110px, 0.38fr);
+}
+
+.sql-editor-row,
+.diff-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+}
+
+.diff-editor-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 72px;
+}
+
+#sqlInput,
+.diff-editor-row input {
+  min-height: 78px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+  color: var(--text);
+  font:
+    13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  line-height: 18px;
+  outline: none;
+}
+
+.diff-editor-row input {
+  min-height: 34px;
+  resize: none;
+  font: inherit;
+}
+
+#runSqlButton,
+#runDiffButton {
+  height: 34px;
+  border-radius: 6px;
+}
+
+.sql-result,
+.diff-result,
+.profile-columns,
+.profile-issues {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+.sql-result table,
+.diff-result table,
+.profile-columns table,
+.profile-issues table {
+  width: 100%;
+  border-collapse: collapse;
+  font:
+    13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.sql-result th,
+.sql-result td,
+.diff-result th,
+.diff-result td,
+.profile-columns th,
+.profile-columns td,
+.profile-issues th,
+.profile-issues td {
+  max-width: 260px;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid #edf1f2;
+  padding: 6px 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-result th,
+.diff-result th {
+  position: sticky;
+  top: 0;
+  background: #eef2f3;
+  font-weight: 650;
+}
+
+.profile-columns th,
+.profile-issues th {
+  position: sticky;
+  top: 0;
+  background: #eef2f3;
+  font-weight: 650;
+}
+
+.diff-result tr.changed {
+  background: #fff7d8;
+}
+
+.diff-result tr.added {
+  background: #e8f6ed;
+}
+
+.diff-result tr.deleted {
+  background: #fbe9e7;
+}
+
+.profile-columns tr.selected-profile-column {
+  background: var(--accent-quiet);
+}
+
+.diff-cells {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diff-summary,
+.profile-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diff-summary strong,
+.profile-summary strong {
+  color: var(--text);
+}
+
+.sql-empty,
+.diff-empty,
+.profile-empty {
+  padding: 12px;
+  color: var(--muted);
+}
+
+.issue-error {
+  color: var(--danger);
+}
+
+.issue-warning {
+  color: #8a6510;
+}
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: start center;
+  padding-top: 72px;
+  background: rgba(22, 32, 34, 0.18);
+}
+
+.command-palette-backdrop[hidden] {
+  display: none;
+}
+
+.command-palette {
+  display: grid;
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 120px));
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 18px 48px rgba(22, 32, 34, 0.2);
+}
+
+#paletteInput {
+  height: 46px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 14px;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.palette-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+}
+
+.palette-item {
+  display: grid;
+  width: 100%;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: white;
+  text-align: left;
+}
+
+.palette-item.active {
+  background: var(--accent-quiet);
+}
+
+.palette-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item kbd {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--muted);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.column-menu {
+  position: fixed;
+  z-index: 18;
+  display: grid;
+  width: 220px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  background: white;
+  box-shadow: 0 14px 36px rgba(22, 32, 34, 0.18);
+}
+
+.column-menu[hidden] {
+  display: none;
+}
+
+.column-menu strong {
+  overflow: hidden;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--border);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.column-menu button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 8px;
+  background: white;
+  text-align: left;
+}
+
+.column-menu button:hover:not(:disabled) {
+  background: var(--accent-quiet);
+}
+
+.column-menu-values {
+  display: grid;
+  max-height: 210px;
+  gap: 2px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.column-values-heading,
+.column-values-empty {
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.column-value-option {
+  display: grid;
+  min-height: 28px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.column-value-option:hover {
+  background: var(--accent-quiet);
+}
+
+.column-value-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #editor {
@@ -177,6 +586,10 @@ button {
   white-space: nowrap;
 }
 
+.statusbar span:not(:first-child) {
+  white-space: nowrap;
+}
+
 .inspector {
   border-right: 0;
   border-left: 1px solid var(--border);
@@ -186,6 +599,54 @@ button {
 .inspector h2 {
   margin: 0 0 14px;
   font-size: 16px;
+}
+
+.cell-panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+#cellValueInput {
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+  color: var(--text);
+  font:
+    13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  line-height: 18px;
+}
+
+#cellValueInput:disabled {
+  background: var(--panel-subtle);
+  color: var(--muted);
+}
+
+.cell-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.cell-actions button,
+.cell-actions a {
+  display: grid;
+  min-height: 30px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+  text-decoration: none;
+}
+
+.cell-actions a.disabled {
+  opacity: 0.45;
 }
 
 .metric {

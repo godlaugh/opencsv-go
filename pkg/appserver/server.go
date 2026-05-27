@@ -1,0 +1,793 @@
+package appserver
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/opencsv/opencsv/pkg/commands"
+	"github.com/opencsv/opencsv/pkg/csvcore"
+	"github.com/opencsv/opencsv/pkg/csvdiff"
+	"github.com/opencsv/opencsv/pkg/dataprofile"
+	docstore "github.com/opencsv/opencsv/pkg/document"
+	"github.com/opencsv/opencsv/pkg/sqlconsole"
+)
+
+type Server struct {
+	mux       *http.ServeMux
+	webDir    string
+	documents *docstore.Manager
+}
+
+func New(webDir string) *Server {
+	server := &Server{
+		mux:       http.NewServeMux(),
+		webDir:    webDir,
+		documents: docstore.NewManager(),
+	}
+	server.routes()
+	return server
+}
+
+func (server *Server) Handler() http.Handler {
+	return server.mux
+}
+
+func (server *Server) routes() {
+	server.mux.HandleFunc("GET /api/health", server.handleHealth)
+	server.mux.HandleFunc("GET /api/commands", server.handleCommands)
+	server.mux.HandleFunc("POST /api/open", server.handleOpen)
+	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
+	server.mux.HandleFunc("GET /api/window", server.handleWindow)
+	server.mux.HandleFunc("POST /api/edit", server.handleEdit)
+	server.mux.HandleFunc("POST /api/edit-batch", server.handleEditBatch)
+	server.mux.HandleFunc("POST /api/undo", server.handleUndo)
+	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
+	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
+	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
+	server.mux.HandleFunc("POST /api/refresh", server.handleRefresh)
+	server.mux.HandleFunc("POST /api/row/insert", server.handleInsertRow)
+	server.mux.HandleFunc("POST /api/row/delete", server.handleDeleteRow)
+	server.mux.HandleFunc("POST /api/column/insert", server.handleInsertColumn)
+	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
+	server.mux.HandleFunc("POST /api/transpose", server.handleTranspose)
+	server.mux.HandleFunc("POST /api/save", server.handleSave)
+	server.mux.HandleFunc("POST /api/find", server.handleFind)
+	server.mux.HandleFunc("POST /api/replace", server.handleReplace)
+	server.mux.HandleFunc("POST /api/filter", server.handleFilter)
+	server.mux.HandleFunc("GET /api/column-values", server.handleColumnValues)
+	server.mux.HandleFunc("POST /api/filter-values", server.handleFilterValues)
+	server.mux.HandleFunc("POST /api/sort", server.handleSort)
+	server.mux.HandleFunc("POST /api/view-clear", server.handleViewClear)
+	server.mux.HandleFunc("POST /api/diff", server.handleDiff)
+	server.mux.HandleFunc("POST /api/sql", server.handleSQL)
+	server.mux.HandleFunc("POST /api/profile", server.handleProfile)
+	server.mux.Handle("/", http.FileServer(http.Dir(server.webDir)))
+}
+
+func (server *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (server *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"commands": commands.Registry()})
+}
+
+type openRequest struct {
+	Path        string `json:"path"`
+	PreviewRows int    `json:"previewRows"`
+	IndexRows   *int   `json:"indexRows"`
+}
+
+type openResponse struct {
+	DocumentID string           `json:"documentId"`
+	Document   csvcore.Document `json:"document"`
+}
+
+func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
+	var request openRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.Path == "" {
+		writeError(w, http.StatusBadRequest, errors.New("path is required"))
+		return
+	}
+	if request.PreviewRows <= 0 {
+		request.PreviewRows = 80
+	}
+	indexRows := request.PreviewRows
+	if request.IndexRows != nil {
+		indexRows = *request.IndexRows
+	}
+
+	session, err := server.documents.OpenPath(request.Path, docstore.SourceFile, filepath.Base(request.Path), csvcore.OpenOptions{
+		PreviewRows: request.PreviewRows,
+		IndexRows:   indexRows,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+}
+
+func (server *Server) handleUploadOpen(w http.ResponseWriter, r *http.Request) {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var source io.Reader
+	var sourceCloser io.Closer
+	filename := "upload.csv"
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		if part.FormName() == "file" {
+			source = part
+			sourceCloser = part
+			if part.FileName() != "" {
+				filename = part.FileName()
+			}
+			break
+		}
+		_ = part.Close()
+	}
+	if source == nil {
+		writeError(w, http.StatusBadRequest, errors.New("file is required"))
+		return
+	}
+	defer sourceCloser.Close()
+
+	uploadDir, err := os.MkdirTemp("", "opencsv-upload-*")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	targetPath := filepath.Join(uploadDir, filepath.Base(filename))
+	target, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if _, err := io.Copy(target, source); err != nil {
+		_ = target.Close()
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := target.Close(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	session, err := server.documents.OpenPath(targetPath, docstore.SourceUpload, filepath.Base(filename), csvcore.OpenOptions{PreviewRows: 160, IndexRows: -1})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+}
+
+func (server *Server) handleWindow(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	start := queryInt(r, "start", 0)
+	count := queryInt(r, "count", 80)
+
+	window, err := server.documents.Window(id, start, count)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, window)
+}
+
+type editRequest struct {
+	DocumentID string `json:"documentId"`
+	Row        int    `json:"row"`
+	Col        int    `json:"col"`
+	Value      string `json:"value"`
+}
+
+func (server *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
+	var request editRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.Row < 0 || request.Col < 0 {
+		writeError(w, http.StatusBadRequest, errors.New("row and col must be non-negative"))
+		return
+	}
+
+	if err := server.documents.Edit(request.DocumentID, request.Row, request.Col, request.Value); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"dirty": true})
+}
+
+type editBatchRequest struct {
+	DocumentID string              `json:"documentId"`
+	Edits      []docstore.CellEdit `json:"edits"`
+}
+
+func (server *Server) handleEditBatch(w http.ResponseWriter, r *http.Request) {
+	var request editBatchRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if len(request.Edits) == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{"dirty": false, "count": 0})
+		return
+	}
+	if err := server.documents.EditCells(request.DocumentID, request.Edits); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"dirty": true, "count": len(request.Edits)})
+}
+
+type documentRequest struct {
+	DocumentID string `json:"documentId"`
+}
+
+type rowMutationRequest struct {
+	DocumentID string `json:"documentId"`
+	Row        int    `json:"row"`
+}
+
+type columnMutationRequest struct {
+	DocumentID string `json:"documentId"`
+	Col        int    `json:"col"`
+}
+
+type transposeRequest struct {
+	DocumentID string `json:"documentId"`
+	MaxCells   int    `json:"maxCells"`
+}
+
+func (server *Server) handleUndo(w http.ResponseWriter, r *http.Request) {
+	var request documentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.Undo(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleRedo(w http.ResponseWriter, r *http.Request) {
+	var request documentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.Redo(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type readOnlyRequest struct {
+	DocumentID string `json:"documentId"`
+	ReadOnly   bool   `json:"readOnly"`
+}
+
+func (server *Server) handleReadOnly(w http.ResponseWriter, r *http.Request) {
+	var request readOnlyRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := server.documents.SetReadOnly(request.DocumentID, request.ReadOnly)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"session": session, "readOnly": session.ReadOnly})
+}
+
+func (server *Server) handleFileStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	status, err := server.documents.FileStatus(id)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (server *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	var request documentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := server.documents.Refresh(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"session": session})
+}
+
+func (server *Server) handleInsertRow(w http.ResponseWriter, r *http.Request) {
+	var request rowMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.InsertRow(request.DocumentID, request.Row)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDeleteRow(w http.ResponseWriter, r *http.Request) {
+	var request rowMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.DeleteRow(request.DocumentID, request.Row)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleInsertColumn(w http.ResponseWriter, r *http.Request) {
+	var request columnMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.InsertColumn(request.DocumentID, request.Col)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDeleteColumn(w http.ResponseWriter, r *http.Request) {
+	var request columnMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.DeleteColumn(request.DocumentID, request.Col)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleTranspose(w http.ResponseWriter, r *http.Request) {
+	var request transposeRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.Transpose(request.DocumentID, request.MaxCells)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type saveRequest struct {
+	DocumentID string `json:"documentId"`
+	Path       string `json:"path"`
+	Backup     *bool  `json:"backup"`
+}
+
+func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
+	var request saveRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	createBackup := request.Backup == nil || *request.Backup
+	result, err := server.documents.Save(request.DocumentID, request.Path, createBackup)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+type findRequest struct {
+	DocumentID    string `json:"documentId"`
+	Query         string `json:"query"`
+	Column        *int   `json:"column,omitempty"`
+	CaseSensitive bool   `json:"caseSensitive"`
+	WholeCell     bool   `json:"wholeCell"`
+	Regex         bool   `json:"regex"`
+	Limit         int    `json:"limit"`
+}
+
+func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
+	var request findRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	matches, err := server.documents.Find(request.DocumentID, docstore.FindOptions{
+		Query:         request.Query,
+		Column:        request.Column,
+		CaseSensitive: request.CaseSensitive,
+		WholeCell:     request.WholeCell,
+		Regex:         request.Regex,
+		Limit:         request.Limit,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"matches": matches})
+}
+
+type replaceRequest struct {
+	DocumentID    string `json:"documentId"`
+	Query         string `json:"query"`
+	Replacement   string `json:"replacement"`
+	Column        *int   `json:"column,omitempty"`
+	CaseSensitive bool   `json:"caseSensitive"`
+	WholeCell     bool   `json:"wholeCell"`
+	Regex         bool   `json:"regex"`
+	All           bool   `json:"all"`
+}
+
+func (server *Server) handleReplace(w http.ResponseWriter, r *http.Request) {
+	var request replaceRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.Replace(request.DocumentID, docstore.ReplaceOptions{
+		FindOptions: docstore.FindOptions{
+			Query:         request.Query,
+			Column:        request.Column,
+			CaseSensitive: request.CaseSensitive,
+			WholeCell:     request.WholeCell,
+			Regex:         request.Regex,
+			Limit:         1,
+		},
+		Replacement: request.Replacement,
+		All:         request.All,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type filterRequest struct {
+	DocumentID    string `json:"documentId"`
+	Query         string `json:"query"`
+	Expression    string `json:"expression"`
+	Mode          string `json:"mode"`
+	Column        *int   `json:"column,omitempty"`
+	CaseSensitive bool   `json:"caseSensitive"`
+}
+
+type filterValuesRequest struct {
+	DocumentID   string   `json:"documentId"`
+	Column       int      `json:"column"`
+	Values       []string `json:"values"`
+	IncludeBlank bool     `json:"includeBlank"`
+}
+
+func (server *Server) handleFilter(w http.ResponseWriter, r *http.Request) {
+	var request filterRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	var count int
+	var err error
+	if strings.EqualFold(request.Mode, "sql") || strings.TrimSpace(request.Expression) != "" {
+		expression := request.Expression
+		if expression == "" {
+			expression = request.Query
+		}
+		count, err = server.documents.FilterSQL(request.DocumentID, expression)
+	} else {
+		count, err = server.documents.FilterContains(request.DocumentID, docstore.FilterOptions{
+			Query:         request.Query,
+			Column:        request.Column,
+			CaseSensitive: request.CaseSensitive,
+		})
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+}
+
+func (server *Server) handleColumnValues(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	column := queryInt(r, "column", -1)
+	limit := queryInt(r, "limit", 50)
+	values, totalDistinct, err := server.documents.ColumnValues(id, column, limit)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"values":        values,
+		"totalDistinct": totalDistinct,
+	})
+}
+
+func (server *Server) handleFilterValues(w http.ResponseWriter, r *http.Request) {
+	var request filterValuesRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	count, err := server.documents.FilterValues(request.DocumentID, docstore.ValueFilterOptions{
+		Column:       request.Column,
+		Values:       request.Values,
+		IncludeBlank: request.IncludeBlank,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+}
+
+type sortRequest struct {
+	DocumentID string `json:"documentId"`
+	Column     int    `json:"column"`
+	Descending bool   `json:"descending"`
+	Numeric    bool   `json:"numeric"`
+	HasHeader  bool   `json:"hasHeader"`
+}
+
+func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
+	var request sortRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	count, err := server.documents.Sort(request.DocumentID, docstore.SortOptions{
+		Column:     request.Column,
+		Descending: request.Descending,
+		Numeric:    request.Numeric,
+		HasHeader:  request.HasHeader,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+}
+
+type viewClearRequest struct {
+	DocumentID string `json:"documentId"`
+}
+
+func (server *Server) handleViewClear(w http.ResponseWriter, r *http.Request) {
+	var request viewClearRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	count, err := server.documents.ClearView(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+}
+
+type diffRequest struct {
+	LeftPath  string `json:"leftPath"`
+	RightPath string `json:"rightPath"`
+	MaxRows   int    `json:"maxRows"`
+}
+
+func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
+	var request diffRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.LeftPath == "" || request.RightPath == "" {
+		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath are required"))
+		return
+	}
+	if request.LeftPath == "-" || request.RightPath == "-" {
+		writeError(w, http.StatusBadRequest, errors.New("diff does not support stdin"))
+		return
+	}
+	if request.MaxRows <= 0 {
+		request.MaxRows = 500
+	}
+	result, err := csvdiff.CompareFiles(request.LeftPath, request.RightPath, csvdiff.Options{MaxRows: request.MaxRows})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type sqlRequest struct {
+	DocumentID string `json:"documentId"`
+	Query      string `json:"query"`
+	Limit      int    `json:"limit"`
+}
+
+func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
+	var request sqlRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := sqlconsole.Execute(request.Query, server.sqlResolver(request.DocumentID), sqlconsole.Options{
+		DefaultLimit: max(1, request.Limit),
+		MaxLimit:     5000,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type profileRequest struct {
+	DocumentID string `json:"documentId"`
+}
+
+func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
+	var request profileRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, records, err := server.documents.Records(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result := dataprofile.Analyze(records, session.Document.Metadata.Dialect.HasHeader)
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) sqlResolver(documentID string) sqlconsole.Resolver {
+	return func(ref string) (sqlconsole.Source, error) {
+		if ref == "" || strings.EqualFold(ref, "current") || strings.EqualFold(ref, "this") {
+			if documentID == "" {
+				return sqlconsole.Source{}, errors.New("current document is required")
+			}
+			return server.sqlSourceFromDocument(documentID)
+		}
+		if documentID != "" {
+			if session, records, err := server.documents.Records(documentID); err == nil {
+				if ref == session.OriginalPath || ref == session.WorkingPath || ref == session.DisplayName {
+					return sqlSourceFromSession(session, records), nil
+				}
+			}
+		}
+		doc, err := csvcore.OpenDocument(ref, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+		if err != nil {
+			return sqlconsole.Source{}, err
+		}
+		records, err := csvcore.ReadAllRecords(ref, doc.Metadata)
+		if err != nil {
+			return sqlconsole.Source{}, err
+		}
+		return sqlSourceFromDocument(ref, doc, records), nil
+	}
+}
+
+func (server *Server) sqlSourceFromDocument(documentID string) (sqlconsole.Source, error) {
+	session, records, err := server.documents.Records(documentID)
+	if err != nil {
+		return sqlconsole.Source{}, err
+	}
+	return sqlSourceFromSession(session, records), nil
+}
+
+func sqlSourceFromSession(session *docstore.Session, records [][]string) sqlconsole.Source {
+	return sqlSourceFromDocument(session.WorkingPath, session.Document, records)
+}
+
+func sqlSourceFromDocument(path string, doc csvcore.Document, records [][]string) sqlconsole.Source {
+	headers := []string(nil)
+	if doc.Metadata.Dialect.HasHeader && len(records) > 0 {
+		headers = records[0]
+	} else if doc.Metadata.Dialect.EstimatedColumns > 0 {
+		headers = make([]string, doc.Metadata.Dialect.EstimatedColumns)
+		for i := range headers {
+			headers[i] = fmt.Sprintf("c%d", i+1)
+		}
+	}
+	return sqlconsole.Source{
+		Name:    filepath.Base(path),
+		Path:    path,
+		Headers: headers,
+		Records: records,
+	}
+}
+
+func readJSON(r *http.Request, target any) error {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(target)
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func writeError(w http.ResponseWriter, status int, err error) {
+	writeJSON(w, status, map[string]string{"error": err.Error()})
+}
+
+func queryInt(r *http.Request, name string, fallback int) int {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func ResolveWebDir(value string) string {
+	if value != "" {
+		return value
+	}
+	return filepath.Join(".", "web")
+}
+
+func ListenAndServe(addr string, webDir string) error {
+	if addr == "" {
+		addr = "127.0.0.1:43255"
+	}
+	server := New(ResolveWebDir(webDir))
+	fmt.Printf("opencsv listening on http://%s\n", addr)
+	return http.ListenAndServe(addr, server.Handler())
+}
