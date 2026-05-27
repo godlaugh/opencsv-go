@@ -480,6 +480,7 @@ Output:
 - Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
 - Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.
 - Diff View can boot from URL parameters for regression and protocol workflows, including compare options and immediate run.
+- Diff View marks changed/added/deleted result rows as navigable differences, supports next/previous buttons, and supports the Alt+F5 / Shift+Alt+F5 shortcut shape used by SmoothCSV.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.

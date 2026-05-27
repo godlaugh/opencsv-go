@@ -75,6 +75,8 @@
               <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
               <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
               <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3,5" aria-label="Ignored diff columns" />
+              <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
+              <button id="diffNextButton" type="button" title="Next difference">↓</button>
             </div>
             <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
             <div id="diffResult" class="diff-result"></div>
@@ -155,6 +157,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-diff-options"></script>
+    <script type="module" src="./src/app.js?v=m2-diff-navigation"></script>
   </body>
 </html>

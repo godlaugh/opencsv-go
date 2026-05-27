@@ -58,6 +58,8 @@ const diffIgnoreCase = document.querySelector("#diffIgnoreCase");
 const diffIgnoreWhitespace = document.querySelector("#diffIgnoreWhitespace");
 const diffMatchHeaders = document.querySelector("#diffMatchHeaders");
 const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
+const diffPrevButton = document.querySelector("#diffPrevButton");
+const diffNextButton = document.querySelector("#diffNextButton");
 const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
@@ -128,6 +130,8 @@ let findWholeCell = false;
 let findRegex = false;
 let findState = emptyFindState();
 let includeHeadersInSelection = false;
+let diffRows = [];
+let activeDiffIndex = -1;
 const quotePolicy = "minimal";
 const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -2479,6 +2483,9 @@ async function runDiffCompare() {
   if (!response.ok) {
     status.textContent = `Diff failed: ${payload.error ?? "unknown error"}`;
     diffResult.replaceChildren(emptyDiffNode(payload.error ?? "Diff failed"));
+    diffRows = [];
+    activeDiffIndex = -1;
+    updateDiffNavigationState();
     return;
   }
   renderDiffResult(payload);
@@ -2495,6 +2502,8 @@ function parseColumnList(value) {
 
 function renderDiffResult(result) {
   const summary = result.summary ?? {};
+  diffRows = [];
+  activeDiffIndex = -1;
   diffSummary.replaceChildren(
     summaryNode("Unchanged", summary.unchanged ?? 0),
     summaryNode("Changed", summary.changed ?? 0),
@@ -2503,6 +2512,7 @@ function renderDiffResult(result) {
   );
   if (!result.rows?.length) {
     diffResult.replaceChildren(emptyDiffNode("No diff rows"));
+    updateDiffNavigationState();
     return;
   }
   const table = document.createElement("table");
@@ -2516,9 +2526,14 @@ function renderDiffResult(result) {
   thead.append(tr);
   table.append(thead);
   const tbody = document.createElement("tbody");
-  for (const row of result.rows) {
+  result.rows.forEach((row, index) => {
     const tr = document.createElement("tr");
     tr.className = row.status;
+    if (row.status !== "unchanged") {
+      tr.dataset.diffIndex = String(diffRows.length);
+      tr.dataset.resultIndex = String(index);
+      diffRows.push(tr);
+    }
     appendCell(tr, row.status);
     appendCell(tr, row.leftRow ?? "");
     appendCell(tr, (row.leftRecord ?? []).join(" | "));
@@ -2529,9 +2544,41 @@ function renderDiffResult(result) {
     appendChangedCells(cells, row.changedCells ?? []);
     tr.append(cells);
     tbody.append(tr);
-  }
+  });
   table.append(tbody);
   diffResult.replaceChildren(table);
+  updateDiffNavigationState();
+  if (diffRows.length > 0) activateDiffRow(0, false);
+}
+
+function updateDiffNavigationState() {
+  const disabled = diffRows.length === 0;
+  diffPrevButton.disabled = disabled;
+  diffNextButton.disabled = disabled;
+  document.body.dataset.diffCount = String(diffRows.length);
+  document.body.dataset.activeDiff = activeDiffIndex >= 0 ? String(activeDiffIndex + 1) : "";
+}
+
+function activateDiffRow(index, scroll = true) {
+  if (diffRows.length === 0) return;
+  const nextIndex = ((index % diffRows.length) + diffRows.length) % diffRows.length;
+  if (activeDiffIndex >= 0 && diffRows[activeDiffIndex]) {
+    diffRows[activeDiffIndex].classList.remove("active-diff");
+  }
+  activeDiffIndex = nextIndex;
+  const row = diffRows[activeDiffIndex];
+  row.classList.add("active-diff");
+  if (scroll) {
+    row.scrollIntoView({ block: "nearest" });
+  }
+  updateDiffNavigationState();
+  status.textContent = `Diff ${activeDiffIndex + 1} of ${diffRows.length}`;
+}
+
+function navigateDiff(direction) {
+  if (viewMode !== "diff" || diffRows.length === 0) return false;
+  activateDiffRow(activeDiffIndex < 0 ? 0 : activeDiffIndex + direction);
+  return true;
 }
 
 function appendChangedCells(container, changedCells) {
@@ -2791,6 +2838,10 @@ window.addEventListener("keyup", (event) => {
 function handleGlobalShortcut(event) {
   const primary = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
+  if (event.altKey && key === "f5") {
+    event.preventDefault();
+    return navigateDiff(event.shiftKey ? -1 : 1);
+  }
   if (event.shiftKey && event.altKey && key === "h") {
     event.preventDefault();
     toggleHeaderInSelection();
@@ -2956,6 +3007,8 @@ paletteButton.addEventListener("click", openCommandPalette);
 runSqlButton.addEventListener("click", runSQLQuery);
 diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);
+diffPrevButton.addEventListener("click", () => navigateDiff(-1));
+diffNextButton.addEventListener("click", () => navigateDiff(1));
 for (const input of [leftDiffPath, rightDiffPath]) {
   input.addEventListener("keydown", async (event) => {
     if (event.key === "Enter") {
