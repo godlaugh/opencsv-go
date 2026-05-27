@@ -134,6 +134,11 @@ flowchart TD
   - System color-scheme listener while preference is `system`.
   - CSS design tokens shared by DOM controls and Canvas grid rendering.
 
+- `web Start / Recent Files`
+  - Sidebar start surface with path-input focus and browser file-picker quick actions.
+  - Local recent file persistence for path-opened files.
+  - Recent entry reopen flow and missing-file cleanup on failed reopen.
+
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
   - Shift-arrow and Shift-click range expansion.
@@ -620,6 +625,7 @@ Output:
 - Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows.
 - Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
+- Sidebar start surface can reopen recent files and removes a missing recent entry when reopening fails.
 - Header remains stable after wheel scroll.
 - Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
 - Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.

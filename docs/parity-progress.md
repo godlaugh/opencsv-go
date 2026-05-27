@@ -52,6 +52,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-004 | Swap exactly two selected cells | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser shortcut verification |
 | FR-018 | Read-only mode and external file refresh foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser verification |
 | FR-019 | Light/dark/system theme foundation | Started | command registry, Browser command-palette verification |
+| FR-020 | Start/recent file sidebar foundation | Started | Browser recent-open and missing-recent cleanup verification |
 | NFR-001 | 100 MB first screen under 2s | Passing core benchmark | `opencsv bench` |
 
 ## Browser Verification Notes
@@ -59,6 +60,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 - Initial UI shows no fake files.
+- Start/recent verification on `/tmp/opencsv-recent-verify.csv`: URL boot-open stores the file in the recent list; returning to `/` shows `Open CSV/TSV`, `Choose File`, and the recent file entry; clicking the recent entry reopens it; after the file is deleted, clicking the recent entry reports the open failure and removes that recent item from the sidebar.
 - Path input can open `/tmp/opencsv-m1-100mb.csv`.
 - Open button opens a typed local path when the path field is populated, and falls back to the browser file picker when it is empty.
 - Workspace shows `opencsv-m1-100mb.csv`.
@@ -153,6 +155,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/document` stores `ReadOnly` session state plus last-known file size/mod time, rejects write operations while read-only, exposes file-status checks, and can refresh a clean document from disk.
 - `/api/read-only`, `/api/file-status`, and `/api/refresh` expose read-only and external-change behavior to the frontend.
 - Frontend status bar shows editable/read-only and synced/changed-on-disk states. Clean, editable documents auto-refresh when the backing file changes; dirty or read-only documents surface the external-change state instead of overwriting local context.
+- Frontend sidebar now renders a start surface with path/file-picker quick actions and a persisted recent file list. Recent entries are stored locally, clicking one reopens the path, and entries are removed automatically when reopening fails because the file is missing.
 - `pkg/document.Transpose` materializes a real undoable mutation, fills ragged missing cells with blanks, clears header-row interpretation after transpose, marks the document dirty, and rejects operations above the configured cell-count limit.
 - `/api/transpose` exposes transpose with a max-cell guard. `table.transpose` is registered in the command registry and dispatched through the frontend Command Palette.
 - `pkg/document.DeduplicateRows` removes duplicate data rows while preserving the detected header row. `pkg/document.DeduplicateColumns` removes later duplicate columns by full column value while preserving first-seen order. `pkg/document.TransformCells` trims, uppercases, or lowercases explicit selected cells. All are undoable materialized mutations and avoid dirty/undo churn on no-op requests.
@@ -187,5 +190,5 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Read-only and external file refresh foundations exist in local app mode, but OS-level file watching, conflict resolution UI for dirty documents, and user-configurable auto-refresh policy are still missing.
 - Transpose is implemented as a whole-document materialized operation with a cell-count guard; selection-only transpose, large-file streaming transpose, and a richer confirmation UI are still missing.
 - Text transforms currently accept explicit selected cells with a frontend safety cap; streaming whole-column transforms, richer case/normalize variants, vertical join/split, custom separator UI, and richer split conflict handling are still missing.
-- Native desktop shell is not implemented yet.
+- Native desktop shell is not implemented yet. Browser prototype now has a local start/recent foundation, but desktop-backed settings, recent storage, and window geometry persistence remain incomplete.
 - Browser verification is currently a mix of DOM/API checks and targeted screenshots for visual regressions.

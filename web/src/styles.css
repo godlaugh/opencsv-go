@@ -121,6 +121,13 @@ button:disabled {
   gap: 4px;
 }
 
+.file-section-label {
+  padding: 12px 8px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .file-button,
 .empty-file-list {
   display: grid;
@@ -140,6 +147,11 @@ button:disabled {
 .file-button.active {
   border-color: var(--accent-border);
   background: var(--accent-quiet);
+}
+
+.file-button.file-action {
+  border-style: dashed;
+  background: var(--panel-subtle);
 }
 
 .file-name {

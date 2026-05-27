@@ -91,6 +91,8 @@ const rowHeight = 28;
 const headerHeight = 36;
 const rowNumberWidth = 58;
 const windowSize = 160;
+const recentFilesStorageKey = "opencsv-recent-files";
+const recentFilesLimit = 8;
 
 let totalRows = 0;
 let columns = [];
@@ -107,6 +109,7 @@ let dragSelectionMode = "cell";
 let hoverURL = "";
 let editing = false;
 let documentId = "";
+let activeFileEntry = null;
 let metadata = null;
 let rows = new Map();
 let rowSource = new Map();
@@ -1417,7 +1420,7 @@ async function openPath(path) {
   readOnly = false;
   externalFileChanged = false;
   loadDocument(payload.document);
-  updateFileList(fileNameFromPath(path), metadata.path, totalRows);
+  updateFileList(fileNameFromPath(path), metadata.path, totalRows, { remember: true });
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
@@ -1776,31 +1779,143 @@ function parseTSV(text) {
   return normalized.split("\n").map((line) => line.split("\t"));
 }
 
-function updateFileList(name, detail, rowCount) {
-  fileList.replaceChildren();
-  const button = document.createElement("button");
-  button.className = "file-button active";
-  button.type = "button";
+function updateFileList(name, detail, rowCount, options = {}) {
+  activeFileEntry = { name, detail, rowCount };
+  if (options.remember) rememberRecentFile(activeFileEntry);
+  renderFileList();
+}
 
+function renderFileList() {
+  fileList.replaceChildren();
+  if (!activeFileEntry) {
+    renderStartActions();
+  } else {
+    fileList.append(fileButton(activeFileEntry, {
+      active: true,
+      onClick: () => {
+        selected = { row: 0, col: 0 };
+        selectionAnchor = { row: 0, col: 0 };
+        scrollX = 0;
+        scrollY = 0;
+        wheelRemainderY = 0;
+        canvas.focus();
+        draw();
+      },
+    }));
+  }
+
+  const recent = recentFiles().filter((item) => item.detail !== activeFileEntry?.detail);
+  if (recent.length > 0) {
+    const label = document.createElement("div");
+    label.className = "file-section-label";
+    label.textContent = "Recent";
+    fileList.append(label);
+    for (const item of recent) {
+      fileList.append(fileButton(item, { onClick: () => openRecentFile(item) }));
+    }
+  }
+}
+
+function renderStartActions() {
+  const openPathButton = document.createElement("button");
+  openPathButton.className = "file-button file-action";
+  openPathButton.type = "button";
+  openPathButton.append(fileText("Open CSV/TSV", "Type a path in the toolbar"));
+  openPathButton.addEventListener("click", () => {
+    pathInput.focus();
+    pathInput.select();
+  });
+
+  const chooseButton = document.createElement("button");
+  chooseButton.className = "file-button file-action";
+  chooseButton.type = "button";
+  chooseButton.append(fileText("Choose File", "Open with browser picker"));
+  chooseButton.addEventListener("click", () => fileInput.click());
+
+  fileList.append(openPathButton, chooseButton);
+}
+
+function fileButton(entry, options = {}) {
+  const button = document.createElement("button");
+  button.className = options.active ? "file-button active" : "file-button";
+  button.type = "button";
+  button.title = entry.detail;
+  button.append(fileText(entry.name, fileMeta(entry)));
+  if (options.onClick) button.addEventListener("click", options.onClick);
+  return button;
+}
+
+function fileText(name, metaText) {
+  const fragment = document.createDocumentFragment();
   const title = document.createElement("span");
   title.className = "file-name";
   title.textContent = name;
 
   const meta = document.createElement("span");
   meta.className = "file-meta";
-  meta.textContent = `${rowCount.toLocaleString()} rows · ${detail}`;
+  meta.textContent = metaText;
 
-  button.append(title, meta);
-  button.addEventListener("click", () => {
-    selected = { row: 0, col: 0 };
-    selectionAnchor = { row: 0, col: 0 };
-    scrollX = 0;
-    scrollY = 0;
-    wheelRemainderY = 0;
-    canvas.focus();
-    draw();
-  });
-  fileList.append(button);
+  fragment.append(title, meta);
+  return fragment;
+}
+
+function fileMeta(entry) {
+  const rowsText = Number.isFinite(entry.rowCount)
+    ? `${entry.rowCount.toLocaleString()} rows`
+    : "recent file";
+  return `${rowsText} · ${entry.detail}`;
+}
+
+function recentFiles() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(recentFilesStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.detail === "string" && item.detail)
+      .map((item) => ({
+        name: String(item.name || fileNameFromPath(item.detail)),
+        detail: item.detail,
+        rowCount: Number.isFinite(item.rowCount) ? item.rowCount : null,
+        lastOpened: Number.isFinite(item.lastOpened) ? item.lastOpened : 0,
+      }))
+      .sort((left, right) => right.lastOpened - left.lastOpened)
+      .slice(0, recentFilesLimit);
+  } catch {
+    return [];
+  }
+}
+
+function rememberRecentFile(entry) {
+  if (!entry?.detail || entry.detail === "temporary upload") return;
+  const next = [
+    { ...entry, lastOpened: Date.now() },
+    ...recentFiles().filter((item) => item.detail !== entry.detail),
+  ].slice(0, recentFilesLimit);
+  try {
+    localStorage.setItem(recentFilesStorageKey, JSON.stringify(next));
+  } catch {
+    status.textContent = "Recent files could not be saved.";
+  }
+}
+
+function removeRecentFile(detail) {
+  const next = recentFiles().filter((item) => item.detail !== detail);
+  try {
+    localStorage.setItem(recentFilesStorageKey, JSON.stringify(next));
+  } catch {
+    status.textContent = "Recent files could not be updated.";
+  }
+}
+
+async function openRecentFile(entry) {
+  pathInput.value = entry.detail;
+  try {
+    await openPath(entry.detail);
+  } catch (error) {
+    removeRecentFile(entry.detail);
+    renderFileList();
+    status.textContent = `Removed missing recent file: ${error.message}`;
+  }
 }
 
 function fileNameFromPath(path) {
@@ -3769,4 +3884,5 @@ canvas.tabIndex = 0;
 profilePanel.tabIndex = -1;
 loadCommandRegistry();
 resize();
+renderFileList();
 openInitialURLTarget();
