@@ -125,6 +125,8 @@ flowchart TD
 
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
+  - Fuzzy command scoring across command ID, title, description, and aliases.
+  - Local recent command history shared by palette/toolbar/shortcut dispatch.
   - Honors implementation status and document requirements.
   - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
@@ -651,6 +653,7 @@ Output:
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
 - Command Palette can search and execute an enabled command.
+- Command Palette fuzzy search ranks `Profile` first for `pf`, and empty-query results prioritize recently executed commands.
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move/hide row/column commands without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.

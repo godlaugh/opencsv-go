@@ -93,6 +93,8 @@ const rowNumberWidth = 58;
 const windowSize = 160;
 const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
+const commandHistoryStorageKey = "opencsv-command-history";
+const commandHistoryLimit = 8;
 
 let totalRows = 0;
 let columns = [];
@@ -643,9 +645,7 @@ function closeCommandPalette() {
 
 function renderCommandPalette() {
   const query = paletteInput.value.trim().toLowerCase();
-  paletteItems = Array.from(commandsById.values())
-    .filter((command) => command.implemented !== false)
-    .filter((command) => commandMatchesQuery(command, query));
+  paletteItems = scoredPaletteCommands(query);
   if (paletteIndex >= paletteItems.length) paletteIndex = Math.max(0, paletteItems.length - 1);
   if (!paletteItems.length) {
     paletteList.replaceChildren(emptyPaletteNode("No matching commands"));
@@ -677,16 +677,85 @@ function renderCommandPalette() {
   paletteList.replaceChildren(fragment);
 }
 
-function commandMatchesQuery(command, query) {
-  if (!query) return true;
-  return [
+function scoredPaletteCommands(query) {
+  const history = commandHistory();
+  const recentRank = new Map(history.map((id, index) => [id, history.length - index]));
+  return Array.from(commandsById.values())
+    .filter((command) => command.implemented !== false)
+    .map((command) => ({
+      command,
+      score: query ? commandFuzzyScore(command, query) : recentRank.get(command.id) ?? 0,
+    }))
+    .filter((entry) => !query || entry.score > 0)
+    .sort((left, right) =>
+      right.score - left.score ||
+      commandTitle(left.command).localeCompare(commandTitle(right.command)),
+    )
+    .map((entry) => entry.command);
+}
+
+function commandFuzzyScore(command, query) {
+  const values = [
     command.id,
     command.title,
     command.description,
     ...(command.aliases ?? []),
-  ]
-    .filter(Boolean)
-    .some((value) => value.toLowerCase().includes(query));
+  ].filter(Boolean);
+  let best = 0;
+  for (const value of values) {
+    const score = fuzzyScore(String(value).toLowerCase(), query);
+    if (score > best) best = score;
+  }
+  return best;
+}
+
+function fuzzyScore(value, query) {
+  if (!query) return 1;
+  if (value === query) return 10000;
+  if (value.startsWith(query)) return 8000 - value.length;
+  const index = value.indexOf(query);
+  if (index >= 0) return 6000 - index * 8 - value.length;
+
+  let queryIndex = 0;
+  let gap = 0;
+  let previousMatch = -1;
+  for (let valueIndex = 0; valueIndex < value.length && queryIndex < query.length; valueIndex++) {
+    if (value[valueIndex] !== query[queryIndex]) continue;
+    if (previousMatch >= 0) gap += valueIndex - previousMatch - 1;
+    previousMatch = valueIndex;
+    queryIndex++;
+  }
+  if (queryIndex !== query.length) return 0;
+  return Math.max(1, 3000 - gap * 16 - value.length);
+}
+
+function commandTitle(command) {
+  return command.title || command.id || "";
+}
+
+function commandHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(commandHistoryStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((id) => typeof id === "string" && commandsById.has(id))
+      .slice(0, commandHistoryLimit);
+  } catch {
+    return [];
+  }
+}
+
+function rememberCommand(commandID) {
+  if (commandID === "command.palette" || !commandsById.has(commandID)) return;
+  const next = [
+    commandID,
+    ...commandHistory().filter((id) => id !== commandID),
+  ].slice(0, commandHistoryLimit);
+  try {
+    localStorage.setItem(commandHistoryStorageKey, JSON.stringify(next));
+  } catch {
+    status.textContent = "Command history could not be saved.";
+  }
 }
 
 function emptyPaletteNode(message) {
@@ -707,6 +776,7 @@ async function executePaletteCommand(commandID) {
 }
 
 async function executeCommand(commandID) {
+  rememberCommand(commandID);
   switch (commandID) {
     case "command.palette":
       openCommandPalette();

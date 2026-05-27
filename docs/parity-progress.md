@@ -46,6 +46,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
 | FR-010 | CLI stdin open foundation | Started | `cmd/opencsv` test, CLI smoke |
 | FR-012 | Command registry and Command Palette foundation | Started | `pkg/commands` tests, `/api/commands`, Browser command palette verification |
+| FR-012 | Command Palette fuzzy search and recent command history | Started | Browser palette verification |
 | FR-017 | Transpose rows/columns foundation | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser command-palette verification |
 | FR-004 | Duplicate row/column removal and selected-cell text transforms | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser shortcut verification |
 | FR-004 | Join/split cell tools foundation | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser shortcut verification |
@@ -91,6 +92,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Profile validation detects empty header, duplicate header, and ragged row issues in `/tmp/opencsv-profile.csv`.
 - Selecting a Profile column row updates the right-side inspector to that column's type, null count, and distinct count.
 - Command Palette opens from the `Cmd` toolbar button, filters commands by text, and executing `Profile` opens the Profile View for `/tmp/opencsv-profile.csv`.
+- Command Palette fuzzy/history verification on `/tmp/opencsv-palette-history.csv`: typing `pf` ranks `Profile` first even though the letters are non-contiguous; executing `Profile` opens Profile View; reopening Command Palette with an empty query shows `Profile` as the first recent command.
 - Command Palette executes `Insert Row`, `Undo`, `Redo`, `Insert Column`, and `Delete Column` on `/tmp/opencsv-structure.csv`; row count changes `2 -> 3 -> 2 -> 3`, column count changes `2 -> 3 -> 2`, and the original file remains unchanged until Save.
 - Row/column move verification on `/tmp/opencsv-move.csv`: `Shift+Alt+Down` moves the selected `Ada` row below `Linus`, `Shift+Alt+Left` moves the selected `score` column before `name`, status reports the move commands, and `Cmd+Z` restores the prior structure.
 - Row/column hide verification on `/tmp/opencsv-hide.csv`: `Shift+Alt+R` hides the selected row without marking the document dirty, `Shift+Alt+X` hides the selected column while preserving source-column indexes for visible values, and Clear View restores both hidden rows and hidden columns.
@@ -144,7 +146,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/clipboard` supports TSV, CSV, Markdown table, JSON array, HTML table, SQL `VALUES`, LaTeX tabular, raw value serialization, and header-row prepending plus TSV matrix parsing.
 - `pkg/csvcore.RequiresQuote` mirrors the current Go writer's minimal quote behavior for delimiter, quote, CR/LF, and leading whitespace detection.
 - Frontend copy/paste handlers copy selected ranges as TSV and paste tab-separated matrices through `/api/edit-batch`; Command Palette exposes TSV-with-headers and CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy variants.
-- Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column insert/delete/move/hide/filter/sort/clear/theme/sql/profile/diff.
+- Frontend Command Palette searches `/api/commands` metadata with fuzzy scoring, prioritizes recently executed commands, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column insert/delete/move/hide/filter/sort/clear/theme/sql/profile/diff.
 - Frontend theme state supports light, dark, and system preferences, stores the selected preference locally, follows OS color-scheme changes while in system mode, and feeds Canvas grid colors from CSS variables.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
@@ -183,7 +185,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - SQL console is implemented as a useful subset, including basic aggregation, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, HAVING, or query history.
 - Diff engine/API/CLI payload and a basic visual Diff View exist, with ignore options, header-name alignment, row alignment by key column, inline character spans, next/previous diff navigation, bidirectional merge actions for two files, and right-side pasted text comparison. Native clipboard ingestion, conflict prompts, and a fully virtualized side-by-side editor remain incomplete.
 - Profile/validation exists as a useful foundation, but CSVLint-compatible rule sets, saved schemas, quick fixes, and incremental profiling for very large files remain incomplete.
-- Command Palette is implemented as a first-pass command runner, but fuzzy scoring, command history, keybinding customization, and full action coverage remain incomplete.
+- Command Palette is implemented as a first-pass command runner with fuzzy scoring and recent command history, but keybinding customization and full action coverage remain incomplete.
 - Theme support now covers the main app shell and Canvas grid, but a full Settings UI, high-contrast variants, per-OS native title/menu integration, and design-token audit across every future surface remain incomplete.
 - Full CLI/URL parity is not implemented yet: root CLI parsing/opening exists, but native desktop launch, wait-for-close, protocol handler registration, and actual diff view wiring remain.
 - CLI/URL parsing exists as a reusable package, but it is not wired into a desktop protocol handler yet.
