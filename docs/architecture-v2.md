@@ -124,7 +124,7 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -139,9 +139,10 @@ flowchart TD
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
   - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
+  - Horizontal Join Cells and Split Cell commands backed by document mutations.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
-  - Frozen header layer with body clipping.
+  - Single-canvas sticky header redraw with body clipping.
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
@@ -441,6 +442,29 @@ Rules:
 - Duplicate cells in the request are applied once.
 - Empty no-op transforms do not create an undo entry or mark the document dirty.
 
+### Join and Split Cells
+
+`POST /api/cells/join`
+`POST /api/cells/split`
+
+Input:
+
+- document ID.
+- explicit source cells with zero-based row and column indexes.
+- separator text.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+- changed count for cells whose value changed.
+
+Rules:
+
+- Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell, and clears the remaining selected cells in that row.
+- Split writes separator-delimited parts horizontally starting at the selected source cell and can expand row width.
+- Both tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
+
 ### Diff
 
 `POST /api/diff`
@@ -603,6 +627,7 @@ Output:
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns, marks the document dirty, is undoable, and rejects over-limit tables.
 - Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
+- Join/split cell tools are command-backed, undoable materialized mutations.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.
 - Save clears dirty and creates backup.

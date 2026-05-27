@@ -629,6 +629,86 @@ func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransfo
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
 }
 
+func (manager *Manager) JoinCells(id string, cells []Cell, separator string) (MutationResult, error) {
+	if len(cells) == 0 {
+		return MutationResult{}, errors.New("no cells selected")
+	}
+	if separator == "" {
+		return MutationResult{}, errors.New("separator is required")
+	}
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Col < 0 {
+			return MutationResult{}, errors.New("row and col must be non-negative")
+		}
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+
+	changed := joinRecords(records, cells, separator)
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, session.Document.Metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
+}
+
+func (manager *Manager) SplitCells(id string, cells []Cell, separator string) (MutationResult, error) {
+	if len(cells) == 0 {
+		return MutationResult{}, errors.New("no cells selected")
+	}
+	if separator == "" {
+		return MutationResult{}, errors.New("separator is required")
+	}
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Col < 0 {
+			return MutationResult{}, errors.New("row and col must be non-negative")
+		}
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+
+	changed := splitRecords(records, cells, separator)
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
+}
+
 func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore.SaveResult, error) {
 	session, ok := manager.snapshot(id)
 	if !ok {
@@ -1508,6 +1588,83 @@ func visibleRowCount(session *Session, recordCount int, dataStart int) int {
 		return len(session.ViewRows)
 	}
 	return max(0, recordCount-dataStart)
+}
+
+func joinRecords(records [][]string, cells []Cell, separator string) int {
+	grouped := make(map[int][]int)
+	seen := make(map[Cell]bool, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Row >= len(records) || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		grouped[cell.Row] = append(grouped[cell.Row], cell.Col)
+	}
+	changed := 0
+	for row, cols := range grouped {
+		sort.Ints(cols)
+		if len(cols) < 2 {
+			continue
+		}
+		ensureRecordWidth(&records[row], cols[len(cols)-1]+1)
+		values := make([]string, len(cols))
+		for index, col := range cols {
+			values[index] = records[row][col]
+		}
+		joined := strings.Join(values, separator)
+		if records[row][cols[0]] != joined {
+			records[row][cols[0]] = joined
+			changed++
+		}
+		for _, col := range cols[1:] {
+			if records[row][col] != "" {
+				records[row][col] = ""
+				changed++
+			}
+		}
+	}
+	return changed
+}
+
+type splitOperation struct {
+	row   int
+	col   int
+	parts []string
+}
+
+func splitRecords(records [][]string, cells []Cell, separator string) int {
+	seen := make(map[Cell]bool, len(cells))
+	operations := make([]splitOperation, 0, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Row >= len(records) || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		value := cellValue(records[cell.Row], cell.Col)
+		parts := strings.Split(value, separator)
+		if len(parts) < 2 {
+			continue
+		}
+		operations = append(operations, splitOperation{row: cell.Row, col: cell.Col, parts: parts})
+	}
+	sort.Slice(operations, func(i int, j int) bool {
+		if operations[i].row == operations[j].row {
+			return operations[i].col > operations[j].col
+		}
+		return operations[i].row < operations[j].row
+	})
+	changed := 0
+	for _, operation := range operations {
+		ensureRecordWidth(&records[operation.row], operation.col+len(operation.parts))
+		for offset, part := range operation.parts {
+			targetCol := operation.col + offset
+			if records[operation.row][targetCol] != part {
+				records[operation.row][targetCol] = part
+				changed++
+			}
+		}
+	}
+	return changed
 }
 
 func deduplicateRecords(records [][]string, hasHeader bool) ([][]string, int) {

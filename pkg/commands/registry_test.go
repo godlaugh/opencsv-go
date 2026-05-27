@@ -42,6 +42,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"text.trim",
 		"text.uppercase",
 		"text.lowercase",
+		"cell.joinHorizontal",
+		"cell.splitHorizontal",
 		"view.filter",
 		"view.sort",
 		"view.sql",

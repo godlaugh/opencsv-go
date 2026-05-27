@@ -588,6 +588,59 @@ func TestManagerTextTransforms(t *testing.T) {
 	}
 }
 
+func TestManagerJoinAndSplitCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "join-split.csv")
+	if err := os.WriteFile(path, []byte("id,first,last\n1,Ada,Lovelace\n2,Grace,Hopper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "join-split.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.JoinCells(session.ID, []Cell{{Row: 1, Col: 1}, {Row: 1, Col: 2}}, " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("join changed = %d, want 2", result.Changed)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada Lovelace" || records[1][2] != "" {
+		t.Fatalf("records after join = %#v", records)
+	}
+	if _, err := manager.Undo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[1][2] != "Lovelace" {
+		t.Fatalf("records after undo join = %#v", records)
+	}
+
+	result, err = manager.SplitCells(session.ID, []Cell{{Row: 1, Col: 1}}, "d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("split changed = %d, want 2", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "A" || records[1][2] != "a" {
+		t.Fatalf("records after split = %#v", records)
+	}
+}
+
 func TestManagerBatchEditSingleUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

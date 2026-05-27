@@ -351,6 +351,53 @@ func TestServerDedupeAndTextTransform(t *testing.T) {
 	}
 }
 
+func TestServerJoinAndSplitCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "join-split.csv")
+	if err := os.WriteFile(path, []byte("id,first,last\n1,Ada,Lovelace\n2,Grace,Hopper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	joinPayload := postJSON(t, handler, "/api/cells/join", map[string]any{
+		"documentId": documentID,
+		"separator":  " ",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+			{"row": 1, "col": 2},
+		},
+	})
+	if joinPayload["changed"].(float64) != 2 {
+		t.Fatalf("join payload = %#v", joinPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada Lovelace" || rows[1].([]any)[2] != "" {
+		t.Fatalf("rows after join = %#v", rows)
+	}
+	splitPayload := postJSON(t, handler, "/api/cells/split", map[string]any{
+		"documentId": documentID,
+		"separator":  " ",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+		},
+	})
+	if splitPayload["changed"].(float64) != 2 {
+		t.Fatalf("split payload = %#v", splitPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" || rows[1].([]any)[2] != "Lovelace" {
+		t.Fatalf("rows after split = %#v", rows)
+	}
+}
+
 func TestServerFindFilterSort(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

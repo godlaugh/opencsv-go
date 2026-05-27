@@ -284,22 +284,9 @@ button:disabled {
   height: 100%;
 }
 
-#frozenGrid {
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 2;
-  display: block;
-  width: 100%;
-  height: var(--grid-header-height);
-  pointer-events: none;
-}
-
 .grid-frame.sql-mode #grid,
-.grid-frame.sql-mode #frozenGrid,
 .grid-frame.diff-mode #grid,
-.grid-frame.diff-mode #frozenGrid,
-.grid-frame.profile-mode #grid,
-.grid-frame.profile-mode #frozenGrid {
+.grid-frame.profile-mode #grid {
   visibility: hidden;
 }
 

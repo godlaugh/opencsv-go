@@ -1,7 +1,5 @@
 const canvas = document.querySelector("#grid");
 const ctx = canvas.getContext("2d");
-const frozenCanvas = document.querySelector("#frozenGrid");
-const frozenCtx = frozenCanvas.getContext("2d");
 const editor = document.querySelector("#editor");
 const status = document.querySelector("#status");
 const encodingStatus = document.querySelector("#encodingStatus");
@@ -149,7 +147,6 @@ function resize() {
   const rect = gridFrame.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
   resizeCanvas(canvas, ctx, rect.width, rect.height, scale);
-  resizeCanvas(frozenCanvas, frozenCtx, rect.width, headerHeight, scale);
   draw();
 }
 
@@ -399,7 +396,9 @@ function isCommandDisabled(command) {
       command.id === "table.dedupeColumns" ||
       command.id === "text.trim" ||
       command.id === "text.uppercase" ||
-      command.id === "text.lowercase"
+      command.id === "text.lowercase" ||
+      command.id === "cell.joinHorizontal" ||
+      command.id === "cell.splitHorizontal"
     );
   return (
     command.implemented === false ||
@@ -805,6 +804,12 @@ async function executeCommand(commandID) {
     case "text.lowercase":
       await transformSelectedText("lower", "Lowercase Text");
       break;
+    case "cell.joinHorizontal":
+      await joinSelectedCells();
+      break;
+    case "cell.splitHorizontal":
+      await splitActiveCell();
+      break;
     case "view.filter":
       await filterCurrentQuery();
       break;
@@ -829,61 +834,63 @@ async function executeCommand(commandID) {
 }
 
 function drawHeaders(width) {
-  frozenCtx.clearRect(0, 0, frozenCanvas.clientWidth, headerHeight);
-  frozenCtx.fillStyle = themeColors.gridHeader;
-  frozenCtx.fillRect(0, 0, width, headerHeight);
-  frozenCtx.fillStyle = themeColors.gridGutter;
-  frozenCtx.fillRect(0, 0, rowNumberWidth, headerHeight);
-  frozenCtx.strokeStyle = themeColors.gridLine;
-  frozenCtx.beginPath();
-  frozenCtx.moveTo(0, headerHeight - 0.5);
-  frozenCtx.lineTo(width, headerHeight - 0.5);
-  frozenCtx.moveTo(rowNumberWidth + 0.5, 0);
-  frozenCtx.lineTo(rowNumberWidth + 0.5, headerHeight);
-  frozenCtx.stroke();
+  ctx.save();
+  ctx.fillStyle = themeColors.gridHeader;
+  ctx.fillRect(0, 0, width, headerHeight);
+  ctx.fillStyle = themeColors.gridGutter;
+  ctx.fillRect(0, 0, rowNumberWidth, headerHeight);
+  ctx.strokeStyle = themeColors.gridLine;
+  ctx.beginPath();
+  ctx.moveTo(0, headerHeight - 0.5);
+  ctx.lineTo(width, headerHeight - 0.5);
+  ctx.moveTo(rowNumberWidth + 0.5, 0);
+  ctx.lineTo(rowNumberWidth + 0.5, headerHeight);
+  ctx.stroke();
 
-  frozenCtx.font = "600 12px Inter, system-ui, sans-serif";
-  frozenCtx.textBaseline = "middle";
+  ctx.font = "600 12px Inter, system-ui, sans-serif";
+  ctx.textBaseline = "middle";
 
   if (columns.length === 0) {
-    frozenCtx.fillStyle = themeColors.muted;
-    frozenCtx.fillText("Open a CSV file", rowNumberWidth + 10, headerHeight / 2);
+    ctx.fillStyle = themeColors.muted;
+    ctx.fillText("Open a CSV file", rowNumberWidth + 10, headerHeight / 2);
+    ctx.restore();
     return;
   }
 
   let x = rowNumberWidth - scrollX;
   for (const column of columns) {
     if (x + column.width >= rowNumberWidth && x <= width) {
-      frozenCtx.fillStyle = themeColors.text;
-      frozenCtx.fillText(column.name, x + 8, 13);
-      frozenCtx.fillStyle = themeColors.muted;
-      frozenCtx.font = "600 11px Inter, system-ui, sans-serif";
-      frozenCtx.fillText(column.type ?? "string", x + 8, 27);
-      frozenCtx.font = "600 12px Inter, system-ui, sans-serif";
+      ctx.fillStyle = themeColors.text;
+      ctx.fillText(column.name, x + 8, 13);
+      ctx.fillStyle = themeColors.muted;
+      ctx.font = "600 11px Inter, system-ui, sans-serif";
+      ctx.fillText(column.type ?? "string", x + 8, 27);
+      ctx.font = "600 12px Inter, system-ui, sans-serif";
       drawHeaderMenuGlyph(x, column.width);
-      frozenCtx.strokeStyle = themeColors.gridLine;
-      frozenCtx.beginPath();
-      frozenCtx.moveTo(x + column.width + 0.5, 0);
-      frozenCtx.lineTo(x + column.width + 0.5, headerHeight);
-      frozenCtx.stroke();
+      ctx.strokeStyle = themeColors.gridLine;
+      ctx.beginPath();
+      ctx.moveTo(x + column.width + 0.5, 0);
+      ctx.lineTo(x + column.width + 0.5, headerHeight);
+      ctx.stroke();
     }
     x += column.width;
   }
+  ctx.restore();
 }
 
 function drawHeaderMenuGlyph(x, width) {
   const centerX = x + width - 14;
   const centerY = 13;
   if (centerX < rowNumberWidth + 8) return;
-  frozenCtx.save();
-  frozenCtx.fillStyle = themeColors.muted;
-  frozenCtx.beginPath();
-  frozenCtx.moveTo(centerX - 4, centerY - 2);
-  frozenCtx.lineTo(centerX + 4, centerY - 2);
-  frozenCtx.lineTo(centerX, centerY + 3);
-  frozenCtx.closePath();
-  frozenCtx.fill();
-  frozenCtx.restore();
+  ctx.save();
+  ctx.fillStyle = themeColors.muted;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 4, centerY - 2);
+  ctx.lineTo(centerX + 4, centerY - 2);
+  ctx.lineTo(centerX, centerY + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBodySeparators(width, height) {
@@ -2465,6 +2472,63 @@ async function transformSelectedText(mode, label) {
   );
 }
 
+async function joinSelectedCells() {
+  if (!documentId) return;
+  if (!ensureEditable("Join Cells")) return;
+  if (selectionCellCount() < 2) {
+    status.textContent = "Select at least two cells to join.";
+    return;
+  }
+  const cells = selectedCellsForTransform();
+  if (!cells) return;
+  await runCellTool("/api/cells/join", {
+    cells,
+    separator: " ",
+    activeRow: selected.row,
+    activeCol: normalizedSelection().startCol,
+    label: "Joined cells",
+  });
+}
+
+async function splitActiveCell() {
+  if (!documentId) return;
+  if (!ensureEditable("Split Cell")) return;
+  await runCellTool("/api/cells/split", {
+    cells: [{ row: selectedSourceRow(), col: sourceColFor(selected.col) }],
+    separator: " ",
+    activeRow: selected.row,
+    activeCol: selected.col,
+    label: "Split cell",
+  });
+}
+
+async function runCellTool(endpoint, options) {
+  status.textContent = `${options.label}...`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId,
+      cells: options.cells,
+      separator: options.separator,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${options.label} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  applyMutationPayload(payload, changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`);
+  selected = {
+    row: Math.max(0, Math.min(totalRows - 1, options.activeRow)),
+    col: Math.max(0, Math.min(columns.length - 1, options.activeCol)),
+  };
+  selectionAnchor = { ...selected };
+  draw();
+  status.textContent = changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`;
+}
+
 async function mutateStructure(endpoint, body, label) {
   if (!documentId) return;
   if (!ensureEditable(label)) return;
@@ -3209,6 +3273,8 @@ function handleGlobalShortcut(event) {
       c: "table.dedupeColumns",
       r: "row.hide",
       x: "column.hide",
+      j: "cell.joinHorizontal",
+      s: "cell.splitHorizontal",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",

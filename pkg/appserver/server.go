@@ -63,6 +63,8 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
 	server.mux.HandleFunc("POST /api/dedupe-columns", server.handleDedupeColumns)
 	server.mux.HandleFunc("POST /api/text-transform", server.handleTextTransform)
+	server.mux.HandleFunc("POST /api/cells/join", server.handleJoinCells)
+	server.mux.HandleFunc("POST /api/cells/split", server.handleSplitCells)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
 	server.mux.HandleFunc("POST /api/find", server.handleFind)
 	server.mux.HandleFunc("POST /api/replace", server.handleReplace)
@@ -490,6 +492,12 @@ type textTransformRequest struct {
 	Mode       string          `json:"mode"`
 }
 
+type cellsToolRequest struct {
+	DocumentID string          `json:"documentId"`
+	Cells      []docstore.Cell `json:"cells"`
+	Separator  string          `json:"separator"`
+}
+
 func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request) {
 	var request textTransformRequest
 	if err := readJSON(r, &request); err != nil {
@@ -501,6 +509,34 @@ func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request
 		request.Cells,
 		docstore.TextTransformMode(request.Mode),
 	)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleJoinCells(w http.ResponseWriter, r *http.Request) {
+	var request cellsToolRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.JoinCells(request.DocumentID, request.Cells, request.Separator)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleSplitCells(w http.ResponseWriter, r *http.Request) {
+	var request cellsToolRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SplitCells(request.DocumentID, request.Cells, request.Separator)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
