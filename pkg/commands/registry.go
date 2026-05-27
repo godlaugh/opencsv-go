@@ -28,6 +28,7 @@ func Registry() []Command {
 		{ID: "file.open", Title: "Open", Description: "Open a CSV or delimited text file.", Shortcut: "Cmd+O", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"open file"}},
 		{ID: "file.save", Title: "Save", Description: "Save the current document with backup policy.", Shortcut: "Cmd+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "file.exportView", Title: "Export View", Description: "Download the current filtered, sorted, and visible-column view.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"export filtered rows", "download csv", "export csv"}},
+		{ID: "file.exportXlsx", Title: "Export XLSX", Description: "Download the current filtered, sorted, and visible-column view as an Excel workbook.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"excel export", "xlsx", "download excel"}},
 		{ID: "file.toggleReadOnly", Title: "Toggle Read Only", Description: "Prevent or allow edits to the current document.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"readonly", "lock"}},
 		{ID: "edit.undo", Title: "Undo", Description: "Undo the last editing operation.", Shortcut: "Cmd+Z", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.redo", Title: "Redo", Description: "Redo the last undone editing operation.", Shortcut: "Cmd+Shift+Z", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},

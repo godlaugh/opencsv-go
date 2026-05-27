@@ -15,6 +15,7 @@ import (
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/sqlexpr"
+	"github.com/opencsv/opencsv/pkg/xlsx"
 )
 
 type SourceKind string
@@ -211,16 +212,27 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 		exportedRows++
 	}
 
-	data, err := csvcore.EncodeRecords(exportRecords, session.Document.Metadata)
+	format := strings.ToLower(strings.TrimSpace(options.Format))
+	contentType := exportViewContentType(session.Document.Metadata.Dialect.Delimiter)
+	filename := exportViewFilename(session.DisplayName, session.Document.Metadata.Dialect.Delimiter)
+	var data []byte
+	if format == "xlsx" {
+		data, err = xlsx.EncodeWorkbook(exportRecords)
+		contentType = xlsx.ContentType()
+		filename = exportViewXLSXFilename(session.DisplayName)
+	} else {
+		data, err = csvcore.EncodeRecords(exportRecords, session.Document.Metadata)
+	}
 	if err != nil {
 		return ExportViewResult{}, err
 	}
 	return ExportViewResult{
-		Filename:  exportViewFilename(session.DisplayName, session.Document.Metadata.Dialect.Delimiter),
-		Data:      data,
-		Rows:      exportedRows,
-		Columns:   exportColumnCount(exportRecords, options.Columns),
-		Delimiter: session.Document.Metadata.Dialect.Delimiter,
+		Filename:    filename,
+		Data:        data,
+		Rows:        exportedRows,
+		Columns:     exportColumnCount(exportRecords, options.Columns),
+		Delimiter:   session.Document.Metadata.Dialect.Delimiter,
+		ContentType: contentType,
 	}, nil
 }
 
@@ -271,14 +283,16 @@ type MutationResult struct {
 
 type ExportViewOptions struct {
 	Columns []int `json:"columns"`
+	Format  string
 }
 
 type ExportViewResult struct {
-	Filename  string
-	Data      []byte
-	Rows      int
-	Columns   int
-	Delimiter rune
+	Filename    string
+	Data        []byte
+	Rows        int
+	Columns     int
+	Delimiter   rune
+	ContentType string
 }
 
 func (manager *Manager) Undo(id string) (MutationResult, error) {
@@ -2099,6 +2113,18 @@ func exportColumnCount(records [][]string, columns []int) int {
 }
 
 func exportViewFilename(displayName string, delimiter rune) string {
+	targetExt := ".csv"
+	if delimiter == '\t' {
+		targetExt = ".tsv"
+	}
+	return exportViewFilenameWithExtension(displayName, targetExt)
+}
+
+func exportViewXLSXFilename(displayName string) string {
+	return exportViewFilenameWithExtension(displayName, ".xlsx")
+}
+
+func exportViewFilenameWithExtension(displayName string, targetExt string) string {
 	base := filepath.Base(displayName)
 	if base == "." || base == string(filepath.Separator) || base == "" {
 		base = "opencsv"
@@ -2108,11 +2134,14 @@ func exportViewFilename(displayName string, delimiter rune) string {
 	if stem == "" {
 		stem = "opencsv"
 	}
-	targetExt := ".csv"
-	if delimiter == '\t' {
-		targetExt = ".tsv"
-	}
 	return stem + ".view" + targetExt
+}
+
+func exportViewContentType(delimiter rune) string {
+	if delimiter == '\t' {
+		return "text/tab-separated-values; charset=utf-8"
+	}
+	return "text/csv; charset=utf-8"
 }
 
 type matcher struct {

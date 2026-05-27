@@ -21,6 +21,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"settings.keyboardShortcuts",
 		"file.save",
 		"file.exportView",
+		"file.exportXlsx",
 		"file.toggleReadOnly",
 		"workbench.toggleTheme",
 		"edit.copyWithHeaders",

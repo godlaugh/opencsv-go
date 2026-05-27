@@ -1,8 +1,12 @@
 package document
 
 import (
+	"archive/zip"
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -192,6 +196,39 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	}
 	if sorted.Filename != "export.view.csv" {
 		t.Fatalf("export filename = %q, want export.view.csv", sorted.Filename)
+	}
+	xlsxExport, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{1}, Format: "xlsx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if xlsxExport.Filename != "export.view.xlsx" {
+		t.Fatalf("xlsx filename = %q, want export.view.xlsx", xlsxExport.Filename)
+	}
+	if xlsxExport.ContentType != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		t.Fatalf("xlsx content type = %q", xlsxExport.ContentType)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(xlsxExport.Data), int64(len(xlsxExport.Data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sheet string
+	for _, file := range reader.File {
+		if file.Name != "xl/worksheets/sheet1.xml" {
+			continue
+		}
+		handle, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(handle)
+		_ = handle.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		sheet = string(data)
+	}
+	if !strings.Contains(sheet, `<t xml:space="preserve">Grace</t>`) || !strings.Contains(sheet, `<t xml:space="preserve">Linux</t>`) {
+		t.Fatalf("xlsx sheet missing exported values: %s", sheet)
 	}
 }
 

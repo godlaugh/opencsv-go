@@ -591,6 +591,24 @@ func TestServerExportView(t *testing.T) {
 	if got := response.Body.String(); got != "id,score\n1,9\n" {
 		t.Fatalf("export body = %q", got)
 	}
+
+	xlsxResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId": documentID,
+		"columns":    []int{0, 2},
+		"format":     "xlsx",
+	})
+	if xlsxResponse.Code != http.StatusOK {
+		t.Fatalf("xlsx export status = %d body=%s", xlsxResponse.Code, xlsxResponse.Body.String())
+	}
+	if got := xlsxResponse.Header().Get("Content-Type"); got != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		t.Fatalf("xlsx content type = %q", got)
+	}
+	if got := xlsxResponse.Header().Get("X-Opencsv-Filename"); got != "export.view.xlsx" {
+		t.Fatalf("xlsx filename = %q", got)
+	}
+	if !bytes.HasPrefix(xlsxResponse.Body.Bytes(), []byte("PK")) {
+		t.Fatalf("xlsx export is not a zip: %q", xlsxResponse.Body.Bytes()[:2])
+	}
 }
 
 func TestServerFindSelectionScope(t *testing.T) {

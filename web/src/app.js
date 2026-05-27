@@ -43,6 +43,7 @@ const findRegexButton = document.querySelector("#findRegexButton");
 const findSelectionButton = document.querySelector("#findSelectionButton");
 const diffButton = document.querySelector("#diffButton");
 const exportButton = document.querySelector("#exportButton");
+const exportXlsxButton = document.querySelector("#exportXlsxButton");
 const saveButton = document.querySelector("#saveButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
 const commandButtons = Array.from(document.querySelectorAll("[data-command]"));
@@ -109,7 +110,7 @@ const columnHide = document.querySelector("#columnHide");
 const columnClearView = document.querySelector("#columnClearView");
 
 const rowHeight = 28;
-const headerHeight = 36;
+const headerHeight = cssPixelValue("--grid-header-height", 44);
 const rowNumberWidth = 58;
 const windowSize = 160;
 const minColumnWidth = 92;
@@ -278,6 +279,12 @@ function refreshThemeColors() {
   };
 }
 
+function cssPixelValue(name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function valueAt(row, col) {
   if (!documentId) return "";
   const record = rows.get(row);
@@ -335,6 +342,7 @@ function draw() {
   const externalLabel = externalFileChanged ? " - external change" : "";
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
+  document.body.dataset.gridHeaderHeight = String(headerHeight);
   copyHeadersToggle.checked = includeHeadersInSelection;
   updateAggregateStatus(aggregateStats);
   status.textContent =
@@ -406,6 +414,8 @@ function applyCommandMetadata() {
       button.textContent = "Compare";
     } else if (button.dataset.command === "file.exportView") {
       button.textContent = "Export";
+    } else if (button.dataset.command === "file.exportXlsx") {
+      button.textContent = "XLSX";
     } else if (button.dataset.command === "edit.copySelectedFormat") {
       button.textContent = "Copy";
     } else if (button.dataset.command === "view.filterBuilder") {
@@ -1290,6 +1300,9 @@ async function executeCommand(commandID) {
     case "file.exportView":
       await exportCurrentView();
       break;
+    case "file.exportXlsx":
+      await exportCurrentView("xlsx");
+      break;
     case "sql.copyResultCsv":
       await copySQLResultCSV();
       break;
@@ -1441,7 +1454,12 @@ async function executeCommand(commandID) {
 }
 
 function drawHeaders(width) {
+  const headerNameY = Math.max(14, Math.round(headerHeight * 0.34));
+  const headerTypeY = Math.min(headerHeight - 10, Math.round(headerHeight * 0.72));
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, headerHeight);
+  ctx.clip();
   ctx.fillStyle = themeColors.gridHeader;
   ctx.fillRect(0, 0, width, headerHeight);
   ctx.fillStyle = themeColors.gridGutter;
@@ -1468,12 +1486,12 @@ function drawHeaders(width) {
   for (const column of columns) {
     if (x + column.width >= rowNumberWidth && x <= width) {
       ctx.fillStyle = themeColors.text;
-      ctx.fillText(column.name, x + 8, 13);
+      drawHeaderText(column.name, x, column.width, headerNameY, width);
       ctx.fillStyle = themeColors.muted;
       ctx.font = "600 11px Inter, system-ui, sans-serif";
-      ctx.fillText(column.type ?? "string", x + 8, 27);
+      drawHeaderText(column.type ?? "string", x, column.width, headerTypeY, width);
       ctx.font = "600 12px Inter, system-ui, sans-serif";
-      drawHeaderMenuGlyph(x, column.width);
+      drawHeaderMenuGlyph(x, column.width, headerNameY);
       ctx.strokeStyle = themeColors.gridLine;
       ctx.beginPath();
       ctx.moveTo(x + column.width + 0.5, 0);
@@ -1485,9 +1503,21 @@ function drawHeaders(width) {
   ctx.restore();
 }
 
-function drawHeaderMenuGlyph(x, width) {
+function drawHeaderText(text, x, columnWidth, y, canvasWidth) {
+  const left = Math.max(x + 8, rowNumberWidth + 8);
+  const right = Math.min(x + columnWidth - 28, canvasWidth - 4);
+  const width = right - left;
+  if (width <= 0) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, 0, width, headerHeight);
+  ctx.clip();
+  ctx.fillText(text, left, y);
+  ctx.restore();
+}
+
+function drawHeaderMenuGlyph(x, width, centerY) {
   const centerX = x + width - 14;
-  const centerY = 13;
   if (centerX < rowNumberWidth + 8) return;
   ctx.save();
   ctx.fillStyle = themeColors.muted;
@@ -2280,17 +2310,17 @@ async function copySelection(format = "tsv", options = {}) {
   }
 }
 
-async function exportCurrentView() {
+async function exportCurrentView(format = "csv") {
   if (!documentId) return;
   const visibleColumns = columns.map((column) => column.sourceCol);
   const response = await fetch("/api/export-view", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, columns: visibleColumns }),
+    body: JSON.stringify({ documentId, columns: visibleColumns, format }),
   });
-  const text = await response.text();
+  const blob = await response.blob();
   if (!response.ok) {
-    status.textContent = `Export failed: ${errorFromResponseText(text)}`;
+    status.textContent = `Export failed: ${errorFromResponseText(await blob.text())}`;
     return;
   }
 
@@ -2299,9 +2329,18 @@ async function exportCurrentView() {
     response.headers.get("X-Opencsv-Filename") ||
     "opencsv.view.csv";
   const contentType = response.headers.get("Content-Type") || "text/csv;charset=utf-8";
-  window.__opencsvLastExportedText = text;
-  document.body.dataset.exportPreview = text.slice(0, 500);
-  triggerDownload(text, filename, contentType);
+  if (format === "xlsx") {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const signature = Array.from(bytes.slice(0, 2)).map((byte) => String.fromCharCode(byte)).join("");
+    window.__opencsvLastExportedBytes = bytes.length;
+    document.body.dataset.exportPreview = `${signature}:${bytes.length}`;
+    triggerDownloadBlob(new Blob([bytes], { type: contentType }), filename);
+  } else {
+    const text = await blob.text();
+    window.__opencsvLastExportedText = text;
+    document.body.dataset.exportPreview = text.slice(0, 500);
+    triggerDownloadBlob(blob, filename);
+  }
   const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
   const cols = Number(response.headers.get("X-Opencsv-Columns") || visibleColumns.length);
   status.textContent = `Exported ${formatCount(rows)} rows, ${formatCount(cols)} columns to ${filename}`;
@@ -2386,6 +2425,10 @@ function filenameFromDisposition(disposition) {
 
 function triggerDownload(text, filename, contentType) {
   const blob = new Blob([text], { type: contentType });
+  triggerDownloadBlob(blob, filename);
+}
+
+function triggerDownloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -4255,16 +4298,20 @@ function emptySQLNode(message) {
   return node;
 }
 
-canvas.addEventListener("wheel", (event) => {
-  event.preventDefault();
-  closeColumnMenu();
-  const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
-  const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
-  applyVerticalWheelDelta(event.deltaY);
-  scrollX = Math.max(0, Math.min(maxX, scrollX + event.deltaX));
-  if (editing) commitEditor();
-  draw();
-});
+canvas.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    closeColumnMenu();
+    const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
+    const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
+    applyVerticalWheelDelta(event.deltaY);
+    scrollX = Math.max(0, Math.min(maxX, scrollX + event.deltaX));
+    if (editing) commitEditor();
+    draw();
+  },
+  { passive: false },
+);
 
 canvas.addEventListener("mousedown", (event) => {
   canvas.focus();
@@ -4622,6 +4669,7 @@ fileInput.addEventListener("change", async () => {
 
 saveButton.addEventListener("click", saveCurrentDocument);
 exportButton.addEventListener("click", exportCurrentView);
+exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);
 gridTabButton.addEventListener("click", () => setViewMode("grid"));
 sqlTabButton.addEventListener("click", () => {
