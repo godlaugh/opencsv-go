@@ -762,6 +762,73 @@ button:disabled {
   gap: 6px;
 }
 
+.condition-panel {
+  display: grid;
+  width: min(620px, calc(100vw - 32px));
+  grid-template-rows: auto auto auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.condition-panel-header,
+.condition-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.condition-panel-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.condition-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.condition-grid {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.condition-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.condition-grid select,
+.condition-grid input {
+  height: 34px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.condition-panel-header button,
+.condition-actions button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
 .column-menu {
   position: fixed;
   z-index: 18;

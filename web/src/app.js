@@ -25,6 +25,7 @@ const fileInput = document.querySelector("#fileInput");
 const commandInput = document.querySelector("#commandInput");
 const replaceInput = document.querySelector("#replaceInput");
 const filterButton = document.querySelector("#filterButton");
+const filterBuilderButton = document.querySelector("#filterBuilderButton");
 const sortButton = document.querySelector("#sortButton");
 const findButton = document.querySelector("#findButton");
 const findPrevButton = document.querySelector("#findPrevButton");
@@ -78,6 +79,13 @@ const shortcutsPanel = document.querySelector("#shortcutsPanel");
 const shortcutsSearch = document.querySelector("#shortcutsSearch");
 const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
+const conditionPanel = document.querySelector("#conditionPanel");
+const conditionColumn = document.querySelector("#conditionColumn");
+const conditionOperator = document.querySelector("#conditionOperator");
+const conditionValue = document.querySelector("#conditionValue");
+const closeConditionButton = document.querySelector("#closeConditionButton");
+const applyConditionButton = document.querySelector("#applyConditionButton");
+const clearConditionButton = document.querySelector("#clearConditionButton");
 const columnMenu = document.querySelector("#columnMenu");
 const columnMenuTitle = document.querySelector("#columnMenuTitle");
 const columnSortAsc = document.querySelector("#columnSortAsc");
@@ -144,6 +152,7 @@ let paletteIndex = 0;
 let customShortcuts = new Map();
 let shortcutEditorOpen = false;
 let recordingShortcutID = "";
+let conditionBuilderOpen = false;
 let columnMenuColumn = -1;
 let readOnly = false;
 let externalFileChanged = false;
@@ -382,6 +391,8 @@ function applyCommandMetadata() {
       button.textContent = "Compare";
     } else if (button.dataset.command === "file.exportView") {
       button.textContent = "Export";
+    } else if (button.dataset.command === "view.filterBuilder") {
+      button.textContent = "Builder";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -870,6 +881,122 @@ function shortcutKeyName(key) {
   return key;
 }
 
+function openConditionBuilder() {
+  if (!documentId) return;
+  conditionBuilderOpen = true;
+  renderConditionColumns();
+  conditionColumn.value = String(sourceColFor(selected.col));
+  if (!conditionColumn.value && conditionColumn.options.length > 0) {
+    conditionColumn.selectedIndex = 0;
+  }
+  conditionOperator.value = conditionOperator.value || "contains";
+  updateConditionValueState();
+  conditionPanel.hidden = false;
+  conditionValue.focus();
+  conditionValue.select();
+}
+
+function closeConditionBuilder() {
+  conditionBuilderOpen = false;
+  conditionPanel.hidden = true;
+  canvas.focus();
+}
+
+function renderConditionColumns() {
+  const previous = conditionColumn.value;
+  const fragment = document.createDocumentFragment();
+  for (const column of columns) {
+    const option = document.createElement("option");
+    option.value = String(column.sourceCol);
+    option.textContent = column.name;
+    fragment.append(option);
+  }
+  conditionColumn.replaceChildren(fragment);
+  if ([...conditionColumn.options].some((option) => option.value === previous)) {
+    conditionColumn.value = previous;
+  }
+}
+
+function updateConditionValueState() {
+  const noValue = conditionOperator.value === "blank" || conditionOperator.value === "notBlank";
+  conditionValue.disabled = noValue;
+  if (noValue) conditionValue.value = "";
+}
+
+async function applyConditionBuilder() {
+  if (!documentId) return;
+  const sourceCol = Number(conditionColumn.value);
+  const expression = conditionExpression(sourceCol, conditionOperator.value, conditionValue.value);
+  if (!expression) return;
+  document.body.dataset.conditionPreview = expression;
+  commandInput.value = `where ${expression}`;
+  closeConditionBuilder();
+  const visibleCol = visibleColForSource(sourceCol);
+  await applyFilterRequest(
+    { documentId, mode: "sql", expression },
+    "Condition filter",
+    visibleCol >= 0 ? visibleCol : selected.col,
+  );
+}
+
+function conditionExpression(sourceCol, operator, value) {
+  if (!Number.isInteger(sourceCol) || sourceCol < 0) {
+    status.textContent = "Choose a column to filter.";
+    return "";
+  }
+  const identifier = sqlColumnIdentifier(sourceCol);
+  const needsValue = !["blank", "notBlank"].includes(operator);
+  if (needsValue && value === "") {
+    status.textContent = "Enter a filter value.";
+    conditionValue.focus();
+    return "";
+  }
+  switch (operator) {
+    case "contains":
+      return `${identifier} LIKE ${sqlStringLiteral(`%${value}%`)}`;
+    case "equals":
+      return `${identifier} = ${sqlStringLiteral(value)}`;
+    case "notEquals":
+      return `${identifier} <> ${sqlStringLiteral(value)}`;
+    case "startsWith":
+      return `${identifier} LIKE ${sqlStringLiteral(`${value}%`)}`;
+    case "endsWith":
+      return `${identifier} LIKE ${sqlStringLiteral(`%${value}`)}`;
+    case "blank":
+      return `${identifier} = ''`;
+    case "notBlank":
+      return `${identifier} <> ''`;
+    case "gt":
+      return `${identifier} > ${sqlComparisonLiteral(value)}`;
+    case "gte":
+      return `${identifier} >= ${sqlComparisonLiteral(value)}`;
+    case "lt":
+      return `${identifier} < ${sqlComparisonLiteral(value)}`;
+    case "lte":
+      return `${identifier} <= ${sqlComparisonLiteral(value)}`;
+    default:
+      status.textContent = "Choose a filter operator.";
+      return "";
+  }
+}
+
+function sqlColumnIdentifier(sourceCol) {
+  const name = columnNameForSource(sourceCol);
+  if (!metadata?.dialect?.hasHeader || !name || /^Column \d+$/.test(name)) {
+    return `c${sourceCol + 1}`;
+  }
+  return `"${String(name).replaceAll('"', '""')}"`;
+}
+
+function sqlStringLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function sqlComparisonLiteral(value) {
+  const trimmed = String(value).trim();
+  return /^-?\d+(?:\.\d+)?$/.test(trimmed) ? trimmed : sqlStringLiteral(value);
+}
+
 function renderCommandPalette() {
   const query = paletteInput.value.trim().toLowerCase();
   paletteItems = scoredPaletteCommands(query);
@@ -1134,6 +1261,9 @@ async function executeCommand(commandID) {
       break;
     case "view.filter":
       await filterCurrentQuery();
+      break;
+    case "view.filterBuilder":
+      openConditionBuilder();
       break;
     case "view.sort":
       await sortSelectedColumn();
@@ -3922,6 +4052,7 @@ window.addEventListener("keydown", (event) => {
   if (handleShortcutEditorKeydown(event)) return;
   if (shortcutEditorOpen) return;
   if (handleGlobalShortcut(event)) return;
+  if (conditionBuilderOpen) return;
   if (paletteOpen) return;
   if (editing) return;
   if (isTypingTarget(event.target)) return;
@@ -4012,6 +4143,11 @@ function handleGlobalShortcut(event) {
   if (event.key === "Escape" && !columnMenu.hidden) {
     event.preventDefault();
     closeColumnMenu();
+    return true;
+  }
+  if (event.key === "Escape" && conditionBuilderOpen) {
+    event.preventDefault();
+    closeConditionBuilder();
     return true;
   }
   if (event.key === "Escape" && selectionCellCount() > 1) {
@@ -4315,7 +4451,28 @@ findWholeButton.addEventListener("click", () => toggleFindOption("whole"));
 findRegexButton.addEventListener("click", () => toggleFindOption("regex"));
 findSelectionButton.addEventListener("click", () => toggleFindOption("selection"));
 filterButton.addEventListener("click", filterCurrentQuery);
+filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
+closeConditionButton.addEventListener("click", closeConditionBuilder);
+conditionOperator.addEventListener("change", updateConditionValueState);
+applyConditionButton.addEventListener("click", applyConditionBuilder);
+clearConditionButton.addEventListener("click", async () => {
+  closeConditionBuilder();
+  await clearView();
+});
+conditionPanel.addEventListener("mousedown", (event) => {
+  if (event.target === conditionPanel) {
+    event.preventDefault();
+    closeConditionBuilder();
+  }
+});
+for (const input of [conditionColumn, conditionOperator, conditionValue]) {
+  input.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    await applyConditionBuilder();
+  });
+}
 commandInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();

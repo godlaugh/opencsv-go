@@ -32,6 +32,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-006 | Basic contains filter | Started | `/api/filter`, toolbar query, Browser verification |
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
 | FR-006 | Excel-like value checklist filter foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column menu verification |
+| FR-006 | Visual condition filter builder foundation | Started | command registry, SQL-filter bridge, Browser filter-builder verification |
 | FR-007 | Basic selected-column sort | Started | `/api/sort`, Browser verification |
 | FR-007 | Stable multi-column sort foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
 | FR-007 | Smart sort modes for number/date/length and full-width numerals | Started | `pkg/document`/`pkg/appserver` tests, Browser column-menu verification |
@@ -125,6 +126,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Swap-cells verification on `/tmp/opencsv-swap-cells.csv`: selecting two adjacent data cells and pressing `Shift+Alt+W` swaps `Ada` and `Linus`, marks the document edited, and updates the Inspector value for the active cell to `Linus`.
 - Cell value panel verification on `/tmp/opencsv-cell-panel.csv`: selecting a URL cell sets Cell Value to `https://example.com/demo`, enables `Open Link`, and exposes the same href. Selecting a non-URL `note` cell disables `Open Link`; editing the Cell Value panel to `long note with spaces updated` enables `Apply`, commits through the normal edit path, leaves the updated value visible, and marks the document edited. In read-only mode, the Cell Value textarea and Apply button are disabled.
 - Value checklist filter verification on `/tmp/opencsv-value-filter.csv`: clicking the `segment` column menu loads values `A (2)`, `B (2)`, `C (1)`, and `(blank) (1)`; checking `A` and `B` enables `Apply selected values`; applying reports `Value filter segment matched 4 rows` and keeps the selected column on `segment`.
+- Visual condition filter verification on `/tmp/opencsv-condition-filter.csv`: opening Builder, selecting `score greater or equal 9`, and applying generates `where "score" >= 9` and reports `Condition filter matched 2 rows`; selecting `note is blank` disables the Value input, generates `where "note" = ''`, and reports `Condition filter matched 1 rows`.
 
 ## Implementation Notes
 
@@ -173,6 +175,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend Inspector now includes a Cell Value panel for the active cell. It applies edits through the same `/api/edit` path as grid editing, respects read-only mode, keeps local edits visible after async window refreshes, and detects HTTP(S), `mailto:`, `file://`, and bare-domain links for `Open Link`.
 - `pkg/document.ColumnValues` returns top distinct values with counts for a column, and `pkg/document.FilterValues` maps rows by selected values plus optional blank inclusion.
 - `/api/column-values` and `/api/filter-values` expose value checklist data and filtering. The column header menu renders a bounded checkbox list and applies selected values without mutating source data.
+- Frontend Filter Builder exposes column/operator/value controls for contains, equals/not-equals, starts/ends-with, blank/non-blank, and numeric/text comparisons, then translates the condition into the existing SQL filter path so visual filters and SQL filters share one backend evaluator.
 - `pkg/sqlconsole` provides the first SQL Console execution path: `SELECT`, explicit columns or `*`, `FROM current`, quoted path refs, `@file:` refs, `file://` refs, `WHERE` via `pkg/sqlexpr`, `ORDER BY`, `LIMIT`, `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `GROUP BY`.
 - `/api/sql` executes SQL against the current document or a local CSV path. The frontend SQL tab now shows an editor, run button, and result table.
 - Frontend SQL Console stores successful queries in a local newest-first history, renders history buttons below the editor, can reload a query into the editor, and can clear the history.
@@ -181,7 +184,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 
 ## Known Gaps
 
-- Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, multi-column sort, and smart number/date/length sorting exist, but saved filter chips, persisted sort specs, and richer condition-builder menus are still missing.
+- Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, a visual condition builder, multi-column sort, and smart number/date/length sorting exist, but saved filter chips, persisted sort specs, grouped conditions, and richer condition-builder menus are still missing.
 - Replace supports current/all, regex/case/whole-cell modes, and search-within-selection. Replace preview is still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.

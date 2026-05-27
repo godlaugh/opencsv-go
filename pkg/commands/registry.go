@@ -65,6 +65,7 @@ func Registry() []Command {
 		{ID: "cell.joinHorizontal", Title: "Join Cells", Description: "Join selected cells horizontally into the first selected cell.", Shortcut: "Shift+Alt+J", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"merge cells", "join horizontal"}},
 		{ID: "cell.splitHorizontal", Title: "Split Cell", Description: "Split the active cell horizontally by separator text.", Shortcut: "Shift+Alt+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"split cells", "split horizontal"}},
 		{ID: "view.filter", Title: "Filter", Description: "Filter rows by text or SQL WHERE expression.", Shortcut: "Cmd+L", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
+		{ID: "view.filterBuilder", Title: "Filter Builder", Description: "Build a column filter without writing SQL.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"condition filter", "visual filter", "filter condition"}},
 		{ID: "view.sort", Title: "Sort", Description: "Sort the selected column.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "view.clear", Title: "Clear View", Description: "Clear active filter and sort view.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "view.sql", Title: "SQL Console", Description: "Open the SQL console for the current workspace.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"query"}},

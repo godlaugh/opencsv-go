@@ -41,6 +41,7 @@
               <button id="findSelectionButton" type="button" title="Search in selection" aria-pressed="false">Sel</button>
             </div>
             <button id="filterButton" type="button" title="Filter" data-command="view.filter">Filter</button>
+            <button id="filterBuilderButton" type="button" title="Filter Builder" data-command="view.filterBuilder">Builder</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>
             <button id="findButton" type="button" title="Find" data-command="edit.find">Find</button>
             <button id="findPrevButton" type="button" title="Previous match">↑</button>
@@ -159,6 +160,45 @@
         </header>
         <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" />
         <div id="shortcutsList" class="shortcut-list" role="list" aria-label="Shortcut commands"></div>
+      </section>
+    </div>
+
+    <div id="conditionPanel" class="command-palette-backdrop" hidden>
+      <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder">
+        <header class="condition-panel-header">
+          <strong>Filter Builder</strong>
+          <button id="closeConditionButton" type="button">Close</button>
+        </header>
+        <div class="condition-grid">
+          <label>
+            <span>Column</span>
+            <select id="conditionColumn" aria-label="Filter column"></select>
+          </label>
+          <label>
+            <span>Operator</span>
+            <select id="conditionOperator" aria-label="Filter operator">
+              <option value="contains">contains</option>
+              <option value="equals">equals</option>
+              <option value="notEquals">not equals</option>
+              <option value="startsWith">starts with</option>
+              <option value="endsWith">ends with</option>
+              <option value="blank">is blank</option>
+              <option value="notBlank">is not blank</option>
+              <option value="gt">greater than</option>
+              <option value="gte">greater or equal</option>
+              <option value="lt">less than</option>
+              <option value="lte">less or equal</option>
+            </select>
+          </label>
+          <label>
+            <span>Value</span>
+            <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" />
+          </label>
+        </div>
+        <footer class="condition-actions">
+          <button id="applyConditionButton" type="button">Apply</button>
+          <button id="clearConditionButton" type="button">Clear View</button>
+        </footer>
       </section>
     </div>
 
