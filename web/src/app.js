@@ -371,6 +371,7 @@ function isCommandDisabled(command) {
       command.id === "column.delete" ||
       command.id === "table.transpose" ||
       command.id === "table.dedupeRows" ||
+      command.id === "table.dedupeColumns" ||
       command.id === "text.trim" ||
       command.id === "text.uppercase" ||
       command.id === "text.lowercase"
@@ -748,6 +749,9 @@ async function executeCommand(commandID) {
       break;
     case "table.dedupeRows":
       await dedupeRows();
+      break;
+    case "table.dedupeColumns":
+      await dedupeColumns();
       break;
     case "text.trim":
       await transformSelectedText("trim", "Trim Text");
@@ -2264,6 +2268,29 @@ async function dedupeRows() {
   );
 }
 
+async function dedupeColumns() {
+  if (!documentId) return;
+  if (!ensureEditable("Remove Duplicate Columns")) return;
+  status.textContent = "Removing duplicate columns...";
+  const response = await fetch("/api/dedupe-columns", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Remove Duplicate Columns failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const removed = payload.changed ?? 0;
+  applyMutationPayload(
+    payload,
+    removed > 0
+      ? `Removed ${formatCount(removed)} duplicate columns`
+      : "No duplicate columns found",
+  );
+}
+
 async function transformSelectedText(mode, label) {
   if (!documentId) return;
   if (!ensureEditable(label)) return;
@@ -3015,6 +3042,7 @@ function handleGlobalShortcut(event) {
   if (event.shiftKey && event.altKey && !paletteOpen && !isTypingTarget(event.target)) {
     const commandIDByKey = {
       d: "table.dedupeRows",
+      c: "table.dedupeColumns",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",

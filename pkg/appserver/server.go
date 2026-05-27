@@ -58,6 +58,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
 	server.mux.HandleFunc("POST /api/transpose", server.handleTranspose)
 	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
+	server.mux.HandleFunc("POST /api/dedupe-columns", server.handleDedupeColumns)
 	server.mux.HandleFunc("POST /api/text-transform", server.handleTextTransform)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
 	server.mux.HandleFunc("POST /api/find", server.handleFind)
@@ -415,6 +416,20 @@ func (server *Server) handleDedupeRows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.DeduplicateRows(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDedupeColumns(w http.ResponseWriter, r *http.Request) {
+	var request documentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.DeduplicateColumns(request.DocumentID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

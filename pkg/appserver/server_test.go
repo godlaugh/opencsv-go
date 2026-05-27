@@ -229,7 +229,7 @@ func TestServerUndoRedoAndStructuralMutations(t *testing.T) {
 func TestServerDedupeAndTextTransform(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tools.csv")
-	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n1,  Ada \n2,Linus\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,name,name\n1,  Ada ,Ada\n1,  Ada ,Ada\n2,Linus,Linus\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	handler := New(dir).Handler()
@@ -259,6 +259,15 @@ func TestServerDedupeAndTextTransform(t *testing.T) {
 	rows := windowPayload["rows"].([]any)
 	if rows[1].([]any)[1] != "Ada" || rows[2].([]any)[1] != "Linus" {
 		t.Fatalf("rows after transform = %#v", rows)
+	}
+	columnPayload := postJSON(t, handler, "/api/dedupe-columns", map[string]any{"documentId": documentID})
+	if columnPayload["changed"].(float64) != 1 {
+		t.Fatalf("dedupe column payload = %#v", columnPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if len(rows[0].([]any)) != 2 || rows[1].([]any)[1] != "Ada" {
+		t.Fatalf("rows after column dedupe = %#v", rows)
 	}
 }
 

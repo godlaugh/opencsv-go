@@ -410,6 +410,36 @@ func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: removed}, nil
 }
 
+func (manager *Manager) DeduplicateColumns(id string) (MutationResult, error) {
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+
+	deduped, removed := deduplicateColumns(records)
+	if removed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(deduped)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, deduped, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: removed}, nil
+}
+
 func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransformMode) (MutationResult, error) {
 	if len(cells) == 0 {
 		return MutationResult{}, errors.New("no cells selected")
@@ -1325,6 +1355,56 @@ func deduplicateRecords(records [][]string, hasHeader bool) ([][]string, int) {
 		deduped = append(deduped, record)
 	}
 	return deduped, removed
+}
+
+func deduplicateColumns(records [][]string) ([][]string, int) {
+	width := maxRecordWidth(records)
+	if len(records) == 0 || width == 0 {
+		return records, 0
+	}
+	seen := make(map[string]bool, width)
+	keep := make([]bool, width)
+	removed := 0
+	for col := 0; col < width; col++ {
+		key := columnKey(records, col)
+		if seen[key] {
+			removed++
+			continue
+		}
+		seen[key] = true
+		keep[col] = true
+	}
+	if removed == 0 {
+		return records, 0
+	}
+	deduped := make([][]string, len(records))
+	for row, record := range records {
+		next := make([]string, 0, len(record))
+		for col, value := range record {
+			if col < len(keep) && keep[col] {
+				next = append(next, value)
+			}
+		}
+		deduped[row] = next
+	}
+	return deduped, removed
+}
+
+func columnKey(records [][]string, col int) string {
+	var builder strings.Builder
+	builder.WriteString(strconv.Itoa(len(records)))
+	builder.WriteByte('|')
+	for _, record := range records {
+		value := ""
+		if col < len(record) {
+			value = record[col]
+		}
+		builder.WriteString(strconv.Itoa(len(value)))
+		builder.WriteByte(':')
+		builder.WriteString(value)
+		builder.WriteByte(0)
+	}
+	return builder.String()
 }
 
 func recordKey(record []string) string {

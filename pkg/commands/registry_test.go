@@ -32,6 +32,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"edit.replaceAll",
 		"table.transpose",
 		"table.dedupeRows",
+		"table.dedupeColumns",
 		"text.trim",
 		"text.uppercase",
 		"text.lowercase",

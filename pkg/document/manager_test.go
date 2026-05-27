@@ -370,6 +370,62 @@ func TestDeduplicateRowsKeepsDistinctRaggedKeys(t *testing.T) {
 	}
 }
 
+func TestManagerDeduplicateColumnsAndUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dupe-cols.csv")
+	content := "id,name,name,score,score\n1,Ada,Ada,10,10\n2,Linus,Linus,20,20\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "dupe-cols.csv", csvcore.OpenOptions{PreviewRows: 5, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.DeduplicateColumns(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 || result.TotalRows != 3 {
+		t.Fatalf("dedupe columns result = %#v, want 2 removed and 3 rows", result)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := [][]string{
+		{"id", "name", "score"},
+		{"1", "Ada", "10"},
+		{"2", "Linus", "20"},
+	}
+	if !recordsEqual(records, expected) {
+		t.Fatalf("deduped column records = %#v", records)
+	}
+	if _, err := manager.Undo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records[0]) != 5 {
+		t.Fatalf("records after undo column dedupe = %#v", records)
+	}
+}
+
+func TestDeduplicateColumnsKeepsDistinctHeaders(t *testing.T) {
+	records := [][]string{
+		{"name", "name_copy"},
+		{"Ada", "Ada"},
+		{"Linus", "Linus"},
+	}
+	deduped, removed := deduplicateColumns(records)
+	if removed != 0 || !recordsEqual(deduped, records) {
+		t.Fatalf("deduped = %#v, removed = %d", deduped, removed)
+	}
+}
+
 func TestManagerTextTransforms(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "text.csv")

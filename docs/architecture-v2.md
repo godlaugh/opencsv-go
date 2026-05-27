@@ -123,7 +123,7 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, duplicate-row removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -350,7 +350,7 @@ Output:
 - updated mutation result.
 - refreshed session and row count.
 
-### Duplicate Rows
+### Duplicate Rows and Columns
 
 `POST /api/dedupe-rows`
 
@@ -368,6 +368,24 @@ Rules:
 
 - The detected header row is preserved and excluded from duplicate matching.
 - The mutation is undoable and only marks the document dirty when at least one duplicate row is removed.
+
+`POST /api/dedupe-columns`
+
+Input:
+
+- document ID.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+- changed count for removed duplicate columns.
+
+Rules:
+
+- Duplicate columns are compared by full cell values, including header cells when present.
+- Later duplicate columns are removed while preserving the original order of the first unique columns.
+- The mutation is undoable and only marks the document dirty when at least one duplicate column is removed.
 
 ### Text Transform
 
@@ -552,7 +570,7 @@ Output:
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns, marks the document dirty, is undoable, and rejects over-limit tables.
-- Duplicate-row removal and selected-cell text transforms are command-backed, undoable materialized mutations.
+- Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
 - Editing marks dirty.
 - Save clears dirty and creates backup.
 - Profile view shows column metrics and validation issues.
