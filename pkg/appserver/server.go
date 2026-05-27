@@ -63,6 +63,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
 	server.mux.HandleFunc("POST /api/dedupe-columns", server.handleDedupeColumns)
 	server.mux.HandleFunc("POST /api/text-transform", server.handleTextTransform)
+	server.mux.HandleFunc("POST /api/cells/swap", server.handleSwapCells)
 	server.mux.HandleFunc("POST /api/cells/join", server.handleJoinCells)
 	server.mux.HandleFunc("POST /api/cells/split", server.handleSplitCells)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
@@ -509,6 +510,20 @@ func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request
 		request.Cells,
 		docstore.TextTransformMode(request.Mode),
 	)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleSwapCells(w http.ResponseWriter, r *http.Request) {
+	var request cellsToolRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SwapCells(request.DocumentID, request.Cells)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

@@ -409,6 +409,7 @@ function isCommandDisabled(command) {
       command.id === "text.trim" ||
       command.id === "text.uppercase" ||
       command.id === "text.lowercase" ||
+      command.id === "cell.swap" ||
       command.id === "cell.joinHorizontal" ||
       command.id === "cell.splitHorizontal"
     );
@@ -815,6 +816,9 @@ async function executeCommand(commandID) {
       break;
     case "text.lowercase":
       await transformSelectedText("lower", "Lowercase Text");
+      break;
+    case "cell.swap":
+      await swapSelectedCells();
       break;
     case "cell.joinHorizontal":
       await joinSelectedCells();
@@ -2590,6 +2594,24 @@ async function transformSelectedText(mode, label) {
   );
 }
 
+async function swapSelectedCells() {
+  if (!documentId) return;
+  if (!ensureEditable("Swap Cells")) return;
+  if (selectionCellCount() !== 2) {
+    status.textContent = "Select exactly two cells to swap.";
+    return;
+  }
+  const cells = selectedCellsForTransform(2);
+  if (!cells) return;
+  const range = normalizedSelection();
+  await runCellTool("/api/cells/swap", {
+    cells,
+    activeRow: range.startRow,
+    activeCol: range.startCol,
+    label: "Swapped cells",
+  });
+}
+
 async function joinSelectedCells() {
   if (!documentId) return;
   if (!ensureEditable("Join Cells")) return;
@@ -3416,6 +3438,7 @@ function handleGlobalShortcut(event) {
       c: "table.dedupeColumns",
       r: "row.hide",
       x: "column.hide",
+      w: "cell.swap",
       j: "cell.joinHorizontal",
       s: "cell.splitHorizontal",
       t: "text.trim",

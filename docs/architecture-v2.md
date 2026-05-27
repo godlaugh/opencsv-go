@@ -141,6 +141,7 @@ flowchart TD
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
   - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
+  - Swap Cells for exactly two selected cells.
   - Horizontal Join Cells and Split Cell commands backed by document mutations.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
@@ -447,8 +448,9 @@ Rules:
 - Duplicate cells in the request are applied once.
 - Empty no-op transforms do not create an undo entry or mark the document dirty.
 
-### Join and Split Cells
+### Cell Tools
 
+`POST /api/cells/swap`
 `POST /api/cells/join`
 `POST /api/cells/split`
 
@@ -456,7 +458,7 @@ Input:
 
 - document ID.
 - explicit source cells with zero-based row and column indexes.
-- separator text.
+- separator text for join/split.
 
 Output:
 
@@ -466,9 +468,10 @@ Output:
 
 Rules:
 
+- Swap requires exactly two selected cells and exchanges their values.
 - Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell, and clears the remaining selected cells in that row.
 - Split writes separator-delimited parts horizontally starting at the selected source cell and can expand row width.
-- Both tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
+- Cell tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
 
 ### Diff
 
@@ -635,7 +638,7 @@ Output:
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns, marks the document dirty, is undoable, and rejects over-limit tables.
 - Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
-- Join/split cell tools are command-backed, undoable materialized mutations.
+- Swap/join/split cell tools are command-backed, undoable materialized mutations.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.
 - Save clears dirty and creates backup.

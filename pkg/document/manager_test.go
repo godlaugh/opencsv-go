@@ -742,6 +742,44 @@ func TestManagerJoinAndSplitCells(t *testing.T) {
 	}
 }
 
+func TestManagerSwapCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "swap.csv")
+	if err := os.WriteFile(path, []byte("id,a,b\n1,Ada,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "swap.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.SwapCells(session.ID, []Cell{{Row: 1, Col: 1}, {Row: 1, Col: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 || !result.Dirty {
+		t.Fatalf("swap result = %#v", result)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Linus" || records[1][2] != "Ada" {
+		t.Fatalf("records after swap = %#v", records)
+	}
+	if _, err := manager.Undo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[1][2] != "Linus" {
+		t.Fatalf("records after undo = %#v", records)
+	}
+}
+
 func TestManagerBatchEditSingleUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

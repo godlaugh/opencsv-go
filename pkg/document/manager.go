@@ -631,6 +631,53 @@ func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransfo
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
 }
 
+func (manager *Manager) SwapCells(id string, cells []Cell) (MutationResult, error) {
+	if len(cells) != 2 {
+		return MutationResult{}, errors.New("select exactly two cells to swap")
+	}
+	first := cells[0]
+	second := cells[1]
+	if first.Row < 0 || first.Col < 0 || second.Row < 0 || second.Col < 0 {
+		return MutationResult{}, errors.New("row and col must be non-negative")
+	}
+	if first == second {
+		return MutationResult{}, errors.New("select two different cells to swap")
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	if first.Row >= len(records) || second.Row >= len(records) {
+		return MutationResult{}, errors.New("swap row is out of range")
+	}
+	firstValue := cellValue(records[first.Row], first.Col)
+	secondValue := cellValue(records[second.Row], second.Col)
+	if firstValue == secondValue {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	ensureRecordWidth(&records[first.Row], first.Col+1)
+	ensureRecordWidth(&records[second.Row], second.Col+1)
+	records[first.Row][first.Col], records[second.Row][second.Col] = secondValue, firstValue
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = max(metadata.Dialect.EstimatedColumns, maxRecordWidth(records))
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 2}, nil
+}
+
 func (manager *Manager) JoinCells(id string, cells []Cell, separator string) (MutationResult, error) {
 	if len(cells) == 0 {
 		return MutationResult{}, errors.New("no cells selected")

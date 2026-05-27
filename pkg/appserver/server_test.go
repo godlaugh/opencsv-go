@@ -396,6 +396,22 @@ func TestServerJoinAndSplitCells(t *testing.T) {
 	if rows[1].([]any)[1] != "Ada" || rows[1].([]any)[2] != "Lovelace" {
 		t.Fatalf("rows after split = %#v", rows)
 	}
+
+	swapPayload := postJSON(t, handler, "/api/cells/swap", map[string]any{
+		"documentId": documentID,
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+			{"row": 1, "col": 2},
+		},
+	})
+	if swapPayload["changed"].(float64) != 2 {
+		t.Fatalf("swap payload = %#v", swapPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Lovelace" || rows[1].([]any)[2] != "Ada" {
+		t.Fatalf("rows after swap = %#v", rows)
+	}
 }
 
 func TestServerFindFilterSort(t *testing.T) {
