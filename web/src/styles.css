@@ -475,6 +475,18 @@ button:disabled {
   font-size: 12px;
 }
 
+.diff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.diff-actions button {
+  min-height: 24px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
 .diff-cell-change {
   color: var(--text);
 }

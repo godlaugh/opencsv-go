@@ -186,3 +186,130 @@ func TestCompareRecordsInlineSpansRespectIgnoreCase(t *testing.T) {
 		t.Fatalf("highlighted = %#v, want only s/x", highlighted)
 	}
 }
+
+func TestMergeRightToLeftCellCreatesBackup(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n1,Linux\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := MergeRightToLeft(left, right, MergeOptions{
+		ResultIndex: 1,
+		Mode:        MergeCell,
+		Col:         2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Applied != "cell" || result.Save.BackupPath == "" {
+		t.Fatalf("unexpected merge result: %#v", result)
+	}
+	bytes, err := os.ReadFile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Linux\n" {
+		t.Fatalf("merged left file = %q", string(bytes))
+	}
+	backup, err := os.ReadFile(result.Save.BackupPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(backup) != "id,name\n1,Linus\n" {
+		t.Fatalf("backup = %q", string(backup))
+	}
+}
+
+func TestMergeRightToLeftRowWithHeaderMatching(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name,score\n1,Ada,9\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("score,id,name\n10,1,Ada Byron\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := MergeRightToLeft(left, right, MergeOptions{
+		DiffOptions: Options{MatchColumnsByName: true},
+		ResultIndex: 1,
+		Mode:        MergeRow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := os.ReadFile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name,score\n1,Ada Byron,10\n" {
+		t.Fatalf("merged left file = %q", string(bytes))
+	}
+}
+
+func TestMergeRightToLeftAddedAndDeletedRows(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n3,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	addResult := CompareFilesForTest(t, left, right)
+	addIndex := -1
+	deleteIndex := -1
+	for index, row := range addResult.Rows {
+		if row.Status == RowAdded {
+			addIndex = index
+		}
+		if row.Status == RowDeleted {
+			deleteIndex = index
+		}
+	}
+	if addIndex < 0 || deleteIndex < 0 {
+		t.Fatalf("missing added/deleted rows: %#v", addResult.Rows)
+	}
+	if _, err := MergeRightToLeft(left, right, MergeOptions{ResultIndex: addIndex, Mode: MergeRow}); err != nil {
+		t.Fatal(err)
+	}
+	// Recompute after inserting the added row; Grace is still deleted relative to the right side.
+	deleteResult := CompareFilesForTest(t, left, right)
+	deleteIndex = -1
+	for index, row := range deleteResult.Rows {
+		if row.Status == RowDeleted {
+			deleteIndex = index
+			break
+		}
+	}
+	if deleteIndex < 0 {
+		t.Fatalf("missing deleted row after add merge: %#v", deleteResult.Rows)
+	}
+	if _, err := MergeRightToLeft(left, right, MergeOptions{ResultIndex: deleteIndex, Mode: MergeRow}); err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := os.ReadFile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Ada\n2,Linus\n" {
+		t.Fatalf("merged left file = %q", string(bytes))
+	}
+}
+
+func CompareFilesForTest(t *testing.T, left string, right string) Result {
+	t.Helper()
+	result, err := CompareFiles(left, right, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}

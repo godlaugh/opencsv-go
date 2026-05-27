@@ -3,6 +3,7 @@ package csvcore
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -81,9 +82,7 @@ func encodeCSVRecords(records [][]string, metadata FileMetadata) ([]byte, error)
 func createBackup(path string, requestedPath string) (string, error) {
 	backupPath := requestedPath
 	if backupPath == "" {
-		ext := filepath.Ext(path)
-		stem := strings.TrimSuffix(path, ext)
-		backupPath = fmt.Sprintf("%s.%s%s.bak", stem, time.Now().UTC().Format("20060102T150405Z"), ext)
+		backupPath = defaultBackupPath(path)
 	}
 
 	source, err := os.Open(path)
@@ -102,4 +101,20 @@ func createBackup(path string, requestedPath string) (string, error) {
 		return "", err
 	}
 	return backupPath, nil
+}
+
+func defaultBackupPath(path string) string {
+	ext := filepath.Ext(path)
+	stem := strings.TrimSuffix(path, ext)
+	timestamp := time.Now().UTC().Format("20060102T150405Z")
+	base := fmt.Sprintf("%s.%s%s.bak", stem, timestamp, ext)
+	if _, err := os.Stat(base); errors.Is(err, os.ErrNotExist) {
+		return base
+	}
+	for index := 2; ; index++ {
+		candidate := fmt.Sprintf("%s.%s.%d%s.bak", stem, timestamp, index, ext)
+		if _, err := os.Stat(candidate); errors.Is(err, os.ErrNotExist) {
+			return candidate
+		}
+	}
 }

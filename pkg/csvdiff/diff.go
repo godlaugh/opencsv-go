@@ -1,6 +1,7 @@
 package csvdiff
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -61,6 +62,25 @@ type TextSpan struct {
 	Changed bool   `json:"changed"`
 }
 
+type MergeMode string
+
+const (
+	MergeRow  MergeMode = "row"
+	MergeCell MergeMode = "cell"
+)
+
+type MergeOptions struct {
+	DiffOptions Options
+	ResultIndex int
+	Mode        MergeMode
+	Col         int
+}
+
+type MergeResult struct {
+	Save    csvcore.SaveResult `json:"save"`
+	Applied string             `json:"applied"`
+}
+
 func CompareFiles(leftPath string, rightPath string, options Options) (Result, error) {
 	if options.PreviewRows <= 0 {
 		options.PreviewRows = 50
@@ -108,6 +128,41 @@ func CompareRecords(leftPath string, rightPath string, leftRecords [][]string, r
 		}
 	}
 	return result
+}
+
+func MergeRightToLeft(leftPath string, rightPath string, options MergeOptions) (MergeResult, error) {
+	leftDoc, err := csvcore.OpenDocument(leftPath, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+	if err != nil {
+		return MergeResult{}, err
+	}
+	rightDoc, err := csvcore.OpenDocument(rightPath, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+	if err != nil {
+		return MergeResult{}, err
+	}
+	leftRecords, err := csvcore.ReadAllRecords(leftPath, leftDoc.Metadata)
+	if err != nil {
+		return MergeResult{}, err
+	}
+	rightRecords, err := csvcore.ReadAllRecords(rightPath, rightDoc.Metadata)
+	if err != nil {
+		return MergeResult{}, err
+	}
+	result := CompareRecords(leftPath, rightPath, leftRecords, rightRecords, options.DiffOptions)
+	if options.ResultIndex < 0 || options.ResultIndex >= len(result.Rows) {
+		return MergeResult{}, errors.New("diff result index is out of range")
+	}
+	row := result.Rows[options.ResultIndex]
+	projection := buildProjection(leftRecords, rightRecords, options.DiffOptions)
+
+	applied, err := applyMerge(&leftRecords, rightRecords, row, projection, options)
+	if err != nil {
+		return MergeResult{}, err
+	}
+	save, err := csvcore.SaveRecords(leftPath, leftDoc.Metadata, leftRecords, csvcore.SaveOptions{CreateBackup: true})
+	if err != nil {
+		return MergeResult{}, err
+	}
+	return MergeResult{Save: save, Applied: applied}, nil
 }
 
 type opKind int
@@ -284,20 +339,50 @@ func recordsEqual(left []string, right []string) bool {
 }
 
 func displayRecords(left [][]string, right [][]string, options Options) ([][]string, [][]string) {
-	if options.MatchColumnsByName {
-		left, right = alignColumnsByHeader(left, right)
-	}
-	if len(options.IgnoredColumns) > 0 {
-		ignored := ignoredColumnSet(options.IgnoredColumns)
-		left = removeIgnoredColumns(left, ignored)
-		right = removeIgnoredColumns(right, ignored)
-	}
-	return cloneRecords(left), cloneRecords(right)
+	projection := buildProjection(left, right, options)
+	return projectRecords(left, projection.Left), projectRecords(right, projection.Right)
 }
 
-func alignColumnsByHeader(left [][]string, right [][]string) ([][]string, [][]string) {
+type columnProjection struct {
+	Left  []int
+	Right []int
+}
+
+func buildProjection(left [][]string, right [][]string, options Options) columnProjection {
+	projection := defaultProjection(left, right)
+	if options.MatchColumnsByName {
+		projection = headerProjection(left, right)
+	}
+	if len(options.IgnoredColumns) > 0 {
+		projection = removeIgnoredProjectionColumns(projection, ignoredColumnSet(options.IgnoredColumns))
+	}
+	return projection
+}
+
+func defaultProjection(left [][]string, right [][]string) columnProjection {
+	width := max(maxRecordWidth(left), maxRecordWidth(right))
+	projection := columnProjection{
+		Left:  make([]int, width),
+		Right: make([]int, width),
+	}
+	for index := 0; index < width; index++ {
+		projection.Left[index] = index
+		projection.Right[index] = index
+	}
+	return projection
+}
+
+func maxRecordWidth(records [][]string) int {
+	width := 0
+	for _, record := range records {
+		width = max(width, len(record))
+	}
+	return width
+}
+
+func headerProjection(left [][]string, right [][]string) columnProjection {
 	if len(left) == 0 || len(right) == 0 {
-		return left, right
+		return defaultProjection(left, right)
 	}
 	leftHeader := left[0]
 	rightHeader := right[0]
@@ -327,7 +412,7 @@ func alignColumnsByHeader(left [][]string, right [][]string) ([][]string, [][]st
 		leftColumns = append(leftColumns, -1)
 		rightColumns = append(rightColumns, rightIndex)
 	}
-	return projectRecords(left, leftColumns), projectRecords(right, rightColumns)
+	return columnProjection{Left: leftColumns, Right: rightColumns}
 }
 
 func ignoredColumnSet(columns []int) map[int]bool {
@@ -340,19 +425,16 @@ func ignoredColumnSet(columns []int) map[int]bool {
 	return ignored
 }
 
-func removeIgnoredColumns(records [][]string, ignored map[int]bool) [][]string {
-	result := make([][]string, 0, len(records))
-	for _, record := range records {
-		next := make([]string, 0, len(record))
-		for index, value := range record {
-			if ignored[index] {
-				continue
-			}
-			next = append(next, value)
+func removeIgnoredProjectionColumns(projection columnProjection, ignored map[int]bool) columnProjection {
+	next := columnProjection{}
+	for index := range projection.Left {
+		if ignored[index] {
+			continue
 		}
-		result = append(result, next)
+		next.Left = append(next.Left, projection.Left[index])
+		next.Right = append(next.Right, projection.Right[index])
 	}
-	return result
+	return next
 }
 
 func projectRecords(records [][]string, columns []int) [][]string {
@@ -465,6 +547,122 @@ func appendSpan(spans []TextSpan, text string, changed bool) []TextSpan {
 		return spans
 	}
 	return append(spans, TextSpan{Text: text, Changed: changed})
+}
+
+func applyMerge(leftRecords *[][]string, rightRecords [][]string, row RowDiff, projection columnProjection, options MergeOptions) (string, error) {
+	switch options.Mode {
+	case MergeCell:
+		return applyCellMerge(leftRecords, rightRecords, row, projection, options.Col)
+	case MergeRow:
+		return applyRowMerge(leftRecords, rightRecords, row, projection)
+	default:
+		return "", errors.New("unsupported merge mode")
+	}
+}
+
+func applyCellMerge(leftRecords *[][]string, rightRecords [][]string, row RowDiff, projection columnProjection, col int) (string, error) {
+	if row.Status != RowChanged {
+		return "", errors.New("cell merge requires a changed row")
+	}
+	if row.LeftRow == nil || row.RightRow == nil {
+		return "", errors.New("changed row is missing row numbers")
+	}
+	leftCol, rightCol, err := projectedColumns(projection, col)
+	if err != nil {
+		return "", err
+	}
+	leftIndex := *row.LeftRow - 1
+	rightIndex := *row.RightRow - 1
+	if leftIndex < 0 || leftIndex >= len(*leftRecords) || rightIndex < 0 || rightIndex >= len(rightRecords) {
+		return "", errors.New("merge row is out of range")
+	}
+	ensureWidth(&(*leftRecords)[leftIndex], leftCol+1)
+	(*leftRecords)[leftIndex][leftCol] = cell(rightRecords[rightIndex], rightCol)
+	return "cell", nil
+}
+
+func applyRowMerge(leftRecords *[][]string, rightRecords [][]string, row RowDiff, projection columnProjection) (string, error) {
+	switch row.Status {
+	case RowChanged:
+		if row.LeftRow == nil || row.RightRow == nil {
+			return "", errors.New("changed row is missing row numbers")
+		}
+		leftIndex := *row.LeftRow - 1
+		rightIndex := *row.RightRow - 1
+		if leftIndex < 0 || leftIndex >= len(*leftRecords) || rightIndex < 0 || rightIndex >= len(rightRecords) {
+			return "", errors.New("merge row is out of range")
+		}
+		merged, err := projectedRightRecordForLeft((*leftRecords)[leftIndex], rightRecords[rightIndex], projection)
+		if err != nil {
+			return "", err
+		}
+		(*leftRecords)[leftIndex] = merged
+		return "row", nil
+	case RowAdded:
+		if row.RightRow == nil {
+			return "", errors.New("added row is missing a right row number")
+		}
+		rightIndex := *row.RightRow - 1
+		if rightIndex < 0 || rightIndex >= len(rightRecords) {
+			return "", errors.New("right row is out of range")
+		}
+		emptyLeft := make([]string, maxRecordWidth(*leftRecords))
+		merged, err := projectedRightRecordForLeft(emptyLeft, rightRecords[rightIndex], projection)
+		if err != nil {
+			return "", err
+		}
+		insertIndex := min(max(0, rightIndex), len(*leftRecords))
+		*leftRecords = append((*leftRecords)[:insertIndex], append([][]string{merged}, (*leftRecords)[insertIndex:]...)...)
+		return "added row", nil
+	case RowDeleted:
+		if row.LeftRow == nil {
+			return "", errors.New("deleted row is missing a left row number")
+		}
+		leftIndex := *row.LeftRow - 1
+		if leftIndex < 0 || leftIndex >= len(*leftRecords) {
+			return "", errors.New("left row is out of range")
+		}
+		*leftRecords = append((*leftRecords)[:leftIndex], (*leftRecords)[leftIndex+1:]...)
+		return "deleted row", nil
+	default:
+		return "", errors.New("unchanged rows cannot be merged")
+	}
+}
+
+func projectedColumns(projection columnProjection, col int) (int, int, error) {
+	index := col - 1
+	if index < 0 || index >= len(projection.Left) || index >= len(projection.Right) {
+		return 0, 0, errors.New("merge column is out of range")
+	}
+	leftCol := projection.Left[index]
+	rightCol := projection.Right[index]
+	if leftCol < 0 || rightCol < 0 {
+		return 0, 0, errors.New("cannot merge a one-sided column")
+	}
+	return leftCol, rightCol, nil
+}
+
+func projectedRightRecordForLeft(left []string, right []string, projection columnProjection) ([]string, error) {
+	merged := append([]string(nil), left...)
+	for index := range projection.Left {
+		leftCol := projection.Left[index]
+		rightCol := projection.Right[index]
+		if leftCol < 0 {
+			continue
+		}
+		if rightCol < 0 {
+			continue
+		}
+		ensureWidth(&merged, leftCol+1)
+		merged[leftCol] = cell(right, rightCol)
+	}
+	return merged, nil
+}
+
+func ensureWidth(record *[]string, width int) {
+	for len(*record) < width {
+		*record = append(*record, "")
+	}
 }
 
 func cell(record []string, col int) string {

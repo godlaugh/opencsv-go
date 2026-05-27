@@ -66,6 +66,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/sort", server.handleSort)
 	server.mux.HandleFunc("POST /api/view-clear", server.handleViewClear)
 	server.mux.HandleFunc("POST /api/diff", server.handleDiff)
+	server.mux.HandleFunc("POST /api/diff-merge", server.handleDiffMerge)
 	server.mux.HandleFunc("POST /api/sql", server.handleSQL)
 	server.mux.HandleFunc("POST /api/profile", server.handleProfile)
 	server.mux.Handle("/", http.FileServer(http.Dir(server.webDir)))
@@ -629,6 +630,13 @@ type diffRequest struct {
 	MatchColumnsByName bool   `json:"matchColumnsByName"`
 }
 
+type diffMergeRequest struct {
+	diffRequest
+	ResultIndex int    `json:"resultIndex"`
+	Mode        string `json:"mode"`
+	Col         int    `json:"col"`
+}
+
 func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	var request diffRequest
 	if err := readJSON(r, &request); err != nil {
@@ -652,6 +660,38 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		IgnoreCase:         request.IgnoreCase,
 		IgnoredColumns:     request.IgnoredColumns,
 		MatchColumnsByName: request.MatchColumnsByName,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
+	var request diffMergeRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.LeftPath == "" || request.RightPath == "" {
+		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath are required"))
+		return
+	}
+	if request.LeftPath == "-" || request.RightPath == "-" {
+		writeError(w, http.StatusBadRequest, errors.New("diff merge does not support stdin"))
+		return
+	}
+	result, err := csvdiff.MergeRightToLeft(request.LeftPath, request.RightPath, csvdiff.MergeOptions{
+		DiffOptions: csvdiff.Options{
+			IgnoreWhitespace:   request.IgnoreWhitespace,
+			IgnoreCase:         request.IgnoreCase,
+			IgnoredColumns:     request.IgnoredColumns,
+			MatchColumnsByName: request.MatchColumnsByName,
+		},
+		ResultIndex: request.ResultIndex,
+		Mode:        csvdiff.MergeMode(request.Mode),
+		Col:         request.Col,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

@@ -102,3 +102,27 @@ func TestSaveRecordsPreservesUTF16LE(t *testing.T) {
 		t.Fatalf("saved UTF-16 data did not preserve content/line ending: %q", decoded)
 	}
 }
+
+func TestSaveRecordsDefaultBackupAvoidsNameCollision(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := SaveRecords(path, document.Metadata, [][]string{{"id", "name"}, {"1", "Linus"}}, SaveOptions{CreateBackup: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := SaveRecords(path, document.Metadata, [][]string{{"id", "name"}, {"1", "Grace"}}, SaveOptions{CreateBackup: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.BackupPath == "" || second.BackupPath == "" || first.BackupPath == second.BackupPath {
+		t.Fatalf("backup paths were not unique: first=%q second=%q", first.BackupPath, second.BackupPath)
+	}
+}

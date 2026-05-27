@@ -2473,10 +2473,7 @@ async function runDiffCompare() {
       leftPath,
       rightPath,
       maxRows: 1000,
-      ignoreCase: diffIgnoreCase.checked,
-      ignoreWhitespace: diffIgnoreWhitespace.checked,
-      ignoredColumns: parseColumnList(diffIgnoredColumns.value),
-      matchColumnsByName: diffMatchHeaders.checked,
+      ...currentDiffOptions(),
     }),
   });
   const payload = await response.json();
@@ -2491,6 +2488,15 @@ async function runDiffCompare() {
   renderDiffResult(payload);
   status.textContent =
     `Diff: ${payload.summary.changed} changed, ${payload.summary.added} added, ${payload.summary.deleted} deleted`;
+}
+
+function currentDiffOptions() {
+  return {
+    ignoreCase: diffIgnoreCase.checked,
+    ignoreWhitespace: diffIgnoreWhitespace.checked,
+    ignoredColumns: parseColumnList(diffIgnoredColumns.value),
+    matchColumnsByName: diffMatchHeaders.checked,
+  };
 }
 
 function parseColumnList(value) {
@@ -2518,7 +2524,7 @@ function renderDiffResult(result) {
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const tr = document.createElement("tr");
-  for (const label of ["Status", "Left Row", "Left", "Right Row", "Right", "Changed Cells"]) {
+  for (const label of ["Status", "Left Row", "Left", "Right Row", "Right", "Changed Cells", "Actions"]) {
     const th = document.createElement("th");
     th.textContent = label;
     tr.append(th);
@@ -2543,6 +2549,10 @@ function renderDiffResult(result) {
     cells.className = "diff-cells";
     appendChangedCells(cells, row.changedCells ?? []);
     tr.append(cells);
+    const actions = document.createElement("td");
+    actions.className = "diff-actions";
+    appendDiffActions(actions, row, index);
+    tr.append(actions);
     tbody.append(tr);
   });
   table.append(tbody);
@@ -2579,6 +2589,57 @@ function navigateDiff(direction) {
   if (viewMode !== "diff" || diffRows.length === 0) return false;
   activateDiffRow(activeDiffIndex < 0 ? 0 : activeDiffIndex + direction);
   return true;
+}
+
+function appendDiffActions(container, row, resultIndex) {
+  if (row.status === "unchanged") return;
+  const rowButton = document.createElement("button");
+  rowButton.type = "button";
+  rowButton.textContent =
+    row.status === "added"
+      ? "Insert row"
+      : row.status === "deleted"
+        ? "Delete left"
+        : "Apply row";
+  rowButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0));
+  container.append(rowButton);
+
+  if (row.status !== "changed") return;
+  for (const cell of row.changedCells ?? []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `c${cell.col}`;
+    button.title = `Apply right cell c${cell.col} to left`;
+    button.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col));
+    container.append(button);
+  }
+}
+
+async function mergeDiffChange(resultIndex, mode, col) {
+  const leftPath = leftDiffPath.value.trim();
+  const rightPath = rightDiffPath.value.trim();
+  if (!leftPath || !rightPath) return;
+  status.textContent = "Applying diff change...";
+  const response = await fetch("/api/diff-merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      leftPath,
+      rightPath,
+      resultIndex,
+      mode,
+      col,
+      ...currentDiffOptions(),
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Merge failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const backup = payload.save?.backupPath ? ` backup ${payload.save.backupPath}` : "";
+  status.textContent = `Merged ${payload.applied}${backup}`;
+  await runDiffCompare();
 }
 
 function appendChangedCells(container, changedCells) {

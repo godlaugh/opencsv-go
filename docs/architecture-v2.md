@@ -368,6 +368,22 @@ Output:
 - compare options: ignore case, ignore whitespace, ignored columns, and header-name column alignment.
 - inline character-level spans for changed cells.
 
+`POST /api/diff-merge`
+
+Input:
+
+- `leftPath`.
+- `rightPath`.
+- `resultIndex`.
+- `mode`: `row` or `cell`.
+- optional `col` for cell merge.
+- same compare options as `/api/diff`.
+
+Output:
+
+- applied merge kind.
+- save result and backup path.
+
 ### SQL
 
 `POST /api/sql`
@@ -481,6 +497,7 @@ Output:
 - Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.
 - Diff View can boot from URL parameters for regression and protocol workflows, including compare options and immediate run.
 - Diff View marks changed/added/deleted result rows as navigable differences, supports next/previous buttons, and supports the Alt+F5 / Shift+Alt+F5 shortcut shape used by SmoothCSV.
+- Diff View merge actions call a backend right-to-left merge endpoint that recomputes the diff, applies the selected row or cell, creates a backup, and atomically saves the left file.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.
