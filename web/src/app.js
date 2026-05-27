@@ -367,8 +367,12 @@ function isCommandDisabled(command) {
       command.id === "edit.replaceAll" ||
       command.id === "row.insert" ||
       command.id === "row.delete" ||
+      command.id === "row.moveUp" ||
+      command.id === "row.moveDown" ||
       command.id === "column.insert" ||
       command.id === "column.delete" ||
+      command.id === "column.moveLeft" ||
+      command.id === "column.moveRight" ||
       command.id === "table.transpose" ||
       command.id === "table.dedupeRows" ||
       command.id === "table.dedupeColumns" ||
@@ -738,11 +742,23 @@ async function executeCommand(commandID) {
     case "row.delete":
       await deleteSelectedRow();
       break;
+    case "row.moveUp":
+      await moveSelectedRow(-1);
+      break;
+    case "row.moveDown":
+      await moveSelectedRow(1);
+      break;
     case "column.insert":
       await insertSelectedColumn();
       break;
     case "column.delete":
       await deleteSelectedColumn();
+      break;
+    case "column.moveLeft":
+      await moveSelectedColumn(-1);
+      break;
+    case "column.moveRight":
+      await moveSelectedColumn(1);
       break;
     case "table.transpose":
       await transposeCurrentDocument();
@@ -2233,12 +2249,64 @@ async function deleteSelectedRow() {
   await mutateStructure("/api/row/delete", { row: selectedSourceRow() }, "Deleted row");
 }
 
+async function moveSelectedRow(delta) {
+  if (!documentId) return;
+  if (!ensureEditable("Move Row")) return;
+  const previousRow = selected.row;
+  const label = delta < 0 ? "Moved row up" : "Moved row down";
+  status.textContent = `${label}...`;
+  const response = await fetch("/api/row/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, row: selectedSourceRow(), delta }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  applyMutationPayload(payload, changed > 0 ? label : "Row is already at the edge");
+  if (changed > 0) {
+    selected = { row: Math.max(0, Math.min(totalRows - 1, previousRow + delta)), col: selected.col };
+    selectionAnchor = { ...selected };
+    draw();
+    status.textContent = label;
+  }
+}
+
 async function insertSelectedColumn() {
   await mutateStructure("/api/column/insert", { col: selected.col }, "Inserted column");
 }
 
 async function deleteSelectedColumn() {
   await mutateStructure("/api/column/delete", { col: selected.col }, "Deleted column");
+}
+
+async function moveSelectedColumn(delta) {
+  if (!documentId) return;
+  if (!ensureEditable("Move Column")) return;
+  const previousCol = selected.col;
+  const label = delta < 0 ? "Moved column left" : "Moved column right";
+  status.textContent = `${label}...`;
+  const response = await fetch("/api/column/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, col: selected.col, delta }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  applyMutationPayload(payload, changed > 0 ? label : "Column is already at the edge");
+  if (changed > 0) {
+    selected = { row: selected.row, col: Math.max(0, Math.min(columns.length - 1, previousCol + delta)) };
+    selectionAnchor = { ...selected };
+    draw();
+    status.textContent = label;
+  }
 }
 
 async function transposeCurrentDocument() {
@@ -3038,6 +3106,20 @@ function handleGlobalShortcut(event) {
     event.preventDefault();
     toggleHeaderInSelection();
     return true;
+  }
+  if (event.shiftKey && event.altKey && !paletteOpen && !isTypingTarget(event.target)) {
+    const arrowCommandIDByKey = {
+      arrowup: "row.moveUp",
+      arrowdown: "row.moveDown",
+      arrowleft: "column.moveLeft",
+      arrowright: "column.moveRight",
+    };
+    const arrowCommandID = arrowCommandIDByKey[key];
+    if (arrowCommandID) {
+      event.preventDefault();
+      executeCommand(arrowCommandID);
+      return true;
+    }
   }
   if (event.shiftKey && event.altKey && !paletteOpen && !isTypingTarget(event.target)) {
     const commandIDByKey = {

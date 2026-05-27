@@ -275,6 +275,91 @@ func TestManagerStructuralMutationsUndoRedo(t *testing.T) {
 	}
 }
 
+func TestManagerMoveRowsAndColumnsUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "move.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,10\n2,Linus,20\n3,Grace,30\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "move.csv", csvcore.OpenOptions{PreviewRows: 5, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.MoveRow(session.ID, 2, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("move row changed = %d, want 1", result.Changed)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Linus" || records[2][1] != "Ada" {
+		t.Fatalf("records after move row = %#v", records)
+	}
+	if _, err := manager.Undo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[2][1] != "Linus" {
+		t.Fatalf("records after undo move row = %#v", records)
+	}
+
+	result, err = manager.MoveColumn(session.ID, 2, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("move column changed = %d, want 1", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recordsEqual(records, [][]string{
+		{"id", "score", "name"},
+		{"1", "10", "Ada"},
+		{"2", "20", "Linus"},
+		{"3", "30", "Grace"},
+	}) {
+		t.Fatalf("records after move column = %#v", records)
+	}
+}
+
+func TestManagerMoveBoundariesAreNoops(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "move-noop.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "move-noop.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.MoveRow(session.ID, 1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 0 || result.Dirty {
+		t.Fatalf("top data row move result = %#v, want clean no-op", result)
+	}
+	result, err = manager.MoveColumn(session.ID, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 0 || result.Dirty {
+		t.Fatalf("first column move result = %#v, want clean no-op", result)
+	}
+}
+
 func TestManagerTransposeUndoAndLimit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

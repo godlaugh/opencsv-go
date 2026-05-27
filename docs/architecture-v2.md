@@ -62,7 +62,7 @@ flowchart TD
   - Edit overlay.
   - Full-record snapshot history for first-pass undo/redo.
   - Batch cell edits as a single undoable operation.
-  - Row/column insert/delete materialized into temporary working copies.
+  - Row/column insert/delete/move materialized into temporary working copies.
   - Whole-document transpose as a guarded, undoable materialized mutation.
   - Dirty state.
   - File-status check and clean-document refresh from disk.
@@ -123,7 +123,7 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -336,6 +336,33 @@ Output:
 
 - refreshed session.
 
+### Row and Column Mutations
+
+`POST /api/row/insert`
+`POST /api/row/delete`
+`POST /api/row/move`
+`POST /api/column/insert`
+`POST /api/column/delete`
+`POST /api/column/move`
+
+Input:
+
+- document ID.
+- row or column index.
+- move delta for move endpoints.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+
+Rules:
+
+- Row move preserves detected header rows and will not move data rows above the header.
+- Column move preserves the first row values as ordinary cells, moving headers and column data together.
+- Boundary moves are clean no-ops.
+- Mutations are materialized into the working copy and remain undoable before Save.
+
 ### Transpose
 
 `POST /api/transpose`
@@ -536,7 +563,7 @@ Output:
 - Edit and save.
 - Backup preservation.
 - Filter/sort/search endpoints.
-- Undo/redo and row/column mutation endpoints.
+- Undo/redo and row/column insert/delete/move endpoints.
 - Batch edit endpoint.
 - Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, header prepending, and TSV paste.
 - Command registry endpoint.
@@ -576,7 +603,7 @@ Output:
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
 - Command Palette can search and execute an enabled command.
-- Command Palette can execute Insert Row, Undo, Redo, Insert Column, and Delete Column without modifying the original file before Save.
+- Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move row/column commands without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.

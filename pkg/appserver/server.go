@@ -54,8 +54,10 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/refresh", server.handleRefresh)
 	server.mux.HandleFunc("POST /api/row/insert", server.handleInsertRow)
 	server.mux.HandleFunc("POST /api/row/delete", server.handleDeleteRow)
+	server.mux.HandleFunc("POST /api/row/move", server.handleMoveRow)
 	server.mux.HandleFunc("POST /api/column/insert", server.handleInsertColumn)
 	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
+	server.mux.HandleFunc("POST /api/column/move", server.handleMoveColumn)
 	server.mux.HandleFunc("POST /api/transpose", server.handleTranspose)
 	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
 	server.mux.HandleFunc("POST /api/dedupe-columns", server.handleDedupeColumns)
@@ -256,11 +258,13 @@ type documentRequest struct {
 type rowMutationRequest struct {
 	DocumentID string `json:"documentId"`
 	Row        int    `json:"row"`
+	Delta      int    `json:"delta"`
 }
 
 type columnMutationRequest struct {
 	DocumentID string `json:"documentId"`
 	Col        int    `json:"col"`
+	Delta      int    `json:"delta"`
 }
 
 type transposeRequest struct {
@@ -367,6 +371,20 @@ func (server *Server) handleDeleteRow(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (server *Server) handleMoveRow(w http.ResponseWriter, r *http.Request) {
+	var request rowMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.MoveRow(request.DocumentID, request.Row, request.Delta)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (server *Server) handleInsertColumn(w http.ResponseWriter, r *http.Request) {
 	var request columnMutationRequest
 	if err := readJSON(r, &request); err != nil {
@@ -388,6 +406,20 @@ func (server *Server) handleDeleteColumn(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	result, err := server.documents.DeleteColumn(request.DocumentID, request.Col)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleMoveColumn(w http.ResponseWriter, r *http.Request) {
+	var request columnMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.MoveColumn(request.DocumentID, request.Col, request.Delta)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

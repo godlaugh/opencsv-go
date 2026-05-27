@@ -303,6 +303,48 @@ func (manager *Manager) DeleteRow(id string, row int) (MutationResult, error) {
 	})
 }
 
+func (manager *Manager) MoveRow(id string, row int, delta int) (MutationResult, error) {
+	if delta == 0 {
+		session, ok := manager.snapshot(id)
+		if !ok {
+			return MutationResult{}, errors.New("document not found")
+		}
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	if row < 0 || row >= len(records) {
+		return MutationResult{}, errors.New("row is out of range")
+	}
+	minRow := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		minRow = 1
+	}
+	target := row + delta
+	if target < minRow || target >= len(records) {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	records = moveRecord(records, row, target)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, session.Document.Metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+}
+
 func (manager *Manager) InsertColumn(id string, col int) (MutationResult, error) {
 	if col < 0 {
 		col = 0
@@ -337,6 +379,47 @@ func (manager *Manager) DeleteColumn(id string, col int) (MutationResult, error)
 		}
 		return records, nil
 	})
+}
+
+func (manager *Manager) MoveColumn(id string, col int, delta int) (MutationResult, error) {
+	if delta == 0 {
+		session, ok := manager.snapshot(id)
+		if !ok {
+			return MutationResult{}, errors.New("document not found")
+		}
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	width := maxRecordWidth(records)
+	if col < 0 || col >= width {
+		return MutationResult{}, errors.New("column is out of range")
+	}
+	target := col + delta
+	if target < 0 || target >= width {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	records = moveColumnRecords(records, col, target, width)
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
 }
 
 func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, error) {
@@ -1329,6 +1412,43 @@ func transposeRecords(records [][]string, width int) [][]string {
 				output[col][row] = records[row][col]
 			}
 		}
+	}
+	return output
+}
+
+func moveRecord(records [][]string, from int, to int) [][]string {
+	record := records[from]
+	if from < to {
+		copy(records[from:to], records[from+1:to+1])
+	} else {
+		copy(records[to+1:from+1], records[to:from])
+	}
+	records[to] = record
+	return records
+}
+
+func moveColumnRecords(records [][]string, from int, to int, width int) [][]string {
+	order := make([]int, width)
+	for i := range order {
+		order[i] = i
+	}
+	moved := order[from]
+	if from < to {
+		copy(order[from:to], order[from+1:to+1])
+	} else {
+		copy(order[to+1:from+1], order[to:from])
+	}
+	order[to] = moved
+
+	output := make([][]string, len(records))
+	for row, record := range records {
+		padded := append([]string(nil), record...)
+		ensureRecordWidth(&padded, width)
+		next := make([]string, width)
+		for col, sourceCol := range order {
+			next[col] = padded[sourceCol]
+		}
+		output[row] = next
 	}
 	return output
 }

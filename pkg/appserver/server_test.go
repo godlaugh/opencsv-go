@@ -226,6 +226,49 @@ func TestServerUndoRedoAndStructuralMutations(t *testing.T) {
 	}
 }
 
+func TestServerMoveRowsAndColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "move.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,10\n2,Linus,20\n3,Grace,30\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	rowPayload := postJSON(t, handler, "/api/row/move", map[string]any{
+		"documentId": documentID,
+		"row":        2,
+		"delta":      -1,
+	})
+	if rowPayload["changed"].(float64) != 1 {
+		t.Fatalf("move row payload = %#v", rowPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Linus" || rows[2].([]any)[1] != "Ada" {
+		t.Fatalf("rows after move row = %#v", rows)
+	}
+
+	columnPayload := postJSON(t, handler, "/api/column/move", map[string]any{
+		"documentId": documentID,
+		"col":        2,
+		"delta":      -1,
+	})
+	if columnPayload["changed"].(float64) != 1 {
+		t.Fatalf("move column payload = %#v", columnPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows = windowPayload["rows"].([]any)
+	if rows[0].([]any)[1] != "score" || rows[1].([]any)[1] != "20" {
+		t.Fatalf("rows after move column = %#v", rows)
+	}
+}
+
 func TestServerDedupeAndTextTransform(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tools.csv")
