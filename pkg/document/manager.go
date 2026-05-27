@@ -818,6 +818,14 @@ func (manager *Manager) SwapCells(id string, cells []Cell) (MutationResult, erro
 }
 
 func (manager *Manager) JoinCells(id string, cells []Cell, separator string) (MutationResult, error) {
+	return manager.joinCells(id, cells, separator, "horizontal")
+}
+
+func (manager *Manager) JoinCellsVertical(id string, cells []Cell, separator string) (MutationResult, error) {
+	return manager.joinCells(id, cells, separator, "vertical")
+}
+
+func (manager *Manager) joinCells(id string, cells []Cell, separator string, direction string) (MutationResult, error) {
 	if len(cells) == 0 {
 		return MutationResult{}, errors.New("no cells selected")
 	}
@@ -842,7 +850,7 @@ func (manager *Manager) JoinCells(id string, cells []Cell, separator string) (Mu
 	}
 	applyEdits(records, 0, session.Edits)
 
-	changed := joinRecords(records, cells, separator)
+	changed := joinRecords(records, cells, separator, direction)
 	if changed == 0 {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
@@ -857,6 +865,14 @@ func (manager *Manager) JoinCells(id string, cells []Cell, separator string) (Mu
 }
 
 func (manager *Manager) SplitCells(id string, cells []Cell, separator string) (MutationResult, error) {
+	return manager.splitCells(id, cells, separator, "horizontal")
+}
+
+func (manager *Manager) SplitCellsVertical(id string, cells []Cell, separator string) (MutationResult, error) {
+	return manager.splitCells(id, cells, separator, "vertical")
+}
+
+func (manager *Manager) splitCells(id string, cells []Cell, separator string, direction string) (MutationResult, error) {
 	if len(cells) == 0 {
 		return MutationResult{}, errors.New("no cells selected")
 	}
@@ -881,7 +897,7 @@ func (manager *Manager) SplitCells(id string, cells []Cell, separator string) (M
 	}
 	applyEdits(records, 0, session.Edits)
 
-	changed := splitRecords(records, cells, separator)
+	changed := splitRecords(&records, cells, separator, direction)
 	if changed == 0 {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
@@ -1987,7 +2003,14 @@ func visibleRowCount(session *Session, recordCount int, dataStart int) int {
 	return max(0, recordCount-dataStart)
 }
 
-func joinRecords(records [][]string, cells []Cell, separator string) int {
+func joinRecords(records [][]string, cells []Cell, separator string, direction string) int {
+	if direction == "vertical" {
+		return joinRecordsVertical(records, cells, separator)
+	}
+	return joinRecordsHorizontal(records, cells, separator)
+}
+
+func joinRecordsHorizontal(records [][]string, cells []Cell, separator string) int {
 	grouped := make(map[int][]int)
 	seen := make(map[Cell]bool, len(cells))
 	for _, cell := range cells {
@@ -2023,13 +2046,57 @@ func joinRecords(records [][]string, cells []Cell, separator string) int {
 	return changed
 }
 
+func joinRecordsVertical(records [][]string, cells []Cell, separator string) int {
+	grouped := make(map[int][]int)
+	seen := make(map[Cell]bool, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Row >= len(records) || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		grouped[cell.Col] = append(grouped[cell.Col], cell.Row)
+	}
+	changed := 0
+	for col, rows := range grouped {
+		sort.Ints(rows)
+		if len(rows) < 2 {
+			continue
+		}
+		values := make([]string, len(rows))
+		for index, row := range rows {
+			values[index] = cellValue(records[row], col)
+		}
+		joined := strings.Join(values, separator)
+		ensureRecordWidth(&records[rows[0]], col+1)
+		if records[rows[0]][col] != joined {
+			records[rows[0]][col] = joined
+			changed++
+		}
+		for _, row := range rows[1:] {
+			ensureRecordWidth(&records[row], col+1)
+			if records[row][col] != "" {
+				records[row][col] = ""
+				changed++
+			}
+		}
+	}
+	return changed
+}
+
 type splitOperation struct {
 	row   int
 	col   int
 	parts []string
 }
 
-func splitRecords(records [][]string, cells []Cell, separator string) int {
+func splitRecords(records *[][]string, cells []Cell, separator string, direction string) int {
+	if direction == "vertical" {
+		return splitRecordsVertical(records, cells, separator)
+	}
+	return splitRecordsHorizontal(*records, cells, separator)
+}
+
+func splitRecordsHorizontal(records [][]string, cells []Cell, separator string) int {
 	seen := make(map[Cell]bool, len(cells))
 	operations := make([]splitOperation, 0, len(cells))
 	for _, cell := range cells {
@@ -2057,6 +2124,48 @@ func splitRecords(records [][]string, cells []Cell, separator string) int {
 			targetCol := operation.col + offset
 			if records[operation.row][targetCol] != part {
 				records[operation.row][targetCol] = part
+				changed++
+			}
+		}
+	}
+	return changed
+}
+
+func splitRecordsVertical(records *[][]string, cells []Cell, separator string) int {
+	seen := make(map[Cell]bool, len(cells))
+	operations := make([]splitOperation, 0, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		value := ""
+		if cell.Row < len(*records) {
+			value = cellValue((*records)[cell.Row], cell.Col)
+		}
+		parts := strings.Split(value, separator)
+		if len(parts) < 2 {
+			continue
+		}
+		operations = append(operations, splitOperation{row: cell.Row, col: cell.Col, parts: parts})
+	}
+	sort.Slice(operations, func(i int, j int) bool {
+		if operations[i].col == operations[j].col {
+			return operations[i].row < operations[j].row
+		}
+		return operations[i].col < operations[j].col
+	})
+	changed := 0
+	for _, operation := range operations {
+		lastRow := operation.row + len(operation.parts) - 1
+		for len(*records) <= lastRow {
+			*records = append(*records, nil)
+		}
+		for offset, part := range operation.parts {
+			targetRow := operation.row + offset
+			ensureRecordWidth(&(*records)[targetRow], operation.col+1)
+			if (*records)[targetRow][operation.col] != part {
+				(*records)[targetRow][operation.col] = part
 				changed++
 			}
 		}

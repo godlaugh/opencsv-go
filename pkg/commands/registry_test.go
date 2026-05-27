@@ -51,6 +51,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"cell.swap",
 		"cell.joinHorizontal",
 		"cell.splitHorizontal",
+		"cell.joinVertical",
+		"cell.splitVertical",
 		"view.filter",
 		"view.filterBuilder",
 		"view.sort",

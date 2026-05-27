@@ -504,6 +504,7 @@ type cellsToolRequest struct {
 	DocumentID string          `json:"documentId"`
 	Cells      []docstore.Cell `json:"cells"`
 	Separator  string          `json:"separator"`
+	Direction  string          `json:"direction,omitempty"`
 }
 
 func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request) {
@@ -544,7 +545,13 @@ func (server *Server) handleJoinCells(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.JoinCells(request.DocumentID, request.Cells, request.Separator)
+	var result docstore.MutationResult
+	var err error
+	if strings.EqualFold(strings.TrimSpace(request.Direction), "vertical") {
+		result, err = server.documents.JoinCellsVertical(request.DocumentID, request.Cells, request.Separator)
+	} else {
+		result, err = server.documents.JoinCells(request.DocumentID, request.Cells, request.Separator)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -558,7 +565,13 @@ func (server *Server) handleSplitCells(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.SplitCells(request.DocumentID, request.Cells, request.Separator)
+	var result docstore.MutationResult
+	var err error
+	if strings.EqualFold(strings.TrimSpace(request.Direction), "vertical") {
+		result, err = server.documents.SplitCellsVertical(request.DocumentID, request.Cells, request.Separator)
+	} else {
+		result, err = server.documents.SplitCells(request.DocumentID, request.Cells, request.Separator)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

@@ -891,6 +891,36 @@ func TestManagerJoinAndSplitCells(t *testing.T) {
 	if records[1][1] != "A" || records[1][2] != "a" {
 		t.Fatalf("records after split = %#v", records)
 	}
+
+	result, err = manager.JoinCellsVertical(session.ID, []Cell{{Row: 1, Col: 1}, {Row: 2, Col: 1}}, " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("vertical join changed = %d, want 2", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "A Grace" || records[2][1] != "" {
+		t.Fatalf("records after vertical join = %#v", records)
+	}
+
+	result, err = manager.SplitCellsVertical(session.ID, []Cell{{Row: 1, Col: 1}}, " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("vertical split changed = %d, want 2", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "A" || records[2][1] != "Grace" {
+		t.Fatalf("records after vertical split = %#v", records)
+	}
 }
 
 func TestManagerSwapCells(t *testing.T) {

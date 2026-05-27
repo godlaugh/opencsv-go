@@ -447,6 +447,56 @@ func TestServerJoinAndSplitCells(t *testing.T) {
 	}
 }
 
+func TestServerVerticalJoinAndSplitCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "join-split-vertical.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	joinPayload := postJSON(t, handler, "/api/cells/join", map[string]any{
+		"documentId": documentID,
+		"separator":  " ",
+		"direction":  "vertical",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+			{"row": 2, "col": 1},
+		},
+	})
+	if joinPayload["changed"].(float64) != 2 {
+		t.Fatalf("vertical join payload = %#v", joinPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada Grace" || rows[2].([]any)[1] != "" {
+		t.Fatalf("rows after vertical join = %#v", rows)
+	}
+
+	splitPayload := postJSON(t, handler, "/api/cells/split", map[string]any{
+		"documentId": documentID,
+		"separator":  " ",
+		"direction":  "vertical",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+		},
+	})
+	if splitPayload["changed"].(float64) != 2 {
+		t.Fatalf("vertical split payload = %#v", splitPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" || rows[2].([]any)[1] != "Grace" {
+		t.Fatalf("rows after vertical split = %#v", rows)
+	}
+}
+
 func TestServerFindFilterSort(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

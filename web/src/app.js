@@ -484,7 +484,9 @@ function isCommandDisabled(command) {
       command.id === "text.lowercase" ||
       command.id === "cell.swap" ||
       command.id === "cell.joinHorizontal" ||
-      command.id === "cell.splitHorizontal"
+      command.id === "cell.splitHorizontal" ||
+      command.id === "cell.joinVertical" ||
+      command.id === "cell.splitVertical"
     );
   return (
     command.implemented === false ||
@@ -1422,10 +1424,16 @@ async function executeCommand(commandID) {
       await swapSelectedCells();
       break;
     case "cell.joinHorizontal":
-      await joinSelectedCells();
+      await joinSelectedCells("horizontal");
       break;
     case "cell.splitHorizontal":
-      await splitActiveCell();
+      await splitActiveCell("horizontal");
+      break;
+    case "cell.joinVertical":
+      await joinSelectedCells("vertical");
+      break;
+    case "cell.splitVertical":
+      await splitActiveCell("vertical");
       break;
     case "view.filter":
       await filterCurrentQuery();
@@ -3566,33 +3574,40 @@ async function swapSelectedCells() {
   });
 }
 
-async function joinSelectedCells() {
+async function joinSelectedCells(direction = "horizontal") {
   if (!documentId) return;
-  if (!ensureEditable("Join Cells")) return;
+  const vertical = direction === "vertical";
+  const title = vertical ? "Join Cells Vertically" : "Join Cells";
+  if (!ensureEditable(title)) return;
   if (selectionCellCount() < 2) {
-    status.textContent = "Select at least two cells to join.";
+    status.textContent = `Select at least two cells to ${vertical ? "join vertically" : "join"}.`;
     return;
   }
   const cells = selectedCellsForTransform();
   if (!cells) return;
+  const range = normalizedSelection();
   await runCellTool("/api/cells/join", {
     cells,
     separator: " ",
-    activeRow: selected.row,
-    activeCol: normalizedSelection().startCol,
-    label: "Joined cells",
+    direction,
+    activeRow: vertical ? range.startRow : selected.row,
+    activeCol: vertical ? selected.col : range.startCol,
+    label: vertical ? "Joined cells vertically" : "Joined cells",
   });
 }
 
-async function splitActiveCell() {
+async function splitActiveCell(direction = "horizontal") {
   if (!documentId) return;
-  if (!ensureEditable("Split Cell")) return;
+  const vertical = direction === "vertical";
+  const title = vertical ? "Split Cell Vertically" : "Split Cell";
+  if (!ensureEditable(title)) return;
   await runCellTool("/api/cells/split", {
     cells: [{ row: selectedSourceRow(), col: sourceColFor(selected.col) }],
     separator: " ",
+    direction,
     activeRow: selected.row,
     activeCol: selected.col,
-    label: "Split cell",
+    label: vertical ? "Split cell vertically" : "Split cell",
   });
 }
 
@@ -3605,6 +3620,7 @@ async function runCellTool(endpoint, options) {
       documentId,
       cells: options.cells,
       separator: options.separator,
+      direction: options.direction,
     }),
   });
   const payload = await response.json();
@@ -4492,6 +4508,8 @@ function handleGlobalShortcut(event) {
       w: "cell.swap",
       j: "cell.joinHorizontal",
       s: "cell.splitHorizontal",
+      v: "cell.joinVertical",
+      b: "cell.splitVertical",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",
