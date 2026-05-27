@@ -82,6 +82,7 @@ const columnFilterBlank = document.querySelector("#columnFilterBlank");
 const columnFilterFilled = document.querySelector("#columnFilterFilled");
 const columnMenuValues = document.querySelector("#columnMenuValues");
 const columnApplyValues = document.querySelector("#columnApplyValues");
+const columnHide = document.querySelector("#columnHide");
 const columnClearView = document.querySelector("#columnClearView");
 
 const rowHeight = 28;
@@ -91,6 +92,8 @@ const windowSize = 160;
 
 let totalRows = 0;
 let columns = [];
+let allColumns = [];
+let hiddenSourceColumns = new Set();
 
 let scrollX = 0;
 let scrollY = 0;
@@ -240,7 +243,23 @@ function valueAt(row, col) {
     maybeLoadWindow(row);
     return "";
   }
-  return record[col] ?? "";
+  return record[sourceColFor(col)] ?? "";
+}
+
+function sourceColFor(col) {
+  return columns[col]?.sourceCol ?? col;
+}
+
+function visibleColForSource(sourceCol) {
+  return columns.findIndex((column) => column.sourceCol === sourceCol);
+}
+
+function columnNameForSource(sourceCol) {
+  return allColumns.find((column) => column.sourceCol === sourceCol)?.name ?? `Column ${sourceCol + 1}`;
+}
+
+function applyHiddenColumns() {
+  columns = allColumns.filter((column) => !hiddenSourceColumns.has(column.sourceCol));
 }
 
 function draw() {
@@ -367,10 +386,12 @@ function isCommandDisabled(command) {
       command.id === "edit.replaceAll" ||
       command.id === "row.insert" ||
       command.id === "row.delete" ||
+      command.id === "row.hide" ||
       command.id === "row.moveUp" ||
       command.id === "row.moveDown" ||
       command.id === "column.insert" ||
       command.id === "column.delete" ||
+      command.id === "column.hide" ||
       command.id === "column.moveLeft" ||
       command.id === "column.moveRight" ||
       command.id === "table.transpose" ||
@@ -389,7 +410,7 @@ function isCommandDisabled(command) {
 
 function updateInspector() {
   const selectedColumn = columns[selected.col]?.name ?? "";
-  const profile = profileData?.columns?.[selected.col];
+  const profile = profileData?.columns?.[sourceColFor(selected.col)];
   columnName.textContent = selectedColumn || "none";
   columnType.textContent = profile?.type ?? columns[selected.col]?.type ?? "unknown";
   columnNulls.textContent = profile
@@ -742,6 +763,9 @@ async function executeCommand(commandID) {
     case "row.delete":
       await deleteSelectedRow();
       break;
+    case "row.hide":
+      await hideSelectedRow();
+      break;
     case "row.moveUp":
       await moveSelectedRow(-1);
       break;
@@ -753,6 +777,9 @@ async function executeCommand(commandID) {
       break;
     case "column.delete":
       await deleteSelectedColumn();
+      break;
+    case "column.hide":
+      hideSelectedColumn();
       break;
     case "column.moveLeft":
       await moveSelectedColumn(-1);
@@ -1168,8 +1195,9 @@ function renderColumnValuesLoading() {
 
 async function loadColumnMenuValues(col) {
   if (!documentId || !columns[col]) return;
+  const sourceCol = sourceColFor(col);
   try {
-    const response = await fetch(`/api/column-values?id=${encodeURIComponent(documentId)}&column=${col}&limit=12`);
+    const response = await fetch(`/api/column-values?id=${encodeURIComponent(documentId)}&column=${sourceCol}&limit=12`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "column values failed");
     if (columnMenuColumn !== col || columnMenu.hidden) return;
@@ -1252,10 +1280,11 @@ function setSelectionValue(value) {
   const edits = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
     const record = rows.get(row) ?? [];
-    while (record.length <= range.endCol) record.push("");
     for (let col = range.startCol; col <= range.endCol; col++) {
-      record[col] = value;
-      edits.push({ row: rowSource.get(row) ?? row + dataStartRow, col, value });
+      const sourceCol = sourceColFor(col);
+      while (record.length <= sourceCol) record.push("");
+      record[sourceCol] = value;
+      edits.push({ row: rowSource.get(row) ?? row + dataStartRow, col: sourceCol, value });
     }
     rows.set(row, record);
   }
@@ -1267,13 +1296,14 @@ function setActiveCellValue(value) {
   if (!documentId || columns.length === 0) return;
   windowGeneration++;
   const record = rows.get(selected.row) ?? [];
-  while (record.length <= selected.col) record.push("");
-  record[selected.col] = value;
+  const sourceCol = sourceColFor(selected.col);
+  while (record.length <= sourceCol) record.push("");
+  record[sourceCol] = value;
   rows.set(selected.row, record);
   selectionAnchor = { ...selected };
   cellValueInputDirty = false;
   submitCellEdits(
-    [{ row: rowSource.get(selected.row) ?? selected.row + dataStartRow, col: selected.col, value }],
+    [{ row: rowSource.get(selected.row) ?? selected.row + dataStartRow, col: sourceCol, value }],
     selected.row,
     "Cell edited",
   );
@@ -1410,7 +1440,9 @@ function loadDocument(document) {
   windowStart = 0;
   windowEnd = Math.max(0, document.preview.length - dataStartRow);
   totalRows = Math.max(0, (document.rowIndex?.rows || document.preview.length) - dataStartRow);
-  columns = buildColumns(document);
+  allColumns = buildColumns(document);
+  hiddenSourceColumns = new Set();
+  applyHiddenColumns();
   selected = { row: 0, col: 0 };
   selectionAnchor = { row: 0, col: 0 };
   scrollX = 0;
@@ -1502,7 +1534,7 @@ function selectedCellsForTransform(maxCells = 100_000) {
     }
     const recordRow = sourceRow ?? row + dataStartRow;
     for (let col = range.startCol; col <= range.endCol; col++) {
-      cells.push({ row: recordRow, col });
+      cells.push({ row: recordRow, col: sourceColFor(col) });
     }
   }
   return cells;
@@ -1605,9 +1637,10 @@ function pasteMatrix(matrix) {
     for (let colOffset = 0; colOffset < values.length; colOffset++) {
       const col = startCol + colOffset;
       if (col >= columns.length) break;
-      while (record.length <= col) record.push("");
-      record[col] = values[colOffset];
-      edits.push({ row: rowSource.get(row) ?? row + dataStartRow, col, value: values[colOffset] });
+      const sourceCol = sourceColFor(col);
+      while (record.length <= sourceCol) record.push("");
+      record[sourceCol] = values[colOffset];
+      edits.push({ row: rowSource.get(row) ?? row + dataStartRow, col: sourceCol, value: values[colOffset] });
     }
     rows.set(row, record);
   }
@@ -1752,6 +1785,7 @@ function buildColumns(document) {
     Math.max(...document.preview.map((record) => record.length), 1);
   return Array.from({ length: columnCount }, (_, index) => ({
     name: hasHeader && first[index] ? first[index] : `Column ${index + 1}`,
+    sourceCol: index,
     width: Math.max(92, Math.min(240, String(first[index] ?? "").length * 9 + 64)),
     type: index === 0 ? "mixed" : "string",
   }));
@@ -2079,13 +2113,13 @@ async function sortColumn(column, descending, append) {
 function nextSortKeys(column, descending, append) {
   const key = sortKeyForColumn(column, descending);
   if (!append || sortKeys.length === 0) return [key];
-  return [...sortKeys.filter((item) => item.column !== column), key];
+  return [...sortKeys.filter((item) => item.column !== key.column), key];
 }
 
 function sortKeyForColumn(column, descending) {
   const type = columns[column]?.type ?? "string";
   return {
-    column,
+    column: sourceColFor(column),
     descending,
     numeric: type === "integer" || type === "decimal" || columnLooksNumeric(column),
   };
@@ -2093,7 +2127,7 @@ function sortKeyForColumn(column, descending) {
 
 function formatSortKeys(keys) {
   return keys
-    .map((key) => `${columns[key.column]?.name ?? `column ${key.column + 1}`} ${key.descending ? "descending" : "ascending"}`)
+    .map((key) => `${columnNameForSource(key.column)} ${key.descending ? "descending" : "ascending"}`)
     .join(", then ");
 }
 
@@ -2101,7 +2135,7 @@ function columnLooksNumeric(column) {
   let inspected = 0;
   let numeric = 0;
   for (let row = 0; row < Math.min(totalRows, 80); row++) {
-    const value = rows.get(row)?.[column];
+    const value = valueAt(row, column);
     if (value == null || String(value).trim() === "") continue;
     inspected++;
     if (Number.isFinite(Number(String(value).trim()))) numeric++;
@@ -2117,7 +2151,7 @@ async function filterColumnBySelectedValue() {
   if (value === "") return;
   commandInput.value = value;
   await applyFilterRequest(
-    { documentId, query: value, column },
+    { documentId, query: value, column: sourceColFor(column) },
     `Filtered ${columns[column].name}`,
     column,
   );
@@ -2127,7 +2161,7 @@ async function filterColumnBlank(showBlank) {
   const column = columnMenuColumn;
   closeColumnMenu();
   if (!documentId || !columns[column]) return;
-  const expression = `c${column + 1} ${showBlank ? "=" : "<>"} ''`;
+  const expression = `c${sourceColFor(column) + 1} ${showBlank ? "=" : "<>"} ''`;
   commandInput.value = `where ${expression}`;
   await applyFilterRequest(
     { documentId, mode: "sql", expression },
@@ -2155,10 +2189,11 @@ async function applyColumnValueChecklist() {
   }
   closeColumnMenu();
   commandInput.value = `${columns[column].name} values`;
+  const sourceCol = sourceColFor(column);
   const response = await fetch("/api/filter-values", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, column, values, includeBlank }),
+    body: JSON.stringify({ documentId, column: sourceCol, values, includeBlank }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -2196,12 +2231,14 @@ async function clearView() {
   viewMapped = false;
   sortDescending = false;
   sortKeys = [];
+  hiddenSourceColumns = new Set();
+  applyHiddenColumns();
   rows = new Map();
   rowSource = new Map();
   totalRows = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
   windowStart = 0;
   windowEnd = 0;
-  selected = { row: 0, col: selected.col };
+  selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, selected.col)) };
   selectionAnchor = { ...selected };
   scrollY = 0;
   wheelRemainderY = 0;
@@ -2249,6 +2286,32 @@ async function deleteSelectedRow() {
   await mutateStructure("/api/row/delete", { row: selectedSourceRow() }, "Deleted row");
 }
 
+async function hideSelectedRow() {
+  if (!documentId) return;
+  if (!ensureEditable("Hide Row")) return;
+  status.textContent = "Hiding row...";
+  const response = await fetch("/api/row/hide", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, row: selectedSourceRow() }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Hide row failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  viewMapped = true;
+  rows = new Map();
+  rowSource = new Map();
+  totalRows = payload.totalRows ?? Math.max(0, totalRows - (payload.changed ?? 0));
+  selected = { row: Math.max(0, Math.min(totalRows - 1, selected.row)), col: selected.col };
+  selectionAnchor = { ...selected };
+  windowStart = 0;
+  windowEnd = 0;
+  await maybeLoadWindow(selected.row);
+  status.textContent = payload.changed ? "Row hidden" : "Row was already hidden";
+}
+
 async function moveSelectedRow(delta) {
   if (!documentId) return;
   if (!ensureEditable("Move Row")) return;
@@ -2276,11 +2339,29 @@ async function moveSelectedRow(delta) {
 }
 
 async function insertSelectedColumn() {
-  await mutateStructure("/api/column/insert", { col: selected.col }, "Inserted column");
+  await mutateStructure("/api/column/insert", { col: sourceColFor(selected.col) }, "Inserted column");
 }
 
 async function deleteSelectedColumn() {
-  await mutateStructure("/api/column/delete", { col: selected.col }, "Deleted column");
+  await mutateStructure("/api/column/delete", { col: sourceColFor(selected.col) }, "Deleted column");
+}
+
+function hideSelectedColumn() {
+  if (!documentId || columns.length <= 1) {
+    status.textContent = columns.length <= 1 ? "Cannot hide the last visible column" : "Open a CSV first";
+    return;
+  }
+  if (!ensureEditable("Hide Column")) return;
+  const sourceCol = sourceColFor(selected.col);
+  hiddenSourceColumns.add(sourceCol);
+  applyHiddenColumns();
+  const nextCol = Math.max(0, Math.min(columns.length - 1, selected.col));
+  selected = { row: selected.row, col: nextCol };
+  selectionAnchor = { ...selected };
+  closeColumnMenu();
+  draw();
+  updateInspector();
+  status.textContent = `Column hidden: ${columnNameForSource(sourceCol)}`;
 }
 
 async function moveSelectedColumn(delta) {
@@ -2292,7 +2373,7 @@ async function moveSelectedColumn(delta) {
   const response = await fetch("/api/column/move", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, col: selected.col, delta }),
+    body: JSON.stringify({ documentId, col: sourceColFor(selected.col), delta }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -2584,7 +2665,7 @@ function renderProfileColumns(columnsProfile) {
   for (const profile of columnsProfile) {
     const tr = document.createElement("tr");
     tr.dataset.columnIndex = String(profile.index);
-    if (profile.index === selected.col) tr.className = "selected-profile-column";
+    if (profile.index === sourceColFor(selected.col)) tr.className = "selected-profile-column";
     appendCell(tr, profile.name || `c${profile.index + 1}`);
     appendCell(tr, profile.type ?? "unknown");
     appendCell(tr, formatCount(profile.rows ?? 0));
@@ -2600,7 +2681,8 @@ function renderProfileColumns(columnsProfile) {
         .join("; "),
     );
     tr.addEventListener("click", () => {
-      selected = { row: selected.row, col: profile.index };
+      const visibleCol = visibleColForSource(profile.index);
+      selected = { row: selected.row, col: visibleCol >= 0 ? visibleCol : selected.col };
       renderProfileColumns(columnsProfile);
       updateInspector();
     });
@@ -3125,6 +3207,8 @@ function handleGlobalShortcut(event) {
     const commandIDByKey = {
       d: "table.dedupeRows",
       c: "table.dedupeColumns",
+      r: "row.hide",
+      x: "column.hide",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",
@@ -3386,6 +3470,15 @@ columnFilterValue.addEventListener("click", filterColumnBySelectedValue);
 columnFilterBlank.addEventListener("click", () => filterColumnBlank(true));
 columnFilterFilled.addEventListener("click", () => filterColumnBlank(false));
 columnApplyValues.addEventListener("click", applyColumnValueChecklist);
+columnHide.addEventListener("click", () => {
+  const column = columnMenuColumn;
+  closeColumnMenu();
+  if (column >= 0) {
+    selected = { row: selected.row, col: column };
+    selectionAnchor = { ...selected };
+    hideSelectedColumn();
+  }
+});
 columnClearView.addEventListener("click", async () => {
   closeColumnMenu();
   await clearView();

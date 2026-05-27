@@ -55,6 +55,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/row/insert", server.handleInsertRow)
 	server.mux.HandleFunc("POST /api/row/delete", server.handleDeleteRow)
 	server.mux.HandleFunc("POST /api/row/move", server.handleMoveRow)
+	server.mux.HandleFunc("POST /api/row/hide", server.handleHideRow)
 	server.mux.HandleFunc("POST /api/column/insert", server.handleInsertColumn)
 	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
 	server.mux.HandleFunc("POST /api/column/move", server.handleMoveColumn)
@@ -378,6 +379,20 @@ func (server *Server) handleMoveRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.MoveRow(request.DocumentID, request.Row, request.Delta)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleHideRow(w http.ResponseWriter, r *http.Request) {
+	var request rowMutationRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.HideRow(request.DocumentID, request.Row)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

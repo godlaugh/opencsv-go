@@ -345,6 +345,56 @@ func (manager *Manager) MoveRow(id string, row int, delta int) (MutationResult, 
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if row < 0 || row >= len(records) {
+		return MutationResult{}, errors.New("row is out of range")
+	}
+	start := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		start = 1
+	}
+	if row < start {
+		return MutationResult{Session: session, TotalRows: visibleRowCount(session, len(records), start), Dirty: session.Dirty}, nil
+	}
+	viewRows := append([]int(nil), session.ViewRows...)
+	if len(viewRows) == 0 {
+		viewRows = make([]int, 0, max(0, len(records)-start))
+		for sourceRow := start; sourceRow < len(records); sourceRow++ {
+			viewRows = append(viewRows, sourceRow)
+		}
+	}
+	filtered := viewRows[:0]
+	changed := 0
+	for _, sourceRow := range viewRows {
+		if sourceRow == row {
+			changed++
+			continue
+		}
+		filtered = append(filtered, sourceRow)
+	}
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: len(viewRows), Dirty: session.Dirty}, nil
+	}
+	manager.mu.Lock()
+	current, ok := manager.sessions[id]
+	if !ok {
+		manager.mu.Unlock()
+		return MutationResult{}, errors.New("document not found")
+	}
+	current.ViewRows = append([]int(nil), filtered...)
+	updated := cloneSession(current)
+	manager.mu.Unlock()
+	return MutationResult{Session: updated, TotalRows: len(filtered), Dirty: updated.Dirty, Changed: changed}, nil
+}
+
 func (manager *Manager) InsertColumn(id string, col int) (MutationResult, error) {
 	if col < 0 {
 		col = 0
@@ -1451,6 +1501,13 @@ func moveColumnRecords(records [][]string, from int, to int, width int) [][]stri
 		output[row] = next
 	}
 	return output
+}
+
+func visibleRowCount(session *Session, recordCount int, dataStart int) int {
+	if len(session.ViewRows) > 0 {
+		return len(session.ViewRows)
+	}
+	return max(0, recordCount-dataStart)
 }
 
 func deduplicateRecords(records [][]string, hasHeader bool) ([][]string, int) {

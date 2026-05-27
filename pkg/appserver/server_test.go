@@ -269,6 +269,43 @@ func TestServerMoveRowsAndColumns(t *testing.T) {
 	}
 }
 
+func TestServerHideRowAndClearView(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "hide.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n3,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	hidePayload := postJSON(t, handler, "/api/row/hide", map[string]any{
+		"documentId": documentID,
+		"row":        2,
+	})
+	if hidePayload["changed"].(float64) != 1 || hidePayload["totalRows"].(float64) != 2 {
+		t.Fatalf("hide row payload = %#v", hidePayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 2 || rows[0].([]any)[1] != "Ada" || rows[1].([]any)[1] != "Grace" {
+		t.Fatalf("rows after hide = %#v", rows)
+	}
+	clearPayload := postJSON(t, handler, "/api/view-clear", map[string]any{"documentId": documentID})
+	if clearPayload["totalRows"].(float64) != 4 {
+		t.Fatalf("clear payload = %#v", clearPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows = windowPayload["rows"].([]any)
+	if len(rows) != 4 || rows[2].([]any)[1] != "Linus" {
+		t.Fatalf("rows after clear hide = %#v", rows)
+	}
+}
+
 func TestServerDedupeAndTextTransform(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tools.csv")

@@ -16,7 +16,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003 | Cell value panel and hyperlink opening foundation | Started | Browser Inspector verification |
 | FR-003 | URL cell hover cursor and modifier-click open foundation | Started | Browser hover-state verification |
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
-| FR-004 | Undo/redo and row/column insert/delete/move foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |
+| FR-004 | Undo/redo and row/column insert/delete/move/hide foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |
 | FR-004/016 | Multi-cell selection, batch edit, and selection aggregation foundation | Started | `/api/edit-batch`, `pkg/document` and `pkg/appserver` tests, Browser verification |
 | FR-013 | Clipboard copy/paste foundation | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
@@ -82,6 +82,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Command Palette opens from the `Cmd` toolbar button, filters commands by text, and executing `Profile` opens the Profile View for `/tmp/opencsv-profile.csv`.
 - Command Palette executes `Insert Row`, `Undo`, `Redo`, `Insert Column`, and `Delete Column` on `/tmp/opencsv-structure.csv`; row count changes `2 -> 3 -> 2 -> 3`, column count changes `2 -> 3 -> 2`, and the original file remains unchanged until Save.
 - Row/column move verification on `/tmp/opencsv-move.csv`: `Shift+Alt+Down` moves the selected `Ada` row below `Linus`, `Shift+Alt+Left` moves the selected `score` column before `name`, status reports the move commands, and `Cmd+Z` restores the prior structure.
+- Row/column hide verification on `/tmp/opencsv-hide.csv`: `Shift+Alt+R` hides the selected row without marking the document dirty, `Shift+Alt+X` hides the selected column while preserving source-column indexes for visible values, and Clear View restores both hidden rows and hidden columns.
 - Shift-arrow range selection on `/tmp/opencsv-multicell.csv` selects a 2x2 numeric range and status reports `selected 4 cells, sum 10, avg 2.5, min 1, max 4`.
 - Editing that 2x2 range to `9` updates all selected cells through `/api/edit-batch` and status reports `sum 36, avg 9, min 9, max 9`; `Cmd+Z` restores the previous values in one undo step.
 - Command Palette exposes `Copy`, `Copy as CSV`, `Copy as Markdown`, and `Copy Raw`.
@@ -107,6 +108,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/document` now owns document sessions, edit overlay, window reads, save, find, contains-filter, stable multi-column sort, and view mapping.
 - `pkg/document` now includes full-record snapshot history for first-pass undo/redo and materializes row/column structural edits into temporary working copies so the original file is not modified before Save.
 - `pkg/document.MoveRow` and `pkg/document.MoveColumn` provide adjacent row/column movement. Data rows cannot move above a detected header row, boundary moves are clean no-ops, and successful moves are undoable.
+- `pkg/document.HideRow` hides source rows through the existing view-row mapping without changing dirty state. Frontend hidden columns use a visible-to-source column mapping so edits, copy, profile, filters, sorting, and transforms still target source columns correctly.
 - `pkg/document.EditCells` and `/api/edit-batch` apply multi-cell edits as one undoable operation.
 - `pkg/appserver` delegates document behavior to `pkg/document` instead of owning session logic directly.
 - `csvcore.RecordWindow` now includes `sourceRows` so UI edits can target the original source row even when a filtered/sorted view is active.
@@ -126,7 +128,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/clipboard` supports TSV, CSV, Markdown table, JSON array, HTML table, SQL `VALUES`, LaTeX tabular, raw value serialization, and header-row prepending plus TSV matrix parsing.
 - `pkg/csvcore.RequiresQuote` mirrors the current Go writer's minimal quote behavior for delimiter, quote, CR/LF, and leading whitespace detection.
 - Frontend copy/paste handlers copy selected ranges as TSV and paste tab-separated matrices through `/api/edit-batch`; Command Palette exposes TSV-with-headers and CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy variants.
-- Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column insert/delete/move/filter/sort/clear/theme/sql/profile/diff.
+- Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column insert/delete/move/hide/filter/sort/clear/theme/sql/profile/diff.
 - Frontend theme state supports light, dark, and system preferences, stores the selected preference locally, follows OS color-scheme changes while in system mode, and feeds Canvas grid colors from CSS variables.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
@@ -151,7 +153,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, and multi-column sort exist, but saved filter chips, persisted sort specs, and richer type-aware menus are still missing.
 - Replace supports current/all and regex/case/whole-cell modes, but replace preview and search-within-selection are still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
-- Row/column operations currently run through commands/shortcuts and whole-document materialization; direct grid context menus, drag reordering, multi-row/multi-column operations, and virtualized structural mutation are still missing.
+- Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, and column-header selection; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
 - Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.

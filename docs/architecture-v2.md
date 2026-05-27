@@ -63,6 +63,7 @@ flowchart TD
   - Full-record snapshot history for first-pass undo/redo.
   - Batch cell edits as a single undoable operation.
   - Row/column insert/delete/move materialized into temporary working copies.
+  - View-only row hiding through source-row view mapping.
   - Whole-document transpose as a guarded, undoable materialized mutation.
   - Dirty state.
   - File-status check and clean-document refresh from disk.
@@ -123,7 +124,7 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -145,6 +146,7 @@ flowchart TD
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
   - Column value checklist inside the header quick menu.
+  - View-only hidden columns through visible-column to source-column mapping.
   - Hidden SQL/Diff/Profile overlays explicitly use `[hidden]` display suppression so inactive panels cannot intercept grid input.
 
 - `web Search Controls`
@@ -341,6 +343,7 @@ Output:
 `POST /api/row/insert`
 `POST /api/row/delete`
 `POST /api/row/move`
+`POST /api/row/hide`
 `POST /api/column/insert`
 `POST /api/column/delete`
 `POST /api/column/move`
@@ -362,6 +365,8 @@ Rules:
 - Column move preserves the first row values as ordinary cells, moving headers and column data together.
 - Boundary moves are clean no-ops.
 - Mutations are materialized into the working copy and remain undoable before Save.
+- Row hide is view-only, does not mark the document dirty, and can be restored with Clear View.
+- Column hide is currently a frontend view-only mapping that preserves source column indexes for edit, sort, filter, copy, profile, and transform actions. It can be restored with Clear View.
 
 ### Transpose
 
@@ -563,7 +568,7 @@ Output:
 - Edit and save.
 - Backup preservation.
 - Filter/sort/search endpoints.
-- Undo/redo and row/column insert/delete/move endpoints.
+- Undo/redo and row/column insert/delete/move/hide endpoints.
 - Batch edit endpoint.
 - Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, header prepending, and TSV paste.
 - Command registry endpoint.
@@ -598,12 +603,13 @@ Output:
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns, marks the document dirty, is undoable, and rejects over-limit tables.
 - Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
+- Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.
 - Save clears dirty and creates backup.
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
 - Command Palette can search and execute an enabled command.
-- Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move row/column commands without modifying the original file before Save.
+- Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move/hide row/column commands without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.

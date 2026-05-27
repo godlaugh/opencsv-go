@@ -360,6 +360,48 @@ func TestManagerMoveBoundariesAreNoops(t *testing.T) {
 	}
 }
 
+func TestManagerHideRowAndClearView(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "hide.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n3,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "hide.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.HideRow(session.ID, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 || result.TotalRows != 2 || result.Dirty {
+		t.Fatalf("hide result = %#v, want one clean hidden row", result)
+	}
+	window, err := manager.Window(session.ID, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(window.Rows) != 2 || window.Rows[0][1] != "Ada" || window.Rows[1][1] != "Grace" {
+		t.Fatalf("window after hide row = %#v", window.Rows)
+	}
+	count, err := manager.ClearView(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Fatalf("clear view count = %d, want 4 source records", count)
+	}
+	window, err = manager.Window(session.ID, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(window.Rows) != 4 || window.Rows[2][1] != "Linus" {
+		t.Fatalf("window after clear hide = %#v", window.Rows)
+	}
+}
+
 func TestManagerTransposeUndoAndLimit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")
