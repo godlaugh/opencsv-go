@@ -83,14 +83,70 @@ func NewManager() *Manager {
 }
 
 func (manager *Manager) OpenPath(path string, kind SourceKind, displayName string, options csvcore.OpenOptions) (*Session, error) {
-	document, err := csvcore.OpenDocument(path, options)
+	document, workingPath, err := openDocumentForPath(path, options)
 	if err != nil {
 		return nil, err
 	}
 	if displayName == "" {
 		displayName = path
 	}
-	return manager.Add(document, kind, displayName, path, path), nil
+	return manager.Add(document, kind, displayName, path, workingPath), nil
+}
+
+func openDocumentForPath(path string, options csvcore.OpenOptions) (csvcore.Document, string, error) {
+	if isXLSXPath(path) {
+		document, workingPath, err := openXLSXDocument(path, options)
+		return document, workingPath, err
+	}
+	document, err := csvcore.OpenDocument(path, options)
+	return document, path, err
+}
+
+func openXLSXDocument(path string, options csvcore.OpenOptions) (csvcore.Document, string, error) {
+	records, err := xlsx.DecodeFile(path)
+	if err != nil {
+		return csvcore.Document{}, "", err
+	}
+	workingPath, err := writeImportedXLSXWorkingCopy(path, records)
+	if err != nil {
+		return csvcore.Document{}, "", err
+	}
+	document, err := csvcore.OpenDocument(workingPath, options)
+	if err != nil {
+		return csvcore.Document{}, "", err
+	}
+	info, err := os.Stat(path)
+	if err == nil {
+		document.Metadata.SizeBytes = info.Size()
+	}
+	document.Metadata.Path = path
+	return document, workingPath, nil
+}
+
+func writeImportedXLSXWorkingCopy(sourcePath string, records [][]string) (string, error) {
+	dir, err := os.MkdirTemp("", "opencsv-xlsx-*")
+	if err != nil {
+		return "", err
+	}
+	stem := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
+	if stem == "" {
+		stem = "workbook"
+	}
+	workingPath := filepath.Join(dir, stem+".csv")
+	metadata := csvcore.FileMetadata{
+		Path:       workingPath,
+		Encoding:   csvcore.EncodingInfo{Name: csvcore.EncodingUTF8, Confidence: 1},
+		LineEnding: csvcore.LineEndingInfo{Name: csvcore.LineEndingLF, Sequence: "\n", Confidence: 1},
+		Dialect: csvcore.Dialect{
+			Delimiter:        ',',
+			DelimiterName:    "comma",
+			EstimatedColumns: maxRecordWidth(records),
+		},
+	}
+	if _, err := csvcore.SaveRecords(workingPath, metadata, records, csvcore.SaveOptions{}); err != nil {
+		return "", err
+	}
+	return workingPath, nil
 }
 
 func (manager *Manager) Add(doc csvcore.Document, kind SourceKind, displayName string, originalPath string, workingPath string) *Session {
@@ -865,12 +921,17 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	if outputPath != session.OriginalPath {
 		createBackup = false
 	}
-	result, err := csvcore.SaveRecords(outputPath, session.Document.Metadata, records, csvcore.SaveOptions{CreateBackup: createBackup})
+	var result csvcore.SaveResult
+	if isXLSXPath(outputPath) {
+		result, err = saveXLSXRecords(outputPath, records, createBackup)
+	} else {
+		result, err = csvcore.SaveRecords(outputPath, session.Document.Metadata, records, csvcore.SaveOptions{CreateBackup: createBackup})
+	}
 	if err != nil {
 		return csvcore.SaveResult{}, err
 	}
 
-	refreshed, openErr := csvcore.OpenDocument(outputPath, csvcore.OpenOptions{
+	refreshed, refreshedWorkingPath, openErr := openDocumentForPath(outputPath, csvcore.OpenOptions{
 		PreviewRows: max(1, len(session.Document.Preview)),
 		IndexRows:   max(1, len(session.Document.Preview)),
 	})
@@ -884,12 +945,40 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		current.ViewActive = false
 		if openErr == nil {
 			current.Document = refreshed
-			current.WorkingPath = outputPath
+			current.WorkingPath = refreshedWorkingPath
 			current.OriginalPath = outputPath
 		}
 		current.recordKnownFileState()
 	}
 	return result, nil
+}
+
+func saveXLSXRecords(path string, records [][]string, createBackup bool) (csvcore.SaveResult, error) {
+	var backupPath string
+	if createBackup {
+		var err error
+		backupPath, err = csvcore.CreateBackup(path, "")
+		if err != nil {
+			return csvcore.SaveResult{}, err
+		}
+	}
+	data, err := xlsx.EncodeWorkbook(records)
+	if err != nil {
+		return csvcore.SaveResult{}, err
+	}
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return csvcore.SaveResult{}, err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return csvcore.SaveResult{}, err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return csvcore.SaveResult{}, err
+	}
+	return csvcore.SaveResult{Path: path, BackupPath: backupPath, SizeBytes: info.Size()}, nil
 }
 
 type FindOptions struct {
@@ -2142,6 +2231,10 @@ func exportViewContentType(delimiter rune) string {
 		return "text/tab-separated-values; charset=utf-8"
 	}
 	return "text/csv; charset=utf-8"
+}
+
+func isXLSXPath(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), ".xlsx")
 }
 
 type matcher struct {

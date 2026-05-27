@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
+	"github.com/opencsv/opencsv/pkg/xlsx"
 )
 
 func TestManagerEditFindFilterSortSave(t *testing.T) {
@@ -135,6 +136,58 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 	if string(saved[:3]) != "\xef\xbb\xbf" {
 		t.Fatal("saved file lost UTF-8 BOM")
+	}
+}
+
+func TestManagerOpenEditAndSaveXLSX(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "workbook.xlsx")
+	data, err := xlsx.EncodeWorkbook([][]string{
+		{"id", "name", "score"},
+		{"1", "Ada", "9"},
+		{"2", "Grace", "10"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "workbook.xlsx", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.Document.Metadata.Path != path {
+		t.Fatalf("metadata path = %q, want %q", session.Document.Metadata.Path, path)
+	}
+	if session.WorkingPath == path || filepath.Ext(session.WorkingPath) != ".csv" {
+		t.Fatalf("xlsx should open through a csv working copy, got %q", session.WorkingPath)
+	}
+	if got := strings.Join(session.Document.Preview[1], ","); got != "1,Ada,9" {
+		t.Fatalf("preview row = %q", got)
+	}
+
+	if err := manager.Edit(session.ID, 1, 1, "Ada Lovelace"); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.Save(session.ID, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Path != path || result.BackupPath == "" || result.SizeBytes == 0 {
+		t.Fatalf("save result = %#v", result)
+	}
+	if filepath.Ext(result.BackupPath) != ".bak" {
+		t.Fatalf("backup path = %q", result.BackupPath)
+	}
+	records, err := xlsx.DecodeFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := records[1][1]; got != "Ada Lovelace" {
+		t.Fatalf("saved xlsx cell = %q, want Ada Lovelace", got)
 	}
 }
 

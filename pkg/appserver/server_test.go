@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/opencsv/opencsv/pkg/xlsx"
 )
 
 func TestServerOpenEditSave(t *testing.T) {
@@ -64,6 +66,37 @@ func TestServerOpenEditSave(t *testing.T) {
 	}
 	if !bytes.Contains(saved, []byte("1,Grace\r\n")) {
 		t.Fatalf("saved file did not include edit with CRLF: %q", saved)
+	}
+}
+
+func TestServerOpenXLSXPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.xlsx")
+	data, err := xlsx.EncodeWorkbook([][]string{
+		{"id", "name"},
+		{"1", "Ada"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	document := openPayload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	if metadata["path"] != path {
+		t.Fatalf("metadata path = %#v, want %q", metadata["path"], path)
+	}
+	preview := document["preview"].([]any)
+	if got := preview[1].([]any)[1]; got != "Ada" {
+		t.Fatalf("xlsx preview value = %#v, want Ada", got)
 	}
 }
 

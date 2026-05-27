@@ -27,7 +27,7 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 	var backupPath string
 	if options.CreateBackup {
 		var err error
-		backupPath, err = createBackup(path, options.BackupPath)
+		backupPath, err = CreateBackup(path, options.BackupPath)
 		if err != nil {
 			return SaveResult{}, err
 		}
@@ -81,7 +81,7 @@ func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func createBackup(path string, requestedPath string) (string, error) {
+func CreateBackup(path string, requestedPath string) (string, error) {
 	backupPath := requestedPath
 	if backupPath == "" {
 		backupPath = defaultBackupPath(path)
