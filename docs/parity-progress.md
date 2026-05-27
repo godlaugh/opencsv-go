@@ -56,6 +56,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace UI opens a 720,000-row file and replaces the first `segment_7` match with `segment_x`, reporting `Replaced 1 cell`.
 - Find mode verification on `/tmp/opencsv-find-modes.csv`: default case-insensitive search for `ada` selects row 1; enabling `Aa` selects row 2; enabling `=` whole-cell mode matches exact `Ada`; enabling `.*` regex mode matches `^Ada Byron$` at row 3. The three toolbar toggles expose correct `aria-pressed` state.
 - Find navigation verification on `/tmp/opencsv-find-nav.csv`: searching `Ada` reports `1/3`, Next advances to `2/3`, and Previous returns to `1/3` while the selected grid row follows the active match.
+- Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the frozen header at a constant 36px without clipped body text touching its lower edge.
 - Command registry disables document-scoped commands before open and enables implemented commands after opening a CSV, including SQL and Profile.
 - `/api/diff` compares `/tmp/opencsv-diff-left.csv` and `/tmp/opencsv-diff-right.csv`, reporting `changed: 1`, `added: 1`, `deleted: 0`.
 - Diff View opens from Compare, accepts left/right paths, runs the same files, shows unchanged/changed/added rows, and displays changed cell `c2: Linus -> Ken`.

@@ -86,6 +86,7 @@ let columns = [];
 
 let scrollX = 0;
 let scrollY = 0;
+let wheelRemainderY = 0;
 let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
 let editing = false;
@@ -141,6 +142,32 @@ function resizeCanvas(targetCanvas, targetCtx, width, height, scale) {
   if (targetCanvas.width !== pixelWidth) targetCanvas.width = pixelWidth;
   if (targetCanvas.height !== pixelHeight) targetCanvas.height = pixelHeight;
   targetCtx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+function maxVerticalScroll() {
+  if (totalRows <= 0) return 0;
+  const viewportRowsHeight = Math.max(0, canvas.clientHeight - headerHeight);
+  const fullVisibleRows = Math.max(1, Math.floor(viewportRowsHeight / rowHeight));
+  return Math.max(0, totalRows - fullVisibleRows) * rowHeight;
+}
+
+function applyVerticalWheelDelta(deltaY) {
+  const maxY = maxVerticalScroll();
+  if (maxY === 0) {
+    scrollY = 0;
+    wheelRemainderY = 0;
+    return;
+  }
+
+  wheelRemainderY += deltaY;
+  const rowDelta = Math.trunc(wheelRemainderY / rowHeight);
+  if (rowDelta === 0) return;
+
+  scrollY = Math.max(0, Math.min(maxY, scrollY + rowDelta * rowHeight));
+  wheelRemainderY -= rowDelta * rowHeight;
+  if (scrollY === 0 || scrollY === maxY) {
+    wheelRemainderY = 0;
+  }
 }
 
 function initializeTheme() {
@@ -1190,6 +1217,7 @@ function loadDocument(document) {
   selectionAnchor = { row: 0, col: 0 };
   scrollX = 0;
   scrollY = 0;
+  wheelRemainderY = 0;
   dirty = false;
 }
 
@@ -1461,6 +1489,7 @@ function updateFileList(name, detail, rowCount) {
     selectionAnchor = { row: 0, col: 0 };
     scrollX = 0;
     scrollY = 0;
+    wheelRemainderY = 0;
     canvas.focus();
     draw();
   });
@@ -1583,6 +1612,7 @@ async function selectFindMatch(match, query) {
   selected = { row: displayRow, col: match.col };
   selectionAnchor = { ...selected };
   scrollY = Math.max(0, displayRow * rowHeight - rowHeight * 2);
+  wheelRemainderY = 0;
   await maybeLoadWindow(displayRow);
   draw();
   updateFindMatchCount();
@@ -1636,6 +1666,7 @@ async function replaceCurrentQuery(all) {
     selected = { row: displayRow, col: first.col };
     selectionAnchor = { ...selected };
     scrollY = Math.max(0, displayRow * rowHeight - rowHeight * 2);
+    wheelRemainderY = 0;
     await maybeLoadWindow(displayRow);
   }
   draw();
@@ -1738,6 +1769,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, preserveCol)) };
   selectionAnchor = { ...selected };
   scrollY = 0;
+  wheelRemainderY = 0;
   totalRows = payload.totalRows ?? 0;
   windowStart = 0;
   windowEnd = 0;
@@ -1792,6 +1824,7 @@ async function sortColumn(column, descending, append) {
   selected = { row: 0, col: column };
   selectionAnchor = { ...selected };
   scrollY = 0;
+  wheelRemainderY = 0;
   totalRows = payload.totalRows ?? 0;
   windowStart = 0;
   windowEnd = 0;
@@ -1896,6 +1929,7 @@ async function applyColumnValueChecklist() {
   selected = { row: 0, col: column };
   selectionAnchor = { ...selected };
   scrollY = 0;
+  wheelRemainderY = 0;
   totalRows = payload.totalRows ?? 0;
   windowStart = 0;
   windowEnd = 0;
@@ -1926,6 +1960,7 @@ async function clearView() {
   selected = { row: 0, col: selected.col };
   selectionAnchor = { ...selected };
   scrollY = 0;
+  wheelRemainderY = 0;
   await maybeLoadWindow(0);
   status.textContent = "Filter/sort cleared";
 }
@@ -2398,11 +2433,9 @@ function emptySQLNode(message) {
 canvas.addEventListener("wheel", (event) => {
   event.preventDefault();
   closeColumnMenu();
-  const viewportRowsHeight = Math.max(0, canvas.clientHeight - headerHeight);
-  const maxY = Math.max(0, totalRows * rowHeight - viewportRowsHeight);
   const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
   const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
-  scrollY = Math.max(0, Math.min(maxY, scrollY + event.deltaY));
+  applyVerticalWheelDelta(event.deltaY);
   scrollX = Math.max(0, Math.min(maxX, scrollX + event.deltaX));
   if (editing) commitEditor();
   draw();

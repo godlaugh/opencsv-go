@@ -427,6 +427,7 @@ Output:
 
 - Header is a fixed layer.
 - Body rows are clipped to `y >= headerHeight`.
+- Vertical wheel movement is accumulated and applied in whole-row steps so body text never appears as a clipped partial row directly under the frozen header.
 - Selection is clipped to body area.
 - Row gutter is separate visual region.
 - No body row may draw over header.
