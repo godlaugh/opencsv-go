@@ -48,6 +48,8 @@ const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
 const runSqlButton = document.querySelector("#runSqlButton");
+const sqlHistoryList = document.querySelector("#sqlHistoryList");
+const clearSqlHistoryButton = document.querySelector("#clearSqlHistoryButton");
 const sqlResult = document.querySelector("#sqlResult");
 const diffPanel = document.querySelector("#diffPanel");
 const leftDiffPath = document.querySelector("#leftDiffPath");
@@ -95,6 +97,8 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const sqlHistoryStorageKey = "opencsv-sql-history";
+const sqlHistoryLimit = 8;
 
 let totalRows = 0;
 let columns = [];
@@ -2965,11 +2969,16 @@ function startFileStatusChecks() {
 
 async function runSQLQuery() {
   if (!documentId) return;
+  const query = sqlInput.value.trim();
+  if (!query) {
+    status.textContent = "Enter a SQL query.";
+    return;
+  }
   status.textContent = "Running SQL...";
   const response = await fetch("/api/sql", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, query: sqlInput.value, limit: 500 }),
+    body: JSON.stringify({ documentId, query, limit: 500 }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -2978,7 +2987,74 @@ async function runSQLQuery() {
     return;
   }
   renderSQLResult(payload);
+  rememberSQLQuery(query);
   status.textContent = `SQL returned ${payload.rows.length.toLocaleString()} of ${payload.totalRows.toLocaleString()} rows`;
+}
+
+function sqlHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(sqlHistoryStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((query) => typeof query === "string" && query.trim())
+      .slice(0, sqlHistoryLimit);
+  } catch {
+    return [];
+  }
+}
+
+function rememberSQLQuery(query) {
+  const normalized = query.trim();
+  if (!normalized) return;
+  const next = [
+    normalized,
+    ...sqlHistory().filter((item) => item !== normalized),
+  ].slice(0, sqlHistoryLimit);
+  try {
+    localStorage.setItem(sqlHistoryStorageKey, JSON.stringify(next));
+  } catch {
+    status.textContent = "SQL query history could not be saved.";
+  }
+  renderSQLHistory();
+}
+
+function clearSQLHistory() {
+  try {
+    localStorage.removeItem(sqlHistoryStorageKey);
+  } catch {
+    status.textContent = "SQL query history could not be cleared.";
+  }
+  renderSQLHistory();
+}
+
+function renderSQLHistory() {
+  const history = sqlHistory();
+  sqlHistoryList.replaceChildren();
+  clearSqlHistoryButton.disabled = history.length === 0;
+  if (history.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "sql-history-empty";
+    empty.textContent = "No query history";
+    sqlHistoryList.append(empty);
+    return;
+  }
+  for (const query of history) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sql-history-item";
+    button.title = query;
+    button.textContent = compactSQLQuery(query);
+    button.addEventListener("click", () => {
+      sqlInput.value = query;
+      sqlInput.focus();
+      status.textContent = "Loaded SQL query from history.";
+    });
+    sqlHistoryList.append(button);
+  }
+}
+
+function compactSQLQuery(query) {
+  return query.replace(/\s+/g, " ").trim();
 }
 
 async function openProfilePanel() {
@@ -3800,6 +3876,7 @@ sqlTabButton.addEventListener("click", () => {
 profileTabButton.addEventListener("click", openProfilePanel);
 paletteButton.addEventListener("click", openCommandPalette);
 runSqlButton.addEventListener("click", runSQLQuery);
+clearSqlHistoryButton.addEventListener("click", clearSQLHistory);
 diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);
 diffPrevButton.addEventListener("click", () => navigateDiff(-1));
@@ -3955,4 +4032,5 @@ profilePanel.tabIndex = -1;
 loadCommandRegistry();
 resize();
 renderFileList();
+renderSQLHistory();
 openInitialURLTarget();

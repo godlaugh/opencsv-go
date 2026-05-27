@@ -42,6 +42,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-009 | Compare bidirectional row/cell merge foundation | Started | `pkg/csvdiff`/`pkg/appserver` tests, Browser Diff View verification |
 | FR-009 | Compare with pasted/clipboard text foundation | Started | `pkg/csvdiff`/`pkg/appserver` tests, Browser Diff View verification |
 | FR-008 | SQL Console foundation plus aggregate query support | Started | `pkg/sqlconsole` tests, `/api/sql`, Browser verification |
+| FR-008 | SQL Console query history foundation | Started | Browser SQL history verification |
 | FR-014/016 | Column profile and CSVLint-style validation foundation | Started | `pkg/dataprofile` tests, `/api/profile`, Browser Profile View verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
 | FR-010 | CLI stdin open foundation | Started | `cmd/opencsv` test, CLI smoke |
@@ -88,6 +89,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Diff text-source verification on `/tmp/opencsv-diff-text-left.csv`: URL boot with `diffRightText=` opens Diff View in right-text mode, compares the left file against pasted CSV text, shows `1 changed, 1 added`, applies changed cell `c2`, then applies `Insert row`; the final left file matches the right-side text and two timestamped backups are created.
 - SQL Console opens after loading `/tmp/opencsv-diff-right.csv`; query `SELECT name FROM current WHERE id >= 2 ORDER BY id DESC LIMIT 2` returns `Grace` and `Ken`, status `SQL returned 2 of 2 rows`.
 - SQL Console aggregate query on `/tmp/opencsv-sql-agg.csv` returns grouped results for `SELECT region, COUNT(*) AS rows, SUM(amount) AS total FROM current GROUP BY region ORDER BY total DESC`: `APAC / 2 / 13` and `EU / 2 / 12`.
+- SQL query history verification on `/tmp/opencsv-sql-history.csv`: running `SELECT * FROM current LIMIT 25` and then `SELECT name FROM current WHERE id = 2` stores both successful queries in newest-first order; clicking the history item reloads the query into the editor; Clear removes the stored queries and disables the clear button.
 - Profile View opens after loading `/tmp/opencsv-profile.csv`, reports `4 rows`, `4 columns`, `3 issues`, and displays column type/null/distinct/min/max/average/top-value statistics.
 - Profile validation detects empty header, duplicate header, and ragged row issues in `/tmp/opencsv-profile.csv`.
 - Selecting a Profile column row updates the right-side inspector to that column's type, null count, and distinct count.
@@ -168,6 +170,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `/api/column-values` and `/api/filter-values` expose value checklist data and filtering. The column header menu renders a bounded checkbox list and applies selected values without mutating source data.
 - `pkg/sqlconsole` provides the first SQL Console execution path: `SELECT`, explicit columns or `*`, `FROM current`, quoted path refs, `@file:` refs, `file://` refs, `WHERE` via `pkg/sqlexpr`, `ORDER BY`, `LIMIT`, `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `GROUP BY`.
 - `/api/sql` executes SQL against the current document or a local CSV path. The frontend SQL tab now shows an editor, run button, and result table.
+- Frontend SQL Console stores successful queries in a local newest-first history, renders history buttons below the editor, can reload a query into the editor, and can clear the history.
 - `pkg/dataprofile` provides first-pass profiling and validation: inferred dominant type, null ratio, distinct count, min/max, numeric sum/average, top values, empty/duplicate headers, ragged rows, and type anomalies.
 - `/api/profile` profiles the current document. The frontend Profile tab renders summary metrics, a column profile table, issue table, and inspector integration.
 
@@ -182,7 +185,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
-- SQL console is implemented as a useful subset, including basic aggregation, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, HAVING, or query history.
+- SQL console is implemented as a useful subset, including basic aggregation and local query history, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, or HAVING.
 - Diff engine/API/CLI payload and a basic visual Diff View exist, with ignore options, header-name alignment, row alignment by key column, inline character spans, next/previous diff navigation, bidirectional merge actions for two files, and right-side pasted text comparison. Native clipboard ingestion, conflict prompts, and a fully virtualized side-by-side editor remain incomplete.
 - Profile/validation exists as a useful foundation, but CSVLint-compatible rule sets, saved schemas, quick fixes, and incremental profiling for very large files remain incomplete.
 - Command Palette is implemented as a first-pass command runner with fuzzy scoring and recent command history, but keybinding customization and full action coverage remain incomplete.

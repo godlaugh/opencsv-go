@@ -332,6 +332,41 @@ button:disabled {
   gap: 8px;
 }
 
+.sql-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.sql-history-list {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.sql-history-item {
+  max-width: 280px;
+  height: 28px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 6px;
+  padding: 0 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-history-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#clearSqlHistoryButton {
+  height: 28px;
+  border-radius: 6px;
+}
+
 .diff-editor-row {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 72px;
 }

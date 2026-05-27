@@ -108,6 +108,7 @@ flowchart TD
   - Current document and local path source resolution.
   - `WHERE` delegation to `pkg/sqlexpr`.
   - Column projection, ordering, limiting, aggregate functions, and `GROUP BY`.
+  - Frontend-local query history stores successful SQL text and can reload it into the editor.
 
 - `pkg/dataprofile`
   - Column profile metrics: dominant type, nulls, distinct count, min/max, numeric sum/average, and top values.
@@ -140,6 +141,11 @@ flowchart TD
   - Sidebar start surface with path-input focus and browser file-picker quick actions.
   - Local recent file persistence for path-opened files.
   - Recent entry reopen flow and missing-file cleanup on failed reopen.
+
+- `web SQL Console`
+  - SQL editor, run button, query history row, and result table.
+  - Newest-first local history for successful queries.
+  - History item reload and clear-history controls.
 
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
@@ -662,6 +668,7 @@ Output:
 - Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
+- SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
 
 ### Performance Tests
 
