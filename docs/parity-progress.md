@@ -45,6 +45,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-009 | Compare with pasted/clipboard text foundation | Started | `pkg/csvdiff`/`pkg/appserver` tests, Browser Diff View verification |
 | FR-008 | SQL Console foundation plus aggregate query support | Started | `pkg/sqlconsole` tests, `/api/sql`, Browser verification |
 | FR-008 | SQL Console query history foundation | Started | Browser SQL history verification |
+| FR-008/015 | SQL Console result copy/export as CSV | Started | command registry, Browser SQL result verification |
 | FR-014/016 | Column profile and CSVLint-style validation foundation | Started | `pkg/dataprofile` tests, `/api/profile`, Browser Profile View verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
 | FR-010 | CLI stdin open foundation | Started | `cmd/opencsv` test, CLI smoke |
@@ -127,6 +128,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Cell value panel verification on `/tmp/opencsv-cell-panel.csv`: selecting a URL cell sets Cell Value to `https://example.com/demo`, enables `Open Link`, and exposes the same href. Selecting a non-URL `note` cell disables `Open Link`; editing the Cell Value panel to `long note with spaces updated` enables `Apply`, commits through the normal edit path, leaves the updated value visible, and marks the document edited. In read-only mode, the Cell Value textarea and Apply button are disabled.
 - Value checklist filter verification on `/tmp/opencsv-value-filter.csv`: clicking the `segment` column menu loads values `A (2)`, `B (2)`, `C (1)`, and `(blank) (1)`; checking `A` and `B` enables `Apply selected values`; applying reports `Value filter segment matched 4 rows` and keeps the selected column on `segment`.
 - Visual condition filter verification on `/tmp/opencsv-condition-filter.csv`: opening Builder, selecting `score greater or equal 9`, and applying generates `where "score" >= 9` and reports `Condition filter matched 2 rows`; selecting `note is blank` disables the Value input, generates `where "note" = ''`, and reports `Condition filter matched 1 rows`.
+- SQL result copy/export verification on `/tmp/opencsv-sql-result-export.csv`: running `SELECT name, score FROM current ORDER BY score DESC LIMIT 2` enables Copy CSV and Export CSV, stores the generated CSV preview `name,score\nGrace,10\nAda,9`, and exports to `opencsv-sql-result-export.sql-result.csv`.
 
 ## Implementation Notes
 
@@ -179,6 +181,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/sqlconsole` provides the first SQL Console execution path: `SELECT`, explicit columns or `*`, `FROM current`, quoted path refs, `@file:` refs, `file://` refs, `WHERE` via `pkg/sqlexpr`, `ORDER BY`, `LIMIT`, `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `GROUP BY`.
 - `/api/sql` executes SQL against the current document or a local CSV path. The frontend SQL tab now shows an editor, run button, and result table.
 - Frontend SQL Console stores successful queries in a local newest-first history, renders history buttons below the editor, can reload a query into the editor, and can clear the history.
+- Frontend SQL Console keeps the latest result matrix available for commands, exposes Copy CSV and Export CSV actions, disables them until a query result exists, and preserves header-only CSV output for zero-row SQL results.
 - `pkg/dataprofile` provides first-pass profiling and validation: inferred dominant type, null ratio, distinct count, min/max, numeric sum/average, top values, empty/duplicate headers, ragged rows, and type anomalies.
 - `/api/profile` profiles the current document. The frontend Profile tab renders summary metrics, a column profile table, issue table, and inspector integration.
 
@@ -190,7 +193,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
-- Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, SQL-result export, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
+- Clipboard support is implemented as a foundation, including copy formats, SQL-result CSV copy/export, and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
 - SQL console is implemented as a useful subset, including basic aggregation and local query history, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, or HAVING.

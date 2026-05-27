@@ -50,6 +50,8 @@ const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
 const runSqlButton = document.querySelector("#runSqlButton");
+const copySqlResultButton = document.querySelector("#copySqlResultButton");
+const exportSqlResultButton = document.querySelector("#exportSqlResultButton");
 const sqlHistoryList = document.querySelector("#sqlHistoryList");
 const clearSqlHistoryButton = document.querySelector("#clearSqlHistoryButton");
 const sqlResult = document.querySelector("#sqlResult");
@@ -145,6 +147,7 @@ let sortKeys = [];
 let commandsById = new Map();
 let viewMode = "grid";
 let profileData = null;
+let lastSQLResult = null;
 let profileLoading = false;
 let paletteOpen = false;
 let paletteItems = [];
@@ -393,6 +396,10 @@ function applyCommandMetadata() {
       button.textContent = "Export";
     } else if (button.dataset.command === "view.filterBuilder") {
       button.textContent = "Builder";
+    } else if (button.dataset.command === "sql.copyResultCsv") {
+      button.textContent = "Copy CSV";
+    } else if (button.dataset.command === "sql.exportResultCsv") {
+      button.textContent = "Export CSV";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -420,6 +427,7 @@ function updateCommandState() {
 
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
+  const needsSQLResult = command.id === "sql.copyResultCsv" || command.id === "sql.exportResultCsv";
   const writeBlocked =
     readOnly &&
     (
@@ -452,8 +460,14 @@ function isCommandDisabled(command) {
   return (
     command.implemented === false ||
     (command.requiresDocument && !hasDocument) ||
+    (needsSQLResult && !sqlResultAvailable()) ||
     writeBlocked
   );
+}
+
+function sqlResultAvailable() {
+  const columns = sqlResultColumns(lastSQLResult);
+  return Boolean(lastSQLResult && (columns.length || lastSQLResult.rows?.length));
 }
 
 function updateInspector() {
@@ -1149,6 +1163,12 @@ async function executeCommand(commandID) {
       break;
     case "file.exportView":
       await exportCurrentView();
+      break;
+    case "sql.copyResultCsv":
+      await copySQLResultCSV();
+      break;
+    case "sql.exportResultCsv":
+      await exportSQLResultCSV();
       break;
     case "file.toggleReadOnly":
       await toggleReadOnly();
@@ -1889,9 +1909,13 @@ function loadDocument(document) {
   rows = new Map();
   rowSource = new Map();
   profileData = null;
+  lastSQLResult = null;
   profileColumns.replaceChildren(emptyProfileNode("Run Profile to inspect columns."));
   profileIssues.replaceChildren(emptyProfileNode("No validation issues loaded."));
   profileSummary.replaceChildren();
+  sqlResult.replaceChildren(emptySQLNode("Run SQL to inspect results."));
+  delete window.document.body.dataset.sqlResultPreview;
+  syncSQLResultActions();
   dataStartRow = document.metadata.dialect.hasHeader ? 1 : 0;
   viewMapped = false;
   sortDescending = false;
@@ -2064,6 +2088,69 @@ async function exportCurrentView() {
   const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
   const cols = Number(response.headers.get("X-Opencsv-Columns") || visibleColumns.length);
   status.textContent = `Exported ${formatCount(rows)} rows, ${formatCount(cols)} columns to ${filename}`;
+}
+
+async function copySQLResultCSV() {
+  const matrix = sqlResultMatrix(lastSQLResult);
+  if (!matrix.length) {
+    status.textContent = "Run a SQL query before copying results.";
+    return;
+  }
+  const text = formatMatrix(matrix, "csv");
+  window.__opencsvLastSQLResultText = text;
+  document.body.dataset.sqlResultPreview = text.slice(0, 500);
+  try {
+    await writeClipboardText(text);
+    status.textContent = `Copied SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+  } catch (error) {
+    status.textContent = `SQL result copy failed: ${error.message}`;
+  }
+}
+
+async function exportSQLResultCSV() {
+  const matrix = sqlResultMatrix(lastSQLResult);
+  if (!matrix.length) {
+    status.textContent = "Run a SQL query before exporting results.";
+    return;
+  }
+  const text = formatMatrix(matrix, "csv");
+  const filename = sqlResultFilename();
+  window.__opencsvLastSQLResultText = text;
+  document.body.dataset.sqlResultPreview = text.slice(0, 500);
+  triggerDownload(text, filename, "text/csv;charset=utf-8");
+  status.textContent = `Exported SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns to ${filename}`;
+}
+
+function sqlResultMatrix(result) {
+  const sqlColumns = sqlResultColumns(result);
+  if (!result || (!sqlColumns.length && !result.rows?.length)) return [];
+  const rows = (result.rows ?? []).map((row) => {
+    const next = Array.from(row ?? []);
+    while (next.length < sqlColumns.length) next.push("");
+    return next;
+  });
+  return [sqlColumns, ...rows];
+}
+
+function sqlResultColumns(result) {
+  if (!result) return [];
+  const columns = Array.isArray(result.columns) ? result.columns : [];
+  if (columns.length) return columns.map((column, index) => column || `Column ${index + 1}`);
+  const width = Math.max(0, ...(result.rows ?? []).map((row) => row?.length ?? 0));
+  return Array.from({ length: width }, (_, index) => `Column ${index + 1}`);
+}
+
+function sqlResultFilename() {
+  const name = activeFileEntry?.name || fileNameFromPath(metadata?.path ?? "") || "opencsv";
+  const base = name.replace(/\.[^.]+$/, "") || "opencsv";
+  return `${base}.sql-result.csv`;
+}
+
+function syncSQLResultActions() {
+  const available = sqlResultAvailable();
+  copySqlResultButton.disabled = !available;
+  exportSqlResultButton.disabled = !available;
+  updateCommandState();
 }
 
 function errorFromResponseText(text) {
@@ -3388,6 +3475,8 @@ async function runSQLQuery() {
     return;
   }
   status.textContent = "Running SQL...";
+  lastSQLResult = null;
+  syncSQLResultActions();
   const response = await fetch("/api/sql", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -3397,8 +3486,10 @@ async function runSQLQuery() {
   if (!response.ok) {
     status.textContent = `SQL failed: ${payload.error ?? "unknown error"}`;
     sqlResult.replaceChildren(emptySQLNode(payload.error ?? "Query failed"));
+    syncSQLResultActions();
     return;
   }
+  lastSQLResult = payload;
   renderSQLResult(payload);
   rememberSQLQuery(query);
   status.textContent = `SQL returned ${payload.rows.length.toLocaleString()} of ${payload.totalRows.toLocaleString()} rows`;
@@ -3893,14 +3984,17 @@ function formatNumber(value) {
 }
 
 function renderSQLResult(result) {
-  if (!result.rows?.length) {
+  const resultColumns = sqlResultColumns(result);
+  const resultRows = result.rows ?? [];
+  if (!resultColumns.length && !resultRows.length) {
     sqlResult.replaceChildren(emptySQLNode("No rows"));
+    syncSQLResultActions();
     return;
   }
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  for (const column of result.columns ?? []) {
+  for (const column of resultColumns) {
     const th = document.createElement("th");
     th.textContent = column;
     headerRow.append(th);
@@ -3909,7 +4003,7 @@ function renderSQLResult(result) {
   table.append(thead);
 
   const tbody = document.createElement("tbody");
-  for (const row of result.rows) {
+  for (const row of resultRows) {
     const tr = document.createElement("tr");
     for (const value of row) {
       const td = document.createElement("td");
@@ -3918,8 +4012,18 @@ function renderSQLResult(result) {
     }
     tbody.append(tr);
   }
+  if (resultRows.length === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = Math.max(1, resultColumns.length);
+    td.className = "sql-empty";
+    td.textContent = "No rows";
+    tr.append(td);
+    tbody.append(tr);
+  }
   table.append(tbody);
   sqlResult.replaceChildren(table);
+  syncSQLResultActions();
 }
 
 function emptySQLNode(message) {
@@ -4304,6 +4408,8 @@ sqlTabButton.addEventListener("click", () => {
 profileTabButton.addEventListener("click", openProfilePanel);
 paletteButton.addEventListener("click", openCommandPalette);
 runSqlButton.addEventListener("click", runSQLQuery);
+copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
+exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));
 clearSqlHistoryButton.addEventListener("click", clearSQLHistory);
 diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);

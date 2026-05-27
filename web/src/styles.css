@@ -328,8 +328,15 @@ button:disabled {
 .sql-editor-row,
 .diff-editor-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
   gap: 8px;
+}
+
+.sql-editor-row {
+  grid-template-columns: minmax(0, 1fr) 72px 92px 96px;
+}
+
+.diff-editor-row {
+  grid-template-columns: minmax(0, 1fr) 72px;
 }
 
 .sql-history-row {
@@ -448,6 +455,8 @@ button:disabled {
 }
 
 #runSqlButton,
+#copySqlResultButton,
+#exportSqlResultButton,
 #runDiffButton {
   height: 34px;
   border-radius: 6px;

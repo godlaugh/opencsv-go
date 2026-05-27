@@ -63,6 +63,8 @@
             <div class="sql-editor-row">
               <textarea id="sqlInput" spellcheck="false" aria-label="SQL query">SELECT * FROM current LIMIT 25</textarea>
               <button id="runSqlButton" type="button">Run</button>
+              <button id="copySqlResultButton" type="button" data-command="sql.copyResultCsv" disabled>Copy CSV</button>
+              <button id="exportSqlResultButton" type="button" data-command="sql.exportResultCsv" disabled>Export CSV</button>
             </div>
             <div class="sql-history-row" aria-label="SQL query history">
               <div id="sqlHistoryList" class="sql-history-list"></div>

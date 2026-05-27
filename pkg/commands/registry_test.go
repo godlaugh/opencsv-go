@@ -51,6 +51,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"view.filterBuilder",
 		"view.sort",
 		"view.sql",
+		"sql.copyResultCsv",
+		"sql.exportResultCsv",
 		"diff.open",
 	} {
 		if _, ok := ByID(required); !ok {
