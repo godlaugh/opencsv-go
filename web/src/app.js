@@ -91,6 +91,7 @@ let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
 let draggingSelection = false;
 let dragSelectionMode = "cell";
+let hoverURL = "";
 let editing = false;
 let documentId = "";
 let metadata = null;
@@ -468,6 +469,49 @@ function normalizeURL(value) {
   if (/^file:\/\/[^\s]+$/i.test(text)) return text;
   if (/^[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(text)) return `https://${text}`;
   return "";
+}
+
+function cellAtPoint(x, y) {
+  if (x < rowNumberWidth || y < headerHeight) return null;
+  const row = rowAt(y);
+  const col = columnAt(x);
+  if (row < 0 || col < 0) return null;
+  return { row, col };
+}
+
+function urlAtPoint(x, y) {
+  const cell = cellAtPoint(x, y);
+  if (!cell) return "";
+  return normalizeURL(valueAt(cell.row, cell.col));
+}
+
+function clearURLHover() {
+  if (!hoverURL && canvas.style.cursor !== "pointer" && !canvas.title) return;
+  hoverURL = "";
+  canvas.style.cursor = "";
+  canvas.removeAttribute("title");
+  document.body.dataset.hoverUrl = "";
+}
+
+function updateURLHover(event) {
+  if (draggingSelection || editing || !documentId) {
+    clearURLHover();
+    return;
+  }
+  if (!(event.metaKey || event.ctrlKey)) {
+    clearURLHover();
+    return;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const url = urlAtPoint(event.clientX - rect.left, event.clientY - rect.top);
+  if (!url) {
+    clearURLHover();
+    return;
+  }
+  hoverURL = url;
+  canvas.style.cursor = "pointer";
+  canvas.title = url;
+  document.body.dataset.hoverUrl = url;
 }
 
 function normalizedSelection() {
@@ -1328,6 +1372,7 @@ function loadDocument(document) {
   wheelRemainderY = 0;
   includeHeadersInSelection = false;
   window.document.body.dataset.headerInSelection = "false";
+  clearURLHover();
   dirty = false;
 }
 
@@ -2568,6 +2613,15 @@ canvas.addEventListener("mousedown", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  if (event.metaKey || event.ctrlKey) {
+    const url = urlAtPoint(x, y);
+    if (url) {
+      event.preventDefault();
+      window.open(url, "_blank", "noopener");
+      status.textContent = `Opened ${url}`;
+      return;
+    }
+  }
   if (y < headerHeight) {
     const col = columnAt(x);
     if (x >= rowNumberWidth && col >= 0) {
@@ -2615,9 +2669,12 @@ canvas.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("mousemove", (event) => {
-  if (!draggingSelection) return;
-  event.preventDefault();
-  updateDragSelection(event);
+  if (draggingSelection) {
+    event.preventDefault();
+    updateDragSelection(event);
+    return;
+  }
+  updateURLHover(event);
 });
 
 window.addEventListener("mouseup", () => {
@@ -2625,6 +2682,8 @@ window.addEventListener("mouseup", () => {
   draggingSelection = false;
   dragSelectionMode = "cell";
 });
+
+canvas.addEventListener("mouseleave", clearURLHover);
 
 canvas.addEventListener("dblclick", (event) => {
   const rect = canvas.getBoundingClientRect();
@@ -2679,6 +2738,12 @@ window.addEventListener("keydown", (event) => {
       selectionAnchor = { ...selected };
     }
     draw();
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.key === "Meta" || event.key === "Control") {
+    clearURLHover();
   }
 });
 

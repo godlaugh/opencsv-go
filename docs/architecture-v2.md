@@ -476,6 +476,7 @@ Output:
 - Path Enter opens direct path.
 - Header remains stable after wheel scroll.
 - Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
+- Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.
 - Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.

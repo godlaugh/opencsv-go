@@ -14,6 +14,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003 | Canvas grid with stable header/body clipping | In progress | Browser DOM workflow plus JS check |
 | FR-003 | Mouse drag, row-label, and column-header selection foundation | Started | Browser selection-range verification |
 | FR-003 | Cell value panel and hyperlink opening foundation | Started | Browser Inspector verification |
+| FR-003 | URL cell hover cursor and modifier-click open foundation | Started | Browser hover-state verification |
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
 | FR-004 | Undo/redo and row/column insert/delete foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser command-palette verification |
 | FR-004/016 | Multi-cell selection, batch edit, and selection aggregation foundation | Started | `/api/edit-batch`, `pkg/document` and `pkg/appserver` tests, Browser verification |
@@ -60,6 +61,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find navigation verification on `/tmp/opencsv-find-nav.csv`: searching `Ada` reports `1/3`, Next advances to `2/3`, and Previous returns to `1/3` while the selected grid row follows the active match.
 - Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the frozen header at a constant 36px without clipped body text touching its lower edge.
 - Mouse selection verification on `/tmp/opencsv-m0-bench.csv`: URL boot open via `?open=/tmp/opencsv-m0-bench.csv` loads the file, body drag selects `0:0-2:1`, row-label click selects `1:0-1:11`, column-header click selects `0:0-9999:0`, `Shift+Alt+H` toggles header inclusion so the selection marker becomes `0:0-9999:0:headers`, and clicking the header menu glyph still opens the `id` column menu.
+- URL hover verification on `/tmp/opencsv-url-hover.csv`: holding Cmd/Ctrl over `https://example.com/path` sets the Canvas cursor to `pointer`, exposes the URL in the Canvas title, and clears both the hover URL and cursor after the modifier key is released.
 - Command registry disables document-scoped commands before open and enables implemented commands after opening a CSV, including SQL and Profile.
 - `/api/diff` compares `/tmp/opencsv-diff-left.csv` and `/tmp/opencsv-diff-right.csv`, reporting `changed: 1`, `added: 1`, `deleted: 0`.
 - Diff View opens from Compare, accepts left/right paths, runs the same files, shows unchanged/changed/added rows, and displays changed cell `c2: Linus -> Ken`.
@@ -136,7 +138,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through Command Palette and whole-document materialization; direct grid context menus, multi-row/multi-column operations, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, and column-header selection; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces are still missing.
-- Cell Value panel and hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
+- Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
 - Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
