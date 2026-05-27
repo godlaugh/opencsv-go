@@ -139,6 +139,41 @@ func TestServerBatchEditUndo(t *testing.T) {
 	}
 }
 
+func TestServerHeaderMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "header.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	payload := postJSON(t, handler, "/api/header-mode", map[string]any{
+		"documentId": documentID,
+		"hasHeader":  false,
+	})
+	if payload["dirty"].(bool) {
+		t.Fatalf("header mode payload should not be dirty: %#v", payload)
+	}
+	session := payload["session"].(map[string]any)
+	document := session["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["hasHeader"].(bool) {
+		t.Fatalf("hasHeader = true after disabling: %#v", dialect)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[0].([]any)[0] != "id" || windowPayload["totalRows"].(float64) != 3 {
+		t.Fatalf("window after header mode = %#v", windowPayload)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

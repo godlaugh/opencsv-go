@@ -49,6 +49,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/edit-batch", server.handleEditBatch)
 	server.mux.HandleFunc("POST /api/undo", server.handleUndo)
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
+	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
 	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
 	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
 	server.mux.HandleFunc("POST /api/refresh", server.handleRefresh)
@@ -314,6 +315,25 @@ func (server *Server) handleRedo(w http.ResponseWriter, r *http.Request) {
 type readOnlyRequest struct {
 	DocumentID string `json:"documentId"`
 	ReadOnly   bool   `json:"readOnly"`
+}
+
+type headerModeRequest struct {
+	DocumentID string `json:"documentId"`
+	HasHeader  bool   `json:"hasHeader"`
+}
+
+func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
+	var request headerModeRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetHeaderMode(request.DocumentID, request.HasHeader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (server *Server) handleReadOnly(w http.ResponseWriter, r *http.Request) {

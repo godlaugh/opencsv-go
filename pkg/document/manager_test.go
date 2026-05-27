@@ -139,6 +139,58 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 }
 
+func TestManagerSetHeaderModeUpdatesStructureWithoutDirtying(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "header.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "header.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !session.Document.Metadata.Dialect.HasHeader {
+		t.Fatal("expected sniffed header")
+	}
+
+	result, err := manager.SetHeaderMode(session.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Dirty {
+		t.Fatal("header mode should not dirty file contents")
+	}
+	if result.Session.Document.Metadata.Dialect.HasHeader {
+		t.Fatal("header mode was not disabled")
+	}
+	if result.TotalRows != 3 {
+		t.Fatalf("raw total rows = %d, want 3", result.TotalRows)
+	}
+	window, err := manager.Window(session.ID, 0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if window.TotalRows != 3 || strings.Join(window.Rows[0], ",") != "id,name" {
+		t.Fatalf("window after no-header = %#v", window)
+	}
+
+	result, err = manager.SetHeaderMode(session.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Session.Document.Metadata.Dialect.HasHeader {
+		t.Fatal("header mode was not re-enabled")
+	}
+	window, err = manager.Window(session.ID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(window.Rows[0], ",") != "1,Ada" {
+		t.Fatalf("window after header restore = %#v", window)
+	}
+}
+
 func TestManagerOpenEditAndSaveXLSX(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "workbook.xlsx")

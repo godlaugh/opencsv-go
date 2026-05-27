@@ -980,11 +980,13 @@ button:disabled {
   white-space: nowrap;
 }
 
-.statusbar span:not(:first-child) {
+.statusbar span:not(:first-child),
+.status-toggle {
   white-space: nowrap;
 }
 
-.aggregate-status {
+.aggregate-status,
+.status-toggle {
   height: 24px;
   flex: 0 0 auto;
   border-radius: 6px;
@@ -996,7 +998,12 @@ button:disabled {
   white-space: nowrap;
 }
 
-.aggregate-status:not(:disabled) {
+.status-toggle {
+  color: var(--muted);
+}
+
+.aggregate-status:not(:disabled),
+.status-toggle:not(:disabled) {
   border-color: var(--accent);
   background: var(--accent-quiet);
 }

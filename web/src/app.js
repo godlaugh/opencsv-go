@@ -522,6 +522,8 @@ function updateFormatStatus() {
     delimiterStatus.textContent = "Delimiter";
     quoteStatus.textContent = "Quote minimal";
     headerStatus.textContent = "Header";
+    headerStatus.disabled = true;
+    headerStatus.setAttribute("aria-pressed", "false");
     readOnlyStatus.textContent = "Editable";
     externalStatus.textContent = "Synced";
     return;
@@ -530,6 +532,8 @@ function updateFormatStatus() {
   delimiterStatus.textContent = delimiterLabel(metadata.dialect);
   quoteStatus.textContent = "Quote minimal";
   headerStatus.textContent = metadata.dialect?.hasHeader ? "Header row" : "No header";
+  headerStatus.disabled = !documentId;
+  headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   externalStatus.textContent = externalFileChanged ? "Changed on disk" : "Synced";
 }
@@ -1404,6 +1408,9 @@ async function executeCommand(commandID) {
       break;
     case "table.transpose":
       await transposeCurrentDocument();
+      break;
+    case "table.toggleHeaderRow":
+      await toggleHeaderRow();
       break;
     case "table.dedupeRows":
       await dedupeRows();
@@ -3485,6 +3492,25 @@ async function transposeCurrentDocument() {
   await mutateStructure("/api/transpose", { maxCells: 1_000_000 }, "Transposed table");
 }
 
+async function toggleHeaderRow() {
+  if (!documentId || !metadata) return;
+  const hasHeader = !Boolean(metadata.dialect?.hasHeader);
+  const label = hasHeader ? "Header row enabled" : "Header row disabled";
+  status.textContent = `${label}...`;
+  const response = await fetch("/api/header-mode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, hasHeader }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Toggle Header Row failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  applyMutationPayload(payload, label);
+  document.body.dataset.headerMode = hasHeader ? "header" : "no-header";
+}
+
 async function dedupeRows() {
   if (!documentId) return;
   if (!ensureEditable("Remove Duplicate Rows")) return;
@@ -4710,6 +4736,7 @@ aggregateStatusButton.addEventListener("click", async (event) => {
   }
   cycleAggregateMetric();
 });
+headerStatus.addEventListener("click", () => executeCommand("table.toggleHeaderRow"));
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));

@@ -337,6 +337,22 @@ type MutationResult struct {
 	Changed   int      `json:"changed,omitempty"`
 }
 
+func (manager *Manager) SetHeaderMode(id string, hasHeader bool) (MutationResult, error) {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	session, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.Document.Metadata.Dialect.HasHeader == hasHeader {
+		return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	session.Document.Metadata.Dialect.HasHeader = hasHeader
+	session.ViewRows = nil
+	session.ViewActive = false
+	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
+}
+
 type ExportViewOptions struct {
 	Columns []int `json:"columns"`
 	Format  string
