@@ -814,6 +814,37 @@ func TestServerDiffMerge(t *testing.T) {
 	}
 }
 
+func TestServerDiffMergeLeftToRight(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Linux\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n1,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff-merge", map[string]any{
+		"leftPath":    left,
+		"rightPath":   right,
+		"resultIndex": 1,
+		"mode":        "cell",
+		"col":         2,
+		"direction":   "left-to-right",
+	})
+	if payload["applied"] != "cell" {
+		t.Fatalf("unexpected merge payload: %#v", payload)
+	}
+	bytes, err := os.ReadFile(right)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Linux\n" {
+		t.Fatalf("merged right file = %q", string(bytes))
+	}
+}
+
 func TestServerDiffMergeRightText(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")

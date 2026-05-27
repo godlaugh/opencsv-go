@@ -3062,8 +3062,23 @@ function appendDiffActions(container, row, resultIndex) {
       : row.status === "deleted"
         ? "Delete left"
         : "Apply row";
-  rowButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0));
+  rowButton.title = "Apply right row to left file";
+  rowButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0, "right-to-left"));
   container.append(rowButton);
+
+  if (!diffRightTextMode.checked) {
+    const leftButton = document.createElement("button");
+    leftButton.type = "button";
+    leftButton.textContent =
+      row.status === "added"
+        ? "Delete right"
+        : row.status === "deleted"
+          ? "Insert right"
+          : "Apply left row";
+    leftButton.title = "Apply left row to right file";
+    leftButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0, "left-to-right"));
+    container.append(leftButton);
+  }
 
   if (row.status !== "changed") return;
   for (const cell of row.changedCells ?? []) {
@@ -3071,12 +3086,20 @@ function appendDiffActions(container, row, resultIndex) {
     button.type = "button";
     button.textContent = `c${cell.col}`;
     button.title = `Apply right cell c${cell.col} to left`;
-    button.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col));
+    button.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col, "right-to-left"));
     container.append(button);
+    if (!diffRightTextMode.checked) {
+      const leftButton = document.createElement("button");
+      leftButton.type = "button";
+      leftButton.textContent = `L c${cell.col}`;
+      leftButton.title = `Apply left cell c${cell.col} to right`;
+      leftButton.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col, "left-to-right"));
+      container.append(leftButton);
+    }
   }
 }
 
-async function mergeDiffChange(resultIndex, mode, col) {
+async function mergeDiffChange(resultIndex, mode, col, direction = "right-to-left") {
   const leftPath = leftDiffPath.value.trim();
   const rightPath = rightDiffPath.value.trim();
   const rightText = diffRightTextMode.checked ? diffRightText.value : "";
@@ -3093,6 +3116,7 @@ async function mergeDiffChange(resultIndex, mode, col) {
       resultIndex,
       mode,
       col,
+      direction,
       ...currentDiffOptions(),
     }),
   });

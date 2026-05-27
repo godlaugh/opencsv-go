@@ -782,6 +782,7 @@ type diffMergeRequest struct {
 	ResultIndex int    `json:"resultIndex"`
 	Mode        string `json:"mode"`
 	Col         int    `json:"col"`
+	Direction   string `json:"direction"`
 }
 
 func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
@@ -851,7 +852,13 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 	}
 	var result csvdiff.MergeResult
 	var err error
-	if request.RightText != "" {
+	if request.Direction == "left-to-right" {
+		if request.RightText != "" {
+			writeError(w, http.StatusBadRequest, errors.New("left-to-right merge requires a rightPath"))
+			return
+		}
+		result, err = csvdiff.MergeLeftToRight(request.LeftPath, request.RightPath, options)
+	} else if request.RightText != "" {
 		result, err = csvdiff.MergeRightTextToLeft(request.LeftPath, request.RightLabel, request.RightText, options)
 	} else {
 		result, err = csvdiff.MergeRightToLeft(request.LeftPath, request.RightPath, options)

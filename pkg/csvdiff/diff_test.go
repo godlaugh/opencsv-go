@@ -344,6 +344,37 @@ func TestMergeRightToLeftRowWithHeaderMatching(t *testing.T) {
 	}
 }
 
+func TestMergeLeftToRightRowWithHeaderMatching(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name,score\n1,Ada Byron,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("score,id,name\n9,1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := MergeLeftToRight(left, right, MergeOptions{
+		DiffOptions: Options{MatchColumnsByName: true},
+		ResultIndex: 1,
+		Mode:        MergeRow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Applied != "row" || result.Save.BackupPath == "" {
+		t.Fatalf("unexpected merge result: %#v", result)
+	}
+	bytes, err := os.ReadFile(right)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "score,id,name\n10,1,Ada Byron\n" {
+		t.Fatalf("merged right file = %q", string(bytes))
+	}
+}
+
 func TestMergeRightToLeftAddedAndDeletedRows(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")
