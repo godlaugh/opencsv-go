@@ -670,6 +670,98 @@ button:disabled {
     monospace;
 }
 
+.shortcut-panel {
+  display: grid;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 120px));
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.shortcut-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+}
+
+.shortcut-panel-header button,
+.shortcut-actions button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+#shortcutsSearch {
+  height: 42px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 14px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.shortcut-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+}
+
+.shortcut-row {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: minmax(0, 1fr) 132px 142px;
+  gap: 8px 12px;
+  align-items: center;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.shortcut-row.recording {
+  background: var(--accent-quiet);
+}
+
+.shortcut-row strong,
+.shortcut-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shortcut-row kbd {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .column-menu {
   position: fixed;
   z-index: 18;

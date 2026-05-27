@@ -74,6 +74,10 @@ const profileIssues = document.querySelector("#profileIssues");
 const commandPalette = document.querySelector("#commandPalette");
 const paletteInput = document.querySelector("#paletteInput");
 const paletteList = document.querySelector("#paletteList");
+const shortcutsPanel = document.querySelector("#shortcutsPanel");
+const shortcutsSearch = document.querySelector("#shortcutsSearch");
+const shortcutsList = document.querySelector("#shortcutsList");
+const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
 const columnMenu = document.querySelector("#columnMenu");
 const columnMenuTitle = document.querySelector("#columnMenuTitle");
 const columnSortAsc = document.querySelector("#columnSortAsc");
@@ -98,6 +102,7 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 
@@ -136,6 +141,9 @@ let profileLoading = false;
 let paletteOpen = false;
 let paletteItems = [];
 let paletteIndex = 0;
+let customShortcuts = new Map();
+let shortcutEditorOpen = false;
+let recordingShortcutID = "";
 let columnMenuColumn = -1;
 let readOnly = false;
 let externalFileChanged = false;
@@ -345,6 +353,10 @@ async function loadCommandRegistry() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "commands failed");
     commandsById = new Map((payload.commands ?? []).map((command) => [command.id, command]));
+    customShortcuts = loadCustomShortcuts();
+    for (const commandID of customShortcuts.keys()) {
+      if (!commandsById.has(commandID)) customShortcuts.delete(commandID);
+    }
     applyCommandMetadata();
     updateCommandState();
   } catch (error) {
@@ -356,8 +368,9 @@ function applyCommandMetadata() {
   for (const button of commandButtons) {
     const command = commandsById.get(button.dataset.command);
     if (!command) continue;
-    button.title = command.shortcut
-      ? `${command.description} (${command.shortcut})`
+    const shortcut = effectiveShortcut(command);
+    button.title = shortcut
+      ? `${command.description} (${shortcut})`
       : command.description;
     if (button.dataset.command === "edit.replaceAll") {
       button.textContent = "All";
@@ -650,6 +663,213 @@ function closeCommandPalette() {
   canvas.focus();
 }
 
+function openKeyboardShortcuts() {
+  shortcutEditorOpen = true;
+  recordingShortcutID = "";
+  shortcutsSearch.value = "";
+  shortcutsPanel.hidden = false;
+  renderKeyboardShortcuts();
+  shortcutsSearch.focus();
+}
+
+function closeKeyboardShortcuts() {
+  shortcutEditorOpen = false;
+  recordingShortcutID = "";
+  shortcutsPanel.hidden = true;
+  shortcutsList.replaceChildren();
+  canvas.focus();
+}
+
+function renderKeyboardShortcuts() {
+  const query = shortcutsSearch.value.trim().toLowerCase();
+  const commands = Array.from(commandsById.values())
+    .filter((command) => command.implemented !== false)
+    .filter((command) => !query || commandFuzzyScore(command, query) > 0 || effectiveShortcut(command).toLowerCase().includes(query))
+    .sort((left, right) => commandTitle(left).localeCompare(commandTitle(right)));
+  if (!commands.length) {
+    shortcutsList.replaceChildren(emptyPaletteNode("No matching commands"));
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const command of commands) {
+    const row = document.createElement("div");
+    row.className = command.id === recordingShortcutID ? "shortcut-row recording" : "shortcut-row";
+    row.setAttribute("role", "listitem");
+
+    const meta = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = command.title;
+    const description = document.createElement("span");
+    description.textContent = command.description;
+    meta.append(title, description);
+
+    const shortcut = document.createElement("kbd");
+    shortcut.textContent = command.id === recordingShortcutID
+      ? "Press shortcut"
+      : effectiveShortcut(command);
+
+    const actions = document.createElement("div");
+    actions.className = "shortcut-actions";
+    const recordButton = document.createElement("button");
+    recordButton.type = "button";
+    recordButton.textContent = command.id === recordingShortcutID ? "Cancel" : "Record";
+    recordButton.addEventListener("click", () => {
+      recordingShortcutID = command.id === recordingShortcutID ? "" : command.id;
+      renderKeyboardShortcuts();
+    });
+    const resetButton = document.createElement("button");
+    resetButton.type = "button";
+    resetButton.textContent = "Reset";
+    resetButton.disabled = !customShortcuts.has(command.id);
+    resetButton.addEventListener("click", () => resetCustomShortcut(command.id));
+    actions.append(recordButton, resetButton);
+
+    row.append(meta, shortcut, actions);
+    fragment.append(row);
+  }
+  shortcutsList.replaceChildren(fragment);
+}
+
+function effectiveShortcut(command) {
+  return customShortcuts.get(command.id) || command.shortcut || "";
+}
+
+function defaultShortcutActive(commandID) {
+  return !customShortcuts.has(commandID);
+}
+
+function loadCustomShortcuts() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(customShortcutsStorageKey) || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
+    return new Map(
+      Object.entries(parsed)
+        .filter(([id, shortcut]) => typeof id === "string" && typeof shortcut === "string" && shortcut.trim())
+        .map(([id, shortcut]) => [id, shortcut]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function saveCustomShortcuts() {
+  const value = Object.fromEntries(customShortcuts);
+  localStorage.setItem(customShortcutsStorageKey, JSON.stringify(value));
+  document.body.dataset.shortcutPreview = JSON.stringify(value);
+  applyCommandMetadata();
+  renderCommandPalette();
+  if (shortcutEditorOpen) renderKeyboardShortcuts();
+}
+
+function resetCustomShortcut(commandID) {
+  const command = commandsById.get(commandID);
+  if (!command) return;
+  customShortcuts.delete(commandID);
+  saveCustomShortcuts();
+  status.textContent = `Reset shortcut for ${command.title}`;
+}
+
+function handleShortcutEditorKeydown(event) {
+  if (!shortcutEditorOpen) return false;
+  if (!recordingShortcutID) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeKeyboardShortcuts();
+      return true;
+    }
+    return false;
+  }
+
+  event.preventDefault();
+  if (event.key === "Escape") {
+    recordingShortcutID = "";
+    renderKeyboardShortcuts();
+    return true;
+  }
+  const shortcut = shortcutFromEvent(event);
+  if (!shortcut || !shortcutAllowed(shortcut)) {
+    status.textContent = "Use a modifier or function key.";
+    return true;
+  }
+  const command = commandsById.get(recordingShortcutID);
+  if (!command) return true;
+  const conflict = commandForShortcut(shortcut, command.id);
+  if (conflict) {
+    status.textContent = `${shortcut} is already assigned to ${conflict.title}`;
+    return true;
+  }
+  if (shortcut === command.shortcut) {
+    customShortcuts.delete(command.id);
+  } else {
+    customShortcuts.set(command.id, shortcut);
+  }
+  recordingShortcutID = "";
+  saveCustomShortcuts();
+  status.textContent = `Shortcut for ${command.title}: ${shortcut}`;
+  return true;
+}
+
+function shortcutAllowed(shortcut) {
+  return shortcut.includes("Cmd+") || shortcut.includes("Alt+") || /^F\d+$/.test(shortcut);
+}
+
+function commandForShortcut(shortcut, exceptID = "") {
+  for (const command of commandsById.values()) {
+    if (command.id === exceptID) continue;
+    if (effectiveShortcut(command) === shortcut) return command;
+  }
+  return null;
+}
+
+function customCommandForShortcut(shortcut) {
+  for (const [commandID, customShortcut] of customShortcuts.entries()) {
+    if (customShortcut === shortcut) return commandsById.get(commandID) ?? null;
+  }
+  return null;
+}
+
+function runCustomShortcut(event) {
+  if (paletteOpen || shortcutEditorOpen) return false;
+  const shortcut = shortcutFromEvent(event);
+  if (!shortcut) return false;
+  const command = customCommandForShortcut(shortcut);
+  if (!command) return false;
+  event.preventDefault();
+  if (isCommandDisabled(command)) {
+    status.textContent = `${command.title} is unavailable.`;
+    return true;
+  }
+  executeCommand(command.id);
+  return true;
+}
+
+function shortcutFromEvent(event) {
+  const key = shortcutKeyName(event.key);
+  if (!key) return "";
+  const parts = [];
+  if (event.metaKey || event.ctrlKey) parts.push("Cmd");
+  if (event.shiftKey && key !== "Shift") parts.push("Shift");
+  if (event.altKey && key !== "Alt") parts.push("Alt");
+  if (key !== "Cmd" && key !== "Shift" && key !== "Alt") parts.push(key);
+  return parts.join("+");
+}
+
+function shortcutKeyName(key) {
+  if (key === "Meta" || key === "Control") return "Cmd";
+  if (key === "Shift") return "Shift";
+  if (key === "Alt" || key === "Option") return "Alt";
+  if (key === " ") return "Space";
+  if (key === "ArrowUp") return "Up";
+  if (key === "ArrowDown") return "Down";
+  if (key === "ArrowLeft") return "Left";
+  if (key === "ArrowRight") return "Right";
+  if (/^F\d{1,2}$/i.test(key)) return key.toUpperCase();
+  if (key.length === 1) return key.toUpperCase();
+  if (key === "Escape") return "";
+  return key;
+}
+
 function renderCommandPalette() {
   const query = paletteInput.value.trim().toLowerCase();
   paletteItems = scoredPaletteCommands(query);
@@ -672,7 +892,7 @@ function renderCommandPalette() {
     const description = document.createElement("span");
     description.textContent = command.description;
     const shortcut = document.createElement("kbd");
-    shortcut.textContent = command.shortcut ?? "";
+    shortcut.textContent = effectiveShortcut(command);
     button.append(title, description, shortcut);
     button.addEventListener("mouseenter", () => {
       paletteIndex = index;
@@ -787,6 +1007,9 @@ async function executeCommand(commandID) {
   switch (commandID) {
     case "command.palette":
       openCommandPalette();
+      break;
+    case "settings.keyboardShortcuts":
+      openKeyboardShortcuts();
       break;
     case "workbench.toggleTheme":
       cycleTheme();
@@ -3674,7 +3897,7 @@ canvas.addEventListener("dblclick", (event) => {
 });
 
 window.addEventListener("copy", (event) => {
-  if (!documentId || isTypingTarget(event.target)) return;
+  if (!documentId || isTypingTarget(event.target) || !defaultShortcutActive("edit.copy")) return;
   event.preventDefault();
   const matrix = includeHeadersInSelection
     ? [selectedHeaders(), ...selectedMatrix()]
@@ -3688,7 +3911,7 @@ window.addEventListener("copy", (event) => {
 });
 
 window.addEventListener("paste", (event) => {
-  if (!documentId || isTypingTarget(event.target)) return;
+  if (!documentId || isTypingTarget(event.target) || !defaultShortcutActive("edit.paste")) return;
   const text = event.clipboardData.getData("text/plain");
   if (!text) return;
   event.preventDefault();
@@ -3696,6 +3919,8 @@ window.addEventListener("paste", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (handleShortcutEditorKeydown(event)) return;
+  if (shortcutEditorOpen) return;
   if (handleGlobalShortcut(event)) return;
   if (paletteOpen) return;
   if (editing) return;
@@ -3730,11 +3955,12 @@ window.addEventListener("keyup", (event) => {
 function handleGlobalShortcut(event) {
   const primary = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
+  if (runCustomShortcut(event)) return true;
   if (event.altKey && key === "f5") {
     event.preventDefault();
     return navigateDiff(event.shiftKey ? -1 : 1);
   }
-  if (event.shiftKey && event.altKey && key === "h") {
+  if (event.shiftKey && event.altKey && key === "h" && defaultShortcutActive("selection.toggleHeaders")) {
     event.preventDefault();
     toggleHeaderInSelection();
     return true;
@@ -3747,7 +3973,7 @@ function handleGlobalShortcut(event) {
       arrowright: "column.moveRight",
     };
     const arrowCommandID = arrowCommandIDByKey[key];
-    if (arrowCommandID) {
+    if (arrowCommandID && defaultShortcutActive(arrowCommandID)) {
       event.preventDefault();
       executeCommand(arrowCommandID);
       return true;
@@ -3767,13 +3993,13 @@ function handleGlobalShortcut(event) {
       l: "text.lowercase",
     };
     const commandID = commandIDByKey[key];
-    if (commandID) {
+    if (commandID && defaultShortcutActive(commandID)) {
       event.preventDefault();
       executeCommand(commandID);
       return true;
     }
   }
-  if (primary && event.shiftKey && event.key.toLowerCase() === "p") {
+  if (primary && event.shiftKey && event.key.toLowerCase() === "p" && defaultShortcutActive("command.palette")) {
     event.preventDefault();
     openCommandPalette();
     return true;
@@ -3795,12 +4021,17 @@ function handleGlobalShortcut(event) {
     return true;
   }
   if (!primary || paletteOpen) return false;
+  if (key === "," && defaultShortcutActive("settings.keyboardShortcuts")) {
+    event.preventDefault();
+    openKeyboardShortcuts();
+    return true;
+  }
   if (key === "enter" && event.target === cellValueInput) {
     event.preventDefault();
     applyCellValue();
     return true;
   }
-  if (key === "z") {
+  if (key === "z" && defaultShortcutActive(event.shiftKey ? "edit.redo" : "edit.undo")) {
     event.preventDefault();
     if (event.shiftKey) {
       redoCurrentDocument();
@@ -3809,23 +4040,23 @@ function handleGlobalShortcut(event) {
     }
     return true;
   }
-  if (key === "o") {
+  if (key === "o" && defaultShortcutActive("file.open")) {
     event.preventDefault();
     fileInput.click();
     return true;
   }
-  if (key === "s") {
+  if (key === "s" && defaultShortcutActive("file.save")) {
     event.preventDefault();
     saveCurrentDocument();
     return true;
   }
-  if (key === "f") {
+  if (key === "f" && defaultShortcutActive("edit.find")) {
     event.preventDefault();
     commandInput.focus();
     commandInput.select();
     return true;
   }
-  if (key === "l") {
+  if (key === "l" && defaultShortcutActive("view.filter")) {
     event.preventDefault();
     commandInput.focus();
     commandInput.select();
@@ -3992,6 +4223,14 @@ commandPalette.addEventListener("mousedown", (event) => {
   if (event.target === commandPalette) {
     event.preventDefault();
     closeCommandPalette();
+  }
+});
+shortcutsSearch.addEventListener("input", renderKeyboardShortcuts);
+closeShortcutsButton.addEventListener("click", closeKeyboardShortcuts);
+shortcutsPanel.addEventListener("mousedown", (event) => {
+  if (event.target === shortcutsPanel) {
+    event.preventDefault();
+    closeKeyboardShortcuts();
   }
 });
 columnMenu.addEventListener("mousedown", (event) => {

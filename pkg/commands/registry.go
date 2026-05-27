@@ -23,6 +23,7 @@ type Command struct {
 func Registry() []Command {
 	return []Command{
 		{ID: "command.palette", Title: "Command Palette", Description: "Search and run available commands.", Shortcut: "Cmd+Shift+P", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"commands"}},
+		{ID: "settings.keyboardShortcuts", Title: "Keyboard Shortcuts", Description: "Customize command keyboard shortcuts.", Shortcut: "Cmd+,", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"keybindings", "shortcuts", "hotkeys"}},
 		{ID: "workbench.toggleTheme", Title: "Toggle Theme", Description: "Cycle between light, dark, and system themes.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"dark mode", "light mode", "color theme"}},
 		{ID: "file.open", Title: "Open", Description: "Open a CSV or delimited text file.", Shortcut: "Cmd+O", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"open file"}},
 		{ID: "file.save", Title: "Save", Description: "Save the current document with backup policy.", Shortcut: "Cmd+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
