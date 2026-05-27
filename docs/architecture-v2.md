@@ -143,6 +143,7 @@ flowchart TD
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
   - Single-canvas sticky header redraw with body clipping.
+  - Ragged short-row rendering that distinguishes source-missing cells from real blank cells.
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.

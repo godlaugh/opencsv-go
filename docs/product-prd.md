@@ -19,6 +19,16 @@ This PRD is derived from public SmoothCSV product materials and official project
 
 Latest public source check: 2026-05-27. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work.
 
+Additional official source details captured from the current public pages:
+
+- The homepage positions SmoothCSV as an intuitive spreadsheet-like CSV editor with find/replace, sort/filter, SQL queries, multi-cell editing, command palette access to all features, large-file speed, and Windows/macOS/Linux availability.
+- The download page publishes macOS Universal, Windows user/MSI/portable builds for x64 and ARM64, Linux `.deb`, `.rpm`, AppImage packages, and AUR distribution. Product parity must therefore keep packaging and CLI assumptions cross-platform.
+- The pricing/license pages state that every feature remains free, licenses are one-time support purchases, work offline, and have no per-person device limit. opencsv does not need to clone SmoothCSV's commercial flow, but it must preserve the same local/offline feature availability principle.
+- The "Best CSV Editors in 2026" blog emphasizes dedicated CSV editing, data preservation, large-file handling, quote preservation, frequent updates, thoughtful UX, and SQL console support as the competitive baseline.
+- The SmoothCSV v1 archive calls out long-running requirements that still matter: multiple encodings, many CSV/TSV styles, Excel-like operation, ragged-row editing, embedded newline cells, SQL `SELECT`, fast large-file open, tabbed UI, macros/key macros, and CSV grep search.
+- The v3 technical article describes a command-centric, VS Code-like architecture with command metadata, keybindings, context-aware enablement, menu/context-menu/button dispatch, lazy-loaded system extensions, and local-first desktop operation with no external communication except update checks.
+- The virtual scrolling article identifies browser element-size limits around million-row datasets and requires a custom scrolling strategy or canvas rendering that is not capped by DOM spacer height.
+
 The goal is not to clone SmoothCSV source code. The goal is to build an open, Go-first CSV workbench with comparable product coverage, stronger UX discipline, and measurable performance.
 
 ## 2. Product Summary
@@ -115,16 +125,23 @@ Product claims to match:
 - Search and replace.
 - Multi-cell selection/editing.
 - Undo/redo.
+- Body-first selection where row/column label selection initially excludes headers and can toggle/include headers.
+- Swap selected cells with adjacent cells.
 - Command palette.
 - Keyboard shortcuts.
 - Keyboard shortcut customization.
+- Context-aware command/menu/keybinding enablement.
 - Theme support, including light/dark/system auto-detect.
+- Settings UI with modified indicators and reset-to-default affordances.
+- Custom grid/text-editor fonts.
 - File format presets.
 - File format rules for automatic preset application.
+- Manual quote mode and per-cell quote toggling for irregular quoting.
 - CSVLint-like validation.
 - Query with SQL.
 - Compare/diff two CSV files.
-- Compare inline character-level changes, merge changes, ignore whitespace/case/columns, align columns by header name, and compare with clipboard.
+- Compare inline character-level changes, merge changes, ignore whitespace/case/columns, align columns by header name, align rows by key column, and compare with clipboard.
+- Edit, sort, filter, and search within compare view while keeping the diff live.
 - CLI integration.
 - URL protocol integration.
 - Clipboard integration.
@@ -138,10 +155,14 @@ Product claims to match:
 - Auto-backup before overwrite.
 - Quick filters and sorting from column menus.
 - Aggregation summaries and aggregate rows.
+- Smart sort by text, number, date, and length, including full-width numeral support.
 - Read-only mode.
 - Transpose rows and columns.
 - Auto-refresh for external file modifications.
 - Open hyperlinks from cells.
+- Start page with quick actions and recent files.
+- Persistent window size, position, and maximized state.
+- Auto-update checks with manual mode.
 - Internationalization for English, Japanese, French, Spanish, Italian, Simplified Chinese, Portuguese, Russian, German, and Korean.
 
 ### 5.3 Official Docs Feature Areas
@@ -238,17 +259,21 @@ The app shall detect:
 
 - Delimiter: comma, tab, semicolon, pipe, space, custom single character.
 - Quote character: double quote, single quote, none.
-- Quote mode: minimal, always, never, unknown.
+- Quote mode: minimal, always, never, manual, unknown.
+- Quote override rules by row type (header/body), column, and individual cell when the source file contains irregular quoting.
 - Encoding: UTF-8, UTF-8 BOM, UTF-16 LE/BE, Shift-JIS, GBK, Windows-1252, legacy single-byte fallback.
 - Line ending: LF, CRLF, CR.
 - Header rows.
 - Header columns.
+- Sparse/metadata-leading rows without over-promoting weak header signals.
 
 Acceptance:
 
 - Detection result is visible in status/format panel.
 - User can override detection.
 - Saving preserves detected values unless overridden.
+- Files with mixed quote patterns round-trip without silently normalizing quote state.
+- Per-cell quote toggling is visible and undoable.
 
 ### FR-003 Grid View
 
@@ -257,10 +282,14 @@ The app shall render a spreadsheet-like grid with:
 - Stable column header row.
 - Stable row number gutter.
 - Smooth vertical and horizontal scrolling.
+- Custom scroll mechanics or canvas rendering that are not limited by browser maximum element dimensions.
 - Cell selection.
 - Range selection.
 - Multi-cell selection.
-- Frozen header behavior.
+- Body-first row/column/corner selection that initially excludes headers and can include/toggle headers via Alt/Option or command.
+- Stable sticky header behavior.
+- Short/ragged rows where missing cells are visually distinct from real empty cells.
+- Selected cell/range visibility in light and dark themes.
 - Column resize.
 - Column reorder.
 - Column hide/show.
@@ -272,6 +301,7 @@ Acceptance:
 
 - Header must not be covered by body rows during scroll.
 - Header height must remain visually stable.
+- Missing cells in rows shorter than the estimated table width must not look like editable empty cells.
 - 1M rows must scroll without DOM row explosion.
 
 ### FR-004 Editing
@@ -279,15 +309,18 @@ Acceptance:
 The app shall support:
 
 - Edit single cell.
+- Start editing by typing printable characters, including IME-safe CJK input behavior.
 - Paste tabular clipboard data.
 - Fill selection.
+- Auto-fill with intelligent pattern detection.
 - Multi-cell edit.
 - Insert/delete rows.
 - Insert/delete columns.
 - Move rows/columns.
+- Swap selected cells with adjacent cells in any direction.
 - Copy/cut/paste rows and columns.
 - Remove duplicate rows and columns.
-- Transform selected text cells: trim, uppercase, lowercase, and later join/split variants.
+- Transform selected text cells: trim, uppercase, lowercase, naming/case conversions, and join/split horizontally and vertically.
 - Undo/redo.
 - Dirty state.
 - Read-only mode that disables editing operations.
@@ -295,6 +328,7 @@ The app shall support:
 - Save as.
 - Auto-backup before destructive in-place save.
 - Auto-fit column width on edit when enabled.
+- Insert line breaks inside cell editor with platform-consistent shortcut.
 
 Acceptance:
 
@@ -310,10 +344,12 @@ The app shall support:
 - Find within current file.
 - Replace current match.
 - Replace all.
+- Exact match highlighting inside cells.
 - Case sensitivity toggle.
 - Whole cell toggle.
 - Regex toggle.
 - Search within selection.
+- Seed find/replace from selected text while editing.
 - Match count.
 - Keyboard shortcut.
 
@@ -329,11 +365,14 @@ The app shall support:
 - Quick filter text input.
 - SQL WHERE style filter.
 - Excel-like value checklist filter.
+- Natural sort of value checklist entries.
+- Visual condition-builder filter with operators such as equals, contains, starts with, and blank/non-blank.
 - Empty/non-empty filters.
 - Numeric, text, date, boolean filters.
 - Filter chips.
 - Clear all filters.
 - Open current filter in SQL console.
+- Preserve filters across clean external reloads.
 
 Acceptance:
 
@@ -348,7 +387,8 @@ The app shall support:
 
 - Sort ascending/descending by column.
 - Multi-column sort.
-- Numeric/text/date modes.
+- Smart sort modes for text, number, date, and length.
+- Full-width numeral support.
 - Stable sort option.
 - Header-aware sorting.
 - Quick column menu sorting.
@@ -364,12 +404,16 @@ The app shall support:
 
 - SQL console tab.
 - SQLite-compatible query syntax.
+- SQLCipher-equivalent protection for temporary databases if a temp database is used.
 - Query current opened files.
 - Query file paths.
 - Query unsaved/temporary documents.
+- Direct path, `file://`, and `@file:` table references.
 - Results grid.
+- Copy selected ranges from SQL result grid.
 - Export/save query result.
 - Query history.
+- Per-tab console state and split-pane size persistence.
 - Query errors with useful locations/messages.
 
 Acceptance:
@@ -386,16 +430,18 @@ The app shall support side-by-side file compare:
 - CLI `--diff old.csv new.csv`.
 - GUI open diff.
 - Row/column aligned view.
+- Row alignment by key column when row order differs.
 - Highlight changed cells.
 - Inline character-level diff inside modified cells.
 - Highlight added/deleted rows.
 - Navigate next/previous diff.
-- Merge row/cell changes from one side to the other.
+- Merge row/cell changes in either direction.
 - Ignore whitespace, case, selected columns, or configured ignored columns.
 - Align columns by header name when order differs.
 - Compare active file with clipboard.
 - Edit, sort, filter, and search inside compare view.
 - Respect per-file format detection/override.
+- Recover gracefully when one side is missing or replaced externally.
 
 Acceptance:
 
@@ -456,12 +502,15 @@ The app shall support:
 - Search commands by name.
 - Keyboard shortcuts.
 - Shortcut customization.
+- Context-aware command enablement using declarative conditions.
+- Menus, toolbar buttons, context menus, and shortcuts all dispatch through the same command IDs.
 - Commands for open, save, find, filter, SQL console, format options, diff, sort.
 
 Acceptance:
 
 - Every menu action has a command ID.
 - Commands can be invoked by palette or shortcut.
+- Customized shortcuts preserve command enablement conditions and update menus.
 
 ### FR-013 File Format Presets and Rules
 
@@ -469,8 +518,8 @@ The app shall support named presets and automatic rules:
 
 - Delimiter.
 - Quote character.
-- Quote mode, including minimal, always, and never.
-- Header/body/column-specific quote rules.
+- Quote mode, including minimal, always, never, and manual.
+- Header/body/column/cell-specific quote rules.
 - Encoding.
 - Header rows.
 - Header columns.
@@ -522,6 +571,7 @@ Acceptance:
 The app shall support:
 
 - Selection summary in status bar: sum, average, minimum, maximum, count.
+- Switch/copy the active status-bar aggregate value.
 - Add aggregate rows to the grid.
 - Column profile basics: type, null ratio, distinct count, min/max for numeric/date-like values.
 
@@ -529,6 +579,25 @@ Acceptance:
 
 - Selecting numeric cells updates aggregate metrics without blocking scroll.
 - Aggregate rows can be removed without changing source data.
+
+### FR-020 App Shell, Settings, and Recent Files
+
+The app shall support:
+
+- Start page with New File, Open, Settings, and recent files.
+- Recent files display with file name as primary label and path as secondary label.
+- Missing recent files are cleaned up automatically.
+- Persistent window size, position, and maximized state.
+- Title/menu entry points for Settings and Keyboard Shortcuts.
+- Settings search, modified indicators, and reset-to-default controls.
+- Automatic update checks plus a manual update mode.
+- Offline operation for all editing features.
+
+Acceptance:
+
+- Relaunch restores window geometry and recent file list.
+- Settings changed from defaults are visibly marked and can be reset.
+- Disabling automatic update checks prevents startup update network calls.
 
 ### FR-017 Transpose
 
@@ -574,9 +643,11 @@ Targets:
 - 100 MB CSV first screen: under 2 seconds.
 - 1 GB CSV first screen: under 5 seconds.
 - 1M rows scroll: responsive at 60 FPS target, no body DOM row explosion.
+- Million-row scrolling must not depend on DOM spacer dimensions that hit Safari/Chromium element-size caps.
 - Full row index for 100 MB: under 2 seconds.
 - Find over 100 MB: progress visible, cancellable.
 - SQL query over 100 MB: progress visible, cancellable.
+- Startup should defer heavy optional surfaces and render a usable start/open surface before loading SQL, diff, settings, and extension-like modules.
 
 ### NFR-002 Memory
 
@@ -603,6 +674,8 @@ Targets:
 
 - Local file contents stay local.
 - No telemetry by default.
+- No external communication except explicit update checks/downloads and user-initiated links.
+- SQL temporary storage must not leave plain-text copies of sensitive data when an encrypted temp database mode is available.
 - Browser prototype labels temporary uploads.
 - Desktop shell uses OS-native file access.
 
@@ -611,13 +684,15 @@ Targets:
 Targets:
 
 - macOS first.
-- Windows and Linux supported by architecture.
+- Windows and Linux supported by architecture and packaging plan.
 - CLI behavior consistent across OS path conventions.
+- Build artifacts eventually cover macOS universal, Windows x64/ARM64 installer and portable forms, and Linux `.deb`, `.rpm`, AppImage, and AUR-style distribution.
 
 ## 9. Information Architecture
 
 Primary surfaces:
 
+- Start page: quick actions, recent files, update/license/support surfaces.
 - Workspace/sidebar: opened files, diff sessions, SQL consoles.
 - Toolbar: open, save, find, filter, sort, command palette.
 - Grid view: table editing.
@@ -626,6 +701,7 @@ Primary surfaces:
 - Problems panel: validation issues.
 - SQL console: query editor and results.
 - Diff view: side-by-side comparison.
+- Settings: app, files, grid editor, text editor, keybindings, update, theme, and file-format presets.
 
 ## 10. Key User Flows
 
@@ -671,6 +747,7 @@ Document:
 - Original path.
 - Working path.
 - Format metadata.
+- Original quote map / quote-rule overrides when manual or mixed quote mode is active.
 - Row index.
 - Header config.
 - Edit overlay.
@@ -757,6 +834,13 @@ The desktop shell owns:
 | A-011 | URL parser handles locations/params | Unit tests |
 | A-012 | Diff rejects invalid arg counts | CLI tests |
 | A-013 | Diff highlights changed cells | UI test |
+| A-014 | Mixed quote patterns round-trip | Fixture save test with per-cell/header/body/column quote assertions |
+| A-015 | Missing cells in short rows are visually distinct | Browser screenshot/pixel assertion and ragged-row fixture |
+| A-016 | Command enablement is context-aware | Command registry and UI state tests |
+| A-017 | Keybinding customization preserves conditions | Settings/keybinding integration tests |
+| A-018 | Compare can align rows by key and merge both directions | Diff engine and Browser tests |
+| A-019 | SQL Console supports SQLite path refs and secure temp storage | SQL integration tests |
+| A-020 | Recent/start/settings shell behavior persists across relaunch | Desktop shell smoke tests |
 
 ## 14. Release Milestones
 
@@ -821,6 +905,22 @@ The desktop shell owns:
 - Desktop packaging.
 - macOS/Windows/Linux smoke tests.
 
+### M8 Product Shell and Settings Parity
+
+- Start page with recent files and quick actions.
+- Settings and keybinding customization UI.
+- Persistent window geometry.
+- Update settings.
+- File format preset/rule management UI.
+
+### M9 Fidelity and Advanced Grid Parity
+
+- Manual quote mode and per-cell quote map.
+- Auto-fill and swap cells.
+- Aggregate rows.
+- Smart sort by date/length and full-width numerals.
+- Compare key-column row alignment and bidirectional merge.
+
 ## 15. Open Product Decisions
 
 - Desktop shell: Wails vs Tauri sidecar vs custom native shell.
@@ -828,3 +928,5 @@ The desktop shell owns:
 - Encoding library choice for Shift-JIS/GBK/Windows-1252.
 - Whether browser prototype should support save-back-to-original through File System Access API where available.
 - Exact UI shape of command palette and menu system.
+- Whether opencsv should expose an extension API in v1 or first stabilize command/context APIs internally.
+- How much of SmoothCSV's license/update shell should be mirrored versus replaced with an open-source-native support/about/update model.

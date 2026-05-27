@@ -243,6 +243,12 @@ function valueAt(row, col) {
   return record[sourceColFor(col)] ?? "";
 }
 
+function hasCellAt(row, col) {
+  const record = rows.get(row);
+  if (!record) return true;
+  return sourceColFor(col) < record.length;
+}
+
 function sourceColFor(col) {
   return columns[col]?.sourceCol ?? col;
 }
@@ -960,6 +966,13 @@ function drawRows(width, height) {
     for (let col = 0; col < columns.length; col++) {
       const column = columns[col];
       if (x + column.width >= rowNumberWidth && x <= width) {
+        const hasCell = hasCellAt(row, col);
+        if (!hasCell) {
+          ctx.fillStyle = themeColors.gridBg;
+          ctx.fillRect(x + 1, y + 1, column.width - 2, rowHeight - 2);
+          x += column.width;
+          continue;
+        }
         const value = valueAt(row, col);
         ctx.fillStyle = themeColors.text;
         ctx.save();
