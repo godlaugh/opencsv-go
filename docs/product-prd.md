@@ -555,6 +555,7 @@ The app shall support:
 - Target locales: Japanese, French, Spanish, Italian, Simplified Chinese, Portuguese, Russian, German, Korean.
 - Keyboard navigation.
 - Accessible names for controls.
+- Light, dark, and system-following themes.
 - High contrast theme support.
 
 Acceptance:

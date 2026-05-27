@@ -20,6 +20,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"file.open",
 		"file.save",
 		"file.toggleReadOnly",
+		"workbench.toggleTheme",
 		"edit.copyJson",
 		"edit.copyHtml",
 		"edit.copySql",

@@ -34,6 +34,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-012 | Command registry and Command Palette foundation | Started | `pkg/commands` tests, `/api/commands`, Browser command palette verification |
 | FR-017 | Transpose rows/columns foundation | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser command-palette verification |
 | FR-018 | Read-only mode and external file refresh foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser verification |
+| FR-019 | Light/dark/system theme foundation | Started | command registry, Browser command-palette verification |
 | NFR-001 | 100 MB first screen under 2s | Passing core benchmark | `opencsv bench` |
 
 ## Browser Verification Notes
@@ -65,6 +66,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Command Palette exposes `Copy`, `Copy as CSV`, `Copy as Markdown`, and `Copy Raw`.
 - Command Palette exposes `Copy as JSON`, `Copy as HTML`, `Copy as SQL`, and `Copy as LaTeX`; Browser verification found exactly one enabled palette result for each after opening `/tmp/opencsv-copy-formats.csv`.
 - CLI stdin verification: `printf 'id,name\n1,Ada\n' | opencsv -` reports `path: "-"`, `source: "stdin"`, and previews the piped rows.
+- Theme verification: Command Palette search `theme` shows `Toggle Theme`; executing it cycles into dark mode, sets `data-theme="dark"` and `data-theme-preference="dark"`, changes the grid background variable to `#101616`, and remains dark after reload.
 - Browser plugin clipboard virtualization is unavailable in the current runtime, so system clipboard read/write is not directly verified through Browser; clipboard formatters, paste matrix parsing, and `/api/edit-batch` are covered by automated tests.
 - Quote indicator verification on `/tmp/opencsv-quotes.csv`: selecting `comma, here` reports `will quote on save`, selecting `plain` reports `no quote needed`, selecting a leading-space value reports `will quote on save`, and the status/Inspector format summary reports `UTF-8`, `Comma`, `LF`, `Quote minimal`, and `Header row`.
 - Header regression verification after wheel scroll: `#frozenGrid` keeps `clientHeight`, CSS height, and bounding height at `36px`.
@@ -97,7 +99,8 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/clipboard` supports TSV, CSV, Markdown table, JSON array, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization plus TSV matrix parsing.
 - `pkg/csvcore.RequiresQuote` mirrors the current Go writer's minimal quote behavior for delimiter, quote, CR/LF, and leading whitespace detection.
 - Frontend copy/paste handlers copy selected ranges as TSV and paste tab-separated matrices through `/api/edit-batch`; Command Palette exposes CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy variants.
-- Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/row/column/filter/sort/clear/sql/profile/diff.
+- Frontend Command Palette searches `/api/commands` metadata, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column/filter/sort/clear/theme/sql/profile/diff.
+- Frontend theme state supports light, dark, and system preferences, stores the selected preference locally, follows OS color-scheme changes while in system mode, and feeds Canvas grid colors from CSS variables.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
 - Frontend column headers expose a quick menu for replacing the active sort, appending secondary sort keys, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
@@ -129,6 +132,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Diff engine/API/CLI payload and a basic visual Diff View exist, but navigation between diffs and a fully virtualized side-by-side editor remain incomplete.
 - Profile/validation exists as a useful foundation, but CSVLint-compatible rule sets, saved schemas, quick fixes, and incremental profiling for very large files remain incomplete.
 - Command Palette is implemented as a first-pass command runner, but fuzzy scoring, command history, keybinding customization, and full action coverage remain incomplete.
+- Theme support now covers the main app shell and Canvas grid, but a full Settings UI, high-contrast variants, per-OS native title/menu integration, and design-token audit across every future surface remain incomplete.
 - Full CLI/URL parity is not implemented yet: root CLI parsing/opening exists, but native desktop launch, wait-for-close, protocol handler registration, and actual diff view wiring remain.
 - CLI/URL parsing exists as a reusable package, but it is not wired into a desktop protocol handler yet.
 - Read-only and external file refresh foundations exist in local app mode, but OS-level file watching, conflict resolution UI for dirty documents, and user-configurable auto-refresh policy are still missing.

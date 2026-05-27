@@ -110,6 +110,12 @@ let fileStatusTimer = 0;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
 const quotePolicy = "minimal";
+const themeStorageKey = "opencsv-theme";
+const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+let themePreference = localStorage.getItem(themeStorageKey) || "system";
+let themeColors = {};
+
+initializeTheme();
 
 function resize() {
   const rect = gridFrame.getBoundingClientRect();
@@ -125,6 +131,55 @@ function resizeCanvas(targetCanvas, targetCtx, width, height, scale) {
   if (targetCanvas.width !== pixelWidth) targetCanvas.width = pixelWidth;
   if (targetCanvas.height !== pixelHeight) targetCanvas.height = pixelHeight;
   targetCtx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+function initializeTheme() {
+  applyTheme(themePreference, false);
+  themeMediaQuery.addEventListener("change", () => {
+    if (themePreference === "system") applyTheme("system", false);
+  });
+}
+
+function applyTheme(preference, announce = true) {
+  if (!["light", "dark", "system"].includes(preference)) preference = "system";
+  themePreference = preference;
+  localStorage.setItem(themeStorageKey, preference);
+  const resolved = preference === "system"
+    ? (themeMediaQuery.matches ? "dark" : "light")
+    : preference;
+  document.body.dataset.theme = resolved;
+  document.body.dataset.themePreference = preference;
+  refreshThemeColors();
+  draw();
+  if (announce && status) {
+    status.textContent = `Theme: ${preference === "system" ? `System (${resolved})` : preference}`;
+  }
+}
+
+function cycleTheme() {
+  const order = ["light", "dark", "system"];
+  const current = order.includes(themePreference) ? order.indexOf(themePreference) : 2;
+  applyTheme(order[(current + 1) % order.length]);
+}
+
+function refreshThemeColors() {
+  const style = getComputedStyle(document.body);
+  const read = (name) => style.getPropertyValue(name).trim();
+  themeColors = {
+    accent: read("--accent"),
+    gridBg: read("--grid-bg"),
+    gridHeader: read("--grid-header"),
+    gridGutter: read("--grid-gutter"),
+    gridRow: read("--grid-row"),
+    gridRowAlt: read("--grid-row-alt"),
+    gridLine: read("--grid-line"),
+    gridLineSoft: read("--grid-line-soft"),
+    muted: read("--muted"),
+    quoteMarker: read("--quote-marker"),
+    quoteMarkerText: read("--quote-marker-text"),
+    selectionBg: read("--selection-bg"),
+    text: read("--text"),
+  };
 }
 
 function valueAt(row, col) {
@@ -146,7 +201,7 @@ function draw() {
   const height = canvas.clientHeight;
   ctx.clearRect(0, 0, width, height);
 
-  ctx.fillStyle = "#fbfcfc";
+  ctx.fillStyle = themeColors.gridBg;
   ctx.fillRect(0, 0, width, height);
 
   drawRows(width, height);
@@ -502,8 +557,11 @@ async function executeCommand(commandID) {
     case "command.palette":
       openCommandPalette();
       break;
+    case "workbench.toggleTheme":
+      cycleTheme();
+      break;
     case "file.open":
-      fileInput.click();
+      await openPathInputOrPicker();
       break;
     case "file.save":
       await saveCurrentDocument();
@@ -594,11 +652,11 @@ async function executeCommand(commandID) {
 
 function drawHeaders(width) {
   frozenCtx.clearRect(0, 0, frozenCanvas.clientWidth, headerHeight);
-  frozenCtx.fillStyle = "#eef2f3";
+  frozenCtx.fillStyle = themeColors.gridHeader;
   frozenCtx.fillRect(0, 0, width, headerHeight);
-  frozenCtx.fillStyle = "#f5f7f7";
+  frozenCtx.fillStyle = themeColors.gridGutter;
   frozenCtx.fillRect(0, 0, rowNumberWidth, headerHeight);
-  frozenCtx.strokeStyle = "#d8e0e2";
+  frozenCtx.strokeStyle = themeColors.gridLine;
   frozenCtx.beginPath();
   frozenCtx.moveTo(0, headerHeight - 0.5);
   frozenCtx.lineTo(width, headerHeight - 0.5);
@@ -610,7 +668,7 @@ function drawHeaders(width) {
   frozenCtx.textBaseline = "middle";
 
   if (columns.length === 0) {
-    frozenCtx.fillStyle = "#697579";
+    frozenCtx.fillStyle = themeColors.muted;
     frozenCtx.fillText("Open a CSV file", rowNumberWidth + 10, headerHeight / 2);
     return;
   }
@@ -618,14 +676,14 @@ function drawHeaders(width) {
   let x = rowNumberWidth - scrollX;
   for (const column of columns) {
     if (x + column.width >= rowNumberWidth && x <= width) {
-      frozenCtx.fillStyle = "#162022";
+      frozenCtx.fillStyle = themeColors.text;
       frozenCtx.fillText(column.name, x + 8, 13);
-      frozenCtx.fillStyle = "#697579";
+      frozenCtx.fillStyle = themeColors.muted;
       frozenCtx.font = "600 11px Inter, system-ui, sans-serif";
       frozenCtx.fillText(column.type ?? "string", x + 8, 27);
       frozenCtx.font = "600 12px Inter, system-ui, sans-serif";
       drawHeaderMenuGlyph(x, column.width);
-      frozenCtx.strokeStyle = "#d8e0e2";
+      frozenCtx.strokeStyle = themeColors.gridLine;
       frozenCtx.beginPath();
       frozenCtx.moveTo(x + column.width + 0.5, 0);
       frozenCtx.lineTo(x + column.width + 0.5, headerHeight);
@@ -640,7 +698,7 @@ function drawHeaderMenuGlyph(x, width) {
   const centerY = 13;
   if (centerX < rowNumberWidth + 8) return;
   frozenCtx.save();
-  frozenCtx.fillStyle = "#697579";
+  frozenCtx.fillStyle = themeColors.muted;
   frozenCtx.beginPath();
   frozenCtx.moveTo(centerX - 4, centerY - 2);
   frozenCtx.lineTo(centerX + 4, centerY - 2);
@@ -657,13 +715,13 @@ function drawBodySeparators(width, height) {
   ctx.beginPath();
   ctx.rect(0, headerHeight, width, height - headerHeight);
   ctx.clip();
-  ctx.strokeStyle = "#d8e0e2";
+  ctx.strokeStyle = themeColors.gridLine;
   ctx.beginPath();
   ctx.moveTo(rowNumberWidth + 0.5, headerHeight);
   ctx.lineTo(rowNumberWidth + 0.5, height);
   ctx.stroke();
 
-  ctx.strokeStyle = "#e4eaec";
+  ctx.strokeStyle = themeColors.gridLineSoft;
   ctx.beginPath();
   let x = rowNumberWidth - scrollX;
   for (const column of columns) {
@@ -680,7 +738,7 @@ function drawBodySeparators(width, height) {
 
 function drawRows(width, height) {
   if (columns.length === 0 || totalRows === 0) {
-    ctx.fillStyle = "#697579";
+    ctx.fillStyle = themeColors.muted;
     ctx.font = "13px Inter, system-ui, sans-serif";
     ctx.textBaseline = "top";
     ctx.fillText("No file open", rowNumberWidth + 10, headerHeight + 14);
@@ -706,11 +764,11 @@ function drawRows(width, height) {
     if (row >= totalRows) break;
     const y = headerHeight + i * rowHeight - yOffset;
 
-    ctx.fillStyle = row % 2 === 0 ? "#ffffff" : "#f8faf9";
+    ctx.fillStyle = row % 2 === 0 ? themeColors.gridRow : themeColors.gridRowAlt;
     ctx.fillRect(0, y, width, rowHeight);
-    ctx.fillStyle = "#eef2f3";
+    ctx.fillStyle = themeColors.gridHeader;
     ctx.fillRect(0, y, rowNumberWidth, rowHeight);
-    ctx.fillStyle = "#697579";
+    ctx.fillStyle = themeColors.muted;
     ctx.fillText(String(row + 1), 10, y + rowHeight / 2);
 
     let x = rowNumberWidth - scrollX;
@@ -718,7 +776,7 @@ function drawRows(width, height) {
       const column = columns[col];
       if (x + column.width >= rowNumberWidth && x <= width) {
         const value = valueAt(row, col);
-        ctx.fillStyle = "#162022";
+        ctx.fillStyle = themeColors.text;
         ctx.save();
         ctx.beginPath();
         ctx.rect(x + 1, y + 1, column.width - 2, rowHeight - 2);
@@ -732,7 +790,7 @@ function drawRows(width, height) {
       x += column.width;
     }
 
-    ctx.strokeStyle = "#edf1f2";
+    ctx.strokeStyle = themeColors.gridLineSoft;
     ctx.beginPath();
     ctx.moveTo(0, y + rowHeight + 0.5);
     ctx.lineTo(width, y + rowHeight + 0.5);
@@ -743,14 +801,14 @@ function drawRows(width, height) {
 
 function drawQuoteIndicator(x, y, width) {
   ctx.save();
-  ctx.fillStyle = "#e3b341";
+  ctx.fillStyle = themeColors.quoteMarker;
   ctx.beginPath();
   ctx.moveTo(x + width - 15, y + 1);
   ctx.lineTo(x + width - 2, y + 1);
   ctx.lineTo(x + width - 2, y + 14);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = "#5b4300";
+  ctx.fillStyle = themeColors.quoteMarkerText;
   ctx.font = "700 9px Inter, system-ui, sans-serif";
   ctx.textBaseline = "top";
   ctx.textAlign = "right";
@@ -780,7 +838,7 @@ function drawSelection() {
   ctx.rect(0, headerHeight, canvas.clientWidth, Math.max(0, canvas.clientHeight - headerHeight));
   ctx.clip();
 
-  ctx.fillStyle = "rgba(15, 127, 120, 0.12)";
+  ctx.fillStyle = themeColors.selectionBg;
   for (let row = range.startRow; row <= range.endRow; row++) {
     for (let col = range.startCol; col <= range.endCol; col++) {
       const rect = cellRect(row, col);
@@ -794,7 +852,7 @@ function drawSelection() {
     ctx.restore();
     return;
   }
-  ctx.strokeStyle = "#0f7f78";
+  ctx.strokeStyle = themeColors.accent;
   ctx.lineWidth = 2;
   ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
   ctx.lineWidth = 1;

@@ -92,7 +92,7 @@ flowchart TD
   - Command IDs and metadata.
   - Scope, shortcut, implementation status, and document requirements.
   - Shared source for toolbar state and future command palette.
-  - Includes the first `command.palette` global command.
+  - Includes global commands for command palette and theme toggling.
 
 - `pkg/csvdiff`
   - Row-level CSV comparison.
@@ -122,7 +122,13 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, filter, sort, clear view, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+
+- `web Theme`
+  - Light, dark, and system theme preferences.
+  - Local preference persistence.
+  - System color-scheme listener while preference is `system`.
+  - CSS design tokens shared by DOM controls and Canvas grid rendering.
 
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
@@ -446,6 +452,7 @@ Output:
 - Batch edit endpoint.
 - Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, and TSV paste.
 - Command registry endpoint.
+- Theme command metadata.
 - Diff endpoint.
 - SQL endpoint.
 - SQL aggregate query unit/API tests.
@@ -474,6 +481,7 @@ Output:
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, and Delete Column without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
+- Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
 
 ### Performance Tests

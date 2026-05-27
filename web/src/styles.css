@@ -3,16 +3,65 @@
   --bg: #f6f7f8;
   --panel: #ffffff;
   --panel-subtle: #eef2f3;
+  --input-bg: #ffffff;
   --text: #162022;
   --muted: #697579;
   --border: #d8e0e2;
   --accent: #0f7f78;
+  --accent-border: #82bbb4;
   --accent-quiet: #dff1ee;
   --danger: #b44747;
+  --warning: #8a6510;
+  --grid-bg: #fbfcfc;
+  --grid-header: #eef2f3;
+  --grid-gutter: #f5f7f7;
+  --grid-row: #ffffff;
+  --grid-row-alt: #f8faf9;
+  --grid-line: #d8e0e2;
+  --grid-line-soft: #edf1f2;
+  --selection-bg: rgba(15, 127, 120, 0.12);
+  --quote-marker: #e3b341;
+  --quote-marker-text: #5b4300;
+  --diff-changed: #fff7d8;
+  --diff-added: #e8f6ed;
+  --diff-deleted: #fbe9e7;
+  --overlay: rgba(22, 32, 34, 0.18);
+  --shadow: rgba(22, 32, 34, 0.2);
   --grid-header-height: 36px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+}
+
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111616;
+  --panel: #182020;
+  --panel-subtle: #222c2c;
+  --input-bg: #121818;
+  --text: #e6eeee;
+  --muted: #9aa8a8;
+  --border: #334141;
+  --accent: #2aa39a;
+  --accent-border: #3fb9b0;
+  --accent-quiet: #183c3a;
+  --danger: #ef8b86;
+  --warning: #d8b45a;
+  --grid-bg: #101616;
+  --grid-header: #222c2c;
+  --grid-gutter: #1a2424;
+  --grid-row: #121818;
+  --grid-row-alt: #151d1d;
+  --grid-line: #334141;
+  --grid-line-soft: #243030;
+  --selection-bg: rgba(42, 163, 154, 0.18);
+  --quote-marker: #d9aa3a;
+  --quote-marker-text: #211600;
+  --diff-changed: #3c3216;
+  --diff-added: #173522;
+  --diff-deleted: #3a1f1d;
+  --overlay: rgba(0, 0, 0, 0.44);
+  --shadow: rgba(0, 0, 0, 0.48);
 }
 
 * {
@@ -89,7 +138,7 @@ button:disabled {
 }
 
 .file-button.active {
-  border-color: #82bbb4;
+  border-color: var(--accent-border);
   background: var(--accent-quiet);
 }
 
@@ -146,6 +195,7 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0 9px;
+  background: var(--input-bg);
   color: var(--text);
   font: inherit;
 }
@@ -190,7 +240,7 @@ button:disabled {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #fbfcfc;
+  background: var(--grid-bg);
 }
 
 #grid {
@@ -231,7 +281,7 @@ button:disabled {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   padding: 12px;
-  background: #fbfcfc;
+  background: var(--grid-bg);
 }
 
 .sql-panel[hidden],
@@ -262,7 +312,7 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px;
-  background: white;
+  background: var(--input-bg);
   color: var(--text);
   font:
     13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
@@ -290,7 +340,7 @@ button:disabled {
   min-height: 0;
   overflow: auto;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--panel);
 }
 
 .sql-result table,
@@ -315,7 +365,7 @@ button:disabled {
   max-width: 260px;
   overflow: hidden;
   border-right: 1px solid var(--border);
-  border-bottom: 1px solid #edf1f2;
+  border-bottom: 1px solid var(--grid-line-soft);
   padding: 6px 8px;
   text-align: left;
   text-overflow: ellipsis;
@@ -326,7 +376,7 @@ button:disabled {
 .diff-result th {
   position: sticky;
   top: 0;
-  background: #eef2f3;
+  background: var(--panel-subtle);
   font-weight: 650;
 }
 
@@ -334,20 +384,20 @@ button:disabled {
 .profile-issues th {
   position: sticky;
   top: 0;
-  background: #eef2f3;
+  background: var(--panel-subtle);
   font-weight: 650;
 }
 
 .diff-result tr.changed {
-  background: #fff7d8;
+  background: var(--diff-changed);
 }
 
 .diff-result tr.added {
-  background: #e8f6ed;
+  background: var(--diff-added);
 }
 
 .diff-result tr.deleted {
-  background: #fbe9e7;
+  background: var(--diff-deleted);
 }
 
 .profile-columns tr.selected-profile-column {
@@ -385,7 +435,7 @@ button:disabled {
 }
 
 .issue-warning {
-  color: #8a6510;
+  color: var(--warning);
 }
 
 .command-palette-backdrop {
@@ -395,7 +445,7 @@ button:disabled {
   display: grid;
   place-items: start center;
   padding-top: 72px;
-  background: rgba(22, 32, 34, 0.18);
+  background: var(--overlay);
 }
 
 .command-palette-backdrop[hidden] {
@@ -410,8 +460,8 @@ button:disabled {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
-  box-shadow: 0 18px 48px rgba(22, 32, 34, 0.2);
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
 }
 
 #paletteInput {
@@ -419,6 +469,7 @@ button:disabled {
   border: 0;
   border-bottom: 1px solid var(--border);
   padding: 0 14px;
+  background: var(--input-bg);
   color: var(--text);
   font: inherit;
   font-size: 16px;
@@ -441,7 +492,7 @@ button:disabled {
   border: 0;
   border-radius: 6px;
   padding: 8px 10px;
-  background: white;
+  background: var(--panel);
   text-align: left;
 }
 
@@ -481,8 +532,8 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 6px;
-  background: white;
-  box-shadow: 0 14px 36px rgba(22, 32, 34, 0.18);
+  background: var(--panel);
+  box-shadow: 0 14px 36px var(--shadow);
 }
 
 .column-menu[hidden] {
@@ -502,7 +553,7 @@ button:disabled {
   border: 0;
   border-radius: 6px;
   padding: 0 8px;
-  background: white;
+  background: var(--panel);
   text-align: left;
 }
 
@@ -557,7 +608,7 @@ button:disabled {
   border: 2px solid var(--accent);
   border-radius: 0;
   padding: 5px 7px;
-  background: white;
+  background: var(--input-bg);
   color: var(--text);
   font:
     13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
@@ -613,7 +664,7 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px;
-  background: white;
+  background: var(--input-bg);
   color: var(--text);
   font:
     13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
@@ -639,7 +690,7 @@ button:disabled {
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: white;
+  background: var(--panel);
   color: var(--text);
   font: inherit;
   text-decoration: none;
