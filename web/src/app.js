@@ -8,6 +8,7 @@ const quoteStatus = document.querySelector("#quoteStatus");
 const headerStatus = document.querySelector("#headerStatus");
 const readOnlyStatus = document.querySelector("#readOnlyStatus");
 const externalStatus = document.querySelector("#externalStatus");
+const aggregateStatusButton = document.querySelector("#aggregateStatusButton");
 const columnName = document.querySelector("#columnName");
 const columnType = document.querySelector("#columnType");
 const columnNulls = document.querySelector("#columnNulls");
@@ -171,6 +172,7 @@ let findRegex = false;
 let findInSelection = false;
 let findState = emptyFindState();
 let includeHeadersInSelection = false;
+let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
 const quotePolicy = "minimal";
@@ -324,11 +326,13 @@ function draw() {
   const selectedColumn = columns[selected.col]?.name ?? "";
   const path = metadata?.path ? ` - ${metadata.path}` : "";
   const dirtyLabel = dirty ? " - edited" : "";
-  const aggregate = selectionAggregate();
+  const aggregateStats = selectionAggregateStats();
+  const aggregate = selectionAggregateSummary(aggregateStats);
   const modeLabel = readOnly ? " - read-only" : "";
   const externalLabel = externalFileChanged ? " - external change" : "";
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
+  updateAggregateStatus(aggregateStats);
   status.textContent =
     documentId
       ? `${totalRows.toLocaleString()} rows, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
@@ -404,6 +408,8 @@ function applyCommandMetadata() {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
       button.textContent = "Export CSV";
+    } else if (button.dataset.command === "selection.cycleAggregate") {
+      updateAggregateStatus(selectionAggregateStats());
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -432,6 +438,7 @@ function updateCommandState() {
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = command.id === "sql.copyResultCsv" || command.id === "sql.exportResultCsv";
+  const needsAggregate = command.id === "selection.copyAggregate" || command.id === "selection.cycleAggregate";
   const writeBlocked =
     readOnly &&
     (
@@ -465,6 +472,7 @@ function isCommandDisabled(command) {
     command.implemented === false ||
     (command.requiresDocument && !hasDocument) ||
     (needsSQLResult && !sqlResultAvailable()) ||
+    (needsAggregate && selectionAggregateStats().count <= 1) ||
     writeBlocked
   );
 }
@@ -645,16 +653,23 @@ function selectionSummary(range = normalizedSelection()) {
   return includeHeadersInSelection ? `${base}:headers` : base;
 }
 
-function selectionAggregate() {
+function selectionAggregateStats() {
   const count = selectionCellCount();
-  if (count <= 1) return "";
+  const stats = {
+    count,
+    numericCount: 0,
+    limited: false,
+    sum: 0,
+    avg: 0,
+    min: 0,
+    max: 0,
+  };
+  if (count <= 1) return stats;
   const range = normalizedSelection();
   if (count > 5000) {
-    const headerNote = includeHeadersInSelection ? ", headers included" : "";
-    return ` - selected ${formatCount(count)} cells${headerNote}`;
+    stats.limited = true;
+    return stats;
   }
-  let numericCount = 0;
-  let sum = 0;
   let minValue = Number.POSITIVE_INFINITY;
   let maxValue = Number.NEGATIVE_INFINITY;
   for (let row = range.startRow; row <= range.endRow; row++) {
@@ -663,17 +678,116 @@ function selectionAggregate() {
       if (raw === "") continue;
       const value = Number(raw);
       if (!Number.isFinite(value)) continue;
-      numericCount++;
-      sum += value;
+      stats.numericCount++;
+      stats.sum += value;
       minValue = Math.min(minValue, value);
       maxValue = Math.max(maxValue, value);
     }
   }
-  if (!numericCount) {
-    return ` - selected ${formatCount(count)} cells`;
+  if (stats.numericCount) {
+    stats.avg = stats.sum / stats.numericCount;
+    stats.min = minValue;
+    stats.max = maxValue;
   }
-  const avg = sum / numericCount;
-  return ` - selected ${formatCount(count)} cells, sum ${formatNumber(sum)}, avg ${formatNumber(avg)}, min ${formatNumber(minValue)}, max ${formatNumber(maxValue)}`;
+  return stats;
+}
+
+function selectionAggregateSummary(stats = selectionAggregateStats()) {
+  if (stats.count <= 1) return "";
+  if (stats.limited) {
+    const headerNote = includeHeadersInSelection ? ", headers included" : "";
+    return ` - selected ${formatCount(stats.count)} cells${headerNote}`;
+  }
+  if (!stats.numericCount) {
+    return ` - selected ${formatCount(stats.count)} cells`;
+  }
+  return ` - selected ${formatCount(stats.count)} cells, sum ${formatNumber(stats.sum)}, avg ${formatNumber(stats.avg)}, min ${formatNumber(stats.min)}, max ${formatNumber(stats.max)}`;
+}
+
+function aggregateMetricOptions(stats = selectionAggregateStats()) {
+  if (stats.count <= 1) return [];
+  if (!stats.numericCount) return ["count"];
+  return ["sum", "avg", "min", "max", "count"];
+}
+
+function normalizeAggregateMetric(stats = selectionAggregateStats()) {
+  const options = aggregateMetricOptions(stats);
+  if (!options.length) return "";
+  if (!options.includes(activeAggregateMetric)) activeAggregateMetric = options[0];
+  return activeAggregateMetric;
+}
+
+function activeAggregate(stats = selectionAggregateStats()) {
+  const metric = normalizeAggregateMetric(stats);
+  if (!metric) return null;
+  const value = metric === "count" ? stats.count : stats[metric];
+  return {
+    metric,
+    label: aggregateMetricLabel(metric),
+    value,
+    formatted: formatNumber(value),
+  };
+}
+
+function aggregateMetricLabel(metric) {
+  return {
+    count: "Count",
+    sum: "Sum",
+    avg: "Avg",
+    min: "Min",
+    max: "Max",
+  }[metric] ?? metric;
+}
+
+function updateAggregateStatus(stats = selectionAggregateStats()) {
+  const aggregate = activeAggregate(stats);
+  if (!aggregate) {
+    aggregateStatusButton.hidden = true;
+    aggregateStatusButton.disabled = true;
+    aggregateStatusButton.textContent = "Count 0";
+    aggregateStatusButton.removeAttribute("aria-label");
+    delete document.body.dataset.aggregateActive;
+    return;
+  }
+  aggregateStatusButton.hidden = false;
+  aggregateStatusButton.disabled = false;
+  aggregateStatusButton.textContent = `${aggregate.label} ${aggregate.formatted}`;
+  aggregateStatusButton.title = "Click to switch aggregate; Command-click to copy.";
+  aggregateStatusButton.setAttribute("aria-label", `${aggregate.label} ${aggregate.formatted}`);
+  document.body.dataset.aggregateActive = `${aggregate.metric}:${aggregate.formatted}`;
+}
+
+function cycleAggregateMetric() {
+  const stats = selectionAggregateStats();
+  const options = aggregateMetricOptions(stats);
+  if (!options.length) {
+    status.textContent = "Select multiple cells to aggregate.";
+    return;
+  }
+  const current = normalizeAggregateMetric(stats);
+  const index = Math.max(0, options.indexOf(current));
+  activeAggregateMetric = options[(index + 1) % options.length];
+  const aggregate = activeAggregate(stats);
+  updateAggregateStatus(stats);
+  draw();
+  status.textContent = `${aggregate.label} ${aggregate.formatted}`;
+}
+
+async function copyActiveAggregate() {
+  const aggregate = activeAggregate();
+  if (!aggregate) {
+    status.textContent = "Select multiple cells to copy an aggregate.";
+    return;
+  }
+  const text = aggregate.formatted;
+  window.__opencsvLastAggregateText = text;
+  document.body.dataset.aggregatePreview = `${aggregate.metric}:${text}`;
+  try {
+    await writeClipboardText(text);
+    status.textContent = `Copied ${aggregate.label} ${text}`;
+  } catch (error) {
+    status.textContent = `Aggregate copy failed: ${error.message}`;
+  }
 }
 
 function openCommandPalette() {
@@ -1191,6 +1305,12 @@ async function executeCommand(commandID) {
       break;
     case "selection.toggleHeaders":
       toggleHeaderInSelection();
+      break;
+    case "selection.cycleAggregate":
+      cycleAggregateMetric();
+      break;
+    case "selection.copyAggregate":
+      await copyActiveAggregate();
       break;
     case "edit.copyCsv":
       await copySelection("csv");
@@ -4487,6 +4607,13 @@ sqlTabButton.addEventListener("click", () => {
 });
 profileTabButton.addEventListener("click", openProfilePanel);
 paletteButton.addEventListener("click", openCommandPalette);
+aggregateStatusButton.addEventListener("click", async (event) => {
+  if (event.metaKey || event.ctrlKey) {
+    await copyActiveAggregate();
+    return;
+  }
+  cycleAggregateMetric();
+});
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));

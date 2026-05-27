@@ -956,6 +956,23 @@ button:disabled {
   white-space: nowrap;
 }
 
+.aggregate-status {
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--text);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  white-space: nowrap;
+}
+
+.aggregate-status:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-quiet);
+}
+
 .inspector {
   border-right: 0;
   border-left: 1px solid var(--border);

@@ -20,6 +20,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
 | FR-004 | Undo/redo and row/column insert/delete/move/hide foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |
 | FR-004/016 | Multi-cell selection, batch edit, and selection aggregation foundation | Started | `/api/edit-batch`, `pkg/document` and `pkg/appserver` tests, Browser verification |
+| FR-016 | Active status-bar aggregate switch/copy foundation | Started | command registry, Browser aggregate-status verification |
 | FR-013 | Clipboard copy/paste foundation | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy with headers foundation | Started | `pkg/clipboard` tests, command registry, Browser generated-copy verification |
@@ -131,6 +132,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Visual condition filter verification on `/tmp/opencsv-condition-filter.csv`: opening Builder, selecting `score greater or equal 9`, and applying generates `where "score" >= 9` and reports `Condition filter matched 2 rows`; selecting `note is blank` disables the Value input, generates `where "note" = ''`, and reports `Condition filter matched 1 rows`.
 - SQL result copy/export verification on `/tmp/opencsv-sql-result-export.csv`: running `SELECT name, score FROM current ORDER BY score DESC LIMIT 2` enables Copy CSV and Export CSV, stores the generated CSV preview `name,score\nGrace,10\nAda,9`, and exports to `opencsv-sql-result-export.sql-result.csv`.
 - Auto-fit edit verification on `/tmp/opencsv-autofit-edit.csv`: editing `note` through the Cell Value panel from `short` to `very long auto fit note value for smoothcsv parity verification` expands the column-width hook from `92,100` to `92,420`, records `1:100>420`, keeps the panel synchronized with the edited value, and reports `Cell edited`.
+- Active aggregate verification on `/tmp/opencsv-aggregate-status.csv`: selecting the 2x2 numeric body range exposes the status-bar aggregate button as `Sum 10`, records `sum:10`, clicking cycles it to `Avg 2.5`, and Command-click writes the copy verification preview `avg:2.5`.
 
 ## Implementation Notes
 
@@ -154,7 +156,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `/api/diff` exposes diff results for two local paths, and root CLI `--diff` now includes a diff result payload in prototype mode.
 - Frontend Diff View provides a side-by-side-ish result table with status, left row/record, right row/record, and changed cell details.
 - `pkg/commands` exposes command IDs, labels, descriptions, shortcuts, scope, implementation status, and document requirements. The frontend fetches `/api/commands` and applies disabled states/titles to toolbar buttons.
-- Frontend grid supports Shift-arrow/Shift-click range selection, range highlighting, batch edit submission, and numeric selection aggregation in the status bar.
+- Frontend grid supports Shift-arrow/Shift-click range selection, range highlighting, batch edit submission, and numeric selection aggregation in the status bar. The active aggregate can be cycled through sum/average/min/max/count and copied through a command-backed status control.
 - `pkg/clipboard` supports TSV, CSV, Markdown table, JSON array, HTML table, SQL `VALUES`, LaTeX tabular, raw value serialization, and header-row prepending plus TSV matrix parsing.
 - `pkg/csvcore.RequiresQuote` mirrors the current Go writer's minimal quote behavior for delimiter, quote, CR/LF, and leading whitespace detection.
 - Frontend copy/paste handlers copy selected ranges as TSV and paste tab-separated matrices through `/api/edit-batch`; Command Palette exposes TSV-with-headers and CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy variants.
@@ -196,7 +198,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, auto-fit on edits, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
-- Clipboard support is implemented as a foundation, including copy formats, SQL-result CSV copy/export, and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
+- Clipboard support is implemented as a foundation, including copy formats, SQL-result CSV copy/export, active aggregate copy, and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
 - SQL console is implemented as a useful subset, including basic aggregation and local query history, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, or HAVING.

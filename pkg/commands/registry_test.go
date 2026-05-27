@@ -25,6 +25,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"workbench.toggleTheme",
 		"edit.copyWithHeaders",
 		"selection.toggleHeaders",
+		"selection.cycleAggregate",
+		"selection.copyAggregate",
 		"edit.copyJson",
 		"edit.copyHtml",
 		"edit.copySql",
