@@ -17,7 +17,7 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-05-27. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, and opening hyperlinks from cells.
+Latest public source check: 2026-05-27. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.1 as latest, with recent release notes adding CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work.
 
 The goal is not to clone SmoothCSV source code. The goal is to build an open, Go-first CSV workbench with comparable product coverage, stronger UX discipline, and measurable performance.
 
@@ -108,27 +108,32 @@ Product claims to match:
 - Show quote indicators for cells that will be quoted on save.
 - View and edit large files.
 - Add, delete, move, copy, paste rows and columns.
+- Hide rows/columns and dedupe rows/columns.
 - Sort rows.
 - Filter rows.
+- Visual condition-builder filtering.
 - Search and replace.
 - Multi-cell selection/editing.
 - Undo/redo.
 - Command palette.
 - Keyboard shortcuts.
 - Keyboard shortcut customization.
-- Theme support.
+- Theme support, including light/dark/system auto-detect.
 - File format presets.
 - File format rules for automatic preset application.
 - CSVLint-like validation.
 - Query with SQL.
 - Compare/diff two CSV files.
+- Compare inline character-level changes, merge changes, ignore whitespace/case/columns, align columns by header name, and compare with clipboard.
 - CLI integration.
 - URL protocol integration.
 - Clipboard integration.
 - Export/copy in multiple formats.
+- Copy selections as Markdown, HTML, JSON, SQL, LaTeX, and raw values.
 - Copy raw values without CSV quoting/escaping.
 - Excel import/export.
 - Auto-fill with intelligent pattern detection.
+- Text transforms and join/split cell tools.
 - Cell value panel.
 - Auto-backup before overwrite.
 - Quick filters and sorting from column menus.
@@ -146,6 +151,7 @@ CLI:
 - `smoothcsv [options] [path ...]`
 - Open single/multiple files.
 - Open stdin.
+- CLI `--diff old.csv new.csv` launches Compare view.
 - `--goto` row/cell/range selection.
 - `--diff` side-by-side compare.
 - Delimiter, quote, quote mode, encoding, header rows, header columns overrides.
@@ -379,8 +385,14 @@ The app shall support side-by-side file compare:
 - GUI open diff.
 - Row/column aligned view.
 - Highlight changed cells.
+- Inline character-level diff inside modified cells.
 - Highlight added/deleted rows.
 - Navigate next/previous diff.
+- Merge row/cell changes from one side to the other.
+- Ignore whitespace, case, selected columns, or configured ignored columns.
+- Align columns by header name when order differs.
+- Compare active file with clipboard.
+- Edit, sort, filter, and search inside compare view.
 - Respect per-file format detection/override.
 
 Acceptance:

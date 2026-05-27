@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/protocol"
 )
 
@@ -87,5 +88,39 @@ func TestRootOpenDiffComputesResult(t *testing.T) {
 	}
 	if err := rootOpen([]string{"--diff", left, right}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOpenCLITargetReadsStdin(t *testing.T) {
+	input, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := input.WriteString("id,name\n1,Ada\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := input.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	previousStdin := os.Stdin
+	os.Stdin = input
+	t.Cleanup(func() {
+		os.Stdin = previousStdin
+		_ = input.Close()
+	})
+
+	document, source, err := openCLITarget("-", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if source != "stdin" {
+		t.Fatalf("source = %q, want stdin", source)
+	}
+	if document.RowIndex.Rows != 2 {
+		t.Fatalf("rows = %d, want 2", document.RowIndex.Rows)
+	}
+	if len(document.Preview) != 2 || document.Preview[1][1] != "Ada" {
+		t.Fatalf("preview = %#v", document.Preview)
 	}
 }

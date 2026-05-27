@@ -86,7 +86,7 @@ flowchart TD
 - `cmd/opencsv`
   - Developer subcommands for open/inspect/generate/save/serve/bench.
   - Product root syntax `opencsv [options] [path ...]`.
-  - Root CLI opens file targets, parses official goto/diff/format/window flags, and emits an invocation document for the current local prototype.
+  - Root CLI opens file targets and stdin (`opencsv -`), parses official goto/diff/format/window flags, and emits an invocation document for the current local prototype.
 
 - `pkg/commands`
   - Command IDs and metadata.
@@ -112,7 +112,7 @@ flowchart TD
   - Shared result model for `/api/profile`, the Profile view, and future CSVLint-compatible validation.
 
 - `pkg/clipboard`
-  - TSV, CSV, Markdown table, and raw value serialization.
+  - TSV, CSV, Markdown table, JSON, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization.
   - TSV matrix parsing for spreadsheet-style paste.
 
 - `web Profile View`
@@ -122,14 +122,14 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, row/column mutation, transpose, filter, sort, clear view, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, filter, sort, clear view, SQL, Profile, and Diff.
 
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
   - Shift-arrow and Shift-click range expansion.
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
-  - Clipboard event handlers for TSV copy/paste and command handlers for CSV/Markdown/raw copy.
+  - Clipboard event handlers for TSV copy/paste and command handlers for CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
   - Frozen header layer with body clipping.
@@ -432,6 +432,7 @@ Output:
 - Save/backup.
 - URL parser.
 - CLI parser.
+- CLI stdin target.
 
 ### API Tests
 
@@ -443,7 +444,7 @@ Output:
 - Filter/sort/search endpoints.
 - Undo/redo and row/column mutation endpoints.
 - Batch edit endpoint.
-- Clipboard formatter/parser unit tests.
+- Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, and TSV paste.
 - Command registry endpoint.
 - Diff endpoint.
 - SQL endpoint.
@@ -472,7 +473,7 @@ Output:
 - Command Palette can search and execute an enabled command.
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, and Delete Column without modifying the original file before Save.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
-- Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/raw output contracts.
+- Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
 
 ### Performance Tests

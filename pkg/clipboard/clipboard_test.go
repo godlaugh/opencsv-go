@@ -23,6 +23,29 @@ func TestCopyFormats(t *testing.T) {
 	if markdown != wantMarkdown {
 		t.Fatalf("markdown = %q", markdown)
 	}
+	jsonText, err := ToJSON(matrix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantJSON := "[\n  [\n    \"name\",\n    \"note\"\n  ],\n  [\n    \"Ada\",\n    \"uses | pipes\"\n  ],\n  [\n    \"Linus\",\n    \"line\\nbreak\"\n  ]\n]"
+	if jsonText != wantJSON {
+		t.Fatalf("json = %q", jsonText)
+	}
+	html := ToHTML(matrix)
+	wantHTML := "<table>\n  <tbody>\n    <tr><td>name</td><td>note</td></tr>\n    <tr><td>Ada</td><td>uses | pipes</td></tr>\n    <tr><td>Linus</td><td>line\nbreak</td></tr>\n  </tbody>\n</table>"
+	if html != wantHTML {
+		t.Fatalf("html = %q", html)
+	}
+	sql := ToSQLValues([][]string{{"name", "quote"}, {"Ada", "O'Reilly"}})
+	wantSQL := "VALUES\n  ('name', 'quote'),\n  ('Ada', 'O''Reilly');"
+	if sql != wantSQL {
+		t.Fatalf("sql = %q", sql)
+	}
+	latex := ToLaTeX([][]string{{"name", "note"}, {"Ada_1", "uses | pipes"}})
+	wantLaTeX := "\\begin{tabular}{ll}\nname & note \\\\\nAda\\_1 & uses \\textbar{} pipes\n\\end{tabular}"
+	if latex != wantLaTeX {
+		t.Fatalf("latex = %q", latex)
+	}
 }
 
 func TestParseTSV(t *testing.T) {

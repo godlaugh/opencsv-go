@@ -526,6 +526,18 @@ async function executeCommand(commandID) {
     case "edit.copyMarkdown":
       await copySelection("markdown");
       break;
+    case "edit.copyJson":
+      await copySelection("json");
+      break;
+    case "edit.copyHtml":
+      await copySelection("html");
+      break;
+    case "edit.copySql":
+      await copySelection("sql");
+      break;
+    case "edit.copyLatex":
+      await copySelection("latex");
+      break;
     case "edit.copyRaw":
       await copySelection("raw");
       break;
@@ -1218,6 +1230,10 @@ function pasteMatrix(matrix) {
 function formatMatrix(matrix, format) {
   if (format === "csv") return matrixToCSV(matrix);
   if (format === "markdown") return matrixToMarkdown(matrix);
+  if (format === "json") return JSON.stringify(matrix, null, 2);
+  if (format === "html") return matrixToHTML(matrix);
+  if (format === "sql") return matrixToSQLValues(matrix);
+  if (format === "latex") return matrixToLaTeX(matrix);
   return matrix.map((row) => row.join("\t")).join("\n");
 }
 
@@ -1244,6 +1260,59 @@ function matrixToMarkdown(matrix) {
 
 function markdownRow(row) {
   return `| ${row.map((value) => String(value ?? "").replaceAll("|", "\\|").replaceAll("\n", "<br>")).join(" | ")} |`;
+}
+
+function matrixToHTML(matrix) {
+  if (!matrix.length) return "";
+  const rowsHtml = matrix
+    .map((row) => `    <tr>${row.map((value) => `<td>${escapeHTML(value)}</td>`).join("")}</tr>`)
+    .join("\n");
+  return `<table>\n  <tbody>\n${rowsHtml}\n  </tbody>\n</table>`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function matrixToSQLValues(matrix) {
+  if (!matrix.length) return "";
+  const rowsSql = matrix
+    .map((row) => `  (${row.map((value) => `'${String(value ?? "").replaceAll("'", "''")}'`).join(", ")})`)
+    .join(",\n");
+  return `VALUES\n${rowsSql};`;
+}
+
+function matrixToLaTeX(matrix) {
+  if (!matrix.length) return "";
+  const cols = Math.max(1, ...matrix.map((row) => row.length));
+  const rows = matrix
+    .map((row) => {
+      const padded = Array.from({ length: cols }, (_, index) => escapeLaTeX(row[index] ?? ""));
+      return padded.join(" & ");
+    })
+    .join(" \\\\\n");
+  return `\\begin{tabular}{${"l".repeat(cols)}}\n${rows}\n\\end{tabular}`;
+}
+
+function escapeLaTeX(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "\\textbackslash{}")
+    .replaceAll("&", "\\&")
+    .replaceAll("%", "\\%")
+    .replaceAll("$", "\\$")
+    .replaceAll("#", "\\#")
+    .replaceAll("_", "\\_")
+    .replaceAll("{", "\\{")
+    .replaceAll("}", "\\}")
+    .replaceAll("~", "\\textasciitilde{}")
+    .replaceAll("^", "\\textasciicircum{}")
+    .replaceAll("|", "\\textbar{}")
+    .replaceAll("\n", "\\\\ ");
 }
 
 function parseTSV(text) {
