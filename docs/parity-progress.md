@@ -27,6 +27,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-005 | Replace current/all foundation | Started | `/api/replace`, `pkg/document` tests, Browser verification |
 | FR-005 | Find/Replace mode toggles | Started | API support, Browser toolbar verification |
 | FR-005 | Find match count and previous/next navigation | Started | `pkg/document`/`pkg/appserver` tests, Browser toolbar verification |
+| FR-005 | Search/replace within selection foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser toolbar verification |
 | FR-006 | Basic contains filter | Started | `/api/filter`, toolbar query, Browser verification |
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
 | FR-006 | Excel-like value checklist filter foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser column menu verification |
@@ -67,6 +68,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace UI opens a 720,000-row file and replaces the first `segment_7` match with `segment_x`, reporting `Replaced 1 cell`.
 - Find mode verification on `/tmp/opencsv-find-modes.csv`: default case-insensitive search for `ada` selects row 1; enabling `Aa` selects row 2; enabling `=` whole-cell mode matches exact `Ada`; enabling `.*` regex mode matches `^Ada Byron$` at row 3. The three toolbar toggles expose correct `aria-pressed` state.
 - Find navigation verification on `/tmp/opencsv-find-nav.csv`: searching `Ada` reports `1/3`, Next advances to `2/3`, and Previous returns to `1/3` while the selected grid row follows the active match.
+- Search-in-selection verification on `/tmp/opencsv-find-selection.csv`: selecting two cells in column `a`, enabling `Sel`, and searching `Ada` reports `2/2` even though column `b` also contains `Ada`; Replace All with the same scoped find changes both selected `a` cells to `Grace` while adjacent `b` cells remain `Ada`.
 - Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the single-canvas header at a constant 36px without clipped body text touching its lower edge.
 - Mouse selection verification on `/tmp/opencsv-m0-bench.csv`: URL boot open via `?open=/tmp/opencsv-m0-bench.csv` loads the file, body drag selects `0:0-2:1`, row-label click selects `1:0-1:11`, column-header click selects `0:0-9999:0`, `Shift+Alt+H` toggles header inclusion so the selection marker becomes `0:0-9999:0:headers`, and clicking the header menu glyph still opens the `id` column menu.
 - URL hover verification on `/tmp/opencsv-url-hover.csv`: holding Cmd/Ctrl over `https://example.com/path` sets the Canvas cursor to `pointer`, exposes the URL in the Canvas title, and clears both the hover URL and cursor after the modifier key is released.
@@ -125,6 +127,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find now supports regex/case/whole-cell options, total match counts, and truncated result windows in the API layer. Replace current/all stores edits through the document edit overlay and marks the session dirty.
 - Frontend Find/Replace now exposes `Aa`, `=`, and `.*` toggles for case-sensitive, whole-cell, and regex modes, and sends those options to `/api/find` and `/api/replace`.
 - Frontend Find now caches the current result window, shows `current/total`, and supports Previous/Next navigation from the toolbar and Enter/Shift+Enter in the query field.
+- Frontend Find/Replace now supports a `Sel` search-in-selection toggle. The selected source-cell scope is sent to `/api/find` and `/api/replace`, and the original find scope is retained after navigation collapses the active selection to a match.
 - Toolbar wraps into two rows on narrower workspaces so Find/Replace buttons stay clickable instead of sliding under the inspector.
 - `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key. It supports ignore-case, ignore-whitespace, ignored columns, header-name column alignment, and inline character spans for changed cells.
 - `/api/diff` exposes diff results for two local paths, and root CLI `--diff` now includes a diff result payload in prototype mode.
@@ -161,7 +164,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 ## Known Gaps
 
 - Find/Filter/Sort are first-pass implementations. Column quick actions, value checklist filtering, multi-column sort, and smart number/date/length sorting exist, but saved filter chips, persisted sort specs, and richer condition-builder menus are still missing.
-- Replace supports current/all and regex/case/whole-cell modes, but replace preview and search-within-selection are still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
+- Replace supports current/all, regex/case/whole-cell modes, and search-within-selection. Replace preview is still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
 - Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces are still missing.

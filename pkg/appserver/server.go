@@ -568,13 +568,14 @@ func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 }
 
 type findRequest struct {
-	DocumentID    string `json:"documentId"`
-	Query         string `json:"query"`
-	Column        *int   `json:"column,omitempty"`
-	CaseSensitive bool   `json:"caseSensitive"`
-	WholeCell     bool   `json:"wholeCell"`
-	Regex         bool   `json:"regex"`
-	Limit         int    `json:"limit"`
+	DocumentID    string          `json:"documentId"`
+	Query         string          `json:"query"`
+	Column        *int            `json:"column,omitempty"`
+	Cells         []docstore.Cell `json:"cells,omitempty"`
+	CaseSensitive bool            `json:"caseSensitive"`
+	WholeCell     bool            `json:"wholeCell"`
+	Regex         bool            `json:"regex"`
+	Limit         int             `json:"limit"`
 }
 
 func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
@@ -586,6 +587,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 	result, err := server.documents.FindDetailed(request.DocumentID, docstore.FindOptions{
 		Query:         request.Query,
 		Column:        request.Column,
+		Cells:         request.Cells,
 		CaseSensitive: request.CaseSensitive,
 		WholeCell:     request.WholeCell,
 		Regex:         request.Regex,
@@ -599,14 +601,15 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 }
 
 type replaceRequest struct {
-	DocumentID    string `json:"documentId"`
-	Query         string `json:"query"`
-	Replacement   string `json:"replacement"`
-	Column        *int   `json:"column,omitempty"`
-	CaseSensitive bool   `json:"caseSensitive"`
-	WholeCell     bool   `json:"wholeCell"`
-	Regex         bool   `json:"regex"`
-	All           bool   `json:"all"`
+	DocumentID    string          `json:"documentId"`
+	Query         string          `json:"query"`
+	Replacement   string          `json:"replacement"`
+	Column        *int            `json:"column,omitempty"`
+	Cells         []docstore.Cell `json:"cells,omitempty"`
+	CaseSensitive bool            `json:"caseSensitive"`
+	WholeCell     bool            `json:"wholeCell"`
+	Regex         bool            `json:"regex"`
+	All           bool            `json:"all"`
 }
 
 func (server *Server) handleReplace(w http.ResponseWriter, r *http.Request) {
@@ -619,6 +622,7 @@ func (server *Server) handleReplace(w http.ResponseWriter, r *http.Request) {
 		FindOptions: docstore.FindOptions{
 			Query:         request.Query,
 			Column:        request.Column,
+			Cells:         request.Cells,
 			CaseSensitive: request.CaseSensitive,
 			WholeCell:     request.WholeCell,
 			Regex:         request.Regex,

@@ -764,6 +764,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 type FindOptions struct {
 	Query         string `json:"query"`
 	Column        *int   `json:"column,omitempty"`
+	Cells         []Cell `json:"cells,omitempty"`
 	CaseSensitive bool   `json:"caseSensitive"`
 	WholeCell     bool   `json:"wholeCell"`
 	Regex         bool   `json:"regex"`
@@ -814,9 +815,13 @@ func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult
 
 	var matches []Match
 	total := 0
+	scope := cellScope(options.Cells)
 	for row, record := range records {
 		for col, value := range record {
 			if options.Column != nil && col != *options.Column {
+				continue
+			}
+			if !cellInScope(scope, row, col) {
 				continue
 			}
 			if matcher.matches(value) {
@@ -866,9 +871,13 @@ func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResul
 
 	edits := make(map[Cell]string)
 	var changes []Match
+	scope := cellScope(options.Cells)
 	for row, record := range records {
 		for col, value := range record {
 			if options.Column != nil && col != *options.Column {
+				continue
+			}
+			if !cellInScope(scope, row, col) {
 				continue
 			}
 			if !matcher.matches(value) {
@@ -907,6 +916,28 @@ func (manager *Manager) applyReplaceEdits(id string, edits map[Cell]string, chan
 		session.Dirty = true
 	}
 	return ReplaceResult{Changes: changes, Count: len(changes), Dirty: session.Dirty}, nil
+}
+
+func cellScope(cells []Cell) map[Cell]struct{} {
+	if len(cells) == 0 {
+		return nil
+	}
+	scope := make(map[Cell]struct{}, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Col < 0 {
+			continue
+		}
+		scope[cell] = struct{}{}
+	}
+	return scope
+}
+
+func cellInScope(scope map[Cell]struct{}, row int, col int) bool {
+	if scope == nil {
+		return true
+	}
+	_, ok := scope[Cell{Row: row, Col: col}]
+	return ok
 }
 
 type FilterOptions struct {

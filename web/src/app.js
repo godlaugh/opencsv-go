@@ -35,6 +35,7 @@ const replaceAllButton = document.querySelector("#replaceAllButton");
 const findCaseButton = document.querySelector("#findCaseButton");
 const findWholeButton = document.querySelector("#findWholeButton");
 const findRegexButton = document.querySelector("#findRegexButton");
+const findSelectionButton = document.querySelector("#findSelectionButton");
 const diffButton = document.querySelector("#diffButton");
 const saveButton = document.querySelector("#saveButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
@@ -133,6 +134,7 @@ let cellValueInputKey = "";
 let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
+let findInSelection = false;
 let findState = emptyFindState();
 let includeHeadersInSelection = false;
 let diffRows = [];
@@ -1878,6 +1880,8 @@ async function runFind(direction, forceRefresh) {
 }
 
 async function refreshFindState(search, key) {
+  const cells = search.inSelection ? selectedCellsForSearch() : [];
+  if (cells == null) return false;
   const response = await fetch("/api/find", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1887,6 +1891,7 @@ async function refreshFindState(search, key) {
       regex: search.regex,
       caseSensitive: search.caseSensitive,
       wholeCell: search.wholeCell,
+      cells,
       limit: 5000,
     }),
   });
@@ -1897,10 +1902,12 @@ async function refreshFindState(search, key) {
   }
   findState = {
     key,
+    criteriaKey: findCriteriaKey(search),
     matches: payload.matches ?? [],
     total: payload.total ?? payload.matches?.length ?? 0,
     truncated: Boolean(payload.truncated),
     index: 0,
+    scopeCells: cells,
   };
   updateFindMatchCount();
   return true;
@@ -1931,6 +1938,8 @@ async function replaceCurrentQuery(all) {
     status.textContent = "Type text to replace.";
     return;
   }
+  const cells = search.inSelection ? cellsForReplaceScope(search) : [];
+  if (cells == null) return;
   const response = await fetch("/api/replace", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1941,6 +1950,7 @@ async function replaceCurrentQuery(all) {
       regex: search.regex,
       caseSensitive: search.caseSensitive,
       wholeCell: search.wholeCell,
+      cells,
       all,
     }),
   });
@@ -1982,21 +1992,75 @@ function parseSearchQuery(raw) {
   const slashRegex = Boolean(match);
   const regex = findRegex || slashRegex;
   const caseSensitive = findCaseSensitive || (slashRegex && !match[2].includes("i"));
-  return { query, regex, caseSensitive, wholeCell: findWholeCell };
+  return { query, regex, caseSensitive, wholeCell: findWholeCell, inSelection: findInSelection };
 }
 
 function findKey(search) {
   return JSON.stringify({
+    ...findCriteriaKeyObject(search),
+    inSelection: search.inSelection,
+    selection: search.inSelection ? selectedSearchScopeKey() : "",
+  });
+}
+
+function findCriteriaKey(search) {
+  return JSON.stringify(findCriteriaKeyObject(search));
+}
+
+function findCriteriaKeyObject(search) {
+  return {
     documentId,
     query: search.query,
     regex: search.regex,
     caseSensitive: search.caseSensitive,
     wholeCell: search.wholeCell,
-  });
+  };
+}
+
+function cellsForReplaceScope(search) {
+  if (
+    findState.criteriaKey === findCriteriaKey(search) &&
+    Array.isArray(findState.scopeCells) &&
+    findState.scopeCells.length > 0
+  ) {
+    return findState.scopeCells;
+  }
+  return selectedCellsForSearch();
+}
+
+function selectedCellsForSearch(maxCells = 100_000) {
+  const count = selectionCellCount();
+  if (count <= 1 && !findInSelection) return [];
+  if (count === 0) return [];
+  if (count > maxCells) {
+    status.textContent = `Selection has ${formatCount(count)} cells; search-in-selection limit is ${formatCount(maxCells)}.`;
+    return null;
+  }
+  const range = normalizedSelection();
+  const cells = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    const sourceRow = rowSource.get(row);
+    if (viewMapped && sourceRow == null) {
+      status.textContent = "Load the selected filtered rows before searching within selection.";
+      return null;
+    }
+    const recordRow = sourceRow ?? row + dataStartRow;
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      cells.push({ row: recordRow, col: sourceColFor(col) });
+    }
+  }
+  return cells;
+}
+
+function selectedSearchScopeKey() {
+  const range = normalizedSelection();
+  const startSourceRow = rowSource.get(range.startRow) ?? range.startRow + dataStartRow;
+  const endSourceRow = rowSource.get(range.endRow) ?? range.endRow + dataStartRow;
+  return `${Math.min(startSourceRow, endSourceRow)}:${Math.max(startSourceRow, endSourceRow)}:${sourceColFor(range.startCol)}:${sourceColFor(range.endCol)}`;
 }
 
 function emptyFindState() {
-  return { key: "", matches: [], total: 0, truncated: false, index: 0 };
+  return { key: "", criteriaKey: "", matches: [], total: 0, truncated: false, index: 0, scopeCells: [] };
 }
 
 function invalidateFindState() {
@@ -2017,6 +2081,7 @@ function toggleFindOption(option) {
   if (option === "case") findCaseSensitive = !findCaseSensitive;
   if (option === "whole") findWholeCell = !findWholeCell;
   if (option === "regex") findRegex = !findRegex;
+  if (option === "selection") findInSelection = !findInSelection;
   invalidateFindState();
   updateFindOptionButtons();
 }
@@ -2025,6 +2090,7 @@ function updateFindOptionButtons() {
   setPressed(findCaseButton, findCaseSensitive);
   setPressed(findWholeButton, findWholeCell);
   setPressed(findRegexButton, findRegex);
+  setPressed(findSelectionButton, findInSelection);
 }
 
 function setPressed(button, pressed) {
@@ -3634,6 +3700,7 @@ replaceAllButton.addEventListener("click", () => replaceCurrentQuery(true));
 findCaseButton.addEventListener("click", () => toggleFindOption("case"));
 findWholeButton.addEventListener("click", () => toggleFindOption("whole"));
 findRegexButton.addEventListener("click", () => toggleFindOption("regex"));
+findSelectionButton.addEventListener("click", () => toggleFindOption("selection"));
 filterButton.addEventListener("click", filterCurrentQuery);
 sortButton.addEventListener("click", sortSelectedColumn);
 commandInput.addEventListener("keydown", async (event) => {

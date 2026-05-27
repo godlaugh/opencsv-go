@@ -154,8 +154,9 @@ flowchart TD
   - Hidden SQL/Diff/Profile overlays explicitly use `[hidden]` display suppression so inactive panels cannot intercept grid input.
 
 - `web Search Controls`
-  - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, and regex mode.
+  - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, regex mode, and search within selection.
   - Toggles map directly to existing `/api/find` and `/api/replace` request options.
+  - Search-in-selection sends explicit selected source-cell scopes and keeps that original scope while match navigation changes the active cell.
   - Match count display plus Previous/Next navigation for the current result window.
 
 - `web File State`
@@ -172,7 +173,7 @@ flowchart TD
 
 - `pkg/search`
   - Rich find/replace history and UI state.
-  - Search within selection and match-count streaming.
+  - Match-count streaming.
   - Regex/case/whole-cell command metadata.
 
 - `pkg/sort`
@@ -642,7 +643,7 @@ Output:
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
-- Find/Replace toggles can drive case-sensitive, whole-cell, and regex searches from the toolbar.
+- Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.
 - SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
 

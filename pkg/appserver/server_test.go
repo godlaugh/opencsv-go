@@ -537,6 +537,33 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerFindSelectionScope(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-selection.csv")
+	if err := os.WriteFile(path, []byte("id,a,b\n1,Ada,Ada\n2,Ada,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	findPayload := postJSON(t, handler, "/api/find", map[string]any{
+		"documentId": documentID,
+		"query":      "Ada",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+			{"row": 2, "col": 1},
+		},
+	})
+	if findPayload["total"].(float64) != 2 {
+		t.Fatalf("find total = %#v, want 2", findPayload["total"])
+	}
+}
+
 func TestServerSortMultipleColumns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "multi-sort.csv")

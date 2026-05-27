@@ -249,6 +249,58 @@ func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
 	}
 }
 
+func TestManagerFindAndReplaceSelectionScope(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-selection.csv")
+	if err := os.WriteFile(path, []byte("id,a,b\n1,Ada,Ada\n2,Ada,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find-selection.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := manager.Find(session.ID, FindOptions{
+		Query: "Ada",
+		Cells: []Cell{{Row: 1, Col: 1}, {Row: 2, Col: 1}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("selection matches = %#v, want 2", matches)
+	}
+	for _, match := range matches {
+		if match.Col != 1 {
+			t.Fatalf("selection match outside column 1: %#v", matches)
+		}
+	}
+
+	result, err := manager.Replace(session.ID, ReplaceOptions{
+		FindOptions: FindOptions{
+			Query: "Ada",
+			Cells: []Cell{{Row: 1, Col: 2}},
+		},
+		Replacement: "Grace",
+		All:         true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Count != 1 {
+		t.Fatalf("replace count = %d, want 1", result.Count)
+	}
+	window, err := manager.Window(session.ID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if window.Rows[0][1] != "Ada" || window.Rows[0][2] != "Grace" || window.Rows[1][2] != "Ada" {
+		t.Fatalf("unexpected scoped replace window: %#v", window.Rows)
+	}
+}
+
 func TestManagerStructuralMutationsUndoRedo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")
