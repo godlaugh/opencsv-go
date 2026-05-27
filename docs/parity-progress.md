@@ -16,6 +16,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003 | Mouse drag, row-label, and column-header selection foundation | Started | Browser selection-range verification |
 | FR-003 | Cell value panel and hyperlink opening foundation | Started | Browser Inspector verification |
 | FR-003 | URL cell hover cursor and modifier-click open foundation | Started | Browser hover-state verification |
+| FR-003/004 | Auto-fit column width after edits | Started | Browser cell-panel edit verification |
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
 | FR-004 | Undo/redo and row/column insert/delete/move/hide foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |
 | FR-004/016 | Multi-cell selection, batch edit, and selection aggregation foundation | Started | `/api/edit-batch`, `pkg/document` and `pkg/appserver` tests, Browser verification |
@@ -129,6 +130,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Value checklist filter verification on `/tmp/opencsv-value-filter.csv`: clicking the `segment` column menu loads values `A (2)`, `B (2)`, `C (1)`, and `(blank) (1)`; checking `A` and `B` enables `Apply selected values`; applying reports `Value filter segment matched 4 rows` and keeps the selected column on `segment`.
 - Visual condition filter verification on `/tmp/opencsv-condition-filter.csv`: opening Builder, selecting `score greater or equal 9`, and applying generates `where "score" >= 9` and reports `Condition filter matched 2 rows`; selecting `note is blank` disables the Value input, generates `where "note" = ''`, and reports `Condition filter matched 1 rows`.
 - SQL result copy/export verification on `/tmp/opencsv-sql-result-export.csv`: running `SELECT name, score FROM current ORDER BY score DESC LIMIT 2` enables Copy CSV and Export CSV, stores the generated CSV preview `name,score\nGrace,10\nAda,9`, and exports to `opencsv-sql-result-export.sql-result.csv`.
+- Auto-fit edit verification on `/tmp/opencsv-autofit-edit.csv`: editing `note` through the Cell Value panel from `short` to `very long auto fit note value for smoothcsv parity verification` expands the column-width hook from `92,100` to `92,420`, records `1:100>420`, keeps the panel synchronized with the edited value, and reports `Cell edited`.
 
 ## Implementation Notes
 
@@ -163,6 +165,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
 - Frontend grid now draws the sticky header on the main canvas instead of a second overlay canvas, removing header/body layer desynchronization during wheel scrolling.
 - Frontend grid now distinguishes source-missing cells in ragged rows from real blank cells by painting missing cell interiors with the grid canvas background before drawing separators.
+- Frontend grid auto-fits edited visible columns by measuring header/type/body text, expands up to a bounded max width, persists the visible/source column width together, and uses a stricter small-file window-cache guard so edit refreshes do not regress to stale values.
 - Frontend column headers expose a quick menu for replacing the active sort, appending secondary sort keys, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
 - Sort keys now carry an explicit mode. The backend supports `auto`, `number`, `date`, `length`, and `text`, normalizes full-width numeric glyphs for number/date sorting, and the column menu exposes length-based sorting.
 - `pkg/document` stores `ReadOnly` session state plus last-known file size/mod time, rejects write operations while read-only, exposes file-status checks, and can refresh a clean document from disk.
@@ -191,7 +194,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace supports current/all, regex/case/whole-cell modes, and search-within-selection. Replace preview is still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
-- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
+- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, auto-fit on edits, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
 - Clipboard support is implemented as a foundation, including copy formats, SQL-result CSV copy/export, and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.

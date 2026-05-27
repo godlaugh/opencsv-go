@@ -108,6 +108,9 @@ const rowHeight = 28;
 const headerHeight = 36;
 const rowNumberWidth = 58;
 const windowSize = 160;
+const minColumnWidth = 92;
+const maxColumnWidth = 420;
+const autoFitColumnWidthOnEdit = true;
 const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
@@ -325,6 +328,7 @@ function draw() {
   const modeLabel = readOnly ? " - read-only" : "";
   const externalLabel = externalFileChanged ? " - external change" : "";
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
+  document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
   status.textContent =
     documentId
       ? `${totalRows.toLocaleString()} rows, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
@@ -1774,6 +1778,8 @@ function setSelectionValue(value) {
     }
     rows.set(row, record);
   }
+  autoFitColumnsForEdits(edits);
+  syncCellValueAfterEdit();
   submitCellEdits(edits, range.startRow, `${formatCount(edits.length)} cells edited`);
 }
 
@@ -1788,8 +1794,11 @@ function setActiveCellValue(value) {
   rows.set(selected.row, record);
   selectionAnchor = { ...selected };
   cellValueInputDirty = false;
+  const edit = { row: rowSource.get(selected.row) ?? selected.row + dataStartRow, col: sourceCol, value };
+  autoFitColumnsForEdits([edit]);
+  syncCellValueAfterEdit();
   submitCellEdits(
-    [{ row: rowSource.get(selected.row) ?? selected.row + dataStartRow, col: sourceCol, value }],
+    [edit],
     selected.row,
     "Cell edited",
   );
@@ -1799,6 +1808,72 @@ function ensureEditable(action) {
   if (!readOnly) return true;
   status.textContent = `${action} blocked: document is read-only`;
   return false;
+}
+
+function autoFitColumnsForEdits(edits) {
+  if (!autoFitColumnWidthOnEdit || !edits.length || columns.length === 0) return;
+  const valuesBySourceCol = new Map();
+  for (const edit of edits) {
+    if (edit.col == null) continue;
+    if (!valuesBySourceCol.has(edit.col)) valuesBySourceCol.set(edit.col, []);
+    valuesBySourceCol.get(edit.col).push(edit.value);
+  }
+  const changed = [];
+  for (const [sourceCol, values] of valuesBySourceCol.entries()) {
+    const visibleCol = columns.findIndex((column) => column.sourceCol === sourceCol);
+    if (visibleCol < 0) continue;
+    const column = columns[visibleCol];
+    const desiredWidth = autoFitColumnWidth(column, values);
+    if (desiredWidth <= column.width) continue;
+    const previousWidth = column.width;
+    column.width = desiredWidth;
+    const sourceColumn = allColumns.find((candidate) => candidate.sourceCol === sourceCol);
+    if (sourceColumn) sourceColumn.width = desiredWidth;
+    changed.push(`${sourceCol}:${Math.round(previousWidth)}>${Math.round(desiredWidth)}`);
+  }
+  if (changed.length) {
+    document.body.dataset.autoFitColumnWidths = changed.join(",");
+  }
+}
+
+function autoFitColumnWidth(column, values) {
+  const headerWidth = measuredTextWidth(column.name, "600 12px Inter, system-ui, sans-serif") + 38;
+  const typeWidth = measuredTextWidth(column.type ?? "string", "600 11px Inter, system-ui, sans-serif") + 16;
+  const bodyWidth = Math.max(
+    0,
+    ...values.map(
+      (value) =>
+        longestLineWidth(
+          value,
+          "13px ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace",
+        ) + 24,
+    ),
+  );
+  return Math.max(
+    minColumnWidth,
+    Math.min(maxColumnWidth, Math.ceil(Math.max(headerWidth, typeWidth, bodyWidth))),
+  );
+}
+
+function longestLineWidth(value, font) {
+  const lines = String(value ?? "").split(/\r\n|\r|\n/);
+  return Math.max(0, ...lines.map((line) => measuredTextWidth(line, font)));
+}
+
+function measuredTextWidth(value, font) {
+  ctx.save();
+  ctx.font = font;
+  const width = ctx.measureText(String(value ?? "")).width;
+  ctx.restore();
+  return width;
+}
+
+function syncCellValueAfterEdit() {
+  if (!documentId) return;
+  cellValueInput.value = valueAt(selected.row, selected.col);
+  cellValueInputKey = selectedCellKey();
+  cellValueInputDirty = false;
+  applyCellValueButton.disabled = true;
 }
 
 function applyCellValue() {
@@ -2256,6 +2331,8 @@ function pasteMatrix(matrix) {
     col: Math.min(columns.length - 1, startCol + Math.max(...matrix.map((row) => row.length), 1) - 1),
   };
   selectionAnchor = { row: startRow, col: startCol };
+  autoFitColumnsForEdits(edits);
+  syncCellValueAfterEdit();
   submitCellEdits(edits, startRow, `Pasted ${formatCount(edits.length)} cells`);
 }
 
@@ -2505,14 +2582,17 @@ function buildColumns(document) {
   return Array.from({ length: columnCount }, (_, index) => ({
     name: hasHeader && first[index] ? first[index] : `Column ${index + 1}`,
     sourceCol: index,
-    width: Math.max(92, Math.min(240, String(first[index] ?? "").length * 9 + 64)),
+    width: Math.max(minColumnWidth, Math.min(240, String(first[index] ?? "").length * 9 + 64)),
     type: index === 0 ? "mixed" : "string",
   }));
 }
 
 async function maybeLoadWindow(row) {
   if (!documentId || loadingWindow) return;
-  if (row >= windowStart && row < windowEnd - 20) return;
+  if (row >= windowStart && row < windowEnd) {
+    const nearWindowEnd = row >= windowEnd - 20;
+    if (!nearWindowEnd || windowEnd >= totalRows) return;
+  }
   loadingWindow = true;
   const generation = windowGeneration;
   const displayStart = Math.max(0, row - 20);
