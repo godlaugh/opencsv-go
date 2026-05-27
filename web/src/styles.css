@@ -388,6 +388,31 @@ button:disabled {
   border-radius: 6px;
 }
 
+.diff-text-toggle {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diff-text-source {
+  min-height: 90px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font:
+    13px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.diff-text-source[hidden] {
+  display: none;
+}
+
 #runSqlButton,
 #runDiffButton {
   height: 34px;

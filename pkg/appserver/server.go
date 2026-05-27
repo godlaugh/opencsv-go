@@ -623,6 +623,8 @@ func (server *Server) handleViewClear(w http.ResponseWriter, r *http.Request) {
 type diffRequest struct {
 	LeftPath           string `json:"leftPath"`
 	RightPath          string `json:"rightPath"`
+	RightText          string `json:"rightText"`
+	RightLabel         string `json:"rightLabel"`
 	MaxRows            int    `json:"maxRows"`
 	IgnoreWhitespace   bool   `json:"ignoreWhitespace"`
 	IgnoreCase         bool   `json:"ignoreCase"`
@@ -643,8 +645,8 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if request.LeftPath == "" || request.RightPath == "" {
-		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath are required"))
+	if request.LeftPath == "" || (request.RightPath == "" && request.RightText == "") {
+		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath or rightText are required"))
 		return
 	}
 	if request.LeftPath == "-" || request.RightPath == "-" {
@@ -654,13 +656,20 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	if request.MaxRows <= 0 {
 		request.MaxRows = 500
 	}
-	result, err := csvdiff.CompareFiles(request.LeftPath, request.RightPath, csvdiff.Options{
+	options := csvdiff.Options{
 		MaxRows:            request.MaxRows,
 		IgnoreWhitespace:   request.IgnoreWhitespace,
 		IgnoreCase:         request.IgnoreCase,
 		IgnoredColumns:     request.IgnoredColumns,
 		MatchColumnsByName: request.MatchColumnsByName,
-	})
+	}
+	var result csvdiff.Result
+	var err error
+	if request.RightText != "" {
+		result, err = csvdiff.CompareFileToText(request.LeftPath, request.RightLabel, request.RightText, options)
+	} else {
+		result, err = csvdiff.CompareFiles(request.LeftPath, request.RightPath, options)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -674,15 +683,15 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if request.LeftPath == "" || request.RightPath == "" {
-		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath are required"))
+	if request.LeftPath == "" || (request.RightPath == "" && request.RightText == "") {
+		writeError(w, http.StatusBadRequest, errors.New("leftPath and rightPath or rightText are required"))
 		return
 	}
 	if request.LeftPath == "-" || request.RightPath == "-" {
 		writeError(w, http.StatusBadRequest, errors.New("diff merge does not support stdin"))
 		return
 	}
-	result, err := csvdiff.MergeRightToLeft(request.LeftPath, request.RightPath, csvdiff.MergeOptions{
+	options := csvdiff.MergeOptions{
 		DiffOptions: csvdiff.Options{
 			IgnoreWhitespace:   request.IgnoreWhitespace,
 			IgnoreCase:         request.IgnoreCase,
@@ -692,7 +701,14 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 		ResultIndex: request.ResultIndex,
 		Mode:        csvdiff.MergeMode(request.Mode),
 		Col:         request.Col,
-	})
+	}
+	var result csvdiff.MergeResult
+	var err error
+	if request.RightText != "" {
+		result, err = csvdiff.MergeRightTextToLeft(request.LeftPath, request.RightLabel, request.RightText, options)
+	} else {
+		result, err = csvdiff.MergeRightToLeft(request.LeftPath, request.RightPath, options)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

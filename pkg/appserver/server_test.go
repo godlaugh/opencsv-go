@@ -512,6 +512,27 @@ func TestServerDiffOptions(t *testing.T) {
 	}
 }
 
+func TestServerDiffRightText(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff", map[string]any{
+		"leftPath":   left,
+		"rightText":  "id,name\n1,Ada\n2,Linux\n3,Grace\n",
+		"rightLabel": "clipboard",
+	})
+	summary := payload["summary"].(map[string]any)
+	if summary["changed"].(float64) != 1 || summary["added"].(float64) != 1 {
+		t.Fatalf("unexpected text diff summary: %#v", summary)
+	}
+	if payload["rightPath"] != "clipboard" {
+		t.Fatalf("rightPath = %#v", payload["rightPath"])
+	}
+}
+
 func TestServerDiffMerge(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")
@@ -539,6 +560,33 @@ func TestServerDiffMerge(t *testing.T) {
 	}
 	if string(bytes) != "id,name\n1,Linux\n" {
 		t.Fatalf("merged file = %q", string(bytes))
+	}
+}
+
+func TestServerDiffMergeRightText(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff-merge", map[string]any{
+		"leftPath":    left,
+		"rightText":   "id,name\n1,Ada\n2,Linux\n",
+		"rightLabel":  "clipboard",
+		"resultIndex": 2,
+		"mode":        "cell",
+		"col":         2,
+	})
+	if payload["applied"] != "cell" {
+		t.Fatalf("unexpected text merge payload: %#v", payload)
+	}
+	bytes, err := os.ReadFile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Ada\n2,Linux\n" {
+		t.Fatalf("merged text file = %q", string(bytes))
 	}
 }
 

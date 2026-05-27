@@ -60,6 +60,8 @@ const diffMatchHeaders = document.querySelector("#diffMatchHeaders");
 const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
 const diffPrevButton = document.querySelector("#diffPrevButton");
 const diffNextButton = document.querySelector("#diffNextButton");
+const diffRightTextMode = document.querySelector("#diffRightTextMode");
+const diffRightText = document.querySelector("#diffRightText");
 const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
@@ -2461,8 +2463,9 @@ function openDiffPanel() {
 async function runDiffCompare() {
   const leftPath = leftDiffPath.value.trim();
   const rightPath = rightDiffPath.value.trim();
-  if (!leftPath || !rightPath) {
-    status.textContent = "Choose left and right CSV paths to compare.";
+  const rightText = diffRightTextMode.checked ? diffRightText.value : "";
+  if (!leftPath || (!rightPath && !rightText)) {
+    status.textContent = "Choose left CSV and right CSV path or text to compare.";
     return;
   }
   status.textContent = "Comparing files...";
@@ -2471,7 +2474,9 @@ async function runDiffCompare() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       leftPath,
-      rightPath,
+      rightPath: diffRightTextMode.checked ? "" : rightPath,
+      rightText,
+      rightLabel: diffRightTextMode.checked ? "text" : "",
       maxRows: 1000,
       ...currentDiffOptions(),
     }),
@@ -2618,14 +2623,17 @@ function appendDiffActions(container, row, resultIndex) {
 async function mergeDiffChange(resultIndex, mode, col) {
   const leftPath = leftDiffPath.value.trim();
   const rightPath = rightDiffPath.value.trim();
-  if (!leftPath || !rightPath) return;
+  const rightText = diffRightTextMode.checked ? diffRightText.value : "";
+  if (!leftPath || (!rightPath && !rightText)) return;
   status.textContent = "Applying diff change...";
   const response = await fetch("/api/diff-merge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       leftPath,
-      rightPath,
+      rightPath: diffRightTextMode.checked ? "" : rightPath,
+      rightText,
+      rightLabel: diffRightTextMode.checked ? "text" : "",
       resultIndex,
       mode,
       col,
@@ -3016,15 +3024,19 @@ async function openInitialURLTarget() {
   const params = new URLSearchParams(window.location.search);
   const diffLeft = params.get("diffLeft");
   const diffRight = params.get("diffRight");
-  if (diffLeft || diffRight) {
+  const diffText = params.get("diffRightText");
+  if (diffLeft || diffRight || diffText) {
     leftDiffPath.value = diffLeft ?? "";
     rightDiffPath.value = diffRight ?? "";
+    diffRightTextMode.checked = diffText != null;
+    diffRightText.hidden = !diffRightTextMode.checked;
+    diffRightText.value = diffText ?? "";
     diffIgnoreCase.checked = truthyParam(params.get("diffIgnoreCase"));
     diffIgnoreWhitespace.checked = truthyParam(params.get("diffIgnoreWhitespace"));
     diffMatchHeaders.checked = truthyParam(params.get("diffMatchHeaders"));
     diffIgnoredColumns.value = params.get("diffIgnoredColumns") ?? "";
     openDiffPanel();
-    if (truthyParam(params.get("diffRun")) && diffLeft && diffRight) {
+    if (truthyParam(params.get("diffRun")) && diffLeft && (diffRight || diffText)) {
       await runDiffCompare();
     }
     return;
@@ -3070,6 +3082,10 @@ diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);
 diffPrevButton.addEventListener("click", () => navigateDiff(-1));
 diffNextButton.addEventListener("click", () => navigateDiff(1));
+diffRightTextMode.addEventListener("change", () => {
+  diffRightText.hidden = !diffRightTextMode.checked;
+  if (diffRightTextMode.checked) diffRightText.focus();
+});
 for (const input of [leftDiffPath, rightDiffPath]) {
   input.addEventListener("keydown", async (event) => {
     if (event.key === "Enter") {

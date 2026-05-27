@@ -149,6 +149,29 @@ func ReadAllRecords(path string, metadata FileMetadata) ([][]string, error) {
 	return records, nil
 }
 
+func ParseRecordsFromUTF8(input []byte, dialect Dialect) ([][]string, error) {
+	reader := csv.NewReader(bytes.NewReader(input))
+	reader.Comma = dialect.Delimiter
+	reader.FieldsPerRecord = -1
+	reader.LazyQuotes = true
+
+	var records [][]string
+	for {
+		record, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(records) == 0 && len(record) > 0 && dialect.UTF8BOM {
+			record[0] = strings.TrimPrefix(record[0], "\ufeff")
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
 func previewRecordsFromSample(sample []byte, dialect Dialect, maxRows int) ([][]string, error) {
 	reader := csv.NewReader(bytes.NewReader(sample))
 	reader.Comma = dialect.Delimiter

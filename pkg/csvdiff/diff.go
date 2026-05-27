@@ -104,6 +104,23 @@ func CompareFiles(leftPath string, rightPath string, options Options) (Result, e
 	return CompareRecords(leftPath, rightPath, leftRecords, rightRecords, options), nil
 }
 
+func CompareFileToText(leftPath string, rightLabel string, rightText string, options Options) (Result, error) {
+	leftDoc, leftRecords, err := readPathRecords(leftPath, options)
+	if err != nil {
+		return Result{}, err
+	}
+	rightRecords, err := parseTextRecords(rightText)
+	if err != nil {
+		return Result{}, err
+	}
+	if rightLabel == "" {
+		rightLabel = "text"
+	}
+	result := CompareRecords(leftPath, rightLabel, leftRecords, rightRecords, options)
+	result.LeftPath = leftDoc.Metadata.Path
+	return result, nil
+}
+
 func CompareRecords(leftPath string, rightPath string, leftRecords [][]string, rightRecords [][]string, options Options) Result {
 	displayLeft, displayRight := displayRecords(leftRecords, rightRecords, options)
 	compareLeft := comparableRecords(displayLeft, options)
@@ -131,23 +148,55 @@ func CompareRecords(leftPath string, rightPath string, leftRecords [][]string, r
 }
 
 func MergeRightToLeft(leftPath string, rightPath string, options MergeOptions) (MergeResult, error) {
-	leftDoc, err := csvcore.OpenDocument(leftPath, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+	leftDoc, leftRecords, err := readPathRecords(leftPath, options.DiffOptions)
 	if err != nil {
 		return MergeResult{}, err
 	}
-	rightDoc, err := csvcore.OpenDocument(rightPath, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+	_, rightRecords, err := readPathRecords(rightPath, options.DiffOptions)
 	if err != nil {
 		return MergeResult{}, err
 	}
-	leftRecords, err := csvcore.ReadAllRecords(leftPath, leftDoc.Metadata)
+	return mergeRightRecordsToLeft(leftPath, rightPath, leftDoc, leftRecords, rightRecords, options)
+}
+
+func MergeRightTextToLeft(leftPath string, rightLabel string, rightText string, options MergeOptions) (MergeResult, error) {
+	leftDoc, leftRecords, err := readPathRecords(leftPath, options.DiffOptions)
 	if err != nil {
 		return MergeResult{}, err
 	}
-	rightRecords, err := csvcore.ReadAllRecords(rightPath, rightDoc.Metadata)
+	rightRecords, err := parseTextRecords(rightText)
 	if err != nil {
 		return MergeResult{}, err
 	}
-	result := CompareRecords(leftPath, rightPath, leftRecords, rightRecords, options.DiffOptions)
+	if rightLabel == "" {
+		rightLabel = "text"
+	}
+	return mergeRightRecordsToLeft(leftPath, rightLabel, leftDoc, leftRecords, rightRecords, options)
+}
+
+func readPathRecords(path string, options Options) (csvcore.Document, [][]string, error) {
+	if options.PreviewRows <= 0 {
+		options.PreviewRows = 50
+	}
+	doc, err := csvcore.OpenDocument(path, csvcore.OpenOptions{PreviewRows: options.PreviewRows, IndexRows: -1})
+	if err != nil {
+		return csvcore.Document{}, nil, err
+	}
+	records, err := csvcore.ReadAllRecords(path, doc.Metadata)
+	if err != nil {
+		return csvcore.Document{}, nil, err
+	}
+	return doc, records, nil
+}
+
+func parseTextRecords(text string) ([][]string, error) {
+	input := []byte(text)
+	dialect := csvcore.Sniff(input)
+	return csvcore.ParseRecordsFromUTF8(input, dialect)
+}
+
+func mergeRightRecordsToLeft(leftPath string, rightLabel string, leftDoc csvcore.Document, leftRecords [][]string, rightRecords [][]string, options MergeOptions) (MergeResult, error) {
+	result := CompareRecords(leftPath, rightLabel, leftRecords, rightRecords, options.DiffOptions)
 	if options.ResultIndex < 0 || options.ResultIndex >= len(result.Rows) {
 		return MergeResult{}, errors.New("diff result index is out of range")
 	}

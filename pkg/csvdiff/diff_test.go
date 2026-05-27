@@ -84,6 +84,48 @@ func TestCompareFilesReadsCSV(t *testing.T) {
 	}
 }
 
+func TestCompareFileToText(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := CompareFileToText(left, "clipboard", "id,name\n1,Ada\n2,Linux\n3,Grace\n", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RightPath != "clipboard" {
+		t.Fatalf("right path = %q", result.RightPath)
+	}
+	if result.Summary.Changed != 1 || result.Summary.Added != 1 {
+		t.Fatalf("unexpected summary: %#v", result.Summary)
+	}
+}
+
+func TestMergeRightTextToLeft(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := MergeRightTextToLeft(left, "clipboard", "id,name\n1,Ada\n2,Linux\n", MergeOptions{
+		ResultIndex: 2,
+		Mode:        MergeCell,
+		Col:         2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := os.ReadFile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Ada\n2,Linux\n" {
+		t.Fatalf("merged text result = %q", string(bytes))
+	}
+}
+
 func TestCompareRecordsCanLimitRows(t *testing.T) {
 	result := CompareRecords("", "", [][]string{{"a"}, {"b"}}, [][]string{{"a"}, {"c"}}, Options{MaxRows: 1})
 	if !result.Truncated {
