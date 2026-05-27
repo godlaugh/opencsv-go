@@ -553,6 +553,46 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerExportView(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "export.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,9\n2,Linus,7\n3,Grace,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"query":      "Ada",
+	})
+
+	response := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId": documentID,
+		"columns":    []int{0, 2},
+	})
+	if response.Code != http.StatusOK {
+		t.Fatalf("export status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("X-Opencsv-Rows"); got != "1" {
+		t.Fatalf("export rows header = %q, want 1", got)
+	}
+	if got := response.Header().Get("X-Opencsv-Columns"); got != "2" {
+		t.Fatalf("export columns header = %q, want 2", got)
+	}
+	if got := response.Header().Get("X-Opencsv-Filename"); got != "export.view.csv" {
+		t.Fatalf("export filename = %q, want export.view.csv", got)
+	}
+	if got := response.Body.String(); got != "id,score\n1,9\n" {
+		t.Fatalf("export body = %q", got)
+	}
+}
+
 func TestServerFindSelectionScope(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "find-selection.csv")

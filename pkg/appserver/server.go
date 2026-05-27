@@ -67,6 +67,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/cells/join", server.handleJoinCells)
 	server.mux.HandleFunc("POST /api/cells/split", server.handleSplitCells)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
+	server.mux.HandleFunc("POST /api/export-view", server.handleExportView)
 	server.mux.HandleFunc("POST /api/find", server.handleFind)
 	server.mux.HandleFunc("POST /api/replace", server.handleReplace)
 	server.mux.HandleFunc("POST /api/filter", server.handleFilter)
@@ -257,6 +258,11 @@ func (server *Server) handleEditBatch(w http.ResponseWriter, r *http.Request) {
 
 type documentRequest struct {
 	DocumentID string `json:"documentId"`
+}
+
+type exportViewRequest struct {
+	DocumentID string `json:"documentId"`
+	Columns    []int  `json:"columns,omitempty"`
 }
 
 type rowMutationRequest struct {
@@ -580,6 +586,36 @@ func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleExportView(w http.ResponseWriter, r *http.Request) {
+	var request exportViewRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.DocumentID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("documentId is required"))
+		return
+	}
+	result, err := server.documents.ExportView(request.DocumentID, docstore.ExportViewOptions{Columns: request.Columns})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	contentType := "text/csv; charset=utf-8"
+	if result.Delimiter == '\t' {
+		contentType = "text/tab-separated-values; charset=utf-8"
+	}
+	filename := strings.ReplaceAll(result.Filename, `"`, "")
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("X-Opencsv-Filename", filename)
+	w.Header().Set("X-Opencsv-Rows", strconv.Itoa(result.Rows))
+	w.Header().Set("X-Opencsv-Columns", strconv.Itoa(result.Columns))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(result.Data)
 }
 
 type findRequest struct {

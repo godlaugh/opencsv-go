@@ -33,7 +33,7 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 		}
 	}
 
-	utf8Bytes, err := encodeCSVRecords(records, metadata)
+	utf8Bytes, err := EncodeRecords(records, metadata)
 	if err != nil {
 		return SaveResult{}, err
 	}
@@ -58,7 +58,9 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 	return SaveResult{Path: path, BackupPath: backupPath, SizeBytes: info.Size()}, nil
 }
 
-func encodeCSVRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
+// EncodeRecords formats records as UTF-8 text using the document dialect and
+// line-ending policy. It does not apply the original file encoding or BOM.
+func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)
 	writer.Comma = metadata.Dialect.Delimiter

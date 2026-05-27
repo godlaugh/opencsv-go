@@ -10,6 +10,7 @@ flowchart LR
   Core --> Index["Row offset index"]
   Core --> Profile["Type and quality profile"]
   Core --> Query["Query engine"]
+  Core --> Export["View export"]
   Core --> RPC["Local RPC boundary"]
   RPC --> Grid["Canvas grid UI"]
   RPC --> Shell["Desktop shell"]
@@ -20,6 +21,7 @@ flowchart LR
 - First screen fast: parse enough to show data, then continue indexing in the background.
 - Raw fidelity: preserve delimiter, quoting, BOM, encoding, and line endings unless the user asks to normalize.
 - Typed views: types help filtering and SQL, but raw cell values remain available.
+- Active views are explicit state: an empty filter result must remain distinct from no filter.
 - Cancelable work: indexing, profiling, sorting, and querying must be cancellable.
 - Narrow UI boundary: frontend asks for windows of cells, column metadata, and operations; it does not own parsing.
 
@@ -30,7 +32,10 @@ flowchart LR
 - `Sniff`: delimiter, BOM, column count, and header heuristics.
 - `OpenPreview`: first-screen records without whole-file load.
 - `BuildRowIndex`: record start byte offsets using `encoding/csv.Reader.InputOffset`.
+- `EncodeRecords`: UTF-8 CSV/TSV serialization using source dialect and line-ending policy.
 - `GenerateSynthetic`: deterministic benchmark data.
+
+`pkg/document` currently owns session view state, edit overlays, undo/redo snapshots, visible row windows, filtering/sorting, and current-view export. `ViewActive` intentionally separates an empty active view from the unfiltered full table so filters, windows, and exports agree on row counts.
 
 Planned packages:
 

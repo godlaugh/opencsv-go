@@ -19,6 +19,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 	for _, required := range []string{
 		"file.open",
 		"file.save",
+		"file.exportView",
 		"file.toggleReadOnly",
 		"workbench.toggleTheme",
 		"edit.copyWithHeaders",

@@ -134,6 +134,67 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 }
 
+func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "export.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,9\n2,Linus,7\n3,Grace,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "export.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Edit(session.ID, 2, 1, "Linux"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.FilterValues(session.ID, ValueFilterOptions{Column: 1, Values: []string{"Ada", "Grace"}}); err != nil {
+		t.Fatal(err)
+	}
+	filtered, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{0, 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filtered.Rows != 2 || filtered.Columns != 2 {
+		t.Fatalf("filtered export counts = rows %d cols %d, want 2/2", filtered.Rows, filtered.Columns)
+	}
+	if string(filtered.Data) != "id,score\n1,9\n3,10\n" {
+		t.Fatalf("filtered export = %q", string(filtered.Data))
+	}
+	if _, err := manager.FilterValues(session.ID, ValueFilterOptions{Column: 1, Values: []string{"Nobody"}}); err != nil {
+		t.Fatal(err)
+	}
+	emptyWindow, err := manager.Window(session.ID, 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyWindow.TotalRows != 0 || len(emptyWindow.Rows) != 0 {
+		t.Fatalf("empty filtered window = %#v, want zero rows", emptyWindow)
+	}
+	empty, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{0, 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty.Rows != 0 || string(empty.Data) != "id,name\n" {
+		t.Fatalf("empty export rows=%d data=%q, want header only", empty.Rows, string(empty.Data))
+	}
+
+	if _, err := manager.Sort(session.ID, SortOptions{Column: 2, Descending: true, Numeric: true, HasHeader: true}); err != nil {
+		t.Fatal(err)
+	}
+	sorted, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(sorted.Data) != "name\nGrace\nAda\nLinux\n" {
+		t.Fatalf("sorted export = %q", string(sorted.Data))
+	}
+	if sorted.Filename != "export.view.csv" {
+		t.Fatalf("export filename = %q, want export.view.csv", sorted.Filename)
+	}
+}
+
 func TestManagerSortMultipleColumns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "multi-sort.csv")

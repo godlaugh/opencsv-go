@@ -37,6 +37,7 @@ const findWholeButton = document.querySelector("#findWholeButton");
 const findRegexButton = document.querySelector("#findRegexButton");
 const findSelectionButton = document.querySelector("#findSelectionButton");
 const diffButton = document.querySelector("#diffButton");
+const exportButton = document.querySelector("#exportButton");
 const saveButton = document.querySelector("#saveButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
 const commandButtons = Array.from(document.querySelectorAll("[data-command]"));
@@ -366,6 +367,8 @@ function applyCommandMetadata() {
       button.textContent = "Read Only";
     } else if (button.dataset.command === "diff.open") {
       button.textContent = "Compare";
+    } else if (button.dataset.command === "file.exportView") {
+      button.textContent = "Export";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -793,6 +796,9 @@ async function executeCommand(commandID) {
       break;
     case "file.save":
       await saveCurrentDocument();
+      break;
+    case "file.exportView":
+      await exportCurrentView();
       break;
     case "file.toggleReadOnly":
       await toggleReadOnly();
@@ -1678,6 +1684,60 @@ async function copySelection(format = "tsv", options = {}) {
   } catch (error) {
     status.textContent = `Copy failed: ${error.message}`;
   }
+}
+
+async function exportCurrentView() {
+  if (!documentId) return;
+  const visibleColumns = columns.map((column) => column.sourceCol);
+  const response = await fetch("/api/export-view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, columns: visibleColumns }),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    status.textContent = `Export failed: ${errorFromResponseText(text)}`;
+    return;
+  }
+
+  const filename =
+    filenameFromDisposition(response.headers.get("Content-Disposition")) ||
+    response.headers.get("X-Opencsv-Filename") ||
+    "opencsv.view.csv";
+  const contentType = response.headers.get("Content-Type") || "text/csv;charset=utf-8";
+  window.__opencsvLastExportedText = text;
+  document.body.dataset.exportPreview = text.slice(0, 500);
+  triggerDownload(text, filename, contentType);
+  const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
+  const cols = Number(response.headers.get("X-Opencsv-Columns") || visibleColumns.length);
+  status.textContent = `Exported ${formatCount(rows)} rows, ${formatCount(cols)} columns to ${filename}`;
+}
+
+function errorFromResponseText(text) {
+  try {
+    return JSON.parse(text).error ?? "unknown error";
+  } catch {
+    return text.trim() || "unknown error";
+  }
+}
+
+function filenameFromDisposition(disposition) {
+  if (!disposition) return "";
+  const match = disposition.match(/filename="([^"]+)"/i);
+  return match ? match[1] : "";
+}
+
+function triggerDownload(text, filename, contentType) {
+  const blob = new Blob([text], { type: contentType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.hidden = true;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 async function writeClipboardText(text) {
@@ -3868,6 +3928,7 @@ fileInput.addEventListener("change", async () => {
 });
 
 saveButton.addEventListener("click", saveCurrentDocument);
+exportButton.addEventListener("click", exportCurrentView);
 readOnlyButton.addEventListener("click", toggleReadOnly);
 gridTabButton.addEventListener("click", () => setViewMode("grid"));
 sqlTabButton.addEventListener("click", () => {

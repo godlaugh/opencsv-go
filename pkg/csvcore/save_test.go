@@ -60,6 +60,24 @@ func TestSaveRecordsCreatesBackupAndPreservesUTF8BOMAndCRLF(t *testing.T) {
 	}
 }
 
+func TestEncodeRecordsUsesDialectAndLineEnding(t *testing.T) {
+	metadata := FileMetadata{
+		LineEnding: LineEndingInfo{Name: LineEndingCRLF},
+		Dialect:    Dialect{Delimiter: '\t'},
+	}
+	got, err := EncodeRecords([][]string{
+		{"id", "note"},
+		{"1", "has\ttab"},
+	}, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "id\tnote\r\n1\t\"has\ttab\"\r\n"
+	if string(got) != want {
+		t.Fatalf("encoded records = %q, want %q", string(got), want)
+	}
+}
+
 func TestSaveRecordsPreservesUTF16LE(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "utf16.csv")

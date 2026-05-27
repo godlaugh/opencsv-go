@@ -23,6 +23,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy with headers foundation | Started | `pkg/clipboard` tests, command registry, Browser generated-copy verification |
 | FR-013/015 | Toggle header in selection foundation | Started | command registry, Browser shortcut verification |
+| FR-015 | Export current filtered/sorted view | Started | `/api/export-view`, `pkg/document` and `pkg/appserver` tests, Browser toolbar verification |
 | FR-005 | Find text | Started | `/api/find`, toolbar query, Browser verification |
 | FR-005 | Replace current/all foundation | Started | `/api/replace`, `pkg/document` tests, Browser verification |
 | FR-005 | Find/Replace mode toggles | Started | API support, Browser toolbar verification |
@@ -103,6 +104,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Command Palette exposes `Copy`, `Copy as CSV`, `Copy as Markdown`, and `Copy Raw`.
 - Command Palette exposes `Copy as JSON`, `Copy as HTML`, `Copy as SQL`, and `Copy as LaTeX`; Browser verification found exactly one enabled palette result for each after opening `/tmp/opencsv-copy-formats.csv`.
 - Command Palette exposes `Copy with Headers`; Browser verification on `/tmp/opencsv-copy-headers.csv` generated `id\n1` for the selected `id` cell, proving header insertion for the selected column.
+- Export View verification on `/tmp/opencsv-export-view-ui.csv`: hiding the `secret` column, filtering `Ada`, and clicking Export generated `id,name,score\n1,Ada,9\n`, reported `1 rows, 3 columns`, and named the download `opencsv-export-view-ui.view.csv`; filtering `Nobody` then exported header-only `id,name,score\n` with `0 rows, 3 columns`.
 - CLI stdin verification: `printf 'id,name\n1,Ada\n' | opencsv -` reports `path: "-"`, `source: "stdin"`, and previews the piped rows.
 - Theme verification: Command Palette search `theme` shows `Toggle Theme`; executing it cycles into dark mode, sets `data-theme="dark"` and `data-theme-preference="dark"`, changes the grid background variable to `#101616`, and remains dark after reload.
 - Browser plugin clipboard virtualization/focus is unavailable in the current runtime, so system clipboard read/write is not directly verified through Browser; clipboard formatters, generated copy text, paste matrix parsing, and `/api/edit-batch` are covered by automated tests or DOM verification hooks.
@@ -148,6 +150,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/clipboard` supports TSV, CSV, Markdown table, JSON array, HTML table, SQL `VALUES`, LaTeX tabular, raw value serialization, and header-row prepending plus TSV matrix parsing.
 - `pkg/csvcore.RequiresQuote` mirrors the current Go writer's minimal quote behavior for delimiter, quote, CR/LF, and leading whitespace detection.
 - Frontend copy/paste handlers copy selected ranges as TSV and paste tab-separated matrices through `/api/edit-batch`; Command Palette exposes TSV-with-headers and CSV/Markdown/JSON/HTML/SQL/LaTeX/raw copy variants.
+- `/api/export-view` serializes the active view as CSV/TSV using the source dialect and line endings. The frontend sends currently visible source columns, triggers a download, stores a bounded verification preview, and preserves empty-filter state with a distinct view-active flag.
 - Frontend Command Palette searches `/api/commands` metadata with fuzzy scoring, prioritizes recently executed commands, respects document requirements, and dispatches implemented UI handlers for open/save/undo/redo/find/replace/copy formats/row/column insert/delete/move/hide/filter/sort/clear/theme/sql/profile/diff.
 - Frontend theme state supports light, dark, and system preferences, stores the selected preference locally, follows OS color-scheme changes while in system mode, and feeds Canvas grid colors from CSS variables.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
@@ -180,9 +183,9 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace supports current/all, regex/case/whole-cell modes, and search-within-selection. Replace preview is still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
-- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces are still missing.
+- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
-- Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, copy-to-file export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
+- Clipboard support is implemented as a foundation, including copy formats and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, SQL-result export, XLSX export, and explicit copy-format toolbar/context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
 - SQL WHERE row filter is implemented as a useful subset, but not yet complete for every documented type/function edge case.
 - SQL console is implemented as a useful subset, including basic aggregation and local query history, but it is not yet fully SQLite-compatible and does not yet support joins, subqueries, expression projection, or HAVING.

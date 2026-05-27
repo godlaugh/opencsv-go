@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -37,6 +38,7 @@ type Session struct {
 	Document                 csvcore.Document  `json:"document"`
 	Edits                    map[Cell]string   `json:"-"`
 	ViewRows                 []int             `json:"-"`
+	ViewActive               bool              `json:"-"`
 	UndoStack                []historySnapshot `json:"-"`
 	RedoStack                []historySnapshot `json:"-"`
 	Dirty                    bool              `json:"dirty"`
@@ -47,10 +49,11 @@ type Session struct {
 }
 
 type historySnapshot struct {
-	Records  [][]string
-	Metadata csvcore.FileMetadata
-	Dirty    bool
-	ViewRows []int
+	Records    [][]string
+	Metadata   csvcore.FileMetadata
+	Dirty      bool
+	ViewRows   []int
+	ViewActive bool
 }
 
 type FileStatus struct {
@@ -120,7 +123,7 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 		count = 80
 	}
 
-	if len(session.ViewRows) == 0 {
+	if !session.ViewActive {
 		window, err := csvcore.ReadRecordWindow(session.WorkingPath, session.Document.Metadata, start, count)
 		if err != nil {
 			return csvcore.RecordWindow{}, err
@@ -139,6 +142,9 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
 	if err != nil {
 		return csvcore.RecordWindow{}, err
+	}
+	if start > len(session.ViewRows) {
+		start = len(session.ViewRows)
 	}
 	end := min(start+count, len(session.ViewRows))
 	rows := make([][]string, 0, max(0, end-start))
@@ -166,6 +172,56 @@ func (manager *Manager) Records(id string) (*Session, [][]string, error) {
 	}
 	applyEdits(records, 0, session.Edits)
 	return session, records, nil
+}
+
+func (manager *Manager) ExportView(id string, options ExportViewOptions) (ExportViewResult, error) {
+	session, records, err := manager.Records(id)
+	if err != nil {
+		return ExportViewResult{}, err
+	}
+	for _, column := range options.Columns {
+		if column < 0 {
+			return ExportViewResult{}, errors.New("column must be non-negative")
+		}
+	}
+
+	hasHeader := session.Document.Metadata.Dialect.HasHeader && len(records) > 0
+	start := 0
+	if hasHeader {
+		start = 1
+	}
+	viewRows := append([]int(nil), session.ViewRows...)
+	if !session.ViewActive {
+		viewRows = make([]int, 0, max(0, len(records)-start))
+		for row := start; row < len(records); row++ {
+			viewRows = append(viewRows, row)
+		}
+	}
+
+	exportRecords := make([][]string, 0, len(viewRows)+1)
+	if hasHeader {
+		exportRecords = append(exportRecords, projectRecord(records[0], options.Columns))
+	}
+	exportedRows := 0
+	for _, row := range viewRows {
+		if row < start || row >= len(records) {
+			continue
+		}
+		exportRecords = append(exportRecords, projectRecord(records[row], options.Columns))
+		exportedRows++
+	}
+
+	data, err := csvcore.EncodeRecords(exportRecords, session.Document.Metadata)
+	if err != nil {
+		return ExportViewResult{}, err
+	}
+	return ExportViewResult{
+		Filename:  exportViewFilename(session.DisplayName, session.Document.Metadata.Dialect.Delimiter),
+		Data:      data,
+		Rows:      exportedRows,
+		Columns:   exportColumnCount(exportRecords, options.Columns),
+		Delimiter: session.Document.Metadata.Dialect.Delimiter,
+	}, nil
 }
 
 func (manager *Manager) Edit(id string, row int, col int, value string) error {
@@ -211,6 +267,18 @@ type MutationResult struct {
 	TotalRows int      `json:"totalRows"`
 	Dirty     bool     `json:"dirty"`
 	Changed   int      `json:"changed,omitempty"`
+}
+
+type ExportViewOptions struct {
+	Columns []int `json:"columns"`
+}
+
+type ExportViewResult struct {
+	Filename  string
+	Data      []byte
+	Rows      int
+	Columns   int
+	Delimiter rune
 }
 
 func (manager *Manager) Undo(id string) (MutationResult, error) {
@@ -367,7 +435,7 @@ func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
 		return MutationResult{Session: session, TotalRows: visibleRowCount(session, len(records), start), Dirty: session.Dirty}, nil
 	}
 	viewRows := append([]int(nil), session.ViewRows...)
-	if len(viewRows) == 0 {
+	if !session.ViewActive {
 		viewRows = make([]int, 0, max(0, len(records)-start))
 		for sourceRow := start; sourceRow < len(records); sourceRow++ {
 			viewRows = append(viewRows, sourceRow)
@@ -392,6 +460,7 @@ func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
 		return MutationResult{}, errors.New("document not found")
 	}
 	current.ViewRows = append([]int(nil), filtered...)
+	current.ViewActive = true
 	updated := cloneSession(current)
 	manager.mu.Unlock()
 	return MutationResult{Session: updated, TotalRows: len(filtered), Dirty: updated.Dirty, Changed: changed}, nil
@@ -798,6 +867,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		current.Edits = make(map[Cell]string)
 		current.Dirty = false
 		current.ViewRows = nil
+		current.ViewActive = false
 		if openErr == nil {
 			current.Document = refreshed
 			current.WorkingPath = outputPath
@@ -1052,6 +1122,7 @@ func (manager *Manager) FilterContains(id string, options FilterOptions) (int, e
 		return 0, errors.New("document not found")
 	}
 	current.ViewRows = viewRows
+	current.ViewActive = true
 	return len(viewRows), nil
 }
 
@@ -1141,6 +1212,7 @@ func (manager *Manager) FilterValues(id string, options ValueFilterOptions) (int
 		return 0, errors.New("document not found")
 	}
 	current.ViewRows = viewRows
+	current.ViewActive = true
 	return len(viewRows), nil
 }
 
@@ -1187,6 +1259,7 @@ func (manager *Manager) FilterSQL(id string, expression string) (int, error) {
 		return 0, errors.New("document not found")
 	}
 	current.ViewRows = viewRows
+	current.ViewActive = true
 	return len(viewRows), nil
 }
 
@@ -1250,6 +1323,7 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 		return 0, errors.New("document not found")
 	}
 	current.ViewRows = viewRows
+	current.ViewActive = true
 	return len(viewRows), nil
 }
 
@@ -1447,6 +1521,7 @@ func (manager *Manager) ClearView(id string) (int, error) {
 		return 0, errors.New("document not found")
 	}
 	session.ViewRows = nil
+	session.ViewActive = false
 	return session.Document.RowIndex.Rows, nil
 }
 
@@ -1529,6 +1604,7 @@ func (manager *Manager) Refresh(id string) (*Session, error) {
 	current.Document = refreshed
 	current.Edits = make(map[Cell]string)
 	current.ViewRows = nil
+	current.ViewActive = false
 	current.UndoStack = nil
 	current.RedoStack = nil
 	current.Dirty = false
@@ -1595,10 +1671,11 @@ func snapshotFromSession(session *Session) (historySnapshot, error) {
 	}
 	applyEdits(records, 0, session.Edits)
 	return historySnapshot{
-		Records:  cloneRecords(records),
-		Metadata: session.Document.Metadata,
-		Dirty:    session.Dirty,
-		ViewRows: append([]int(nil), session.ViewRows...),
+		Records:    cloneRecords(records),
+		Metadata:   session.Document.Metadata,
+		Dirty:      session.Dirty,
+		ViewRows:   append([]int(nil), session.ViewRows...),
+		ViewActive: session.ViewActive,
 	}, nil
 }
 
@@ -1613,6 +1690,7 @@ func (manager *Manager) applySnapshot(id string, snapshot historySnapshot, adjus
 		return nil, errors.New("document not found")
 	}
 	session.ViewRows = append([]int(nil), snapshot.ViewRows...)
+	session.ViewActive = snapshot.ViewActive
 	if adjustHistory != nil {
 		adjustHistory(session)
 	}
@@ -1658,6 +1736,7 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 	session.Document = refreshed
 	session.Edits = make(map[Cell]string)
 	session.ViewRows = nil
+	session.ViewActive = false
 	session.Dirty = dirty
 	return cloneSession(session), nil
 }
@@ -1727,10 +1806,11 @@ func cloneHistory(input []historySnapshot) []historySnapshot {
 	output := make([]historySnapshot, len(input))
 	for i, snapshot := range input {
 		output[i] = historySnapshot{
-			Records:  cloneRecords(snapshot.Records),
-			Metadata: snapshot.Metadata,
-			Dirty:    snapshot.Dirty,
-			ViewRows: append([]int(nil), snapshot.ViewRows...),
+			Records:    cloneRecords(snapshot.Records),
+			Metadata:   snapshot.Metadata,
+			Dirty:      snapshot.Dirty,
+			ViewRows:   append([]int(nil), snapshot.ViewRows...),
+			ViewActive: snapshot.ViewActive,
 		}
 	}
 	return output
@@ -1798,7 +1878,7 @@ func moveColumnRecords(records [][]string, from int, to int, width int) [][]stri
 }
 
 func visibleRowCount(session *Session, recordCount int, dataStart int) int {
-	if len(session.ViewRows) > 0 {
+	if session.ViewActive {
 		return len(session.ViewRows)
 	}
 	return max(0, recordCount-dataStart)
@@ -1998,6 +2078,41 @@ func cellValue(record []string, col int) string {
 		return ""
 	}
 	return record[col]
+}
+
+func projectRecord(record []string, columns []int) []string {
+	if len(columns) == 0 {
+		return append([]string(nil), record...)
+	}
+	projected := make([]string, len(columns))
+	for index, column := range columns {
+		projected[index] = cellValue(record, column)
+	}
+	return projected
+}
+
+func exportColumnCount(records [][]string, columns []int) int {
+	if len(columns) > 0 {
+		return len(columns)
+	}
+	return maxRecordWidth(records)
+}
+
+func exportViewFilename(displayName string, delimiter rune) string {
+	base := filepath.Base(displayName)
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		base = "opencsv"
+	}
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" {
+		stem = "opencsv"
+	}
+	targetExt := ".csv"
+	if delimiter == '\t' {
+		targetExt = ".tsv"
+	}
+	return stem + ".view" + targetExt
 }
 
 type matcher struct {
