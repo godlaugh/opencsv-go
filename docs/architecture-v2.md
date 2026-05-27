@@ -123,7 +123,7 @@ flowchart TD
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column mutation, transpose, duplicate-row removal, selected-cell text transforms, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -137,6 +137,7 @@ flowchart TD
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
+  - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
   - Frozen header layer with body clipping.
@@ -349,6 +350,47 @@ Output:
 - updated mutation result.
 - refreshed session and row count.
 
+### Duplicate Rows
+
+`POST /api/dedupe-rows`
+
+Input:
+
+- document ID.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+- changed count for removed duplicate rows.
+
+Rules:
+
+- The detected header row is preserved and excluded from duplicate matching.
+- The mutation is undoable and only marks the document dirty when at least one duplicate row is removed.
+
+### Text Transform
+
+`POST /api/text-transform`
+
+Input:
+
+- document ID.
+- mode: `trim`, `upper`, or `lower`.
+- explicit source cells with zero-based row and column indexes.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+- changed count for cells whose value changed.
+
+Rules:
+
+- Transform commands are read-only-safe: they reject read-only sessions.
+- Duplicate cells in the request are applied once.
+- Empty no-op transforms do not create an undo entry or mark the document dirty.
+
 ### Diff
 
 `POST /api/diff`
@@ -510,6 +552,7 @@ Output:
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns, marks the document dirty, is undoable, and rejects over-limit tables.
+- Duplicate-row removal and selected-cell text transforms are command-backed, undoable materialized mutations.
 - Editing marks dirty.
 - Save clears dirty and creates backup.
 - Profile view shows column metrics and validation issues.

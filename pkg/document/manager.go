@@ -208,6 +208,7 @@ type MutationResult struct {
 	Session   *Session `json:"session"`
 	TotalRows int      `json:"totalRows"`
 	Dirty     bool     `json:"dirty"`
+	Changed   int      `json:"changed,omitempty"`
 }
 
 func (manager *Manager) Undo(id string) (MutationResult, error) {
@@ -371,6 +372,98 @@ func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, erro
 		return MutationResult{}, err
 	}
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty}, nil
+}
+
+type TextTransformMode string
+
+const (
+	TransformTrim  TextTransformMode = "trim"
+	TransformUpper TextTransformMode = "upper"
+	TransformLower TextTransformMode = "lower"
+)
+
+func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+
+	deduped, removed := deduplicateRecords(records, session.Document.Metadata.Dialect.HasHeader)
+	if removed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, deduped, session.Document.Metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: removed}, nil
+}
+
+func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransformMode) (MutationResult, error) {
+	if len(cells) == 0 {
+		return MutationResult{}, errors.New("no cells selected")
+	}
+	transform, err := textTransformFunc(mode)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Col < 0 {
+			return MutationResult{}, errors.New("row and col must be non-negative")
+		}
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+
+	changed := 0
+	seen := make(map[Cell]bool, len(cells))
+	for _, cell := range cells {
+		if seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		if cell.Row >= len(records) {
+			continue
+		}
+		ensureRecordWidth(&records[cell.Row], cell.Col+1)
+		next := transform(records[cell.Row][cell.Col])
+		if next != records[cell.Row][cell.Col] {
+			changed++
+			records[cell.Row][cell.Col] = next
+		}
+	}
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, session.Document.Metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
 }
 
 func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore.SaveResult, error) {
@@ -876,6 +969,19 @@ func compareSortValues(left string, right string, numeric bool) int {
 	return strings.Compare(left, right)
 }
 
+func textTransformFunc(mode TextTransformMode) (func(string) string, error) {
+	switch mode {
+	case TransformTrim:
+		return strings.TrimSpace, nil
+	case TransformUpper:
+		return strings.ToUpper, nil
+	case TransformLower:
+		return strings.ToLower, nil
+	default:
+		return nil, fmt.Errorf("unsupported text transform %q", mode)
+	}
+}
+
 func (manager *Manager) ClearView(id string) (int, error) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -1197,12 +1303,53 @@ func transposeRecords(records [][]string, width int) [][]string {
 	return output
 }
 
+func deduplicateRecords(records [][]string, hasHeader bool) ([][]string, int) {
+	if len(records) == 0 {
+		return records, 0
+	}
+	start := 0
+	deduped := make([][]string, 0, len(records))
+	if hasHeader {
+		start = 1
+		deduped = append(deduped, append([]string(nil), records[0]...))
+	}
+	seen := make(map[string]bool, max(0, len(records)-start))
+	removed := 0
+	for _, record := range records[start:] {
+		key := recordKey(record)
+		if seen[key] {
+			removed++
+			continue
+		}
+		seen[key] = true
+		deduped = append(deduped, record)
+	}
+	return deduped, removed
+}
+
+func recordKey(record []string) string {
+	var builder strings.Builder
+	for _, value := range record {
+		builder.WriteString(strconv.Itoa(len(value)))
+		builder.WriteByte(':')
+		builder.WriteString(value)
+		builder.WriteByte(0)
+	}
+	return builder.String()
+}
+
 func maxRecordWidth(records [][]string) int {
 	width := 0
 	for _, record := range records {
 		width = max(width, len(record))
 	}
 	return width
+}
+
+func ensureRecordWidth(record *[]string, width int) {
+	for len(*record) < width {
+		*record = append(*record, "")
+	}
 }
 
 func applyEdits(records [][]string, start int, edits map[Cell]string) {

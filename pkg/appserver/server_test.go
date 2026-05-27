@@ -226,6 +226,42 @@ func TestServerUndoRedoAndStructuralMutations(t *testing.T) {
 	}
 }
 
+func TestServerDedupeAndTextTransform(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tools.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n1,  Ada \n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	dedupePayload := postJSON(t, handler, "/api/dedupe-rows", map[string]any{"documentId": documentID})
+	if dedupePayload["changed"].(float64) != 1 || dedupePayload["totalRows"].(float64) != 3 {
+		t.Fatalf("dedupe payload = %#v", dedupePayload)
+	}
+	transformPayload := postJSON(t, handler, "/api/text-transform", map[string]any{
+		"documentId": documentID,
+		"mode":       "trim",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+			{"row": 2, "col": 1},
+		},
+	})
+	if transformPayload["changed"].(float64) != 1 {
+		t.Fatalf("transform payload = %#v", transformPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" || rows[2].([]any)[1] != "Linus" {
+		t.Fatalf("rows after transform = %#v", rows)
+	}
+}
+
 func TestServerFindFilterSort(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

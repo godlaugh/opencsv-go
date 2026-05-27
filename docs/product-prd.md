@@ -286,6 +286,8 @@ The app shall support:
 - Insert/delete columns.
 - Move rows/columns.
 - Copy/cut/paste rows and columns.
+- Remove duplicate rows.
+- Transform selected text cells: trim, uppercase, lowercase, and later join/split variants.
 - Undo/redo.
 - Dirty state.
 - Read-only mode that disables editing operations.

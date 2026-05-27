@@ -320,6 +320,91 @@ func TestManagerTransposeUndoAndLimit(t *testing.T) {
 	}
 }
 
+func TestManagerDeduplicateRowsAndUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dupes.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n1,Ada\n2,Linus\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "dupes.csv", csvcore.OpenOptions{PreviewRows: 5, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.DeduplicateRows(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 || result.TotalRows != 3 {
+		t.Fatalf("dedupe result = %#v, want 2 removed and 3 rows", result)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recordsEqual(records, [][]string{{"id", "name"}, {"1", "Ada"}, {"2", "Linus"}}) {
+		t.Fatalf("deduped records = %#v", records)
+	}
+	if _, err := manager.Undo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 5 {
+		t.Fatalf("records after undo dedupe = %#v", records)
+	}
+}
+
+func TestDeduplicateRowsKeepsDistinctRaggedKeys(t *testing.T) {
+	records := [][]string{
+		{"value"},
+		{"a\x00b"},
+		{"a", "b"},
+	}
+	deduped, removed := deduplicateRecords(records, true)
+	if removed != 0 || len(deduped) != len(records) {
+		t.Fatalf("deduped = %#v, removed = %d", deduped, removed)
+	}
+}
+
+func TestManagerTextTransforms(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "text.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "text.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformCells(session.ID, []Cell{{Row: 1, Col: 1}, {Row: 2, Col: 1}}, TransformTrim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("trim changed = %d, want 1", result.Changed)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 1, Col: 1}, {Row: 2, Col: 1}}, TransformUpper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("upper changed = %d, want 2", result.Changed)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "ADA" || records[2][1] != "LINUS" {
+		t.Fatalf("transformed records = %#v", records)
+	}
+}
+
 func TestManagerBatchEditSingleUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

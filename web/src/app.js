@@ -369,7 +369,11 @@ function isCommandDisabled(command) {
       command.id === "row.delete" ||
       command.id === "column.insert" ||
       command.id === "column.delete" ||
-      command.id === "table.transpose"
+      command.id === "table.transpose" ||
+      command.id === "table.dedupeRows" ||
+      command.id === "text.trim" ||
+      command.id === "text.uppercase" ||
+      command.id === "text.lowercase"
     );
   return (
     command.implemented === false ||
@@ -741,6 +745,18 @@ async function executeCommand(commandID) {
       break;
     case "table.transpose":
       await transposeCurrentDocument();
+      break;
+    case "table.dedupeRows":
+      await dedupeRows();
+      break;
+    case "text.trim":
+      await transformSelectedText("trim", "Trim Text");
+      break;
+    case "text.uppercase":
+      await transformSelectedText("upper", "Uppercase Text");
+      break;
+    case "text.lowercase":
+      await transformSelectedText("lower", "Lowercase Text");
       break;
     case "view.filter":
       await filterCurrentQuery();
@@ -1402,13 +1418,19 @@ function applyMutationPayload(payload, message) {
   metadata = document.metadata;
   const previousCol = selected.col;
   const previousRow = selected.row;
+  const previousAnchor = { ...selectionAnchor };
   loadDocument(document);
   dirty = payload.dirty ?? session.dirty ?? true;
+  const maxRow = Math.max(0, totalRows - 1);
+  const maxCol = Math.max(0, columns.length - 1);
   selected = {
-    row: Math.max(0, Math.min(totalRows - 1, previousRow)),
-    col: Math.max(0, Math.min(columns.length - 1, previousCol)),
+    row: Math.max(0, Math.min(maxRow, previousRow)),
+    col: Math.max(0, Math.min(maxCol, previousCol)),
   };
-  selectionAnchor = { ...selected };
+  selectionAnchor = {
+    row: Math.max(0, Math.min(maxRow, previousAnchor.row)),
+    col: Math.max(0, Math.min(maxCol, previousAnchor.col)),
+  };
   updateFileList(session.displayName || fileNameFromPath(detail), detail, totalRows);
   draw();
   status.textContent = message;
@@ -1438,6 +1460,32 @@ function selectedHeaders() {
     headers.push(columns[col]?.name ?? `Column ${col + 1}`);
   }
   return headers;
+}
+
+function selectedCellsForTransform(maxCells = 100_000) {
+  const count = selectionCellCount();
+  if (count === 0) {
+    status.textContent = "Select at least one cell.";
+    return null;
+  }
+  if (count > maxCells) {
+    status.textContent = `Selection has ${formatCount(count)} cells; transform limit is ${formatCount(maxCells)}.`;
+    return null;
+  }
+  const range = normalizedSelection();
+  const cells = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    const sourceRow = rowSource.get(row);
+    if (viewMapped && sourceRow == null) {
+      status.textContent = "Load the selected filtered rows before transforming them.";
+      return null;
+    }
+    const recordRow = sourceRow ?? row + dataStartRow;
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      cells.push({ row: recordRow, col });
+    }
+  }
+  return cells;
 }
 
 function toggleHeaderInSelection() {
@@ -2193,6 +2241,54 @@ async function transposeCurrentDocument() {
   await mutateStructure("/api/transpose", { maxCells: 1_000_000 }, "Transposed table");
 }
 
+async function dedupeRows() {
+  if (!documentId) return;
+  if (!ensureEditable("Remove Duplicate Rows")) return;
+  status.textContent = "Removing duplicate rows...";
+  const response = await fetch("/api/dedupe-rows", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Remove Duplicate Rows failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const removed = payload.changed ?? 0;
+  applyMutationPayload(
+    payload,
+    removed > 0
+      ? `Removed ${formatCount(removed)} duplicate rows`
+      : "No duplicate rows found",
+  );
+}
+
+async function transformSelectedText(mode, label) {
+  if (!documentId) return;
+  if (!ensureEditable(label)) return;
+  const cells = selectedCellsForTransform();
+  if (!cells) return;
+  status.textContent = `${label}...`;
+  const response = await fetch("/api/text-transform", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, mode, cells }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  applyMutationPayload(
+    payload,
+    changed > 0
+      ? `${label}: ${formatCount(changed)} cells changed`
+      : `${label}: no cells changed`,
+  );
+}
+
 async function mutateStructure(endpoint, body, label) {
   if (!documentId) return;
   if (!ensureEditable(label)) return;
@@ -2915,6 +3011,20 @@ function handleGlobalShortcut(event) {
     event.preventDefault();
     toggleHeaderInSelection();
     return true;
+  }
+  if (event.shiftKey && event.altKey && !paletteOpen && !isTypingTarget(event.target)) {
+    const commandIDByKey = {
+      d: "table.dedupeRows",
+      t: "text.trim",
+      u: "text.uppercase",
+      l: "text.lowercase",
+    };
+    const commandID = commandIDByKey[key];
+    if (commandID) {
+      event.preventDefault();
+      executeCommand(commandID);
+      return true;
+    }
   }
   if (primary && event.shiftKey && event.key.toLowerCase() === "p") {
     event.preventDefault();

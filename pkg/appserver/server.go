@@ -57,6 +57,8 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/column/insert", server.handleInsertColumn)
 	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
 	server.mux.HandleFunc("POST /api/transpose", server.handleTranspose)
+	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
+	server.mux.HandleFunc("POST /api/text-transform", server.handleTextTransform)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
 	server.mux.HandleFunc("POST /api/find", server.handleFind)
 	server.mux.HandleFunc("POST /api/replace", server.handleReplace)
@@ -399,6 +401,44 @@ func (server *Server) handleTranspose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.Transpose(request.DocumentID, request.MaxCells)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDedupeRows(w http.ResponseWriter, r *http.Request) {
+	var request documentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.DeduplicateRows(request.DocumentID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+type textTransformRequest struct {
+	DocumentID string          `json:"documentId"`
+	Cells      []docstore.Cell `json:"cells"`
+	Mode       string          `json:"mode"`
+}
+
+func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request) {
+	var request textTransformRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.TransformCells(
+		request.DocumentID,
+		request.Cells,
+		docstore.TextTransformMode(request.Mode),
+	)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
