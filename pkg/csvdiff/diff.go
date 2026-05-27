@@ -2,6 +2,7 @@ package csvdiff
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -23,6 +24,7 @@ type Options struct {
 	IgnoreCase         bool
 	IgnoredColumns     []int
 	MatchColumnsByName bool
+	KeyColumn          string
 }
 
 type Result struct {
@@ -125,8 +127,11 @@ func CompareRecords(leftPath string, rightPath string, leftRecords [][]string, r
 	displayLeft, displayRight := displayRecords(leftRecords, rightRecords, options)
 	compareLeft := comparableRecords(displayLeft, options)
 	compareRight := comparableRecords(displayRight, options)
-	ops := diffOps(compareLeft, compareRight)
-	rows := materializeRows(displayLeft, displayRight, compareLeft, compareRight, ops, options)
+	rows, ok := materializeRowsByKey(leftRecords, rightRecords, displayLeft, displayRight, compareLeft, compareRight, options)
+	if !ok {
+		ops := diffOps(compareLeft, compareRight)
+		rows = materializeRows(displayLeft, displayRight, compareLeft, compareRight, ops, options)
+	}
 	result := Result{LeftPath: leftPath, RightPath: rightPath, Rows: rows}
 	if options.MaxRows > 0 && len(result.Rows) > options.MaxRows {
 		result.Rows = result.Rows[:options.MaxRows]
@@ -354,6 +359,139 @@ func materializeChangeBlock(left [][]string, right [][]string, compareLeft [][]s
 		})
 	}
 	return rows
+}
+
+type keyColumns struct {
+	Left     int
+	Right    int
+	DataFrom int
+}
+
+func materializeRowsByKey(leftRecords [][]string, rightRecords [][]string, displayLeft [][]string, displayRight [][]string, compareLeft [][]string, compareRight [][]string, options Options) ([]RowDiff, bool) {
+	columns, ok := resolveKeyColumns(leftRecords, rightRecords, options)
+	if !ok || !uniqueKeys(leftRecords, columns.Left, columns.DataFrom, options) || !uniqueKeys(rightRecords, columns.Right, columns.DataFrom, options) {
+		return nil, false
+	}
+
+	rightByKey := make(map[string]int, max(0, len(rightRecords)-columns.DataFrom))
+	for rightIndex := columns.DataFrom; rightIndex < len(rightRecords); rightIndex++ {
+		record := rightRecords[rightIndex]
+		rightByKey[keyValue(record, columns.Right, options)] = rightIndex
+	}
+
+	usedRight := make(map[int]bool, len(rightRecords))
+	rows := make([]RowDiff, 0, max(len(leftRecords), len(rightRecords)))
+	if columns.DataFrom > 0 && len(leftRecords) > 0 && len(rightRecords) > 0 {
+		usedRight[0] = true
+		rows = append(rows, materializePairedRow(displayLeft, displayRight, compareLeft, compareRight, 0, 0, options))
+	}
+	for leftIndex := columns.DataFrom; leftIndex < len(leftRecords); leftIndex++ {
+		record := leftRecords[leftIndex]
+		rightIndex, matched := rightByKey[keyValue(record, columns.Left, options)]
+		if matched && !usedRight[rightIndex] {
+			usedRight[rightIndex] = true
+			rows = append(rows, materializePairedRow(displayLeft, displayRight, compareLeft, compareRight, leftIndex, rightIndex, options))
+			continue
+		}
+		leftRow := displayRow(leftIndex)
+		rows = append(rows, RowDiff{
+			Status:     RowDeleted,
+			LeftRow:    &leftRow,
+			LeftRecord: displayLeft[leftIndex],
+		})
+	}
+
+	for rightIndex := columns.DataFrom; rightIndex < len(rightRecords); rightIndex++ {
+		if usedRight[rightIndex] {
+			continue
+		}
+		rightRow := displayRow(rightIndex)
+		rows = append(rows, RowDiff{
+			Status:      RowAdded,
+			RightRow:    &rightRow,
+			RightRecord: displayRight[rightIndex],
+		})
+	}
+	return rows, true
+}
+
+func resolveKeyColumns(leftRecords [][]string, rightRecords [][]string, options Options) (keyColumns, bool) {
+	key := strings.TrimSpace(options.KeyColumn)
+	if key == "" {
+		return keyColumns{}, false
+	}
+	if index, err := strconv.Atoi(key); err == nil {
+		if index <= 0 {
+			return keyColumns{}, false
+		}
+		col := index - 1
+		if maxRecordWidth(leftRecords) <= col || maxRecordWidth(rightRecords) <= col {
+			return keyColumns{}, false
+		}
+		return keyColumns{Left: col, Right: col}, true
+	}
+	if len(leftRecords) == 0 || len(rightRecords) == 0 {
+		return keyColumns{}, false
+	}
+	leftCol, leftOK := uniqueHeaderColumn(leftRecords[0], key)
+	rightCol, rightOK := uniqueHeaderColumn(rightRecords[0], key)
+	if !leftOK || !rightOK {
+		return keyColumns{}, false
+	}
+	return keyColumns{Left: leftCol, Right: rightCol, DataFrom: 1}, true
+}
+
+func uniqueHeaderColumn(header []string, key string) (int, bool) {
+	found := -1
+	for index, value := range header {
+		if !strings.EqualFold(strings.TrimSpace(value), key) {
+			continue
+		}
+		if found >= 0 {
+			return 0, false
+		}
+		found = index
+	}
+	return found, found >= 0
+}
+
+func uniqueKeys(records [][]string, col int, start int, options Options) bool {
+	seen := make(map[string]bool, max(0, len(records)-start))
+	for index := start; index < len(records); index++ {
+		record := records[index]
+		key := keyValue(record, col, options)
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+	}
+	return true
+}
+
+func keyValue(record []string, col int, options Options) string {
+	return comparableCell(cell(record, col), options)
+}
+
+func materializePairedRow(left [][]string, right [][]string, compareLeft [][]string, compareRight [][]string, leftIndex int, rightIndex int, options Options) RowDiff {
+	leftRow := displayRow(leftIndex)
+	rightRow := displayRow(rightIndex)
+	if recordsEqual(compareLeft[leftIndex], compareRight[rightIndex]) {
+		return RowDiff{
+			Status:      RowUnchanged,
+			LeftRow:     &leftRow,
+			RightRow:    &rightRow,
+			LeftRecord:  left[leftIndex],
+			RightRecord: right[rightIndex],
+		}
+	}
+	return RowDiff{
+		Status:       RowChanged,
+		LeftRow:      &leftRow,
+		RightRow:     &rightRow,
+		LeftRecord:   left[leftIndex],
+		RightRecord:  right[rightIndex],
+		ChangedCells: changedCells(left[leftIndex], right[rightIndex], compareLeft[leftIndex], compareRight[rightIndex], options),
+	}
 }
 
 func likelySameLogicalRow(left []string, right []string) bool {

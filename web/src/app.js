@@ -56,6 +56,7 @@ const runDiffButton = document.querySelector("#runDiffButton");
 const diffIgnoreCase = document.querySelector("#diffIgnoreCase");
 const diffIgnoreWhitespace = document.querySelector("#diffIgnoreWhitespace");
 const diffMatchHeaders = document.querySelector("#diffMatchHeaders");
+const diffKeyColumn = document.querySelector("#diffKeyColumn");
 const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
 const diffPrevButton = document.querySelector("#diffPrevButton");
 const diffNextButton = document.querySelector("#diffNextButton");
@@ -2955,6 +2956,7 @@ function currentDiffOptions() {
     ignoreWhitespace: diffIgnoreWhitespace.checked,
     ignoredColumns: parseColumnList(diffIgnoredColumns.value),
     matchColumnsByName: diffMatchHeaders.checked,
+    keyColumn: diffKeyColumn.value.trim(),
   };
 }
 
@@ -3521,6 +3523,7 @@ async function openInitialURLTarget() {
     diffIgnoreCase.checked = truthyParam(params.get("diffIgnoreCase"));
     diffIgnoreWhitespace.checked = truthyParam(params.get("diffIgnoreWhitespace"));
     diffMatchHeaders.checked = truthyParam(params.get("diffMatchHeaders"));
+    diffKeyColumn.value = params.get("diffKeyColumn") ?? "";
     diffIgnoredColumns.value = params.get("diffIgnoredColumns") ?? "";
     openDiffPanel();
     if (truthyParam(params.get("diffRun")) && diffLeft && (diffRight || diffText)) {

@@ -175,6 +175,55 @@ func TestCompareRecordsCanMatchColumnsByHeaderName(t *testing.T) {
 	}
 }
 
+func TestCompareRecordsCanMatchRowsByKeyColumn(t *testing.T) {
+	left := [][]string{
+		{"id", "name", "score"},
+		{"1", "Ada", "9"},
+		{"2", "Linus", "7"},
+		{"3", "Grace", "10"},
+	}
+	right := [][]string{
+		{"id", "name", "score"},
+		{"3", "Grace", "10"},
+		{"1", "Ada", "9"},
+		{"2", "Linux", "7"},
+	}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{KeyColumn: "id"})
+	if result.Summary.Changed != 1 || result.Summary.Added != 0 || result.Summary.Deleted != 0 || result.Summary.Unchanged != 3 {
+		t.Fatalf("unexpected key-column summary: %#v rows=%#v", result.Summary, result.Rows)
+	}
+	var changed RowDiff
+	for _, row := range result.Rows {
+		if row.Status == RowChanged {
+			changed = row
+			break
+		}
+	}
+	if changed.LeftRow == nil || *changed.LeftRow != 3 || changed.RightRow == nil || *changed.RightRow != 4 {
+		t.Fatalf("changed row was not aligned by key: %#v", changed)
+	}
+	if len(changed.ChangedCells) != 1 || changed.ChangedCells[0].Col != 2 || changed.ChangedCells[0].Left != "Linus" || changed.ChangedCells[0].Right != "Linux" {
+		t.Fatalf("unexpected key-column changed cells: %#v", changed.ChangedCells)
+	}
+}
+
+func TestCompareRecordsCanUseNumericKeyColumn(t *testing.T) {
+	left := [][]string{
+		{"a", "old"},
+		{"b", "same"},
+	}
+	right := [][]string{
+		{"b", "same"},
+		{"a", "new"},
+	}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{KeyColumn: "1"})
+	if result.Summary.Changed != 1 || result.Summary.Added != 0 || result.Summary.Deleted != 0 || result.Summary.Unchanged != 1 {
+		t.Fatalf("unexpected numeric key summary: %#v rows=%#v", result.Summary, result.Rows)
+	}
+}
+
 func TestCompareRecordsIncludesInlineSpans(t *testing.T) {
 	left := [][]string{{"id", "name"}, {"1", "Linus"}}
 	right := [][]string{{"id", "name"}, {"1", "Linux"}}

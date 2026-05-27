@@ -74,6 +74,7 @@
               <label><input id="diffIgnoreCase" type="checkbox" /> Ignore case</label>
               <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
               <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
+              <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" />
               <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3,5" aria-label="Ignored diff columns" />
               <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
               <button id="diffNextButton" type="button" title="Next difference">↓</button>
@@ -162,6 +163,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-canvas-size-sync"></script>
+    <script type="module" src="./src/app.js?v=m2-diff-key-column"></script>
   </body>
 </html>

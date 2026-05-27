@@ -741,6 +741,28 @@ func TestServerDiffOptions(t *testing.T) {
 	}
 }
 
+func TestServerDiffKeyColumn(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n3,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n3,Grace\n1,Ada\n2,Linux\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff", map[string]any{
+		"leftPath":  left,
+		"rightPath": right,
+		"keyColumn": "id",
+	})
+	summary := payload["summary"].(map[string]any)
+	if summary["changed"].(float64) != 1 || summary["added"].(float64) != 0 || summary["deleted"].(float64) != 0 {
+		t.Fatalf("unexpected key-column diff summary: %#v", summary)
+	}
+}
+
 func TestServerDiffRightText(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")

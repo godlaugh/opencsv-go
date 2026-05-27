@@ -774,6 +774,7 @@ type diffRequest struct {
 	IgnoreCase         bool   `json:"ignoreCase"`
 	IgnoredColumns     []int  `json:"ignoredColumns"`
 	MatchColumnsByName bool   `json:"matchColumnsByName"`
+	KeyColumn          string `json:"keyColumn"`
 }
 
 type diffMergeRequest struct {
@@ -806,6 +807,7 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		IgnoreCase:         request.IgnoreCase,
 		IgnoredColumns:     request.IgnoredColumns,
 		MatchColumnsByName: request.MatchColumnsByName,
+		KeyColumn:          request.KeyColumn,
 	}
 	var result csvdiff.Result
 	var err error
@@ -841,6 +843,7 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 			IgnoreCase:         request.IgnoreCase,
 			IgnoredColumns:     request.IgnoredColumns,
 			MatchColumnsByName: request.MatchColumnsByName,
+			KeyColumn:          request.KeyColumn,
 		},
 		ResultIndex: request.ResultIndex,
 		Mode:        csvdiff.MergeMode(request.Mode),

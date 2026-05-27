@@ -101,6 +101,7 @@ flowchart TD
   - Cell-level changed values.
   - Added/deleted/changed/unchanged row statuses.
   - LCS anchors with changed-row pairing for common keyed CSV rows.
+  - Optional explicit key-column row alignment for reordered CSV records.
 
 - `pkg/sqlconsole`
   - SQL Console query parsing/execution for the prototype.
@@ -479,6 +480,7 @@ Input:
 - `rightPath`.
 - optional `rightText` and `rightLabel` for comparing against pasted/clipboard text.
 - optional `maxRows`.
+- optional `keyColumn`, either a header name or a 1-based column number, for row alignment before change detection.
 
 Output:
 
@@ -486,7 +488,7 @@ Output:
 - changed cells.
 - summary counts.
 - truncation flag.
-- compare options: ignore case, ignore whitespace, ignored columns, and header-name column alignment.
+- compare options: ignore case, ignore whitespace, ignored columns, header-name column alignment, and key-column row alignment.
 - inline character-level spans for changed cells.
 
 `POST /api/diff-merge`
@@ -618,6 +620,7 @@ Output:
 - Body drag, row-label click, column-header click, and header-in-selection shortcut update the selection range without breaking the column menu glyph.
 - Cmd/Ctrl hover over URL cells sets a pointer cursor and title tooltip, then clears both when the modifier key is released.
 - Diff View can boot from URL parameters for regression and protocol workflows, including compare options and immediate run.
+- Diff View URL boot can pass `diffKeyColumn` and align reordered files by that key before reporting changed rows.
 - Diff View marks changed/added/deleted result rows as navigable differences, supports next/previous buttons, and supports the Alt+F5 / Shift+Alt+F5 shortcut shape used by SmoothCSV.
 - Diff View merge actions call a backend right-to-left merge endpoint that recomputes the diff, applies the selected row or cell, creates a backup, and atomically saves the left file.
 - Diff View can compare against pasted right-side CSV text and use the same merge actions to apply that text to the left file.
