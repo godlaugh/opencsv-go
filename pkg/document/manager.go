@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -696,9 +697,14 @@ func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, erro
 type TextTransformMode string
 
 const (
-	TransformTrim  TextTransformMode = "trim"
-	TransformUpper TextTransformMode = "upper"
-	TransformLower TextTransformMode = "lower"
+	TransformTrim   TextTransformMode = "trim"
+	TransformUpper  TextTransformMode = "upper"
+	TransformLower  TextTransformMode = "lower"
+	TransformSnake  TextTransformMode = "snake"
+	TransformKebab  TextTransformMode = "kebab"
+	TransformCamel  TextTransformMode = "camel"
+	TransformPascal TextTransformMode = "pascal"
+	TransformTitle  TextTransformMode = "title"
 )
 
 func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
@@ -1688,9 +1694,132 @@ func textTransformFunc(mode TextTransformMode) (func(string) string, error) {
 		return strings.ToUpper, nil
 	case TransformLower:
 		return strings.ToLower, nil
+	case TransformSnake:
+		return snakeCase, nil
+	case TransformKebab:
+		return kebabCase, nil
+	case TransformCamel:
+		return camelCase, nil
+	case TransformPascal:
+		return pascalCase, nil
+	case TransformTitle:
+		return titleCase, nil
 	default:
 		return nil, fmt.Errorf("unsupported text transform %q", mode)
 	}
+}
+
+func snakeCase(value string) string {
+	return strings.Join(lowerNamingWords(value), "_")
+}
+
+func kebabCase(value string) string {
+	return strings.Join(lowerNamingWords(value), "-")
+}
+
+func camelCase(value string) string {
+	words := lowerNamingWords(value)
+	if len(words) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString(words[0])
+	for _, word := range words[1:] {
+		builder.WriteString(upperFirst(word))
+	}
+	return builder.String()
+}
+
+func pascalCase(value string) string {
+	words := lowerNamingWords(value)
+	if len(words) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for _, word := range words {
+		builder.WriteString(upperFirst(word))
+	}
+	return builder.String()
+}
+
+func titleCase(value string) string {
+	words := lowerNamingWords(value)
+	if len(words) == 0 {
+		return ""
+	}
+	for index, word := range words {
+		words[index] = upperFirst(word)
+	}
+	return strings.Join(words, " ")
+}
+
+func lowerNamingWords(value string) []string {
+	words := splitNamingWords(value)
+	for index, word := range words {
+		words[index] = strings.ToLower(word)
+	}
+	return words
+}
+
+func splitNamingWords(value string) []string {
+	runes := []rune(value)
+	words := make([]string, 0, 4)
+	current := make([]rune, 0, len(runes))
+	flush := func() {
+		if len(current) == 0 {
+			return
+		}
+		words = append(words, string(current))
+		current = current[:0]
+	}
+
+	for index, currentRune := range runes {
+		if !unicode.IsLetter(currentRune) && !unicode.IsDigit(currentRune) {
+			flush()
+			continue
+		}
+		if len(current) > 0 {
+			var next rune
+			hasNext := false
+			if index+1 < len(runes) {
+				next = runes[index+1]
+				hasNext = true
+			}
+			if startsNamingWord(current, currentRune, next, hasNext) {
+				flush()
+			}
+		}
+		current = append(current, currentRune)
+	}
+	flush()
+	return words
+}
+
+func startsNamingWord(current []rune, next rune, afterNext rune, hasAfterNext bool) bool {
+	previous := current[len(current)-1]
+	if unicode.IsDigit(previous) && unicode.IsLetter(next) {
+		return true
+	}
+	if unicode.IsLetter(previous) && unicode.IsDigit(next) {
+		return true
+	}
+	if (unicode.IsLower(previous) || unicode.IsDigit(previous)) && unicode.IsUpper(next) {
+		return true
+	}
+	return len(current) > 1 &&
+		unicode.IsUpper(previous) &&
+		unicode.IsUpper(next) &&
+		hasAfterNext &&
+		unicode.IsLower(afterNext)
+}
+
+func upperFirst(value string) string {
+	runes := []rune(value)
+	if len(runes) == 0 {
+		return ""
+	}
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
 
 func (manager *Manager) ClearView(id string) (int, error) {

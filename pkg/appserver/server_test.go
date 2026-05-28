@@ -549,6 +549,21 @@ func TestServerDedupeAndTextTransform(t *testing.T) {
 	if rows[1].([]any)[1] != "Ada" || rows[2].([]any)[1] != "Linus" {
 		t.Fatalf("rows after transform = %#v", rows)
 	}
+	transformPayload = postJSON(t, handler, "/api/text-transform", map[string]any{
+		"documentId": documentID,
+		"mode":       "title",
+		"cells": []map[string]any{
+			{"row": 0, "col": 0},
+		},
+	})
+	if transformPayload["changed"].(float64) != 1 {
+		t.Fatalf("title transform payload = %#v", transformPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[0].([]any)[0] != "Id" {
+		t.Fatalf("rows after title transform = %#v", rows)
+	}
 	columnPayload := postJSON(t, handler, "/api/dedupe-columns", map[string]any{"documentId": documentID})
 	if columnPayload["changed"].(float64) != 1 {
 		t.Fatalf("dedupe column payload = %#v", columnPayload)

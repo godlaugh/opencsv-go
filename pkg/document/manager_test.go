@@ -882,7 +882,7 @@ func TestDeduplicateColumnsKeepsDistinctHeaders(t *testing.T) {
 func TestManagerTextTransforms(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "text.csv")
-	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n3,Customer ID\n4,HTTP response_code\n5,quarter 2026 Q1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	manager := NewManager()
@@ -911,6 +911,48 @@ func TestManagerTextTransforms(t *testing.T) {
 	}
 	if records[1][1] != "ADA" || records[2][1] != "LINUS" {
 		t.Fatalf("transformed records = %#v", records)
+	}
+
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 3, Col: 1}, {Row: 4, Col: 1}, {Row: 5, Col: 1}}, TransformSnake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 3 {
+		t.Fatalf("snake changed = %d, want 3", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[3][1] != "customer_id" || records[4][1] != "http_response_code" || records[5][1] != "quarter_2026_q_1" {
+		t.Fatalf("snake records = %#v", records)
+	}
+
+	cases := []struct {
+		mode TextTransformMode
+		want string
+	}{
+		{TransformKebab, "customer-id"},
+		{TransformCamel, "customerId"},
+		{TransformPascal, "CustomerId"},
+		{TransformTitle, "Customer Id"},
+	}
+	for _, tc := range cases {
+		session, err := manager.OpenPath(path, SourceFile, "text.csv", csvcore.OpenOptions{PreviewRows: 6, IndexRows: -1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = manager.TransformCells(session.ID, []Cell{{Row: 3, Col: 1}}, tc.mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, records, err = manager.Records(session.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if records[3][1] != tc.want {
+			t.Fatalf("%s record = %q, want %q", tc.mode, records[3][1], tc.want)
+		}
 	}
 }
 

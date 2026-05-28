@@ -591,6 +591,11 @@ function isCommandDisabled(command) {
       command.id === "text.trim" ||
       command.id === "text.uppercase" ||
       command.id === "text.lowercase" ||
+      command.id === "text.snakeCase" ||
+      command.id === "text.kebabCase" ||
+      command.id === "text.camelCase" ||
+      command.id === "text.pascalCase" ||
+      command.id === "text.titleCase" ||
       command.id === "cell.swap" ||
       command.id === "cell.joinHorizontal" ||
       command.id === "cell.splitHorizontal" ||
@@ -2362,6 +2367,21 @@ async function executeCommand(commandID) {
       break;
     case "text.lowercase":
       await transformSelectedText("lower", "Lowercase Text");
+      break;
+    case "text.snakeCase":
+      await transformSelectedText("snake", "Snake Case");
+      break;
+    case "text.kebabCase":
+      await transformSelectedText("kebab", "Kebab Case");
+      break;
+    case "text.camelCase":
+      await transformSelectedText("camel", "Camel Case");
+      break;
+    case "text.pascalCase":
+      await transformSelectedText("pascal", "Pascal Case");
+      break;
+    case "text.titleCase":
+      await transformSelectedText("title", "Title Case");
       break;
     case "cell.swap":
       await swapSelectedCells();
