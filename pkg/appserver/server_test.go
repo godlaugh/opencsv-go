@@ -727,7 +727,7 @@ func TestServerFindFilterSort(t *testing.T) {
 
 	sqlPayload := postJSON(t, handler, "/api/sql", map[string]any{
 		"documentId": documentID,
-		"query":      "SELECT name, score FROM current WHERE score >= 9 ORDER BY score DESC LIMIT 1",
+		"query":      "SELECT name, score FROM current WHERE CAST(score AS REAL) >= 9 ORDER BY CAST(score AS REAL) DESC LIMIT 1",
 	})
 	if sqlPayload["totalRows"].(float64) != 2 {
 		t.Fatalf("sql totalRows = %#v, want 2", sqlPayload["totalRows"])
@@ -1162,12 +1162,24 @@ func TestServerSQLFileReference(t *testing.T) {
 	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	teamsPath := filepath.Join(dir, "teams.csv")
+	if err := os.WriteFile(teamsPath, []byte("id,team\n1,Compiler\n2,Kernel\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	payload := postJSON(t, New(dir).Handler(), "/api/sql", map[string]any{
 		"query": `SELECT name FROM "@file:` + path + `" WHERE id = 2`,
 	})
 	rows := payload["rows"].([]any)
 	if len(rows) != 1 || rows[0].([]any)[0] != "Linus" {
 		t.Fatalf("unexpected SQL file rows: %#v", rows)
+	}
+
+	joinPayload := postJSON(t, New(dir).Handler(), "/api/sql", map[string]any{
+		"query": `SELECT s.name, t.team FROM "@file:` + path + `" AS s JOIN "@file:` + teamsPath + `" AS t ON t.id = s.id WHERE CAST(s.id AS INTEGER) = 2`,
+	})
+	joinRows := joinPayload["rows"].([]any)
+	if len(joinRows) != 1 || joinRows[0].([]any)[0] != "Linus" || joinRows[0].([]any)[1] != "Kernel" {
+		t.Fatalf("unexpected SQL join rows: %#v", joinRows)
 	}
 }
 

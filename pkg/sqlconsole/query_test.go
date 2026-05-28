@@ -14,7 +14,7 @@ func TestExecuteCurrentSelectWhereOrderLimit(t *testing.T) {
 			{"3", "Grace", "10"},
 		},
 	}
-	result, err := Execute(`SELECT name, score FROM current WHERE score >= 8 ORDER BY score DESC LIMIT 1`, fixedResolver(source), Options{})
+	result, err := Execute(`SELECT name, score FROM current WHERE CAST(score AS REAL) >= 8 ORDER BY CAST(score AS REAL) DESC LIMIT 1`, fixedResolver(source), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestExecuteAggregates(t *testing.T) {
 			{"3", "APAC", "2.5"},
 		},
 	}
-	result, err := Execute(`SELECT COUNT(*), SUM(amount), AVG(amount), MIN(amount), MAX(amount) FROM current`, fixedResolver(source), Options{})
+	result, err := Execute(`SELECT COUNT(*), SUM(amount), AVG(amount), MIN(CAST(amount AS REAL)), MAX(CAST(amount AS REAL)) FROM current`, fixedResolver(source), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,18 +99,50 @@ func TestExecuteGroupByAggregates(t *testing.T) {
 	}
 }
 
-func TestExecuteRejectsUngroupedColumnWithAggregate(t *testing.T) {
+func TestExecuteSupportsSQLiteExpressionsJoinAndHaving(t *testing.T) {
 	source := Source{
-		Path:    "/tmp/current.csv",
-		Headers: []string{"region", "amount"},
+		Path:    "/tmp/orders.csv",
+		Headers: []string{"id", "region", "amount"},
 		Records: [][]string{
-			{"region", "amount"},
-			{"APAC", "10"},
+			{"id", "region", "amount"},
+			{"1", "APAC", "10"},
+			{"2", "EU", "7"},
+			{"3", "APAC", "3"},
 		},
 	}
-	_, err := Execute(`SELECT region, SUM(amount) FROM current GROUP BY amount`, fixedResolver(source), Options{})
-	if err == nil {
-		t.Fatal("expected ungrouped column error")
+	regions := Source{
+		Path:    "/tmp/regions.csv",
+		Headers: []string{"region", "label"},
+		Records: [][]string{
+			{"region", "label"},
+			{"APAC", "Asia Pacific"},
+			{"EU", "Europe"},
+		},
+	}
+	result, err := Execute(
+		`SELECT r.label, SUM(CAST(o.amount AS REAL)) * 1.1 AS gross
+		 FROM current AS o
+		 JOIN "/tmp/regions.csv" AS r ON r.region = o.region
+		 GROUP BY r.label
+		 HAVING gross > 10
+		 ORDER BY gross DESC`,
+		multiResolver(map[string]Source{
+			"current":          source,
+			"/tmp/regions.csv": regions,
+		}),
+		Options{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TotalRows != 1 || len(result.Rows) != 1 {
+		t.Fatalf("rows = %#v total=%d, want one group", result.Rows, result.TotalRows)
+	}
+	if result.Columns[0] != "label" || result.Columns[1] != "gross" {
+		t.Fatalf("columns = %#v", result.Columns)
+	}
+	if result.Rows[0][0] != "Asia Pacific" || result.Rows[0][1] != "14.3" {
+		t.Fatalf("joined aggregate row = %#v, want Asia Pacific/14.3", result.Rows[0])
 	}
 }
 
@@ -127,4 +159,19 @@ func fixedResolver(source Source) Resolver {
 	return func(ref string) (Source, error) {
 		return source, nil
 	}
+}
+
+func multiResolver(sources map[string]Source) Resolver {
+	return func(ref string) (Source, error) {
+		if source, ok := sources[ref]; ok {
+			return source, nil
+		}
+		return Source{}, errMissingSource(ref)
+	}
+}
+
+type errMissingSource string
+
+func (err errMissingSource) Error() string {
+	return "missing source " + string(err)
 }

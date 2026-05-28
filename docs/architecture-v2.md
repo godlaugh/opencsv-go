@@ -104,10 +104,10 @@ flowchart TD
   - Optional explicit key-column row alignment for reordered CSV records.
 
 - `pkg/sqlconsole`
-  - SQL Console query parsing/execution for the prototype.
-  - Current document and local path source resolution.
-  - `WHERE` delegation to `pkg/sqlexpr`.
-  - Column projection, ordering, limiting, aggregate functions, and `GROUP BY`.
+  - In-memory SQLite execution for SQL Console queries.
+  - Current document, direct quoted path, `@file:`, and `file://` source resolution.
+  - Text-backed temporary tables that preserve the documented CSV-as-text semantics.
+  - SQLite-owned projection, joins, subqueries, expressions, `GROUP BY`, `HAVING`, ordering, and limits.
   - Frontend-local query history stores successful SQL text and can reload it into the editor.
 
 - `pkg/dataprofile`
@@ -196,8 +196,8 @@ flowchart TD
   - Text/number/date modes beyond the current string/numeric foundation.
 
 - `pkg/sqlitebridge`
-  - Future SQLite-compatible query execution.
-  - Joins, grouping, aggregation, subqueries, and result documents.
+  - Future streaming/virtual-table adapter if in-memory row loading is not enough for 1 GB-scale queries.
+  - Future SQL result document/session model for editable or exportable query outputs.
 
 - `web Diff View`
   - Prototype compare panel.
@@ -667,7 +667,7 @@ Output:
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.
-- SQL Console can execute `COUNT/SUM/AVG/MIN/MAX` with `GROUP BY` and order grouped output by an aggregate alias.
+- SQL Console delegates execution to in-memory SQLite and supports joins, expression projection, subqueries, `GROUP BY`, `HAVING`, and ordering by an expression alias.
 - SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
 
 ### Performance Tests

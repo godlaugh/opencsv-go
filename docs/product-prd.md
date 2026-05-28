@@ -17,7 +17,7 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-05-28. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work.
+Latest public source check: 2026-05-28. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, published 2026-05-22, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, and v3.20.2 shipped 2026-05-22.
 
 Additional official source details captured from the current public pages:
 
@@ -28,6 +28,7 @@ Additional official source details captured from the current public pages:
 - The SmoothCSV v1 archive calls out long-running requirements that still matter: multiple encodings, many CSV/TSV styles, Excel-like operation, ragged-row editing, embedded newline cells, SQL `SELECT`, fast large-file open, tabbed UI, macros/key macros, and CSV grep search.
 - The v3 technical article describes a command-centric, VS Code-like architecture with command metadata, keybindings, context-aware enablement, menu/context-menu/button dispatch, lazy-loaded system extensions, and local-first desktop operation with no external communication except update checks.
 - The virtual scrolling article identifies browser element-size limits around million-row datasets and requires a custom scrolling strategy or canvas rendering that is not capped by DOM spacer height.
+- The official SQL Console documentation requires SQLite syntax, direct path/`file://`/`@file:` table references, current opened-file references, text-backed CSV values, and explicit `CAST` for reliable numeric comparisons.
 
 The goal is not to clone SmoothCSV source code. The goal is to build an open, Go-first CSV workbench with comparable product coverage, stronger UX discipline, and measurable performance.
 
@@ -886,7 +887,7 @@ The desktop shell owns:
 
 ### M5 SQL Console
 
-- SQLite engine integration.
+- In-memory SQLite engine integration.
 - Query current/open/path files.
 - Results grid.
 - Export result.
@@ -924,7 +925,7 @@ The desktop shell owns:
 ## 15. Open Product Decisions
 
 - Desktop shell: Wails vs Tauri sidecar vs custom native shell.
-- SQL engine: SQLite virtual table vs DuckDB vs DataFusion-like Go integration.
+- SQL engine: in-memory SQLite row loading is the first parity path; streaming SQLite virtual tables, DuckDB, or DataFusion-like integration remain open for 1 GB-scale query performance.
 - Encoding library choice for Shift-JIS/GBK/Windows-1252.
 - Whether browser prototype should support save-back-to-original through File System Access API where available.
 - Exact UI shape of command palette and menu system.

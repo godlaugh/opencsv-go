@@ -1,14 +1,16 @@
 package sqlconsole
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
-	"github.com/opencsv/opencsv/pkg/sqlexpr"
+	_ "modernc.org/sqlite"
 )
 
 type Source struct {
@@ -64,98 +66,357 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	if options.MaxLimit <= 0 {
 		options.MaxLimit = 5000
 	}
-	parts, err := parseQuery(query)
+	sqlText := trimSQL(query)
+	if !isReadQuery(sqlText) {
+		return Result{}, errors.New("only SELECT queries are supported")
+	}
+
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		return Result{}, err
 	}
-	if parts.limit <= 0 {
-		parts.limit = options.DefaultLimit
-	}
-	if parts.limit > options.MaxLimit {
-		parts.limit = options.MaxLimit
-	}
-
-	source, err := resolver(normalizeSourceRef(parts.fromRef))
-	if err != nil {
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("PRAGMA temp_store = MEMORY"); err != nil {
 		return Result{}, err
 	}
-	if len(source.Headers) == 0 && len(source.Records) > 0 {
-		source.Headers = defaultHeaders(len(source.Records[0]))
-	}
-
-	dataStart := 0
-	headers := source.Headers
-	if len(source.Records) > 0 && sameRecord(source.Records[0], headers) {
-		dataStart = 1
-	}
-	sourceRows := make([][]string, 0)
-	if parts.whereClause != "" {
-		program, err := sqlexpr.Compile(parts.whereClause, headers)
-		if err != nil {
-			return Result{}, err
-		}
-		for row := dataStart; row < len(source.Records); row++ {
-			matched, err := program.Eval(source.Records[row])
-			if err != nil {
-				return Result{}, fmt.Errorf("row %d: %w", row+1, err)
-			}
-			if matched {
-				sourceRows = append(sourceRows, source.Records[row])
-			}
-		}
-	} else {
-		sourceRows = append(sourceRows, source.Records[dataStart:]...)
-	}
-
-	if hasAggregation(parts.selectClause) || len(parts.groupBy) > 0 {
-		expressions, err := parseSelectExpressions(parts.selectClause, headers)
-		if err != nil {
-			return Result{}, err
-		}
-		return executeAggregate(query, source, headers, sourceRows, expressions, parts, options)
-	}
-
-	selected, columns, err := parseSelectColumns(parts.selectClause, headers)
-	if err != nil {
+	if _, err := db.Exec("PRAGMA journal_mode = MEMORY"); err != nil {
 		return Result{}, err
 	}
 
-	if parts.orderBy != "" {
-		orderIndex, err := resolveColumn(parts.orderBy, headers)
+	refs := findSourceRefs(sqlText)
+	sourceNames := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		source, err := resolver(normalizeSourceRef(ref))
 		if err != nil {
 			return Result{}, err
 		}
-		sort.SliceStable(sourceRows, func(i, j int) bool {
-			left := cell(sourceRows[i], orderIndex)
-			right := cell(sourceRows[j], orderIndex)
-			less := compareValues(left, right) < 0
-			if parts.descending {
-				return !less && left != right
-			}
-			return less
-		})
+		if err := loadSource(db, ref, source); err != nil {
+			return Result{}, err
+		}
+		sourceNames = append(sourceNames, source.Path)
 	}
 
-	total := len(sourceRows)
-	if total > parts.limit {
-		sourceRows = sourceRows[:parts.limit]
+	countQuery := sqlText
+	if base, ok := withoutTopLevelLimit(sqlText); ok {
+		countQuery = base
 	}
-	rows := make([][]string, 0, len(sourceRows))
-	for _, record := range sourceRows {
-		row := make([]string, len(selected))
-		for i, col := range selected {
-			row[i] = cell(record, col)
-		}
-		rows = append(rows, row)
+	total, countErr := countRows(db, countQuery)
+	limit := options.DefaultLimit
+	if hasTopLevelLimit(sqlText) {
+		limit = options.MaxLimit
+	}
+	limitedQuery := fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", sqlText, limit+1)
+	rows, columns, err := queryRows(db, limitedQuery, limit+1)
+	if err != nil {
+		return Result{}, err
+	}
+	if countErr != nil {
+		total = len(rows)
+	}
+	truncated := total > len(rows)
+	if len(rows) > limit {
+		rows = rows[:limit]
+		truncated = true
+	}
+	if total < len(rows) {
+		total = len(rows)
 	}
 	return Result{
 		Columns:     columns,
 		Rows:        rows,
 		TotalRows:   total,
-		Source:      source.Path,
-		Truncated:   total > len(rows),
+		Source:      strings.Join(sourceNames, ", "),
+		Truncated:   truncated,
 		ExecutedSQL: strings.TrimSpace(query),
 	}, nil
+}
+
+func trimSQL(query string) string {
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(query), ";"))
+}
+
+func isReadQuery(query string) bool {
+	lower := strings.ToLower(strings.TrimSpace(query))
+	return strings.HasPrefix(lower, "select ") || strings.HasPrefix(lower, "with ")
+}
+
+func loadSource(db *sql.DB, tableName string, source Source) error {
+	headers := sourceHeaders(source)
+	if len(headers) == 0 {
+		return nil
+	}
+	columns := uniqueHeaders(headers)
+	defs := make([]string, len(columns))
+	for index, column := range columns {
+		defs[index] = quoteIdent(column) + " TEXT"
+	}
+	if _, err := db.Exec("CREATE TABLE " + quoteIdent(tableName) + " (" + strings.Join(defs, ", ") + ")"); err != nil {
+		return err
+	}
+
+	placeholders := make([]string, len(columns))
+	for index := range placeholders {
+		placeholders[index] = "?"
+	}
+	statement, err := db.Prepare("INSERT INTO " + quoteIdent(tableName) + " VALUES (" + strings.Join(placeholders, ", ") + ")")
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	dataStart := 0
+	if len(source.Records) > 0 && sameRecord(source.Records[0], headers) {
+		dataStart = 1
+	}
+	for _, record := range source.Records[dataStart:] {
+		values := make([]any, len(columns))
+		for index := range columns {
+			values[index] = cell(record, index)
+		}
+		if _, err := statement.Exec(values...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sourceHeaders(source Source) []string {
+	width := len(source.Headers)
+	for _, record := range source.Records {
+		if len(record) > width {
+			width = len(record)
+		}
+	}
+	if width == 0 {
+		return nil
+	}
+	headers := append([]string(nil), source.Headers...)
+	if len(headers) == 0 {
+		headers = defaultHeaders(width)
+	}
+	for len(headers) < width {
+		headers = append(headers, fmt.Sprintf("c%d", len(headers)+1))
+	}
+	return headers
+}
+
+func uniqueHeaders(headers []string) []string {
+	seen := make(map[string]int, len(headers))
+	columns := make([]string, len(headers))
+	for index, header := range headers {
+		name := strings.TrimSpace(header)
+		if name == "" {
+			name = fmt.Sprintf("c%d", index+1)
+		}
+		key := strings.ToLower(name)
+		seen[key]++
+		if seen[key] > 1 {
+			name = fmt.Sprintf("%s_%d", name, seen[key])
+			key = strings.ToLower(name)
+			for seen[key] > 0 {
+				seen[strings.ToLower(name)]++
+				name = fmt.Sprintf("%s_%d", strings.TrimSpace(header), seen[key]+1)
+				key = strings.ToLower(name)
+			}
+			seen[key] = 1
+		}
+		columns[index] = name
+	}
+	return columns
+}
+
+func countRows(db *sql.DB, query string) (int, error) {
+	row := db.QueryRow("SELECT COUNT(*) FROM (" + trimSQL(query) + ")")
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func queryRows(db *sql.DB, query string, limit int) ([][]string, []string, error) {
+	result, err := db.Query(query)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer result.Close()
+
+	columns, err := result.Columns()
+	if err != nil {
+		return nil, nil, err
+	}
+	rows := make([][]string, 0)
+	for result.Next() {
+		values := make([]sql.NullString, len(columns))
+		dest := make([]any, len(columns))
+		for index := range values {
+			dest[index] = &values[index]
+		}
+		if err := result.Scan(dest...); err != nil {
+			return nil, nil, err
+		}
+		row := make([]string, len(columns))
+		for index, value := range values {
+			if value.Valid {
+				row[index] = value.String
+			}
+		}
+		rows = append(rows, row)
+		if len(rows) >= limit {
+			break
+		}
+	}
+	if err := result.Err(); err != nil {
+		return nil, nil, err
+	}
+	return rows, columns, nil
+}
+
+func quoteIdent(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+}
+
+func hasTopLevelLimit(query string) bool {
+	_, ok := withoutTopLevelLimit(query)
+	return ok
+}
+
+func withoutTopLevelLimit(query string) (string, bool) {
+	limitPos := findTopLevelKeyword(query, "limit")
+	if limitPos >= 0 {
+		return strings.TrimSpace(query[:limitPos]), true
+	}
+	return query, false
+}
+
+func findTopLevelKeyword(query string, keyword string) int {
+	tokens := scanSQLTokens(query)
+	for index := len(tokens) - 1; index >= 0; index-- {
+		token := tokens[index]
+		if token.depth == 0 && !token.quoted && strings.EqualFold(token.text, keyword) {
+			return token.start
+		}
+	}
+	return -1
+}
+
+func findSourceRefs(query string) []string {
+	tokens := scanSQLTokens(query)
+	seen := map[string]bool{}
+	refs := make([]string, 0)
+	for index, token := range tokens {
+		if token.quoted || !isTableKeyword(token.text) {
+			continue
+		}
+		ref, ok := nextSourceRef(tokens, index+1)
+		if !ok || !isLoadableRef(ref) || seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+func isTableKeyword(text string) bool {
+	return strings.EqualFold(text, "from") || strings.EqualFold(text, "join")
+}
+
+func nextSourceRef(tokens []sqlToken, start int) (string, bool) {
+	for index := start; index < len(tokens); index++ {
+		token := tokens[index]
+		if token.text == "(" || token.text == "," {
+			return "", false
+		}
+		if strings.EqualFold(token.text, "select") {
+			return "", false
+		}
+		return token.text, true
+	}
+	return "", false
+}
+
+func isLoadableRef(ref string) bool {
+	lower := strings.ToLower(strings.TrimSpace(ref))
+	return lower == "current" ||
+		lower == "this" ||
+		strings.HasPrefix(lower, "@file:") ||
+		strings.HasPrefix(lower, "file://") ||
+		strings.Contains(lower, "/") ||
+		strings.Contains(lower, `\`) ||
+		strings.Contains(lower, ".csv") ||
+		strings.Contains(lower, ".tsv") ||
+		strings.Contains(lower, ".xlsx")
+}
+
+type sqlToken struct {
+	text   string
+	start  int
+	depth  int
+	quoted bool
+}
+
+func scanSQLTokens(query string) []sqlToken {
+	tokens := make([]sqlToken, 0)
+	depth := 0
+	for index := 0; index < len(query); {
+		r := rune(query[index])
+		if unicode.IsSpace(r) {
+			index++
+			continue
+		}
+		if r == '(' {
+			tokens = append(tokens, sqlToken{text: "(", start: index, depth: depth})
+			depth++
+			index++
+			continue
+		}
+		if r == ')' {
+			if depth > 0 {
+				depth--
+			}
+			tokens = append(tokens, sqlToken{text: ")", start: index, depth: depth})
+			index++
+			continue
+		}
+		if r == ',' {
+			tokens = append(tokens, sqlToken{text: ",", start: index, depth: depth})
+			index++
+			continue
+		}
+		if r == '\'' || r == '"' || r == '`' {
+			quote := byte(query[index])
+			start := index
+			index++
+			var builder strings.Builder
+			for index < len(query) {
+				if query[index] == quote {
+					if index+1 < len(query) && query[index+1] == quote {
+						builder.WriteByte(quote)
+						index += 2
+						continue
+					}
+					index++
+					break
+				}
+				builder.WriteByte(query[index])
+				index++
+			}
+			tokens = append(tokens, sqlToken{text: builder.String(), start: start, depth: depth, quoted: true})
+			continue
+		}
+		start := index
+		for index < len(query) {
+			r = rune(query[index])
+			if unicode.IsSpace(r) || strings.ContainsRune("(),", r) {
+				break
+			}
+			index++
+		}
+		tokens = append(tokens, sqlToken{text: query[start:index], start: start, depth: depth})
+	}
+	return tokens
 }
 
 func parseQuery(query string) (queryParts, error) {
