@@ -158,6 +158,10 @@ let selectionAnchor = { row: 0, col: 0 };
 let draggingSelection = false;
 let dragSelectionMode = "cell";
 let hoverURL = "";
+let hoverResizeColumn = -1;
+let resizingColumn = -1;
+let resizeStartClientX = 0;
+let resizeStartWidth = 0;
 let editing = false;
 let documentId = "";
 let activeFileEntry = null;
@@ -1204,15 +1208,37 @@ function urlAtPoint(x, y) {
 }
 
 function clearURLHover() {
-  if (!hoverURL && canvas.style.cursor !== "pointer" && !canvas.title) return;
+  if (!hoverURL) return;
   hoverURL = "";
+  document.body.dataset.hoverUrl = "";
+  syncCanvasHoverChrome();
+}
+
+function clearResizeHover() {
+  if (hoverResizeColumn < 0) return;
+  hoverResizeColumn = -1;
+  document.body.dataset.resizeColumn = "";
+  syncCanvasHoverChrome();
+}
+
+function syncCanvasHoverChrome() {
+  const resizeColumn = resizingColumn >= 0 ? resizingColumn : hoverResizeColumn;
+  if (resizeColumn >= 0 && columns[resizeColumn]) {
+    canvas.style.cursor = "col-resize";
+    canvas.title = `Resize ${columns[resizeColumn].name || `Column ${resizeColumn + 1}`}`;
+    return;
+  }
+  if (hoverURL) {
+    canvas.style.cursor = "pointer";
+    canvas.title = hoverURL;
+    return;
+  }
   canvas.style.cursor = "";
   canvas.removeAttribute("title");
-  document.body.dataset.hoverUrl = "";
 }
 
 function updateURLHover(event) {
-  if (draggingSelection || editing || !documentId) {
+  if (draggingSelection || resizingColumn >= 0 || editing || !documentId) {
     clearURLHover();
     return;
   }
@@ -1227,9 +1253,33 @@ function updateURLHover(event) {
     return;
   }
   hoverURL = url;
-  canvas.style.cursor = "pointer";
-  canvas.title = url;
   document.body.dataset.hoverUrl = url;
+  syncCanvasHoverChrome();
+}
+
+function updateCanvasHover(event) {
+  if (draggingSelection || resizingColumn >= 0 || editing || !documentId) {
+    clearURLHover();
+    clearResizeHover();
+    return;
+  }
+  if (event.metaKey || event.ctrlKey) {
+    clearResizeHover();
+    updateURLHover(event);
+    return;
+  }
+  clearURLHover();
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const col = headerResizeColumnAt(x, y);
+  if (col < 0) {
+    clearResizeHover();
+    return;
+  }
+  hoverResizeColumn = col;
+  document.body.dataset.resizeColumn = String(col);
+  syncCanvasHoverChrome();
 }
 
 function normalizedSelection() {
@@ -2480,6 +2530,24 @@ function isHeaderMenuTarget(x, col) {
   return x >= left + columns[col].width - 28;
 }
 
+function headerResizeColumnAt(x, y) {
+  if (y < 0 || y >= headerHeight || x < rowNumberWidth) return -1;
+  let left = rowNumberWidth - scrollX;
+  const hitSlop = 5;
+  for (let col = 0; col < columns.length; col++) {
+    const right = left + columns[col].width;
+    if (
+      Math.abs(x - right) <= hitSlop &&
+      right >= rowNumberWidth + hitSlop &&
+      right <= canvas.clientWidth + hitSlop
+    ) {
+      return col;
+    }
+    left = right;
+  }
+  return -1;
+}
+
 function columnAtOrNearest(x) {
   if (columns.length === 0) return -1;
   const col = columnAt(x);
@@ -2508,6 +2576,65 @@ function selectColumnRange(col, extend = false) {
     selectionAnchor = { row: lastDataRow, col: clampedCol };
   }
   selected = { row: 0, col: clampedCol };
+}
+
+function startColumnResize(col, clientX) {
+  if (!columns[col]) return;
+  resizingColumn = col;
+  resizeStartClientX = clientX;
+  resizeStartWidth = columns[col].width;
+  hoverResizeColumn = col;
+  closeColumnMenu();
+  document.body.dataset.resizeColumn = String(col);
+  document.body.dataset.columnResize = `${col}:${Math.round(resizeStartWidth)}`;
+  syncCanvasHoverChrome();
+}
+
+function updateColumnResize(clientX) {
+  if (resizingColumn < 0 || !columns[resizingColumn]) return;
+  const width = clampColumnWidth(resizeStartWidth + clientX - resizeStartClientX);
+  setColumnWidth(resizingColumn, width);
+  document.body.dataset.columnResize = `${resizingColumn}:${Math.round(width)}`;
+  status.textContent = `${columns[resizingColumn].name || `Column ${resizingColumn + 1}`} width ${Math.round(width)}px`;
+  draw();
+}
+
+function finishColumnResize() {
+  if (resizingColumn < 0 || !columns[resizingColumn]) return;
+  const col = resizingColumn;
+  const width = columns[col].width;
+  resizingColumn = -1;
+  hoverResizeColumn = -1;
+  document.body.dataset.resizeColumn = "";
+  document.body.dataset.columnResize = `${col}:${Math.round(width)}`;
+  syncCanvasHoverChrome();
+  draw();
+  status.textContent = `${columns[col].name || `Column ${col + 1}`} width ${Math.round(width)}px`;
+}
+
+function autoFitVisibleColumn(col) {
+  const column = columns[col];
+  if (!column) return;
+  const sourceCol = sourceColFor(col);
+  const values = Array.from(rows.values(), (record) => record[sourceCol] ?? "");
+  const width = autoFitColumnWidth(column, values);
+  setColumnWidth(col, width);
+  document.body.dataset.columnResize = `${col}:${Math.round(width)}:fit`;
+  draw();
+  status.textContent = `${column.name || `Column ${col + 1}`} auto-fit to ${Math.round(width)}px`;
+}
+
+function setColumnWidth(col, width) {
+  const column = columns[col];
+  if (!column) return;
+  const nextWidth = clampColumnWidth(width);
+  column.width = nextWidth;
+  const sourceColumn = allColumns.find((candidate) => candidate.sourceCol === column.sourceCol);
+  if (sourceColumn) sourceColumn.width = nextWidth;
+}
+
+function clampColumnWidth(width) {
+  return Math.max(minColumnWidth, Math.min(maxColumnWidth, Math.round(width)));
 }
 
 function updateDragSelection(event) {
@@ -5449,6 +5576,13 @@ canvas.addEventListener("mousedown", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  const resizeCol = headerResizeColumnAt(x, y);
+  if (resizeCol >= 0) {
+    event.preventDefault();
+    if (editing) commitEditor();
+    startColumnResize(resizeCol, event.clientX);
+    return;
+  }
   if (event.metaKey || event.ctrlKey) {
     const url = urlAtPoint(x, y);
     if (url) {
@@ -5505,26 +5639,45 @@ canvas.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("mousemove", (event) => {
+  if (resizingColumn >= 0) {
+    event.preventDefault();
+    updateColumnResize(event.clientX);
+    return;
+  }
   if (draggingSelection) {
     event.preventDefault();
     updateDragSelection(event);
     return;
   }
-  updateURLHover(event);
+  updateCanvasHover(event);
 });
 
 window.addEventListener("mouseup", () => {
+  if (resizingColumn >= 0) {
+    finishColumnResize();
+    return;
+  }
   if (!draggingSelection) return;
   draggingSelection = false;
   dragSelectionMode = "cell";
 });
 
-canvas.addEventListener("mouseleave", clearURLHover);
+canvas.addEventListener("mouseleave", () => {
+  if (resizingColumn >= 0) return;
+  clearURLHover();
+  clearResizeHover();
+});
 
 canvas.addEventListener("dblclick", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  const resizeCol = headerResizeColumnAt(x, y);
+  if (resizeCol >= 0) {
+    event.preventDefault();
+    autoFitVisibleColumn(resizeCol);
+    return;
+  }
   if (y < headerHeight || x < rowNumberWidth) return;
   openEditor();
 });
