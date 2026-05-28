@@ -168,6 +168,10 @@ let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
 let draggingSelection = false;
 let dragSelectionMode = "cell";
+let draggingFillHandle = false;
+let hoverFillHandle = false;
+let fillDragSourceRange = null;
+let fillDragDirection = "";
 let hoverURL = "";
 let hoverResizeColumn = -1;
 let resizingColumn = -1;
@@ -1254,7 +1258,19 @@ function clearResizeHover() {
   syncCanvasHoverChrome();
 }
 
+function clearFillHandleHover() {
+  if (draggingFillHandle || !hoverFillHandle) return;
+  hoverFillHandle = false;
+  document.body.dataset.fillHandle = "";
+  syncCanvasHoverChrome();
+}
+
 function syncCanvasHoverChrome() {
+  if (draggingFillHandle || hoverFillHandle) {
+    canvas.style.cursor = "crosshair";
+    canvas.title = "Fill selection";
+    return;
+  }
   const resizeColumn = resizingColumn >= 0 ? resizingColumn : hoverResizeColumn;
   if (resizeColumn >= 0 && columns[resizeColumn]) {
     canvas.style.cursor = "col-resize";
@@ -1271,7 +1287,7 @@ function syncCanvasHoverChrome() {
 }
 
 function updateURLHover(event) {
-  if (draggingSelection || resizingColumn >= 0 || editing || !documentId) {
+  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || editing || !documentId) {
     clearURLHover();
     return;
   }
@@ -1291,13 +1307,15 @@ function updateURLHover(event) {
 }
 
 function updateCanvasHover(event) {
-  if (draggingSelection || resizingColumn >= 0 || editing || !documentId) {
+  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || editing || !documentId) {
     clearURLHover();
     clearResizeHover();
+    clearFillHandleHover();
     return;
   }
   if (event.metaKey || event.ctrlKey) {
     clearResizeHover();
+    clearFillHandleHover();
     updateURLHover(event);
     return;
   }
@@ -1305,6 +1323,14 @@ function updateCanvasHover(event) {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  if (fillHandleAt(x, y)) {
+    clearResizeHover();
+    hoverFillHandle = true;
+    document.body.dataset.fillHandle = selectionSummary();
+    syncCanvasHoverChrome();
+    return;
+  }
+  clearFillHandleHover();
   const col = headerResizeColumnAt(x, y);
   if (col < 0) {
     clearResizeHover();
@@ -2724,15 +2750,54 @@ function drawSelection() {
   }
 
   const rect = cellRect(selected.row, selected.col);
-  if (!rect) {
-    ctx.restore();
-    return;
+  if (rect) {
+    ctx.strokeStyle = themeColors.accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+    ctx.lineWidth = 1;
   }
-  ctx.strokeStyle = themeColors.accent;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
-  ctx.lineWidth = 1;
+  drawFillHandle(range);
   ctx.restore();
+}
+
+function drawFillHandle(range) {
+  const handle = fillHandleRect(range);
+  if (!handle) return;
+  ctx.save();
+  ctx.fillStyle = themeColors.accent;
+  ctx.strokeStyle = themeColors.gridBg;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(handle.x + 0.5, handle.y + 0.5, handle.width, handle.height);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function fillHandleRect(range = normalizedSelection()) {
+  if (!documentId || readOnly || columns.length === 0 || totalRows === 0 || sourceRowCount <= 0) {
+    return null;
+  }
+  if (range.endRow >= sourceRowCount) return null;
+  const rect = cellRect(range.endRow, range.endCol);
+  if (!rect) return null;
+  const size = 8;
+  const x = Math.min(rect.x + rect.width - size - 2, canvas.clientWidth - size - 2);
+  const y = Math.min(rect.y + rect.height - size - 2, canvas.clientHeight - size - 2);
+  if (x + size < rowNumberWidth || y + size < headerHeight) return null;
+  return { x, y, width: size, height: size };
+}
+
+function fillHandleAt(x, y) {
+  const handle = fillHandleRect();
+  if (!handle) return false;
+  const slop = 4;
+  return (
+    x >= handle.x - slop &&
+    x <= handle.x + handle.width + slop &&
+    y >= handle.y - slop &&
+    y <= handle.y + handle.height + slop
+  );
 }
 
 function visibleColumnIndexes(range = normalizedSelection()) {
@@ -2916,6 +2981,111 @@ function updateDragSelection(event) {
     selected = { row: rowAt(y), col: columnAtOrNearest(x) };
   }
   draw();
+}
+
+function startFillDrag() {
+  const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) return false;
+  draggingFillHandle = true;
+  hoverFillHandle = true;
+  fillDragSourceRange = { ...range };
+  fillDragDirection = "";
+  document.body.dataset.fillHandle = selectionSummary(range);
+  document.body.dataset.fillDrag = "";
+  clearURLHover();
+  clearResizeHover();
+  syncCanvasHoverChrome();
+  return true;
+}
+
+function updateFillDrag(event) {
+  if (!draggingFillHandle || !fillDragSourceRange) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const row = Math.max(0, Math.min(sourceRowCount - 1, rowAt(y)));
+  const col = columnAtOrNearest(x);
+  const next = fillDragSelection(fillDragSourceRange, row, col);
+  fillDragDirection = next.direction;
+  selectionAnchor = next.anchor;
+  selected = next.selected;
+  document.body.dataset.fillDrag = next.direction ? `${next.direction}:${selectionSummary(next.range)}` : "";
+  draw();
+}
+
+function finishFillDrag() {
+  if (!draggingFillHandle) return;
+  const direction = fillDragDirection;
+  draggingFillHandle = false;
+  hoverFillHandle = false;
+  fillDragSourceRange = null;
+  fillDragDirection = "";
+  document.body.dataset.fillHandle = "";
+  document.body.dataset.fillDrag = "";
+  syncCanvasHoverChrome();
+  if (direction) {
+    autoFillSelection(direction);
+    return;
+  }
+  draw();
+}
+
+function fillDragSelection(sourceRange, row, col) {
+  const clampedRow = Math.max(0, Math.min(sourceRowCount - 1, row));
+  const clampedCol = clampColumn(col);
+  const down = clampedRow > sourceRange.endRow ? clampedRow - sourceRange.endRow : 0;
+  const up = clampedRow < sourceRange.startRow ? sourceRange.startRow - clampedRow : 0;
+  const right = clampedCol > sourceRange.endCol ? clampedCol - sourceRange.endCol : 0;
+  const left = clampedCol < sourceRange.startCol ? sourceRange.startCol - clampedCol : 0;
+  const vertical = Math.max(down, up);
+  const horizontal = Math.max(right, left);
+  let direction = "";
+  if (vertical > 0 || horizontal > 0) {
+    direction = vertical >= horizontal ? (down >= up ? "down" : "up") : (right >= left ? "right" : "left");
+  }
+
+  if (direction === "down") {
+    const range = { ...sourceRange, endRow: clampedRow };
+    return {
+      direction,
+      range,
+      anchor: { row: sourceRange.startRow, col: sourceRange.startCol },
+      selected: { row: range.endRow, col: sourceRange.endCol },
+    };
+  }
+  if (direction === "up") {
+    const range = { ...sourceRange, startRow: clampedRow };
+    return {
+      direction,
+      range,
+      anchor: { row: sourceRange.endRow, col: sourceRange.endCol },
+      selected: { row: range.startRow, col: sourceRange.startCol },
+    };
+  }
+  if (direction === "right") {
+    const range = { ...sourceRange, endCol: clampedCol };
+    return {
+      direction,
+      range,
+      anchor: { row: sourceRange.startRow, col: sourceRange.startCol },
+      selected: { row: sourceRange.endRow, col: range.endCol },
+    };
+  }
+  if (direction === "left") {
+    const range = { ...sourceRange, startCol: clampedCol };
+    return {
+      direction,
+      range,
+      anchor: { row: sourceRange.endRow, col: sourceRange.endCol },
+      selected: { row: sourceRange.startRow, col: range.startCol },
+    };
+  }
+  return {
+    direction: "",
+    range: sourceRange,
+    anchor: { row: sourceRange.startRow, col: sourceRange.startCol },
+    selected: { row: sourceRange.endRow, col: sourceRange.endCol },
+  };
 }
 
 function openColumnMenu(col, clientX, clientY) {
@@ -6097,6 +6267,13 @@ canvas.addEventListener("mousedown", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  if (fillHandleAt(x, y)) {
+    event.preventDefault();
+    if (editing) commitEditor();
+    closeColumnMenu();
+    startFillDrag();
+    return;
+  }
   const resizeCol = headerResizeColumnAt(x, y);
   if (resizeCol >= 0) {
     event.preventDefault();
@@ -6160,6 +6337,11 @@ canvas.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("mousemove", (event) => {
+  if (draggingFillHandle) {
+    event.preventDefault();
+    updateFillDrag(event);
+    return;
+  }
   if (resizingColumn >= 0) {
     event.preventDefault();
     updateColumnResize(event.clientX);
@@ -6174,6 +6356,10 @@ window.addEventListener("mousemove", (event) => {
 });
 
 window.addEventListener("mouseup", () => {
+  if (draggingFillHandle) {
+    finishFillDrag();
+    return;
+  }
   if (resizingColumn >= 0) {
     finishColumnResize();
     return;
@@ -6184,9 +6370,10 @@ window.addEventListener("mouseup", () => {
 });
 
 canvas.addEventListener("mouseleave", () => {
-  if (resizingColumn >= 0) return;
+  if (resizingColumn >= 0 || draggingFillHandle) return;
   clearURLHover();
   clearResizeHover();
+  clearFillHandleHover();
 });
 
 canvas.addEventListener("dblclick", (event) => {
