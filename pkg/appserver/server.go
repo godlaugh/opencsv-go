@@ -810,6 +810,7 @@ type replaceRequest struct {
 	WholeCell     bool            `json:"wholeCell"`
 	Regex         bool            `json:"regex"`
 	All           bool            `json:"all"`
+	Preview       bool            `json:"preview"`
 }
 
 func (server *Server) handleReplace(w http.ResponseWriter, r *http.Request) {
@@ -830,6 +831,7 @@ func (server *Server) handleReplace(w http.ResponseWriter, r *http.Request) {
 		},
 		Replacement: request.Replacement,
 		All:         request.All,
+		Preview:     request.Preview,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

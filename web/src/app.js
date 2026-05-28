@@ -43,6 +43,7 @@ const findPrevButton = document.querySelector("#findPrevButton");
 const findNextButton = document.querySelector("#findNextButton");
 const findMatchCount = document.querySelector("#findMatchCount");
 const viewChips = document.querySelector("#viewChips");
+const replacePreviewButton = document.querySelector("#replacePreviewButton");
 const replaceButton = document.querySelector("#replaceButton");
 const replaceAllButton = document.querySelector("#replaceAllButton");
 const findCaseButton = document.querySelector("#findCaseButton");
@@ -500,6 +501,8 @@ function applyCommandMetadata() {
       button.textContent = "XLSX";
     } else if (button.dataset.command === "edit.copySelectedFormat") {
       button.textContent = "Copy";
+    } else if (button.dataset.command === "edit.replacePreview") {
+      button.textContent = "Preview";
     } else if (button.dataset.command === "view.filterBuilder") {
       button.textContent = "Builder";
     } else if (button.dataset.command === "format.savePreset") {
@@ -2272,6 +2275,9 @@ async function executeCommand(commandID) {
     case "edit.find":
       commandInput.focus();
       if (commandInput.value.trim()) await findCurrentQuery();
+      break;
+    case "edit.replacePreview":
+      await previewReplace();
       break;
     case "edit.replace":
       await replaceCurrentQuery(false);
@@ -4184,6 +4190,71 @@ async function replaceCurrentQuery(all) {
   status.textContent = all
     ? `Replaced ${payload.count.toLocaleString()} cells`
     : "Replaced 1 cell";
+  clearReplacePreview();
+}
+
+async function previewReplace() {
+  if (!documentId) return;
+  const search = parseSearchQuery(commandInput.value);
+  const query = search.query;
+  if (!query) {
+    status.textContent = "Type text to preview replacements.";
+    return;
+  }
+  const cells = search.inSelection ? cellsForReplaceScope(search) : [];
+  if (cells == null) return;
+  const response = await fetch("/api/replace", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId,
+      query,
+      replacement: replaceInput.value,
+      regex: search.regex,
+      caseSensitive: search.caseSensitive,
+      wholeCell: search.wholeCell,
+      cells,
+      all: true,
+      preview: true,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Replace preview failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  if (!payload.count) {
+    clearReplacePreview();
+    status.textContent = `No replacements for ${query}`;
+    return;
+  }
+  const first = payload.changes?.[0];
+  if (first) {
+    const displayRow = Math.max(0, first.row - dataStartRow);
+    const visibleCol = Math.max(0, visibleColForSource(first.col));
+    selected = { row: displayRow, col: visibleCol };
+    selectionAnchor = { ...selected };
+    scrollY = Math.max(0, displayRow * rowHeight - rowHeight * 2);
+    wheelRemainderY = 0;
+    await maybeLoadWindow(displayRow);
+  }
+  draw();
+  const firstVisibleCol = first ? visibleColForSource(first.col) : -1;
+  const before = first && firstVisibleCol >= 0
+    ? valueAt(Math.max(0, first.row - dataStartRow), firstVisibleCol)
+    : "";
+  const after = first?.value ?? "";
+  const rowLabel = first ? `; first row ${Math.max(0, first.row - dataStartRow) + 1}, column ${first.col + 1}` : "";
+  document.body.dataset.replacePreviewCount = String(payload.count);
+  document.body.dataset.replacePreview = first
+    ? `${first.row}:${first.col}:${before}->${after}`
+    : String(payload.count);
+  status.textContent = `Preview: ${payload.count.toLocaleString()} cells would change${rowLabel}: ${truncateMenuValue(before)} -> ${truncateMenuValue(after)}`;
+}
+
+function clearReplacePreview() {
+  document.body.dataset.replacePreview = "";
+  document.body.dataset.replacePreviewCount = "";
 }
 
 function parseSearchQuery(raw) {
@@ -4266,6 +4337,7 @@ function emptyFindState() {
 
 function invalidateFindState() {
   findState = emptyFindState();
+  clearReplacePreview();
   updateFindMatchCount();
   updateFindHighlightDataset();
 }
@@ -6640,6 +6712,7 @@ openCellLink.addEventListener("click", (event) => {
 findButton.addEventListener("click", findCurrentQuery);
 findPrevButton.addEventListener("click", () => findNextMatch(-1));
 findNextButton.addEventListener("click", () => findNextMatch(1));
+replacePreviewButton.addEventListener("click", previewReplace);
 replaceButton.addEventListener("click", () => replaceCurrentQuery(false));
 replaceAllButton.addEventListener("click", () => replaceCurrentQuery(true));
 findCaseButton.addEventListener("click", () => toggleFindOption("case"));
@@ -6675,6 +6748,7 @@ commandInput.addEventListener("keydown", async (event) => {
   await findNextMatch(event.shiftKey ? -1 : 1);
 });
 commandInput.addEventListener("input", invalidateFindState);
+replaceInput.addEventListener("input", clearReplacePreview);
 window.addEventListener("resize", resize);
 if ("ResizeObserver" in window) {
   const gridResizeObserver = new ResizeObserver(resize);

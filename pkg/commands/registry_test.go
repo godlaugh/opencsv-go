@@ -46,6 +46,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"cell.fillUp",
 		"cell.fillLeft",
 		"edit.find",
+		"edit.replacePreview",
 		"edit.replace",
 		"edit.replaceAll",
 		"row.hide",

@@ -701,6 +701,26 @@ func TestServerFindFilterSort(t *testing.T) {
 		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
 	}
 
+	previewPayload := postJSON(t, handler, "/api/replace", map[string]any{
+		"documentId":  documentID,
+		"query":       "Linus",
+		"replacement": "Ken",
+		"all":         true,
+		"preview":     true,
+	})
+	if previewPayload["preview"] != true || previewPayload["count"].(float64) != 1 {
+		t.Fatalf("replace preview payload = %#v, want one-change preview", previewPayload)
+	}
+	findPayload = postJSON(t, handler, "/api/find", map[string]any{
+		"documentId": documentID,
+		"query":      "Ken",
+		"wholeCell":  true,
+		"limit":      10,
+	})
+	if findPayload["total"].(float64) != 0 {
+		t.Fatalf("preview mutated document: %#v", findPayload)
+	}
+
 	replacePayload := postJSON(t, handler, "/api/replace", map[string]any{
 		"documentId":  documentID,
 		"query":       "Linus",

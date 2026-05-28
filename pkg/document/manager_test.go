@@ -44,6 +44,28 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	if len(regexMatches) != 1 {
 		t.Fatalf("regex matches = %#v, want one match", regexMatches)
 	}
+	previewResult, err := manager.Replace(session.ID, ReplaceOptions{
+		FindOptions: FindOptions{Query: "Lovelace", CaseSensitive: true},
+		Replacement: "Byron",
+		All:         true,
+		Preview:     true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !previewResult.Preview || previewResult.Count != 1 {
+		t.Fatalf("preview result = %#v, want one preview change", previewResult)
+	}
+	if got := previewResult.Changes[0].Value; got != "Ada Byron" {
+		t.Fatalf("preview replacement = %q, want Ada Byron", got)
+	}
+	matches, err = manager.Find(session.ID, FindOptions{Query: "Ada Byron"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("preview mutated document: %#v", matches)
+	}
 	replaceResult, err := manager.Replace(session.ID, ReplaceOptions{
 		FindOptions: FindOptions{Query: "Lovelace", CaseSensitive: true},
 		Replacement: "Byron",

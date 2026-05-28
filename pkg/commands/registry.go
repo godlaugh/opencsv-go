@@ -59,6 +59,7 @@ func Registry() []Command {
 		{ID: "cell.fillUp", Title: "Fill Up", Description: "Auto-fill the selected range upward with detected number, date, or text patterns.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"auto fill up", "fill series up"}},
 		{ID: "cell.fillLeft", Title: "Fill Left", Description: "Auto-fill the selected range to the left with detected number, date, or text patterns.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"auto fill left", "fill series left"}},
 		{ID: "edit.find", Title: "Find", Description: "Find cells matching the search query.", Shortcut: "Cmd+F", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
+		{ID: "edit.replacePreview", Title: "Preview Replace", Description: "Preview the cells that would change before replacing text.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"replace preview", "preview replacement"}},
 		{ID: "edit.replace", Title: "Replace", Description: "Replace the current match.", Shortcut: "Cmd+Alt+F", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "edit.replaceAll", Title: "Replace All", Description: "Replace all matches in the current document.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "row.insert", Title: "Insert Row", Description: "Insert an empty row before the selected row.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"add row"}},

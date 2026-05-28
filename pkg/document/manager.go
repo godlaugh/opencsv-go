@@ -1126,24 +1126,28 @@ type ReplaceOptions struct {
 	FindOptions
 	Replacement string `json:"replacement"`
 	All         bool   `json:"all"`
+	Preview     bool   `json:"preview"`
 }
 
 type ReplaceResult struct {
 	Changes []Match `json:"changes"`
 	Count   int     `json:"count"`
 	Dirty   bool    `json:"dirty"`
+	Preview bool    `json:"preview"`
 }
 
 func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResult, error) {
 	if options.Query == "" {
 		return ReplaceResult{}, nil
 	}
-	if err := manager.ensureWritable(id); err != nil {
-		return ReplaceResult{}, err
-	}
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return ReplaceResult{}, errors.New("document not found")
+	}
+	if !options.Preview {
+		if err := manager.ensureWritable(id); err != nil {
+			return ReplaceResult{}, err
+		}
 	}
 	matcher, err := newMatcher(options.FindOptions)
 	if err != nil {
@@ -1177,9 +1181,15 @@ func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResul
 			edits[Cell{Row: row, Col: col}] = replaced
 			changes = append(changes, Match{Row: row, Col: col, Value: replaced})
 			if !options.All {
+				if options.Preview {
+					return ReplaceResult{Changes: changes, Count: len(changes), Dirty: session.Dirty, Preview: true}, nil
+				}
 				return manager.applyReplaceEdits(id, edits, changes)
 			}
 		}
+	}
+	if options.Preview {
+		return ReplaceResult{Changes: changes, Count: len(changes), Dirty: session.Dirty, Preview: true}, nil
 	}
 	return manager.applyReplaceEdits(id, edits, changes)
 }

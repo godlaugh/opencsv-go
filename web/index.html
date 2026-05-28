@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-context-menu-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-replace-preview-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -63,6 +63,7 @@
             <button id="findPrevButton" type="button" title="Previous match">↑</button>
             <span id="findMatchCount" class="find-match-count" aria-live="polite">0/0</span>
             <button id="findNextButton" type="button" title="Next match">↓</button>
+            <button id="replacePreviewButton" type="button" title="Preview replacements" data-command="edit.replacePreview">Preview</button>
             <button id="replaceButton" type="button" title="Replace first match" data-command="edit.replace">Replace</button>
             <button id="replaceAllButton" type="button" title="Replace all matches" data-command="edit.replaceAll">All</button>
             <button id="diffButton" type="button" title="Compare files" data-command="diff.open">Compare</button>
@@ -310,6 +311,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-context-menu-1"></script>
+    <script type="module" src="./src/app.js?v=m2-replace-preview-1"></script>
   </body>
 </html>
