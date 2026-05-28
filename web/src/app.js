@@ -127,6 +127,8 @@ const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 
 let totalRows = 0;
+let sourceRowCount = 0;
+let aggregateRows = [];
 let columns = [];
 let allColumns = [];
 let hiddenSourceColumns = new Set();
@@ -280,6 +282,7 @@ function refreshThemeColors() {
     gridLine: read("--grid-line"),
     gridLineSoft: read("--grid-line-soft"),
     muted: read("--muted"),
+    panelSubtle: read("--panel-subtle"),
     quoteMarker: read("--quote-marker"),
     quoteMarkerText: read("--quote-marker-text"),
     selectionBg: read("--selection-bg"),
@@ -295,6 +298,8 @@ function cssPixelValue(name, fallback) {
 
 function valueAt(row, col) {
   if (!documentId) return "";
+  const aggregateRow = aggregateRowAt(row);
+  if (aggregateRow) return aggregateRow.values[sourceColFor(col)] ?? "";
   const record = rows.get(row);
   if (!record) {
     maybeLoadWindow(row);
@@ -304,9 +309,24 @@ function valueAt(row, col) {
 }
 
 function hasCellAt(row, col) {
+  if (aggregateRowAt(row)) return true;
   const record = rows.get(row);
   if (!record) return true;
   return sourceColFor(col) < record.length;
+}
+
+function aggregateRowAt(row) {
+  if (row < sourceRowCount) return null;
+  return aggregateRows[row - sourceRowCount] ?? null;
+}
+
+function aggregateRowIndex(row) {
+  return row >= sourceRowCount ? row - sourceRowCount : -1;
+}
+
+function syncTotalRows() {
+  totalRows = sourceRowCount + aggregateRows.length;
+  document.body.dataset.aggregateRows = String(aggregateRows.length);
 }
 
 function sourceColFor(col) {
@@ -349,6 +369,7 @@ function draw() {
   const aggregate = selectionAggregateSummary(aggregateStats);
   const modeLabel = readOnly ? " - read-only" : "";
   const externalLabel = externalFileChanged ? " - external change" : "";
+  const aggregateLabel = aggregateRows.length ? ` + ${aggregateRows.length} aggregate` : "";
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
   document.body.dataset.gridHeaderHeight = String(headerHeight);
@@ -356,7 +377,7 @@ function draw() {
   updateAggregateStatus(aggregateStats);
   status.textContent =
     documentId
-      ? `${totalRows.toLocaleString()} rows, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
+      ? `${sourceRowCount.toLocaleString()} rows${aggregateLabel}, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
       : "Ready";
   updateFormatStatus();
   updateInspector();
@@ -465,7 +486,10 @@ function updateCommandState() {
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = command.id === "sql.copyResultCsv" || command.id === "sql.exportResultCsv";
-  const needsAggregate = command.id === "selection.copyAggregate" || command.id === "selection.cycleAggregate";
+  const needsAggregate =
+    command.id === "selection.copyAggregate" ||
+    command.id === "selection.cycleAggregate" ||
+    command.id === "selection.insertAggregateRow";
   const writeBlocked =
     readOnly &&
     (
@@ -589,13 +613,14 @@ function quoteLabel(value) {
 function syncCellValuePanel() {
   const key = selectedCellKey();
   const value = documentId ? valueAt(selected.row, selected.col) : "";
+  const aggregate = Boolean(aggregateRowAt(selected.row));
   if (key !== cellValueInputKey || !cellValueInputDirty) {
     cellValueInput.value = value;
     cellValueInputKey = key;
     cellValueInputDirty = false;
   }
-  cellValueInput.disabled = !documentId || readOnly;
-  applyCellValueButton.disabled = !documentId || readOnly || !cellValueInputDirty;
+  cellValueInput.disabled = !documentId || readOnly || aggregate;
+  applyCellValueButton.disabled = !documentId || readOnly || aggregate || !cellValueInputDirty;
   const url = normalizeURL(value);
   if (url) {
     openCellLink.href = url;
@@ -609,7 +634,7 @@ function syncCellValuePanel() {
 }
 
 function selectedCellKey() {
-  return documentId ? `${documentId}:${selected.row}:${selected.col}` : "";
+  return documentId ? `${documentId}:${selected.row}:${selected.col}:${aggregateRowAt(selected.row) ? "aggregate" : "data"}` : "";
 }
 
 function normalizeURL(value) {
@@ -703,6 +728,10 @@ function selectionAggregateStats() {
   };
   if (count <= 1) return stats;
   const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) {
+    stats.limited = true;
+    return stats;
+  }
   if (count > 5000) {
     stats.limited = true;
     return stats;
@@ -825,6 +854,91 @@ async function copyActiveAggregate() {
   } catch (error) {
     status.textContent = `Aggregate copy failed: ${error.message}`;
   }
+}
+
+function insertAggregateRow() {
+  if (!documentId) return;
+  const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) {
+    status.textContent = "Select data rows before adding an aggregate row.";
+    return;
+  }
+  const stats = selectionAggregateStats();
+  const metric = normalizeAggregateMetric(stats);
+  if (!metric) {
+    status.textContent = "Select numeric cells to add an aggregate row.";
+    return;
+  }
+  const row = aggregateRowForSelection(range, metric);
+  if (!row) return;
+  aggregateRows.push(row);
+  syncTotalRows();
+  selected = { row: totalRows - 1, col: range.startCol };
+  selectionAnchor = { ...selected };
+  document.body.dataset.aggregateRowPreview = `${metric}:${row.values.join("|")}`;
+  draw();
+  status.textContent = `Added ${aggregateMetricLabel(metric)} aggregate row`;
+}
+
+function aggregateRowForSelection(range, metric) {
+  const values = Array.from({ length: allColumns.length }, () => "");
+  const labelCol = aggregateLabelColumn(range);
+  if (labelCol >= 0) values[sourceColFor(labelCol)] = aggregateMetricLabel(metric);
+  let populated = 0;
+  for (let col = range.startCol; col <= range.endCol; col++) {
+    const value = aggregateValueForColumn(range, col, metric);
+    if (value === "") continue;
+    values[sourceColFor(col)] = value;
+    populated++;
+  }
+  if (populated === 0) {
+    status.textContent = "No numeric values in the selected columns.";
+    return null;
+  }
+  return {
+    metric,
+    label: aggregateMetricLabel(metric),
+    values,
+  };
+}
+
+function aggregateLabelColumn(range) {
+  if (range.startCol > 0) return 0;
+  if (range.endCol + 1 < columns.length) return range.endCol + 1;
+  return -1;
+}
+
+function aggregateValueForColumn(range, col, metric) {
+  if (metric === "count") return String(range.endRow - range.startRow + 1);
+  const values = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    const raw = valueAt(row, col).trim();
+    if (raw === "") continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) values.push(value);
+  }
+  if (!values.length) return "";
+  if (metric === "sum") return formatNumber(values.reduce((sum, value) => sum + value, 0));
+  if (metric === "avg") return formatNumber(values.reduce((sum, value) => sum + value, 0) / values.length);
+  if (metric === "min") return formatNumber(Math.min(...values));
+  if (metric === "max") return formatNumber(Math.max(...values));
+  return "";
+}
+
+function removeSelectedAggregateRow() {
+  const index = aggregateRowIndex(selected.row);
+  if (index < 0) return false;
+  aggregateRows.splice(index, 1);
+  syncTotalRows();
+  selected = {
+    row: Math.max(0, Math.min(totalRows - 1, selected.row - 1)),
+    col: selected.col,
+  };
+  selectionAnchor = { ...selected };
+  document.body.dataset.aggregateRowPreview = `removed:${aggregateRows.length}`;
+  draw();
+  status.textContent = "Removed aggregate row";
+  return true;
 }
 
 function openCommandPalette() {
@@ -1355,6 +1469,9 @@ async function executeCommand(commandID) {
     case "selection.copyAggregate":
       await copyActiveAggregate();
       break;
+    case "selection.insertAggregateRow":
+      insertAggregateRow();
+      break;
     case "edit.copyCsv":
       await copySelection("csv");
       break;
@@ -1626,13 +1743,16 @@ function drawRows(width, height) {
     const row = firstRow + i;
     if (row >= totalRows) break;
     const y = headerHeight + i * rowHeight - yOffset;
+    const aggregateRow = aggregateRowAt(row);
 
-    ctx.fillStyle = row % 2 === 0 ? themeColors.gridRow : themeColors.gridRowAlt;
+    ctx.fillStyle = aggregateRow
+      ? themeColors.panelSubtle
+      : (row % 2 === 0 ? themeColors.gridRow : themeColors.gridRowAlt);
     ctx.fillRect(0, y, width, rowHeight);
     ctx.fillStyle = themeColors.gridHeader;
     ctx.fillRect(0, y, rowNumberWidth, rowHeight);
     ctx.fillStyle = themeColors.muted;
-    ctx.fillText(String(row + 1), 10, y + rowHeight / 2);
+    ctx.fillText(aggregateRow ? `agg${row - sourceRowCount + 1}` : String(row + 1), 10, y + rowHeight / 2);
 
     let x = rowNumberWidth - scrollX;
     for (let col = 0; col < columns.length; col++) {
@@ -1818,10 +1938,11 @@ function selectRowRange(row, extend = false) {
 function selectColumnRange(col, extend = false) {
   if (totalRows <= 0 || columns.length === 0) return;
   const clampedCol = clampColumn(col);
+  const lastDataRow = Math.max(0, sourceRowCount - 1);
   if (extend) {
-    selectionAnchor = { row: totalRows - 1, col: selectionAnchor.col };
+    selectionAnchor = { row: lastDataRow, col: selectionAnchor.col };
   } else {
-    selectionAnchor = { row: totalRows - 1, col: clampedCol };
+    selectionAnchor = { row: lastDataRow, col: clampedCol };
   }
   selected = { row: 0, col: clampedCol };
 }
@@ -1952,6 +2073,10 @@ function commitEditor() {
 function openEditor() {
   if (!documentId) return;
   if (!ensureEditable("Edit")) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   const rect = cellRect(selected.row, selected.col);
   if (!rect) return;
   editing = true;
@@ -1967,8 +2092,12 @@ function openEditor() {
 
 function setSelectionValue(value) {
   if (!ensureEditable("Edit")) return;
-  windowGeneration++;
   const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  windowGeneration++;
   const edits = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
     const record = rows.get(row) ?? [];
@@ -1988,6 +2117,10 @@ function setSelectionValue(value) {
 function setActiveCellValue(value) {
   if (!ensureEditable("Edit")) return;
   if (!documentId || columns.length === 0) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   windowGeneration++;
   const record = rows.get(selected.row) ?? [];
   const sourceCol = sourceColFor(selected.col);
@@ -2206,7 +2339,9 @@ function loadDocument(document) {
   });
   windowStart = 0;
   windowEnd = Math.max(0, document.preview.length - dataStartRow);
-  totalRows = Math.max(0, (document.rowIndex?.rows || document.preview.length) - dataStartRow);
+  sourceRowCount = Math.max(0, (document.rowIndex?.rows || document.preview.length) - dataStartRow);
+  aggregateRows = [];
+  syncTotalRows();
   allColumns = buildColumns(document);
   hiddenSourceColumns = new Set();
   applyHiddenColumns();
@@ -2291,6 +2426,10 @@ function selectedCellsForTransform(maxCells = 100_000) {
     return null;
   }
   const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return null;
+  }
   const cells = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
     const sourceRow = rowSource.get(row);
@@ -2533,13 +2672,17 @@ function pasteText(text) {
 
 function pasteMatrix(matrix) {
   if (!ensureEditable("Paste")) return;
+  if (selected.row >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   windowGeneration++;
   const edits = [];
   const startRow = selected.row;
   const startCol = selected.col;
   for (let rowOffset = 0; rowOffset < matrix.length; rowOffset++) {
     const row = startRow + rowOffset;
-    if (row >= totalRows) break;
+    if (row >= sourceRowCount) break;
     const record = rows.get(row) ?? [];
     const values = matrix[rowOffset] ?? [];
     for (let colOffset = 0; colOffset < values.length; colOffset++) {
@@ -2815,9 +2958,10 @@ function buildColumns(document) {
 
 async function maybeLoadWindow(row) {
   if (!documentId || loadingWindow) return;
+  if (row >= sourceRowCount) return;
   if (row >= windowStart && row < windowEnd) {
     const nearWindowEnd = row >= windowEnd - 20;
-    if (!nearWindowEnd || windowEnd >= totalRows) return;
+    if (!nearWindowEnd || windowEnd >= sourceRowCount) return;
   }
   loadingWindow = true;
   const generation = windowGeneration;
@@ -2836,7 +2980,8 @@ async function maybeLoadWindow(row) {
     });
     windowStart = displayStart;
     windowEnd = displayStart + payload.rows.length;
-    totalRows = viewMapped ? payload.totalRows : Math.max(0, payload.totalRows - dataStartRow);
+    sourceRowCount = viewMapped ? payload.totalRows : Math.max(0, payload.totalRows - dataStartRow);
+    syncTotalRows();
     draw();
   } catch (error) {
     status.textContent = `Window load failed: ${error.message}`;
@@ -3137,11 +3282,13 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   selectionAnchor = { ...selected };
   scrollY = 0;
   wheelRemainderY = 0;
-  totalRows = payload.totalRows ?? 0;
+  aggregateRows = [];
+  sourceRowCount = payload.totalRows ?? 0;
+  syncTotalRows();
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `${label} matched ${totalRows.toLocaleString()} rows`;
+  status.textContent = `${label} matched ${sourceRowCount.toLocaleString()} rows`;
 }
 
 function looksLikeSQLFilter(query) {
@@ -3193,7 +3340,9 @@ async function sortColumn(column, descending, append, modeOverride = "") {
   selectionAnchor = { ...selected };
   scrollY = 0;
   wheelRemainderY = 0;
-  totalRows = payload.totalRows ?? 0;
+  aggregateRows = [];
+  sourceRowCount = payload.totalRows ?? 0;
+  syncTotalRows();
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
@@ -3333,11 +3482,13 @@ async function applyColumnValueChecklist() {
   selectionAnchor = { ...selected };
   scrollY = 0;
   wheelRemainderY = 0;
-  totalRows = payload.totalRows ?? 0;
+  aggregateRows = [];
+  sourceRowCount = payload.totalRows ?? 0;
+  syncTotalRows();
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `Value filter ${columns[column].name} matched ${totalRows.toLocaleString()} rows`;
+  status.textContent = `Value filter ${columns[column].name} matched ${sourceRowCount.toLocaleString()} rows`;
 }
 
 async function clearView() {
@@ -3359,7 +3510,9 @@ async function clearView() {
   applyHiddenColumns();
   rows = new Map();
   rowSource = new Map();
-  totalRows = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
+  aggregateRows = [];
+  sourceRowCount = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
+  syncTotalRows();
   windowStart = 0;
   windowEnd = 0;
   selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, selected.col)) };
@@ -3403,16 +3556,25 @@ async function redoCurrentDocument() {
 }
 
 async function insertSelectedRow() {
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   await mutateStructure("/api/row/insert", { row: selectedSourceRow() }, "Inserted row");
 }
 
 async function deleteSelectedRow() {
+  if (removeSelectedAggregateRow()) return;
   await mutateStructure("/api/row/delete", { row: selectedSourceRow() }, "Deleted row");
 }
 
 async function hideSelectedRow() {
   if (!documentId) return;
   if (!ensureEditable("Hide Row")) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   status.textContent = "Hiding row...";
   const response = await fetch("/api/row/hide", {
     method: "POST",
@@ -3427,7 +3589,9 @@ async function hideSelectedRow() {
   viewMapped = true;
   rows = new Map();
   rowSource = new Map();
-  totalRows = payload.totalRows ?? Math.max(0, totalRows - (payload.changed ?? 0));
+  aggregateRows = [];
+  sourceRowCount = payload.totalRows ?? Math.max(0, sourceRowCount - (payload.changed ?? 0));
+  syncTotalRows();
   selected = { row: Math.max(0, Math.min(totalRows - 1, selected.row)), col: selected.col };
   selectionAnchor = { ...selected };
   windowStart = 0;
@@ -3439,6 +3603,10 @@ async function hideSelectedRow() {
 async function moveSelectedRow(delta) {
   if (!documentId) return;
   if (!ensureEditable("Move Row")) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   const previousRow = selected.row;
   const label = delta < 0 ? "Moved row up" : "Moved row down";
   status.textContent = `${label}...`;
@@ -3668,6 +3836,10 @@ function autoFillSelection(direction) {
   const label = autoFillLabel(direction);
   if (!ensureEditable(label)) return;
   const range = normalizedSelection();
+  if (range.endRow >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
   const axisLength = direction === "left" || direction === "right"
     ? range.endCol - range.startCol + 1
     : range.endRow - range.startRow + 1;
@@ -4768,6 +4940,7 @@ function handleGlobalShortcut(event) {
       b: "cell.splitVertical",
       f: "cell.fillDown",
       g: "cell.fillRight",
+      a: "selection.insertAggregateRow",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",

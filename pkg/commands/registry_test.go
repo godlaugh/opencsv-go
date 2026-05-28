@@ -29,6 +29,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"table.toggleHeaderRow",
 		"selection.cycleAggregate",
 		"selection.copyAggregate",
+		"selection.insertAggregateRow",
 		"edit.copySelectedFormat",
 		"edit.copyJson",
 		"edit.copyHtml",
