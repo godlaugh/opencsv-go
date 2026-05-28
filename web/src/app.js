@@ -40,6 +40,7 @@ const findButton = document.querySelector("#findButton");
 const findPrevButton = document.querySelector("#findPrevButton");
 const findNextButton = document.querySelector("#findNextButton");
 const findMatchCount = document.querySelector("#findMatchCount");
+const viewChips = document.querySelector("#viewChips");
 const replaceButton = document.querySelector("#replaceButton");
 const replaceAllButton = document.querySelector("#replaceAllButton");
 const findCaseButton = document.querySelector("#findCaseButton");
@@ -202,6 +203,7 @@ let findWholeCell = false;
 let findRegex = false;
 let findInSelection = false;
 let findState = emptyFindState();
+let activeFilter = null;
 let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
 let diffRows = [];
@@ -3046,6 +3048,7 @@ function loadDocument(document) {
   viewMapped = false;
   sortDescending = false;
   sortKeys = [];
+  clearActiveFilter();
   invalidateFindState();
   document.preview.forEach((record, index) => {
     if (index < dataStartRow) return;
@@ -4049,6 +4052,106 @@ function setPressed(button, pressed) {
   button.setAttribute("aria-pressed", String(pressed));
 }
 
+function setActiveFilter(filter) {
+  activeFilter = filter;
+  renderViewChips();
+}
+
+function clearActiveFilter() {
+  activeFilter = null;
+  renderViewChips();
+}
+
+function renderViewChips() {
+  viewChips.replaceChildren();
+  if (!activeFilter) {
+    viewChips.hidden = true;
+    document.body.dataset.activeFilter = "";
+    return;
+  }
+  viewChips.hidden = false;
+  document.body.dataset.activeFilter = activeFilter.display;
+
+  const chip = document.createElement("div");
+  chip.className = "view-chip";
+  chip.title = activeFilter.display;
+
+  const label = document.createElement("span");
+  label.textContent = activeFilter.display;
+
+  const sqlButton = document.createElement("button");
+  sqlButton.type = "button";
+  sqlButton.textContent = "SQL";
+  sqlButton.title = "Open this filter in SQL";
+  sqlButton.addEventListener("click", openActiveFilterInSQL);
+
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.textContent = "Clear";
+  clearButton.title = "Clear filter and sort";
+  clearButton.addEventListener("click", clearView);
+
+  chip.append(label, sqlButton, clearButton);
+  viewChips.append(chip);
+}
+
+function openActiveFilterInSQL() {
+  if (!activeFilter?.sqlQuery) return;
+  sqlInput.value = activeFilter.sqlQuery;
+  document.body.dataset.sqlFilterPreview = activeFilter.sqlQuery;
+  setViewMode("sql");
+  status.textContent = "Loaded current filter in SQL Console";
+}
+
+function filterDescriptorFromRequest(body, label) {
+  if (body.mode === "sql" && body.expression) {
+    return filterDescriptor(`where ${body.expression}`, body.expression);
+  }
+  if (body.query && Number.isInteger(body.column)) {
+    const expression = `${sqlColumnIdentifier(body.column)} LIKE ${sqlStringLiteral(`%${body.query}%`)}`;
+    return filterDescriptor(`${columnNameForSource(body.column)} contains ${body.query}`, expression);
+  }
+  if (body.query) {
+    const expression = containsAnyColumnExpression(body.query);
+    return filterDescriptor(`contains ${body.query}`, expression);
+  }
+  return null;
+}
+
+function valueFilterDescriptor(sourceCol, values, includeBlank) {
+  const parts = [];
+  if (values.length === 1) {
+    parts.push(`${sqlColumnIdentifier(sourceCol)} = ${sqlStringLiteral(values[0])}`);
+  } else if (values.length > 1) {
+    parts.push(`${sqlColumnIdentifier(sourceCol)} IN (${values.map(sqlStringLiteral).join(", ")})`);
+  }
+  if (includeBlank) {
+    parts.push(`${sqlColumnIdentifier(sourceCol)} = ''`);
+  }
+  const expression = parts.join(" OR ");
+  const count = values.length + (includeBlank ? 1 : 0);
+  return filterDescriptor(`${columnNameForSource(sourceCol)}: ${count} values`, expression);
+}
+
+function filterDescriptor(display, expression) {
+  if (!expression) return null;
+  return {
+    display: `Filter: ${display}`,
+    expression,
+    sqlQuery: `SELECT * FROM current WHERE ${expression} LIMIT 500`,
+  };
+}
+
+function containsAnyColumnExpression(query) {
+  const sourceColumns = (allColumns.length ? allColumns : columns)
+    .map((column) => column.sourceCol)
+    .filter((sourceCol, index, values) => values.indexOf(sourceCol) === index);
+  const columnsToSearch = sourceColumns.length ? sourceColumns : [0];
+  return columnsToSearch
+    .map((sourceCol) => `${sqlColumnIdentifier(sourceCol)} LIKE ${sqlStringLiteral(`%${query}%`)}`)
+    .join(" OR ");
+}
+
 async function filterCurrentQuery() {
   if (!documentId) return;
   const query = commandInput.value.trim();
@@ -4081,6 +4184,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   viewMapped = true;
   sortDescending = false;
   sortKeys = [];
+  setActiveFilter(filterDescriptorFromRequest(body, label));
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, preserveCol)) };
@@ -4281,6 +4385,7 @@ async function applyColumnValueChecklist() {
   viewMapped = true;
   sortDescending = false;
   sortKeys = [];
+  setActiveFilter(valueFilterDescriptor(sourceCol, values, includeBlank));
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: column };
@@ -4311,6 +4416,7 @@ async function clearView() {
   viewMapped = false;
   sortDescending = false;
   sortKeys = [];
+  clearActiveFilter();
   hiddenSourceColumns = new Set();
   applyHiddenColumns();
   rows = new Map();

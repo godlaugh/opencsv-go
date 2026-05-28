@@ -270,6 +270,48 @@ button:disabled {
     monospace;
 }
 
+.view-chips {
+  display: flex;
+  max-width: min(420px, 42vw);
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.view-chips[hidden] {
+  display: none;
+}
+
+.view-chip {
+  display: inline-flex;
+  min-width: 0;
+  height: 30px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 0 4px 0 8px;
+  background: var(--accent-quiet);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.view-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.view-chip button {
+  height: 22px;
+  min-width: 34px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
 .segmented button,
 .tool-actions button,
 .file-open button {
@@ -282,6 +324,12 @@ button:disabled {
 .tool-actions .find-options button {
   min-width: 30px;
   padding: 0;
+}
+
+.tool-actions .view-chip button {
+  height: 22px;
+  min-width: 34px;
+  padding: 0 6px;
 }
 
 @media (max-width: 1280px) {
