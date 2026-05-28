@@ -111,6 +111,7 @@ const saveAsPath = document.querySelector("#saveAsPath");
 const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
 const cancelSaveAsButton = document.querySelector("#cancelSaveAsButton");
 const confirmSaveAsButton = document.querySelector("#confirmSaveAsButton");
+const gridContextMenu = document.querySelector("#gridContextMenu");
 const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
@@ -430,6 +431,7 @@ function draw() {
 
 function setViewMode(mode) {
   closeColumnMenu();
+  closeGridContextMenu();
   viewMode = mode;
   gridFrame.classList.toggle("sql-mode", mode === "sql");
   gridFrame.classList.toggle("diff-mode", mode === "diff");
@@ -1210,6 +1212,16 @@ function normalizeURL(value) {
   return "";
 }
 
+function openSelectedCellLink() {
+  const url = normalizeURL(valueAt(selected.row, selected.col));
+  if (!url) {
+    status.textContent = "Selected cell is not a link";
+    return;
+  }
+  window.open(url, "_blank", "noopener");
+  status.textContent = `Opened ${url}`;
+}
+
 function cellAtPoint(x, y) {
   if (x < rowNumberWidth || y < headerHeight) return null;
   const row = rowAt(y);
@@ -1297,6 +1309,140 @@ function updateCanvasHover(event) {
   hoverResizeColumn = col;
   document.body.dataset.resizeColumn = String(col);
   syncCanvasHoverChrome();
+}
+
+function openGridContextMenu(event) {
+  if (!documentId || columns.length === 0 || totalRows === 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const target = gridContextTargetAt(x, y);
+  event.preventDefault();
+  if (!target) {
+    closeGridContextMenu();
+    return;
+  }
+  if (editing) commitEditor();
+  closeColumnMenu();
+  selectGridContextTarget(target);
+  renderGridContextMenu(target, event.clientX, event.clientY);
+  draw();
+}
+
+function gridContextTargetAt(x, y) {
+  if (y < 0 || x < 0 || x > canvas.clientWidth || y > canvas.clientHeight) return null;
+  if (y < headerHeight && x >= rowNumberWidth) {
+    const col = columnAt(x);
+    return col >= 0 ? { kind: "column", col } : null;
+  }
+  if (x < rowNumberWidth && y >= headerHeight) {
+    const row = rowAt(y);
+    return row >= 0 ? { kind: "row", row } : null;
+  }
+  const cell = cellAtPoint(x, y);
+  return cell ? { kind: "cell", ...cell } : null;
+}
+
+function selectGridContextTarget(target) {
+  if (target.kind === "column") {
+    selectColumnRange(target.col);
+    return;
+  }
+  if (target.kind === "row") {
+    selectRowRange(target.row);
+    return;
+  }
+  selected = { row: target.row, col: target.col };
+  selectionAnchor = { ...selected };
+}
+
+function renderGridContextMenu(target, clientX, clientY) {
+  const heading = document.createElement("strong");
+  heading.textContent = gridContextHeading(target);
+  gridContextMenu.replaceChildren(heading);
+
+  const addSeparator = () => gridContextMenu.append(document.createElement("hr"));
+  const addItem = (label, action, options = {}) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.textContent = label;
+    if (options.commandID) button.dataset.command = options.commandID;
+    button.disabled = Boolean(options.disabled);
+    button.addEventListener("click", async () => {
+      closeGridContextMenu();
+      await action();
+    });
+    gridContextMenu.append(button);
+    return button;
+  };
+  const addCommand = (commandID, label = "") => {
+    const command = commandsById.get(commandID);
+    addItem(label || commandTitle(command || { id: commandID }), () => executeCommand(commandID), {
+      commandID,
+      disabled: !command || isCommandDisabled(command),
+    });
+  };
+
+  addCommand("edit.copy", "Copy");
+  addCommand("edit.copyWithHeaders", "Copy with Headers");
+  addCommand("edit.copyCsv", "Copy as CSV");
+
+  const url = target.kind === "cell" ? normalizeURL(valueAt(selected.row, selected.col)) : "";
+  if (url) {
+    addItem("Open Link", () => openSelectedCellLink(), { disabled: false });
+  }
+
+  if (target.kind === "cell") {
+    addSeparator();
+    addItem("Filter by Cell", () => filterSelectedCellValue());
+    addItem("Sort Column Ascending", () => sortColumn(selected.col, false, false));
+    addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
+  } else if (target.kind === "column") {
+    addSeparator();
+    addItem("Sort Ascending", () => sortColumn(selected.col, false, false));
+    addItem("Sort Descending", () => sortColumn(selected.col, true, false));
+    addItem("Filter Builder", () => openConditionBuilder());
+  }
+
+  if (target.kind !== "column") {
+    addSeparator();
+    addCommand("row.insert");
+    addCommand("row.delete");
+    addCommand("row.hide");
+  }
+  if (target.kind !== "row") {
+    addSeparator();
+    addCommand("column.insert");
+    addCommand("column.delete");
+    addCommand("column.hide");
+  }
+  addSeparator();
+  addCommand("view.clear");
+
+  gridContextMenu.hidden = false;
+  const menuRect = gridContextMenu.getBoundingClientRect();
+  const left = Math.min(Math.max(8, clientX), window.innerWidth - menuRect.width - 8);
+  const top = Math.min(Math.max(8, clientY), window.innerHeight - menuRect.height - 8);
+  gridContextMenu.style.left = `${left}px`;
+  gridContextMenu.style.top = `${top}px`;
+  gridContextMenu.dataset.target = target.kind;
+  document.body.dataset.gridContextTarget = target.kind;
+}
+
+function gridContextHeading(target) {
+  if (target.kind === "column") return `Column: ${columns[target.col]?.name ?? target.col + 1}`;
+  if (target.kind === "row") return `Row ${target.row + 1}`;
+  const column = columns[target.col]?.name ?? `Column ${target.col + 1}`;
+  return `Cell ${target.row + 1}, ${column}`;
+}
+
+function closeGridContextMenu() {
+  if (gridContextMenu.hidden) return;
+  gridContextMenu.hidden = true;
+  gridContextMenu.replaceChildren();
+  gridContextMenu.dataset.target = "";
+  document.body.dataset.gridContextTarget = "";
 }
 
 function normalizedSelection() {
@@ -4456,6 +4602,21 @@ async function filterColumnBySelectedValue() {
   );
 }
 
+async function filterSelectedCellValue() {
+  if (!documentId || !columns[selected.col]) return;
+  const value = valueAt(selected.row, selected.col);
+  if (value === "") {
+    status.textContent = "Selected cell is blank.";
+    return;
+  }
+  commandInput.value = value;
+  await applyFilterRequest(
+    { documentId, query: value, column: sourceColFor(selected.col) },
+    `Filtered ${columns[selected.col].name}`,
+    selected.col,
+  );
+}
+
 async function filterColumnBlank(showBlank) {
   const column = columnMenuColumn;
   closeColumnMenu();
@@ -5830,6 +5991,7 @@ canvas.addEventListener(
   (event) => {
     event.preventDefault();
     closeColumnMenu();
+    closeGridContextMenu();
     const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
     const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
     applyVerticalWheelDelta(event.deltaY);
@@ -5840,8 +6002,11 @@ canvas.addEventListener(
   { passive: false },
 );
 
+canvas.addEventListener("contextmenu", openGridContextMenu);
+
 canvas.addEventListener("mousedown", (event) => {
   canvas.focus();
+  closeGridContextMenu();
   if (!documentId || columns.length === 0 || totalRows === 0) return;
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -6074,6 +6239,11 @@ function handleGlobalShortcut(event) {
   if (event.key === "Escape" && !columnMenu.hidden) {
     event.preventDefault();
     closeColumnMenu();
+    return true;
+  }
+  if (event.key === "Escape" && !gridContextMenu.hidden) {
+    event.preventDefault();
+    closeGridContextMenu();
     return true;
   }
   if (event.key === "Escape" && conditionBuilderOpen) {
@@ -6392,9 +6562,15 @@ saveAsPath.addEventListener("keydown", async (event) => {
 columnMenu.addEventListener("mousedown", (event) => {
   event.stopPropagation();
 });
+gridContextMenu.addEventListener("mousedown", (event) => {
+  event.stopPropagation();
+});
 window.addEventListener("mousedown", (event) => {
   if (!columnMenu.hidden && !columnMenu.contains(event.target) && event.target !== canvas) {
     closeColumnMenu();
+  }
+  if (!gridContextMenu.hidden && !gridContextMenu.contains(event.target) && event.target !== canvas) {
+    closeGridContextMenu();
   }
 });
 columnSortAsc.addEventListener("click", async () => {
