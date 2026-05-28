@@ -980,7 +980,11 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		outputPath = session.WorkingPath
 	}
 	if outputPath != session.OriginalPath {
-		createBackup = false
+		if _, statErr := os.Stat(outputPath); errors.Is(statErr, os.ErrNotExist) {
+			createBackup = false
+		} else if statErr != nil {
+			return csvcore.SaveResult{}, statErr
+		}
 	}
 	var result csvcore.SaveResult
 	if isXLSXPath(outputPath) {

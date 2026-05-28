@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-find-highlight-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-header-layer-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -70,12 +70,14 @@
             <button id="exportButton" type="button" title="Export current view" data-command="file.exportView">Export</button>
             <button id="exportXlsxButton" type="button" title="Export current view as XLSX" data-command="file.exportXlsx">XLSX</button>
             <button id="saveButton" type="button" title="Save" data-command="file.save">Save</button>
+            <button id="saveAsButton" type="button" title="Save as" data-command="file.saveAs">Save As</button>
             <div id="viewChips" class="view-chips" aria-label="Active view filters" hidden></div>
           </div>
         </header>
 
         <section class="grid-frame" aria-label="CSV grid prototype">
           <canvas id="grid" width="1200" height="760"></canvas>
+          <canvas id="gridHeader" aria-hidden="true"></canvas>
           <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
           <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console">
             <div class="sql-editor-row">
@@ -233,6 +235,23 @@
       </section>
     </div>
 
+    <div id="saveAsPanel" class="command-palette-backdrop" hidden>
+      <section class="save-as-panel" role="dialog" aria-modal="true" aria-label="Save As">
+        <header class="condition-panel-header">
+          <strong>Save As</strong>
+          <button id="closeSaveAsButton" type="button">Close</button>
+        </header>
+        <label class="save-as-body">
+          <span>Path</span>
+          <input id="saveAsPath" type="text" spellcheck="false" placeholder="/tmp/output.csv" aria-label="Save as path" />
+        </label>
+        <footer class="condition-actions">
+          <button id="cancelSaveAsButton" type="button">Cancel</button>
+          <button id="confirmSaveAsButton" type="button">Save</button>
+        </footer>
+      </section>
+    </div>
+
     <div id="conditionPanel" class="command-palette-backdrop" hidden>
       <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder">
         <header class="condition-panel-header">
@@ -289,6 +308,6 @@
       <button id="columnClearView" type="button" role="menuitem">Clear filter/sort</button>
     </section>
 
-    <script type="module" src="./src/app.js?v=m2-find-highlight-1"></script>
+    <script type="module" src="./src/app.js?v=m2-header-layer-1"></script>
   </body>
 </html>

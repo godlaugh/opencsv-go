@@ -1,5 +1,7 @@
 const canvas = document.querySelector("#grid");
 const ctx = canvas.getContext("2d");
+const headerCanvas = document.querySelector("#gridHeader");
+const headerCtx = headerCanvas.getContext("2d");
 const editor = document.querySelector("#editor");
 const status = document.querySelector("#status");
 const encodingStatus = document.querySelector("#encodingStatus");
@@ -51,6 +53,7 @@ const diffButton = document.querySelector("#diffButton");
 const exportButton = document.querySelector("#exportButton");
 const exportXlsxButton = document.querySelector("#exportXlsxButton");
 const saveButton = document.querySelector("#saveButton");
+const saveAsButton = document.querySelector("#saveAsButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
 const commandButtons = Array.from(document.querySelectorAll("[data-command]"));
 const gridFrame = document.querySelector(".grid-frame");
@@ -103,6 +106,11 @@ const shortcutsPanel = document.querySelector("#shortcutsPanel");
 const shortcutsSearch = document.querySelector("#shortcutsSearch");
 const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
+const saveAsPanel = document.querySelector("#saveAsPanel");
+const saveAsPath = document.querySelector("#saveAsPath");
+const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
+const cancelSaveAsButton = document.querySelector("#cancelSaveAsButton");
+const confirmSaveAsButton = document.querySelector("#confirmSaveAsButton");
 const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
@@ -228,6 +236,9 @@ function syncCanvasSize() {
   syncCanvasCSSSize(canvas, width, height);
   resizeCanvasBackingStore(canvas, width, height, scale);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  syncCanvasCSSSize(headerCanvas, width, headerHeight);
+  resizeCanvasBackingStore(headerCanvas, width, headerHeight, scale);
+  headerCtx.setTransform(scale, 0, 0, scale, 0, 0);
   return { width, height };
 }
 
@@ -385,6 +396,7 @@ function draw() {
   }
   const { width, height } = syncCanvasSize();
   ctx.clearRect(0, 0, width, height);
+  headerCtx.clearRect(0, 0, width, headerHeight);
 
   ctx.fillStyle = themeColors.gridBg;
   ctx.fillRect(0, 0, width, height);
@@ -548,6 +560,7 @@ function isCommandDisabled(command) {
     readOnly &&
     (
       command.id === "file.save" ||
+      command.id === "file.saveAs" ||
       command.id === "edit.undo" ||
       command.id === "edit.redo" ||
       command.id === "edit.paste" ||
@@ -2029,6 +2042,9 @@ async function executeCommand(commandID) {
     case "file.save":
       await saveCurrentDocument();
       break;
+    case "file.saveAs":
+      openSaveAsDialog();
+      break;
     case "file.exportView":
       await exportCurrentView();
       break;
@@ -2224,7 +2240,7 @@ async function executeCommand(commandID) {
 function drawHeaders(width) {
   const headerNameY = Math.max(14, Math.round(headerHeight * 0.34));
   const headerTypeY = Math.min(headerHeight - 10, Math.round(headerHeight * 0.72));
-  const target = ctx;
+  const target = headerCtx;
   target.save();
   target.beginPath();
   target.rect(0, 0, width, headerHeight);
@@ -5097,27 +5113,74 @@ async function mutateStructure(endpoint, body, label) {
 }
 
 async function saveCurrentDocument() {
+  await saveDocumentToPath("", { saveAs: false });
+}
+
+function openSaveAsDialog() {
+  if (!documentId) {
+    status.textContent = "Open a CSV before using Save As.";
+    return;
+  }
+  if (!ensureEditable("Save As")) return;
+  saveAsPath.value = suggestedSaveAsPath();
+  saveAsPanel.hidden = false;
+  saveAsPath.focus();
+  saveAsPath.select();
+}
+
+function closeSaveAsDialog() {
+  saveAsPanel.hidden = true;
+  canvas.focus();
+}
+
+function suggestedSaveAsPath() {
+  const current = metadata?.path || activeFileEntry?.detail || pathInput.value.trim() || "/tmp/output.csv";
+  if (current === "temporary upload") return `/tmp/${activeFileEntry?.name || "opencsv-output.csv"}`;
+  const dot = current.lastIndexOf(".");
+  const slash = Math.max(current.lastIndexOf("/"), current.lastIndexOf("\\"));
+  if (dot > slash) return `${current.slice(0, dot)} copy${current.slice(dot)}`;
+  return `${current} copy`;
+}
+
+async function confirmSaveAs() {
+  const path = saveAsPath.value.trim();
+  if (!path) {
+    status.textContent = "Enter a Save As path.";
+    saveAsPath.focus();
+    return;
+  }
+  await saveDocumentToPath(path, { saveAs: true });
+}
+
+async function saveDocumentToPath(path = "", options = {}) {
   if (!documentId) {
     status.textContent = "Open a CSV through opencsv serve before saving.";
     return;
   }
-  if (!ensureEditable("Save")) return;
-  status.textContent = "Saving...";
+  if (!ensureEditable(options.saveAs ? "Save As" : "Save")) return;
+  status.textContent = options.saveAs ? `Saving as ${path}...` : "Saving...";
   const response = await fetch("/api/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, backup: true }),
+    body: JSON.stringify({ documentId, path, backup: true }),
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Save failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = `${options.saveAs ? "Save As" : "Save"} failed: ${payload.error ?? "unknown error"}`;
     return;
   }
   dirty = false;
+  externalFileChanged = false;
+  if (payload.path) {
+    metadata = metadata ? { ...metadata, path: payload.path } : metadata;
+    pathInput.value = payload.path;
+    updateFileList(fileNameFromPath(payload.path), payload.path, totalRows, { remember: true });
+    updateFormatRulePlaceholder(payload.path);
+  }
+  if (options.saveAs) closeSaveAsDialog();
   status.textContent = payload.backupPath
     ? `Saved ${payload.path}; backup ${payload.backupPath}`
     : `Saved ${payload.path}`;
-  externalFileChanged = false;
   await checkFileStatus(false);
 }
 
@@ -6049,6 +6112,11 @@ function handleGlobalShortcut(event) {
     fileInput.click();
     return true;
   }
+  if (key === "s" && event.shiftKey && defaultShortcutActive("file.saveAs")) {
+    event.preventDefault();
+    openSaveAsDialog();
+    return true;
+  }
   if (key === "s" && defaultShortcutActive("file.save")) {
     event.preventDefault();
     saveCurrentDocument();
@@ -6163,6 +6231,7 @@ fileInput.addEventListener("change", async () => {
 });
 
 saveButton.addEventListener("click", saveCurrentDocument);
+saveAsButton.addEventListener("click", openSaveAsDialog);
 exportButton.addEventListener("click", exportCurrentView);
 exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);
@@ -6298,6 +6367,26 @@ shortcutsPanel.addEventListener("mousedown", (event) => {
   if (event.target === shortcutsPanel) {
     event.preventDefault();
     closeKeyboardShortcuts();
+  }
+});
+closeSaveAsButton.addEventListener("click", closeSaveAsDialog);
+cancelSaveAsButton.addEventListener("click", closeSaveAsDialog);
+confirmSaveAsButton.addEventListener("click", confirmSaveAs);
+saveAsPanel.addEventListener("mousedown", (event) => {
+  if (event.target === saveAsPanel) {
+    event.preventDefault();
+    closeSaveAsDialog();
+  }
+});
+saveAsPath.addEventListener("keydown", async (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    await confirmSaveAs();
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSaveAsDialog();
   }
 });
 columnMenu.addEventListener("mousedown", (event) => {

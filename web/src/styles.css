@@ -367,21 +367,37 @@ button:disabled {
   background: var(--grid-bg);
 }
 
-#grid {
+#grid,
+#gridHeader {
   position: absolute;
-  inset: 0;
-  z-index: 1;
   contain: strict;
   display: block;
   width: 100%;
+}
+
+#grid {
+  inset: 0;
+  z-index: 1;
   height: 100%;
   touch-action: none;
 }
 
+#gridHeader {
+  top: 0;
+  left: 0;
+  z-index: 2;
+  height: var(--grid-header-height);
+  pointer-events: none;
+}
+
 .grid-frame.sql-mode #grid,
+.grid-frame.sql-mode #gridHeader,
 .grid-frame.diff-mode #grid,
+.grid-frame.diff-mode #gridHeader,
 .grid-frame.profile-mode #grid,
-.grid-frame.settings-mode #grid {
+.grid-frame.profile-mode #gridHeader,
+.grid-frame.settings-mode #grid,
+.grid-frame.settings-mode #gridHeader {
   visibility: hidden;
 }
 
@@ -1008,6 +1024,17 @@ button:disabled {
   box-shadow: 0 18px 48px var(--shadow);
 }
 
+.save-as-panel {
+  display: grid;
+  width: min(680px, calc(100vw - 32px));
+  grid-template-rows: auto auto auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
 .condition-panel-header,
 .condition-actions {
   display: flex;
@@ -1040,8 +1067,17 @@ button:disabled {
   font-size: 12px;
 }
 
+.save-as-body {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .condition-grid select,
-.condition-grid input {
+.condition-grid input,
+.save-as-body input {
   height: 34px;
   min-width: 0;
   border: 1px solid var(--border);

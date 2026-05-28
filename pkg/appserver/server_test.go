@@ -69,6 +69,55 @@ func TestServerOpenEditSave(t *testing.T) {
 	}
 }
 
+func TestServerSaveAsWritesNewPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	targetPath := filepath.Join(dir, "sample-copy.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"value":      "Grace",
+	})
+
+	savePayload := postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"path":       targetPath,
+		"backup":     true,
+	})
+	if savePayload["path"] != targetPath {
+		t.Fatalf("save as path = %#v, want %s", savePayload["path"], targetPath)
+	}
+	if _, hasBackup := savePayload["backupPath"].(string); hasBackup {
+		t.Fatalf("new save-as target should not create backup: %#v", savePayload)
+	}
+	saved, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saved) != "id,name\n1,Grace\n" {
+		t.Fatalf("save-as content = %q", string(saved))
+	}
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(original) != "id,name\n1,Ada\n" {
+		t.Fatalf("original changed after save-as: %q", string(original))
+	}
+}
+
 func TestServerOpenXLSXPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.xlsx")
