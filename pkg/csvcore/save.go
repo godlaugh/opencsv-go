@@ -66,12 +66,12 @@ func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 		delimiter = ','
 	}
 	quoteChar := DialectQuoteChar(metadata.Dialect)
-	for _, record := range records {
+	for rowIndex, record := range records {
 		for index, field := range record {
 			if index > 0 {
 				buffer.WriteRune(delimiter)
 			}
-			if ShouldQuote(field, metadata.Dialect) && quoteChar != "" {
+			if ShouldQuoteField(field, metadata.Dialect, rowIndex, index) && quoteChar != "" {
 				buffer.WriteString(quoteChar)
 				buffer.WriteString(strings.ReplaceAll(field, quoteChar, quoteChar+quoteChar))
 				buffer.WriteString(quoteChar)

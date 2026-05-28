@@ -15,9 +15,17 @@ type Dialect struct {
 	DelimiterName    string `json:"delimiterName"`
 	QuoteChar        string `json:"quoteChar"`
 	QuoteMode        string `json:"quoteMode"`
+	QuoteHeader      bool   `json:"quoteHeader,omitempty"`
+	QuoteColumns     []int  `json:"quoteColumns,omitempty"`
+	QuoteCells       []Cell `json:"quoteCells,omitempty"`
 	HasHeader        bool   `json:"hasHeader"`
 	UTF8BOM          bool   `json:"utf8Bom"`
 	EstimatedColumns int    `json:"estimatedColumns"`
+}
+
+type Cell struct {
+	Row int `json:"row"`
+	Col int `json:"col"`
 }
 
 func Sniff(sample []byte) Dialect {

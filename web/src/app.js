@@ -621,7 +621,7 @@ function updateInspector() {
     ? `${formatCount(profile.nulls)} (${formatPercent(profile.nullRatio)})`
     : "unknown";
   columnDistinct.textContent = profile ? formatCount(profile.distinct) : "unknown";
-  cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col)) : "unknown";
+  cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
   formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
   syncCellValuePanel();
 }
@@ -1174,8 +1174,9 @@ function formatPresetPreview(preset) {
   return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|${preset.encodingName || "utf-8"}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
 }
 
-function quoteLabel(value) {
-  return shouldQuote(value) ? "will quote on save" : "no quote needed";
+function quoteLabel(value, displayRow = selected.row, visibleCol = selected.col) {
+  if (preservesQuote(displayRow, visibleCol)) return "will preserve quote on save";
+  return shouldQuote(value, displayRow, visibleCol) ? "will quote on save" : "no quote needed";
 }
 
 function syncCellValuePanel() {
@@ -2553,7 +2554,7 @@ function drawRows(width, height) {
         drawFindHighlights(value, row, col, x, y, column.width);
         ctx.fillStyle = themeColors.text;
         ctx.fillText(value, x + 8, y + rowHeight / 2);
-        if (shouldQuote(value)) {
+        if (shouldQuote(value, row, col)) {
           drawQuoteIndicator(x, y, column.width);
         }
         ctx.restore();
@@ -2587,10 +2588,23 @@ function drawQuoteIndicator(x, y, width) {
   ctx.restore();
 }
 
-function shouldQuote(value) {
+function shouldQuote(value, displayRow = selected.row, visibleCol = selected.col) {
   const mode = quoteModeValue();
   if (mode !== "minimal") return mode === "always";
-  return requiresQuote(value);
+  return requiresQuote(value) || preservesQuote(displayRow, visibleCol);
+}
+
+function preservesQuote(displayRow, visibleCol) {
+  const dialect = metadata?.dialect;
+  if (!dialect || visibleCol < 0) return false;
+  const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
+  const sourceCol = sourceColFor(visibleCol);
+  if (dialect.hasHeader && dialect.quoteHeader && sourceRow === 0) return true;
+  if (Array.isArray(dialect.quoteColumns) && dialect.quoteColumns.includes(sourceCol)) return true;
+  if (Array.isArray(dialect.quoteCells)) {
+    return dialect.quoteCells.some((cell) => cell.row === sourceRow && cell.col === sourceCol);
+  }
+  return false;
 }
 
 function requiresQuote(value) {

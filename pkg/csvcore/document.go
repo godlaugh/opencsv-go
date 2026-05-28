@@ -98,6 +98,7 @@ func OpenDocument(path string, options OpenOptions) (Document, error) {
 		}
 		dialect.QuoteMode = quoteMode
 	}
+	dialect = DetectQuoteRules(utf8Sample, dialect)
 
 	metadata := FileMetadata{
 		Path:       path,

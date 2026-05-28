@@ -117,6 +117,42 @@ func TestEncodeRecordsQuoteModes(t *testing.T) {
 	}
 }
 
+func TestSaveRecordsPreservesDetectedQuoteRules(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "mixed-quotes.csv")
+	original := []byte("\"id\",name,note\n\"1\",Ada,\"plain\"\n\"2\",Linus,free\n")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dialect := document.Metadata.Dialect
+	if !PreservesQuote(dialect, 0, 0) || !PreservesQuote(dialect, 1, 0) || !PreservesQuote(dialect, 1, 2) {
+		t.Fatalf("quote preservation rules missing: %+v", dialect)
+	}
+	if PreservesQuote(dialect, 0, 1) || PreservesQuote(dialect, 2, 2) {
+		t.Fatalf("quote preservation rules too broad: %+v", dialect)
+	}
+	records, err := ReadAllRecords(path, document.Metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records[1][1] = "Grace"
+	if _, err := SaveRecords(path, document.Metadata, records, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",name,note\n\"1\",Grace,\"plain\"\n\"2\",Linus,free\n"
+	if string(saved) != want {
+		t.Fatalf("saved quote preservation = %q, want %q", string(saved), want)
+	}
+}
+
 func TestSaveRecordsPreservesUTF16LE(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "utf16.csv")
