@@ -128,7 +128,7 @@ const columnHide = document.querySelector("#columnHide");
 const columnClearView = document.querySelector("#columnClearView");
 
 const rowHeight = 28;
-const headerHeight = cssPixelValue("--grid-header-height", 44);
+const headerHeight = cssPixelValue("--grid-header-height", 48);
 const rowNumberWidth = 58;
 const windowSize = 160;
 const minColumnWidth = 92;
@@ -219,11 +219,20 @@ function syncCanvasSize() {
   const scale = window.devicePixelRatio || 1;
   const width = Math.max(1, rect.width);
   const height = Math.max(1, rect.height);
+  syncCanvasCSSSize(canvas, width, height);
+  syncCanvasCSSSize(headerCanvas, width, headerHeight);
   resizeCanvasBackingStore(canvas, width, height, scale);
   resizeCanvasBackingStore(headerCanvas, width, headerHeight, scale);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   headerCtx.setTransform(scale, 0, 0, scale, 0, 0);
   return { width, height };
+}
+
+function syncCanvasCSSSize(target, width, height) {
+  const cssWidth = `${Math.round(width)}px`;
+  const cssHeight = `${Math.round(height)}px`;
+  if (target.style.width !== cssWidth) target.style.width = cssWidth;
+  if (target.style.height !== cssHeight) target.style.height = cssHeight;
 }
 
 function resizeCanvasBackingStore(target, width, height, scale) {
