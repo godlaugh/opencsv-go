@@ -495,7 +495,11 @@ function isCommandDisabled(command) {
       command.id === "cell.joinHorizontal" ||
       command.id === "cell.splitHorizontal" ||
       command.id === "cell.joinVertical" ||
-      command.id === "cell.splitVertical"
+      command.id === "cell.splitVertical" ||
+      command.id === "cell.fillDown" ||
+      command.id === "cell.fillRight" ||
+      command.id === "cell.fillUp" ||
+      command.id === "cell.fillLeft"
     );
   return (
     command.implemented === false ||
@@ -1450,6 +1454,18 @@ async function executeCommand(commandID) {
       break;
     case "cell.splitVertical":
       await splitActiveCell("vertical");
+      break;
+    case "cell.fillDown":
+      autoFillSelection("down");
+      break;
+    case "cell.fillRight":
+      autoFillSelection("right");
+      break;
+    case "cell.fillUp":
+      autoFillSelection("up");
+      break;
+    case "cell.fillLeft":
+      autoFillSelection("left");
       break;
     case "view.filter":
       await filterCurrentQuery();
@@ -3647,6 +3663,210 @@ async function splitActiveCell(direction = "horizontal") {
   });
 }
 
+function autoFillSelection(direction) {
+  if (!documentId) return;
+  const label = autoFillLabel(direction);
+  if (!ensureEditable(label)) return;
+  const range = normalizedSelection();
+  const axisLength = direction === "left" || direction === "right"
+    ? range.endCol - range.startCol + 1
+    : range.endRow - range.startRow + 1;
+  if (axisLength < 2 || selectionCellCount() < 2) {
+    status.textContent = `${label}: select at least two cells.`;
+    return;
+  }
+  if (selectionCellCount() > 50_000) {
+    status.textContent = `${label}: selection limit is ${formatCount(50_000)} cells.`;
+    return;
+  }
+  const edits = autoFillEdits(range, direction);
+  if (!edits) return;
+  if (!edits.length) {
+    document.body.dataset.autoFillPreview = `${direction}:0`;
+    status.textContent = `${label}: no cells changed`;
+    return;
+  }
+  document.body.dataset.autoFillPreview = `${direction}:${edits.length}`;
+  windowGeneration++;
+  applyEditsToLoadedRows(edits);
+  autoFitColumnsForEdits(edits);
+  syncCellValueAfterEdit();
+  submitCellEdits(edits, range.startRow, `${label}: ${formatCount(edits.length)} cells changed`);
+}
+
+function autoFillLabel(direction) {
+  return {
+    down: "Fill Down",
+    right: "Fill Right",
+    up: "Fill Up",
+    left: "Fill Left",
+  }[direction] ?? "Auto-fill";
+}
+
+function autoFillEdits(range, direction) {
+  const edits = [];
+  if (direction === "down" || direction === "up") {
+    const rowsInOrder = direction === "up"
+      ? descendingIndexes(range.startRow, range.endRow)
+      : ascendingIndexes(range.startRow, range.endRow);
+    if (!ensureRowsLoaded(rowsInOrder, "Auto-fill")) return null;
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      const sourceCol = sourceColFor(col);
+      const values = rowsInOrder.map((row) => valueAt(row, col));
+      const filled = autoFillSeries(values);
+      rowsInOrder.forEach((row, index) => {
+        queueAutoFillEdit(edits, row, sourceCol, filled[index]);
+      });
+    }
+    return edits;
+  }
+
+  const colsInOrder = direction === "left"
+    ? descendingIndexes(range.startCol, range.endCol)
+    : ascendingIndexes(range.startCol, range.endCol);
+  const rowsInOrder = ascendingIndexes(range.startRow, range.endRow);
+  if (!ensureRowsLoaded(rowsInOrder, "Auto-fill")) return null;
+  for (const row of rowsInOrder) {
+    const values = colsInOrder.map((col) => valueAt(row, col));
+    const filled = autoFillSeries(values);
+    colsInOrder.forEach((col, index) => {
+      queueAutoFillEdit(edits, row, sourceColFor(col), filled[index]);
+    });
+  }
+  return edits;
+}
+
+function ascendingIndexes(start, end) {
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+}
+
+function descendingIndexes(start, end) {
+  return ascendingIndexes(start, end).reverse();
+}
+
+function ensureRowsLoaded(displayRows, action) {
+  for (const row of displayRows) {
+    if (!rows.has(row)) {
+      maybeLoadWindow(row);
+      status.textContent = `${action}: load the selected rows before filling.`;
+      return false;
+    }
+    if (viewMapped && rowSource.get(row) == null) {
+      status.textContent = `${action}: load the selected filtered rows before filling.`;
+      return false;
+    }
+  }
+  return true;
+}
+
+function queueAutoFillEdit(edits, displayRow, sourceCol, value) {
+  const record = rows.get(displayRow) ?? [];
+  const nextValue = String(value ?? "");
+  if ((record[sourceCol] ?? "") === nextValue) return;
+  while (record.length <= sourceCol) record.push("");
+  record[sourceCol] = nextValue;
+  rows.set(displayRow, record);
+  edits.push({
+    row: rowSource.get(displayRow) ?? displayRow + dataStartRow,
+    col: sourceCol,
+    value: nextValue,
+  });
+}
+
+function autoFillSeries(values) {
+  if (values.length <= 1) return values.map((value) => String(value ?? ""));
+  const seed = leadingAutoFillSeed(values);
+  if (!seed.length) return values.map((value) => String(value ?? ""));
+  const numeric = numericAutoFill(seed, values.length);
+  if (numeric) return numeric;
+  const dates = dateAutoFill(seed, values.length);
+  if (dates) return dates;
+  const numberedText = numberedTextAutoFill(seed, values.length);
+  if (numberedText) return numberedText;
+  return Array.from({ length: values.length }, (_, index) => seed[index % seed.length]);
+}
+
+function leadingAutoFillSeed(values) {
+  const seed = [];
+  for (const value of values) {
+    const text = String(value ?? "");
+    if (text === "") break;
+    seed.push(text);
+  }
+  return seed.length ? seed : [];
+}
+
+function numericAutoFill(seed, length) {
+  const numbers = seed.map(parseAutoFillNumber);
+  if (numbers.some((value) => value == null)) return null;
+  const step = numbers.length >= 2 ? numbers[1] - numbers[0] : 0;
+  const decimals = Math.max(...seed.map(decimalPlaces));
+  return Array.from({ length }, (_, index) => formatAutoFillNumber(numbers[0] + step * index, decimals));
+}
+
+function parseAutoFillNumber(value) {
+  const text = String(value ?? "").trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
+function decimalPlaces(value) {
+  const match = String(value ?? "").trim().match(/\.(\d+)$/);
+  return match ? match[1].length : 0;
+}
+
+function formatAutoFillNumber(value, decimals) {
+  if (decimals > 0) return value.toFixed(decimals);
+  return String(Number.isInteger(value) ? value : Number(value.toFixed(12)));
+}
+
+function dateAutoFill(seed, length) {
+  const dates = seed.map(parseISODate);
+  if (dates.some((value) => value == null)) return null;
+  const stepDays = dates.length >= 2
+    ? Math.round((dates[1] - dates[0]) / 86_400_000)
+    : 1;
+  return Array.from({ length }, (_, index) => {
+    const date = new Date(dates[0] + stepDays * index * 86_400_000);
+    return date.toISOString().slice(0, 10);
+  });
+}
+
+function parseISODate(value) {
+  const text = String(value ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const [year, month, day] = text.split("-").map(Number);
+  const time = Date.parse(`${text}T00:00:00Z`);
+  if (!Number.isFinite(time)) return null;
+  const date = new Date(time);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return time;
+}
+
+function numberedTextAutoFill(seed, length) {
+  const parsed = seed.map((value) => String(value).match(/^(.*?)(-?\d+)(\D*)$/));
+  if (parsed.some((match) => !match)) return null;
+  const [firstPrefix, firstSuffix] = [parsed[0][1], parsed[0][3]];
+  if (parsed.some((match) => match[1] !== firstPrefix || match[3] !== firstSuffix)) return null;
+  const numbers = parsed.map((match) => Number(match[2]));
+  if (numbers.some((value) => !Number.isFinite(value))) return null;
+  const step = numbers.length >= 2 ? numbers[1] - numbers[0] : 1;
+  const width = Math.max(...parsed.map((match) => match[2].replace("-", "").length));
+  return Array.from({ length }, (_, index) => {
+    const value = numbers[0] + step * index;
+    const sign = value < 0 ? "-" : "";
+    const digits = String(Math.abs(value)).padStart(width, "0");
+    return `${firstPrefix}${sign}${digits}${firstSuffix}`;
+  });
+}
+
 async function runCellTool(endpoint, options) {
   status.textContent = `${options.label}...`;
   const response = await fetch(endpoint, {
@@ -4546,6 +4766,8 @@ function handleGlobalShortcut(event) {
       s: "cell.splitHorizontal",
       v: "cell.joinVertical",
       b: "cell.splitVertical",
+      f: "cell.fillDown",
+      g: "cell.fillRight",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",

@@ -1,6 +1,6 @@
 # Product Parity Progress
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 This document tracks implementation status against `docs/product-prd.md`.
 
@@ -21,6 +21,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
 | FR-004 | Undo/redo and row/column insert/delete/move/hide foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |
 | FR-004/016 | Multi-cell selection, batch edit, and selection aggregation foundation | Started | `/api/edit-batch`, `pkg/document` and `pkg/appserver` tests, Browser verification |
+| FR-004 | Command-based Auto-fill foundation | Started | command registry, Browser auto-fill verification |
 | FR-016 | Active status-bar aggregate switch/copy foundation | Started | command registry, Browser aggregate-status verification |
 | FR-013 | Clipboard copy/paste foundation | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
 | FR-013/015 | Copy As JSON/HTML/SQL/LaTeX formats | Started | `pkg/clipboard` tests, command registry, Browser command-palette verification |
@@ -142,6 +143,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - SQL result copy/export verification on `/tmp/opencsv-sql-result-export.csv`: running `SELECT name, score FROM current ORDER BY score DESC LIMIT 2` enables Copy CSV and Export CSV, stores the generated CSV preview `name,score\nGrace,10\nAda,9`, and exports to `opencsv-sql-result-export.sql-result.csv`.
 - Auto-fit edit verification on `/tmp/opencsv-autofit-edit.csv`: editing `note` through the Cell Value panel from `short` to `very long auto fit note value for smoothcsv parity verification` expands the column-width hook from `92,100` to `92,420`, records `1:100>420`, keeps the panel synchronized with the edited value, and reports `Cell edited`.
 - Active aggregate verification on `/tmp/opencsv-aggregate-status.csv`: selecting the 2x2 numeric body range exposes the status-bar aggregate button as `Sum 10`, records `sum:10`, clicking cycles it to `Avg 2.5`, and Command-click writes the copy verification preview `avg:2.5`.
+- Auto-fill verification on `/tmp/opencsv-autofill.csv`: selecting the `num` cells `1`, `2`, blank, blank and pressing `Shift+Alt+F` fills `3` and `4`, records `down:2`, and reports `Fill Down: 2 cells changed`; selecting date cells `2026-05-01`, `2026-05-03`, blank, blank fills `2026-05-05` and `2026-05-07`; selecting `item-001`, `item-002`, blank, blank fills `item-003` and `item-004`.
 
 ## Implementation Notes
 
@@ -176,7 +178,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend theme state supports light, dark, and system preferences, stores the selected preference locally, follows OS color-scheme changes while in system mode, and feeds Canvas grid colors from CSS variables.
 - Frontend grid renders a small quote indicator on cells that will be quoted on save. Status and Inspector surfaces expose encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
 - Frontend hidden overlay panels now explicitly honor `[hidden]` to avoid blocking grid interactions.
-- Frontend grid now draws the sticky header on the main canvas instead of a second overlay canvas, uses the CSS `--grid-header-height` token for draw math, clips header labels inside their cells, and contains grid overscroll to avoid header/body layer desynchronization during wheel scrolling.
+- Frontend grid draws the sticky header on a dedicated `#gridHeader` canvas layer above the body canvas, sizes it from the CSS `--grid-header-height` token, clips header labels inside their cells, and contains grid overscroll to avoid body/header paint interference during wheel scrolling.
 - Frontend grid now distinguishes source-missing cells in ragged rows from real blank cells by painting missing cell interiors with the grid canvas background before drawing separators.
 - Frontend grid auto-fits edited visible columns by measuring header/type/body text, expands up to a bounded max width, persists the visible/source column width together, and uses a stricter small-file window-cache guard so edit refreshes do not regress to stale values.
 - Frontend column headers expose a quick menu for replacing the active sort, appending secondary sort keys, filtering by the selected cell value, blank/non-blank filters, and clearing the active view. Quick sort samples loaded cells to treat obvious numeric columns numerically even before full profiling is available.
@@ -190,6 +192,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/document.DeduplicateRows` removes duplicate data rows while preserving the detected header row. `pkg/document.DeduplicateColumns` removes later duplicate columns by full column value while preserving first-seen order. `pkg/document.TransformCells` trims, uppercases, or lowercases explicit selected cells. All are undoable materialized mutations and avoid dirty/undo churn on no-op requests.
 - `/api/dedupe-rows`, `/api/dedupe-columns`, and `/api/text-transform` expose those tools. `table.dedupeRows`, `table.dedupeColumns`, `text.trim`, `text.uppercase`, and `text.lowercase` are registered commands with `Shift+Alt+D/C/T/U/L` shortcuts.
 - `pkg/document.SwapCells`, `pkg/document.JoinCells`, `pkg/document.JoinCellsVertical`, `pkg/document.SplitCells`, and `pkg/document.SplitCellsVertical` provide the first cell operation foundation. `/api/cells/swap`, `/api/cells/join`, and `/api/cells/split` expose these as materialized undoable mutations, and the frontend dispatches `cell.swap`, horizontal join/split, and vertical join/split with `Shift+Alt+W/J/S/V/B`.
+- Frontend Auto-fill exposes `cell.fillDown`, `cell.fillRight`, `cell.fillUp`, and `cell.fillLeft` commands. `Shift+Alt+F` fills down and `Shift+Alt+G` fills right. The first implementation detects numeric steps, ISO date steps, trailing-number text sequences, and repeated text patterns inside the selected, already-loaded rectangle, then submits only changed cells through the existing batch edit path.
 - Frontend Inspector now includes a Cell Value panel for the active cell. It applies edits through the same `/api/edit` path as grid editing, respects read-only mode, keeps local edits visible after async window refreshes, and detects HTTP(S), `mailto:`, `file://`, and bare-domain links for `Open Link`.
 - `pkg/document.ColumnValues` returns top distinct values with counts for a column, and `pkg/document.FilterValues` maps rows by selected values plus optional blank inclusion.
 - `/api/column-values` and `/api/filter-values` expose value checklist data and filtering. The column header menu renders a bounded checkbox list and applies selected values without mutating source data.
@@ -207,7 +210,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace supports current/all, regex/case/whole-cell modes, and search-within-selection. Replace preview is still missing. Find has visible match counts and basic previous/next navigation, but very large match sets currently navigate only within the first loaded result window.
 - Undo/redo and structural row/column editing are correct first-pass implementations, but history is full-record snapshots and must become operation-based or chunk-based before it is suitable for very large files.
 - Row/column operations currently run through commands/shortcuts and whole-document materialization for structural changes; direct grid context menus for rows, drag reordering, multi-row/multi-column operations, persistent hide state, and virtualized structural mutation are still missing.
-- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, auto-fit on edits, and basic ragged-row missing-cell rendering; fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
+- Multi-cell selection/editing now supports keyboard ranges, mouse drag rectangles, row-label selection, column-header selection, auto-fit on edits, command-based Auto-fill, and basic ragged-row missing-cell rendering; drag fill handle, Excel-specific paste behavior, direct selection context menus, and richer copy/export surfaces beyond current-view CSV/TSV are still missing.
 - Cell Value panel, modifier-hover URL cursor, and modifier-click hyperlink opening exist as a foundation, but link auditing, custom protocol handling, context menu integration, and richer large-text editing are still missing.
 - Clipboard/export support is implemented as a foundation, including copy formats, a toolbar copy-format picker, SQL-result CSV copy/export, first-worksheet XLSX import/save, current-view CSV/TSV/XLSX export, active aggregate copy, and a header-in-selection toggle, but Browser-level system clipboard verification is blocked by the current Browser tool runtime; Excel-specific paste quirks, multi-sheet workbook handling, style/date-format preservation, richer workbook export, and copy-format context-menu surfaces remain incomplete.
 - Quote indicator support currently reflects minimal save behavior only; explicit quote modes, quote character changes, escape rule controls, and a full format preferences UI are still missing.
