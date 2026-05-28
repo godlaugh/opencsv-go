@@ -340,13 +340,16 @@ button:disabled {
 .grid-frame.diff-mode #grid,
 .grid-frame.diff-mode #gridHeader,
 .grid-frame.profile-mode #grid,
-.grid-frame.profile-mode #gridHeader {
+.grid-frame.profile-mode #gridHeader,
+.grid-frame.settings-mode #grid,
+.grid-frame.settings-mode #gridHeader {
   visibility: hidden;
 }
 
 .sql-panel,
 .diff-panel,
-.profile-panel {
+.profile-panel,
+.settings-panel {
   position: absolute;
   inset: 0;
   z-index: 4;
@@ -359,12 +362,145 @@ button:disabled {
 
 .sql-panel[hidden],
 .diff-panel[hidden],
-.profile-panel[hidden] {
+.profile-panel[hidden],
+.settings-panel[hidden] {
   display: none;
 }
 
 .profile-panel {
   grid-template-rows: auto minmax(0, 1fr) minmax(110px, 0.38fr);
+}
+
+.settings-panel {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.settings-header,
+.settings-toolbar,
+.settings-section > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+}
+
+.settings-header,
+.settings-section > header {
+  justify-content: space-between;
+}
+
+.settings-header span,
+.settings-section > header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-toolbar input,
+.settings-add-rule input {
+  height: 30px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.settings-toolbar button,
+.settings-preset-actions button,
+.settings-rule-row button,
+.settings-add-rule button {
+  min-height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.settings-section {
+  min-height: 0;
+  overflow: auto;
+}
+
+.settings-preset-list {
+  display: grid;
+}
+
+.settings-preset-row {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+}
+
+.settings-preset-row > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, auto) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.settings-preset-row strong,
+.settings-preset-row span,
+.settings-rule-row code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-preset-row span {
+  color: var(--muted);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.settings-preset-actions,
+.settings-rule-row,
+.settings-add-rule {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.settings-rule-list {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-rule-row {
+  justify-content: space-between;
+  border-radius: 6px;
+  background: var(--panel-subtle);
+  padding: 6px 8px;
+}
+
+.settings-rule-row code {
+  color: var(--text);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.settings-rule-empty,
+.settings-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-empty {
+  padding: 16px 12px;
 }
 
 .sql-editor-row,

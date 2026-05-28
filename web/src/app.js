@@ -58,6 +58,7 @@ const gridFrame = document.querySelector(".grid-frame");
 const gridTabButton = document.querySelector("#gridTabButton");
 const sqlTabButton = document.querySelector("#sqlTabButton");
 const profileTabButton = document.querySelector("#profileTabButton");
+const settingsTabButton = document.querySelector("#settingsTabButton");
 const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
@@ -86,6 +87,12 @@ const profilePanel = document.querySelector("#profilePanel");
 const profileSummary = document.querySelector("#profileSummary");
 const profileColumns = document.querySelector("#profileColumns");
 const profileIssues = document.querySelector("#profileIssues");
+const settingsPanel = document.querySelector("#settingsPanel");
+const settingsSearch = document.querySelector("#settingsSearch");
+const settingsModifiedBadge = document.querySelector("#settingsModifiedBadge");
+const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
+const settingsPresetList = document.querySelector("#settingsPresetList");
+const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
 const commandPalette = document.querySelector("#commandPalette");
 const paletteInput = document.querySelector("#paletteInput");
 const paletteList = document.querySelector("#paletteList");
@@ -398,12 +405,15 @@ function setViewMode(mode) {
   gridFrame.classList.toggle("sql-mode", mode === "sql");
   gridFrame.classList.toggle("diff-mode", mode === "diff");
   gridFrame.classList.toggle("profile-mode", mode === "profile");
+  gridFrame.classList.toggle("settings-mode", mode === "settings");
   sqlPanel.hidden = mode !== "sql";
   diffPanel.hidden = mode !== "diff";
   profilePanel.hidden = mode !== "profile";
+  settingsPanel.hidden = mode !== "settings";
   gridTabButton.classList.toggle("active", mode === "grid");
   sqlTabButton.classList.toggle("active", mode === "sql");
   profileTabButton.classList.toggle("active", mode === "profile");
+  settingsTabButton.classList.toggle("active", mode === "settings");
   if (mode === "grid") {
     resize();
     canvas.focus();
@@ -411,8 +421,11 @@ function setViewMode(mode) {
     sqlInput.focus();
   } else if (mode === "diff") {
     leftDiffPath.focus();
-  } else {
+  } else if (mode === "profile") {
     profilePanel.focus();
+  } else {
+    renderSettingsPanel();
+    settingsSearch.focus();
   }
   updateCommandState();
 }
@@ -656,6 +669,7 @@ function saveFormatPresets(presets) {
   localStorage.setItem(formatPresetsStorageKey, JSON.stringify(presets.slice(0, formatPresetsLimit)));
   document.body.dataset.formatPresets = String(presets.length);
   renderFormatPresetSelect();
+  renderSettingsPanel();
 }
 
 function renderFormatPresetSelect() {
@@ -735,6 +749,176 @@ async function applySelectedFormatPreset() {
   }
   document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
   await openPath(path, { preset });
+}
+
+function openSettingsPanel() {
+  setViewMode("settings");
+}
+
+function renderSettingsPanel() {
+  if (!settingsPresetList) return;
+  const presets = formatPresets();
+  const query = settingsSearch.value.trim().toLowerCase();
+  const visiblePresets = query
+    ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
+    : presets;
+  settingsModifiedBadge.textContent = presets.length ? "Modified" : "Defaults";
+  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
+  resetFormatPresetsButton.disabled = presets.length === 0;
+  settingsPresetList.replaceChildren();
+  document.body.dataset.settingsPresetCount = String(presets.length);
+  document.body.dataset.settingsVisiblePresetCount = String(visiblePresets.length);
+  if (visiblePresets.length === 0) {
+    settingsPresetList.append(emptySettingsNode(presets.length ? "No matching presets" : "No format presets saved"));
+    return;
+  }
+  for (const preset of visiblePresets) {
+    settingsPresetList.append(formatPresetSettingsRow(preset));
+  }
+}
+
+function formatPresetSearchText(preset) {
+  return [
+    preset.name,
+    preset.id,
+    preset.delimiterName,
+    preset.encodingName,
+    ...(preset.rules ?? []).map((rule) => rule.pattern),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function emptySettingsNode(message) {
+  const node = document.createElement("div");
+  node.className = "settings-empty";
+  node.textContent = message;
+  return node;
+}
+
+function formatPresetSettingsRow(preset) {
+  const row = document.createElement("section");
+  row.className = "settings-preset-row";
+  row.dataset.presetId = preset.id;
+
+  const header = document.createElement("header");
+  const title = document.createElement("strong");
+  title.textContent = preset.name || preset.id;
+  const meta = document.createElement("span");
+  meta.textContent = `${formatPresetPreview(preset)} · ${preset.rules?.length ?? 0} rules`;
+  const actions = document.createElement("div");
+  actions.className = "settings-preset-actions";
+  const applyButton = settingsActionButton("Apply");
+  applyButton.disabled = !documentId;
+  applyButton.addEventListener("click", async () => {
+    formatPresetSelect.value = preset.id;
+    await applyFormatPresetToCurrentPath(preset);
+  });
+  const deleteButton = settingsActionButton("Delete");
+  deleteButton.addEventListener("click", () => deleteFormatPreset(preset.id));
+  actions.append(applyButton, deleteButton);
+  header.append(title, meta, actions);
+
+  const rules = document.createElement("div");
+  rules.className = "settings-rule-list";
+  if ((preset.rules ?? []).length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "settings-rule-empty";
+    empty.textContent = "No automatic rules";
+    rules.append(empty);
+  } else {
+    for (const rule of preset.rules) {
+      const item = document.createElement("div");
+      item.className = "settings-rule-row";
+      const label = document.createElement("code");
+      label.textContent = rule.pattern;
+      const remove = settingsActionButton("Remove");
+      remove.addEventListener("click", () => deleteFormatRule(preset.id, rule.pattern));
+      item.append(label, remove);
+      rules.append(item);
+    }
+  }
+
+  const addRule = document.createElement("form");
+  addRule.className = "settings-add-rule";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "name:*.csv, path:/exports/*, content:marker";
+  input.setAttribute("aria-label", `Add rule for ${preset.name || preset.id}`);
+  const add = settingsActionButton("Add Rule");
+  add.type = "submit";
+  addRule.append(input, add);
+  addRule.addEventListener("submit", (event) => {
+    event.preventDefault();
+    addFormatRuleToPreset(preset.id, input.value);
+  });
+
+  row.append(header, rules, addRule);
+  return row;
+}
+
+function settingsActionButton(label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  return button;
+}
+
+async function applyFormatPresetToCurrentPath(preset) {
+  const path = metadata?.path || pathInput.value.trim();
+  if (!path) {
+    status.textContent = "Open a local file before applying a format preset.";
+    return;
+  }
+  document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
+  await openPath(path, { preset });
+}
+
+function deleteFormatPreset(presetID) {
+  const presets = formatPresets().filter((preset) => preset.id !== presetID);
+  saveFormatPresets(presets);
+  if (formatPresetSelect.value === presetID) formatPresetSelect.value = "";
+  status.textContent = "Deleted format preset.";
+  updateCommandState();
+}
+
+function deleteFormatRule(presetID, pattern) {
+  const key = pattern.toLowerCase();
+  const presets = formatPresets().map((preset) => (
+    preset.id === presetID
+      ? { ...preset, rules: normalizeFormatRules(preset.rules).filter((rule) => rule.pattern.toLowerCase() !== key) }
+      : preset
+  ));
+  saveFormatPresets(presets);
+  document.body.dataset.formatRulePreview = `removed:${pattern}`;
+  status.textContent = `Removed format rule: ${pattern}`;
+}
+
+function addFormatRuleToPreset(presetID, pattern) {
+  const normalized = normalizeFormatRule({ pattern });
+  if (!normalized) {
+    status.textContent = "Enter a rule pattern first.";
+    return;
+  }
+  const key = formatRuleKey(normalized);
+  const presets = formatPresets().map((preset) => {
+    const rules = normalizeFormatRules(preset.rules).filter((rule) => formatRuleKey(rule) !== key);
+    if (preset.id !== presetID) return { ...preset, rules };
+    return { ...preset, rules: [...rules, normalized].slice(0, 12) };
+  });
+  saveFormatPresets(presets);
+  document.body.dataset.formatRulePreview = `${formatRuleTarget(normalized.pattern)}:${formatRulePattern(normalized.pattern)}`;
+  status.textContent = `Added format rule: ${normalized.pattern}`;
+}
+
+function resetFormatPresets() {
+  localStorage.removeItem(formatPresetsStorageKey);
+  formatPresetSelect.value = "";
+  document.body.dataset.formatPresets = "0";
+  document.body.dataset.formatRulePreview = "reset";
+  document.body.dataset.formatPresetPreview = "";
+  renderFormatPresetSelect();
+  renderSettingsPanel();
+  updateCommandState();
+  status.textContent = "Reset format presets.";
 }
 
 function normalizeFormatRules(rules) {
@@ -1675,6 +1859,9 @@ async function executeCommand(commandID) {
   switch (commandID) {
     case "command.palette":
       openCommandPalette();
+      break;
+    case "settings.open":
+      openSettingsPanel();
       break;
     case "settings.keyboardShortcuts":
       openKeyboardShortcuts();
@@ -5416,6 +5603,7 @@ sqlTabButton.addEventListener("click", () => {
   if (!sqlTabButton.disabled) setViewMode("sql");
 });
 profileTabButton.addEventListener("click", openProfilePanel);
+settingsTabButton.addEventListener("click", openSettingsPanel);
 paletteButton.addEventListener("click", openCommandPalette);
 copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));
 copyFormatSelect.addEventListener("change", () => {
@@ -5442,6 +5630,8 @@ formatRuleInput.addEventListener("keydown", (event) => {
   executeCommand("format.saveRule");
 });
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
+settingsSearch.addEventListener("input", renderSettingsPanel);
+resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));
@@ -5632,4 +5822,5 @@ resize();
 renderFileList();
 renderSQLHistory();
 renderFormatPresetSelect();
+renderSettingsPanel();
 openInitialURLTarget();
