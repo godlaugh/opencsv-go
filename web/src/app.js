@@ -179,6 +179,8 @@ let commandsById = new Map();
 let viewMode = "grid";
 let profileData = null;
 let lastSQLResult = null;
+let sqlResultSelectionAnchor = null;
+let sqlResultSelectionRange = null;
 let profileLoading = false;
 let paletteOpen = false;
 let paletteItems = [];
@@ -3120,7 +3122,8 @@ async function exportCurrentView(format = "csv") {
 }
 
 async function copySQLResultCSV() {
-  const matrix = sqlResultMatrix(lastSQLResult);
+  const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
+  const matrix = selectedMatrix ?? sqlResultMatrix(lastSQLResult);
   if (!matrix.length) {
     status.textContent = "Run a SQL query before copying results.";
     return;
@@ -3130,7 +3133,11 @@ async function copySQLResultCSV() {
   document.body.dataset.sqlResultPreview = text.slice(0, 500);
   try {
     await writeClipboardText(text);
-    status.textContent = `Copied SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+    if (selectedMatrix) {
+      status.textContent = `Copied SQL selection: ${formatCount(matrix.length)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+    } else {
+      status.textContent = `Copied SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+    }
   } catch (error) {
     status.textContent = `SQL result copy failed: ${error.message}`;
   }
@@ -3161,6 +3168,22 @@ function sqlResultMatrix(result) {
   return [sqlColumns, ...rows];
 }
 
+function sqlSelectedResultMatrix(result) {
+  const range = normalizedSQLResultSelection();
+  if (!result || !range) return null;
+  const resultRows = result.rows ?? [];
+  const matrix = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    const source = resultRows[row] ?? [];
+    const output = [];
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      output.push(source[col] ?? "");
+    }
+    matrix.push(output);
+  }
+  return matrix.length ? matrix : null;
+}
+
 function sqlResultColumns(result) {
   if (!result) return [];
   const columns = Array.isArray(result.columns) ? result.columns : [];
@@ -3180,6 +3203,74 @@ function syncSQLResultActions() {
   copySqlResultButton.disabled = !available;
   exportSqlResultButton.disabled = !available;
   updateCommandState();
+}
+
+function clearSQLResultSelection() {
+  sqlResultSelectionAnchor = null;
+  sqlResultSelectionRange = null;
+  document.body.dataset.sqlResultSelection = "";
+  syncSQLResultSelection();
+}
+
+function normalizedSQLResultSelection() {
+  if (!sqlResultSelectionRange) return null;
+  return {
+    startRow: Math.min(sqlResultSelectionRange.startRow, sqlResultSelectionRange.endRow),
+    endRow: Math.max(sqlResultSelectionRange.startRow, sqlResultSelectionRange.endRow),
+    startCol: Math.min(sqlResultSelectionRange.startCol, sqlResultSelectionRange.endCol),
+    endCol: Math.max(sqlResultSelectionRange.startCol, sqlResultSelectionRange.endCol),
+  };
+}
+
+function syncSQLResultSelection() {
+  const range = normalizedSQLResultSelection();
+  sqlResult.querySelectorAll("td[data-sql-row]").forEach((cell) => {
+    const row = Number(cell.dataset.sqlRow);
+    const col = Number(cell.dataset.sqlCol);
+    const selectedCell = Boolean(
+      range &&
+      row >= range.startRow &&
+      row <= range.endRow &&
+      col >= range.startCol &&
+      col <= range.endCol,
+    );
+    cell.classList.toggle("sql-selected", selectedCell);
+    cell.setAttribute("aria-selected", String(selectedCell));
+  });
+  if (range) {
+    document.body.dataset.sqlResultSelection = `${range.startRow}:${range.startCol}-${range.endRow}:${range.endCol}`;
+  } else {
+    document.body.dataset.sqlResultSelection = "";
+  }
+}
+
+function selectSQLResultCell(row, col, extend = false) {
+  const resultRows = lastSQLResult?.rows ?? [];
+  const resultColumns = sqlResultColumns(lastSQLResult);
+  if (row < 0 || col < 0 || row >= resultRows.length || col >= resultColumns.length) return;
+  if (!extend || !sqlResultSelectionAnchor) {
+    sqlResultSelectionAnchor = { row, col };
+  }
+  sqlResultSelectionRange = {
+    startRow: sqlResultSelectionAnchor.row,
+    startCol: sqlResultSelectionAnchor.col,
+    endRow: row,
+    endCol: col,
+  };
+  syncSQLResultSelection();
+  const range = normalizedSQLResultSelection();
+  const rowsSelected = range ? range.endRow - range.startRow + 1 : 0;
+  const colsSelected = range ? range.endCol - range.startCol + 1 : 0;
+  status.textContent = `Selected SQL result: ${formatCount(rowsSelected)} rows, ${formatCount(colsSelected)} columns`;
+}
+
+function sqlResultCellFromEvent(event) {
+  const cell = event.target?.closest?.("td[data-sql-row]");
+  if (!cell || !sqlResult.contains(cell)) return null;
+  return {
+    row: Number(cell.dataset.sqlRow),
+    col: Number(cell.dataset.sqlCol),
+  };
 }
 
 function errorFromResponseText(text) {
@@ -4778,6 +4869,7 @@ async function runSQLQuery() {
   }
   status.textContent = "Running SQL...";
   lastSQLResult = null;
+  clearSQLResultSelection();
   syncSQLResultActions();
   const response = await fetch("/api/sql", {
     method: "POST",
@@ -4788,6 +4880,7 @@ async function runSQLQuery() {
   if (!response.ok) {
     status.textContent = `SQL failed: ${payload.error ?? "unknown error"}`;
     sqlResult.replaceChildren(emptySQLNode(payload.error ?? "Query failed"));
+    clearSQLResultSelection();
     syncSQLResultActions();
     return;
   }
@@ -5290,6 +5383,7 @@ function renderSQLResult(result) {
   const resultRows = result.rows ?? [];
   if (!resultColumns.length && !resultRows.length) {
     sqlResult.replaceChildren(emptySQLNode("No rows"));
+    clearSQLResultSelection();
     syncSQLResultActions();
     return;
   }
@@ -5305,15 +5399,19 @@ function renderSQLResult(result) {
   table.append(thead);
 
   const tbody = document.createElement("tbody");
-  for (const row of resultRows) {
+  resultRows.forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
-    for (const value of row) {
+    for (let colIndex = 0; colIndex < resultColumns.length; colIndex++) {
       const td = document.createElement("td");
-      td.textContent = value;
+      td.textContent = row[colIndex] ?? "";
+      td.tabIndex = 0;
+      td.dataset.sqlRow = String(rowIndex);
+      td.dataset.sqlCol = String(colIndex);
+      td.setAttribute("aria-selected", "false");
       tr.append(td);
     }
     tbody.append(tr);
-  }
+  });
   if (resultRows.length === 0) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
@@ -5325,6 +5423,7 @@ function renderSQLResult(result) {
   }
   table.append(tbody);
   sqlResult.replaceChildren(table);
+  syncSQLResultSelection();
   syncSQLResultActions();
 }
 
@@ -5760,6 +5859,29 @@ runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));
 clearSqlHistoryButton.addEventListener("click", clearSQLHistory);
+sqlResult.addEventListener("click", (event) => {
+  const cell = sqlResultCellFromEvent(event);
+  if (!cell) return;
+  selectSQLResultCell(cell.row, cell.col, event.shiftKey);
+});
+sqlResult.addEventListener("keydown", async (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+    event.preventDefault();
+    await copySQLResultCSV();
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    clearSQLResultSelection();
+    status.textContent = "Cleared SQL result selection.";
+    return;
+  }
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const cell = sqlResultCellFromEvent(event);
+  if (!cell) return;
+  event.preventDefault();
+  selectSQLResultCell(cell.row, cell.col, event.shiftKey);
+});
 diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);
 diffPrevButton.addEventListener("click", () => navigateDiff(-1));

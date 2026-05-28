@@ -692,6 +692,15 @@ button:disabled {
   font-weight: 650;
 }
 
+.sql-result td[data-sql-row] {
+  cursor: default;
+}
+
+.sql-result td.sql-selected {
+  background: var(--accent-quiet);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .profile-columns th,
 .profile-issues th {
   position: sticky;

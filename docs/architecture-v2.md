@@ -146,6 +146,7 @@ flowchart TD
   - SQL editor, run button, query history row, and result table.
   - Newest-first local history for successful queries.
   - History item reload and clear-history controls.
+  - Click/Shift-click rectangular result selection, with Copy CSV using the selected range when present.
 
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
@@ -669,6 +670,7 @@ Output:
 - Find toolbar shows current/total match count and navigates previous/next matches.
 - SQL Console delegates execution to in-memory SQLite and supports joins, expression projection, subqueries, `GROUP BY`, `HAVING`, and ordering by an expression alias.
 - SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
+- SQL Console result table supports rectangular range selection and selected-range CSV copy through the existing Copy CSV command.
 
 ### Performance Tests
 
