@@ -117,6 +117,12 @@ const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
+const conditionSecondEnabled = document.querySelector("#conditionSecondEnabled");
+const conditionJoin = document.querySelector("#conditionJoin");
+const conditionSecondRow = document.querySelector("#conditionSecondRow");
+const conditionColumn2 = document.querySelector("#conditionColumn2");
+const conditionOperator2 = document.querySelector("#conditionOperator2");
+const conditionValue2 = document.querySelector("#conditionValue2");
 const closeConditionButton = document.querySelector("#closeConditionButton");
 const applyConditionButton = document.querySelector("#applyConditionButton");
 const clearConditionButton = document.querySelector("#clearConditionButton");
@@ -1971,6 +1977,10 @@ function openConditionBuilder() {
     conditionColumn.selectedIndex = 0;
   }
   conditionOperator.value = conditionOperator.value || "contains";
+  if (!conditionColumn2.value && conditionColumn2.options.length > 0) {
+    conditionColumn2.value = conditionColumn.value;
+  }
+  conditionOperator2.value = conditionOperator2.value || "contains";
   updateConditionValueState();
   conditionPanel.hidden = false;
   conditionValue.focus();
@@ -1985,34 +1995,69 @@ function closeConditionBuilder() {
 
 function renderConditionColumns() {
   const previous = conditionColumn.value;
+  const previousSecond = conditionColumn2.value;
   const fragment = document.createDocumentFragment();
+  const secondFragment = document.createDocumentFragment();
   for (const column of columns) {
     const option = document.createElement("option");
     option.value = String(column.sourceCol);
     option.textContent = column.name;
     fragment.append(option);
+    secondFragment.append(option.cloneNode(true));
   }
   conditionColumn.replaceChildren(fragment);
+  conditionColumn2.replaceChildren(secondFragment);
   if ([...conditionColumn.options].some((option) => option.value === previous)) {
     conditionColumn.value = previous;
+  }
+  if ([...conditionColumn2.options].some((option) => option.value === previousSecond)) {
+    conditionColumn2.value = previousSecond;
   }
 }
 
 function updateConditionValueState() {
-  const noValue = conditionOperator.value === "blank" || conditionOperator.value === "notBlank";
-  conditionValue.disabled = noValue;
-  if (noValue) conditionValue.value = "";
+  updateConditionValueInput(conditionOperator, conditionValue);
+  updateConditionValueInput(conditionOperator2, conditionValue2);
+  const enabled = conditionSecondEnabled.checked;
+  conditionSecondRow.disabled = !enabled;
+  conditionJoin.disabled = !enabled;
+  document.body.dataset.conditionGrouped = enabled ? conditionJoin.value : "";
+}
+
+function updateConditionValueInput(operatorInput, valueInput) {
+  const noValue = operatorInput.value === "blank" || operatorInput.value === "notBlank";
+  valueInput.disabled = noValue;
+  if (noValue) valueInput.value = "";
 }
 
 async function applyConditionBuilder() {
   if (!documentId) return;
-  const sourceCol = Number(conditionColumn.value);
-  const expression = conditionExpression(sourceCol, conditionOperator.value, conditionValue.value);
-  if (!expression) return;
+  const first = conditionExpression(
+    Number(conditionColumn.value),
+    conditionOperator.value,
+    conditionValue.value,
+    conditionValue,
+  );
+  if (!first) return;
+  const expressions = [first];
+  if (conditionSecondEnabled.checked) {
+    const second = conditionExpression(
+      Number(conditionColumn2.value),
+      conditionOperator2.value,
+      conditionValue2.value,
+      conditionValue2,
+    );
+    if (!second) return;
+    expressions.push(second);
+  }
+  const join = conditionJoin.value === "OR" ? "OR" : "AND";
+  const expression = expressions.length > 1
+    ? `(${expressions[0]}) ${join} (${expressions[1]})`
+    : expressions[0];
   document.body.dataset.conditionPreview = expression;
   commandInput.value = `where ${expression}`;
   closeConditionBuilder();
-  const visibleCol = visibleColForSource(sourceCol);
+  const visibleCol = visibleColForSource(Number(conditionColumn.value));
   await applyFilterRequest(
     { documentId, mode: "sql", expression },
     "Condition filter",
@@ -2020,7 +2065,7 @@ async function applyConditionBuilder() {
   );
 }
 
-function conditionExpression(sourceCol, operator, value) {
+function conditionExpression(sourceCol, operator, value, valueInput = conditionValue) {
   if (!Number.isInteger(sourceCol) || sourceCol < 0) {
     status.textContent = "Choose a column to filter.";
     return "";
@@ -2029,7 +2074,7 @@ function conditionExpression(sourceCol, operator, value) {
   const needsValue = !["blank", "notBlank"].includes(operator);
   if (needsValue && value === "") {
     status.textContent = "Enter a filter value.";
-    conditionValue.focus();
+    valueInput.focus();
     return "";
   }
   switch (operator) {
@@ -7030,6 +7075,15 @@ filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
 conditionOperator.addEventListener("change", updateConditionValueState);
+conditionOperator2.addEventListener("change", updateConditionValueState);
+conditionSecondEnabled.addEventListener("change", () => {
+  updateConditionValueState();
+  if (conditionSecondEnabled.checked) {
+    conditionValue2.focus();
+    conditionValue2.select();
+  }
+});
+conditionJoin.addEventListener("change", updateConditionValueState);
 applyConditionButton.addEventListener("click", applyConditionBuilder);
 clearConditionButton.addEventListener("click", async () => {
   closeConditionBuilder();
@@ -7041,7 +7095,16 @@ conditionPanel.addEventListener("mousedown", (event) => {
     closeConditionBuilder();
   }
 });
-for (const input of [conditionColumn, conditionOperator, conditionValue]) {
+for (const input of [
+  conditionColumn,
+  conditionOperator,
+  conditionValue,
+  conditionSecondEnabled,
+  conditionJoin,
+  conditionColumn2,
+  conditionOperator2,
+  conditionValue2,
+]) {
   input.addEventListener("keydown", async (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();

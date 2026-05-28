@@ -1015,7 +1015,7 @@ button:disabled {
 
 .condition-panel {
   display: grid;
-  width: min(620px, calc(100vw - 32px));
+  width: min(720px, calc(100vw - 32px));
   grid-template-rows: auto auto auto;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1060,6 +1060,45 @@ button:disabled {
   padding: 12px;
 }
 
+.condition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.condition-row legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.condition-join-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.condition-join-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.condition-join-row input {
+  width: 15px;
+  height: 15px;
+}
+
+.condition-join-row select {
+  width: 96px;
+}
+
 .condition-grid label {
   display: grid;
   gap: 5px;
@@ -1088,6 +1127,13 @@ button:disabled {
   font: inherit;
   font-size: 13px;
   outline: none;
+}
+
+.condition-grid .condition-join-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  padding: 0;
 }
 
 .condition-panel-header button,
@@ -1357,6 +1403,10 @@ button:disabled {
 
 @media (max-width: 900px) {
   .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .condition-row {
     grid-template-columns: 1fr;
   }
 
