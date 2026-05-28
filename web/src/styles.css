@@ -279,7 +279,8 @@ button:disabled {
   max-width: min(420px, 42vw);
   align-items: center;
   gap: 4px;
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .view-chips[hidden] {
@@ -314,6 +315,11 @@ button:disabled {
   border-radius: 5px;
   padding: 0 6px;
   font-size: 11px;
+}
+
+.saved-filter-chip {
+  border-color: var(--border);
+  background: var(--panel-subtle);
 }
 
 .segmented button,

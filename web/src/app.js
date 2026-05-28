@@ -156,6 +156,8 @@ const commandHistoryLimit = 8;
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
+const savedFiltersStorageKey = "opencsv-saved-filters";
+const savedFiltersLimit = 12;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
 const formatRuleSampleBytes = 65536;
@@ -567,6 +569,7 @@ function updateCommandState() {
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = command.id === "sql.copyResultCsv" || command.id === "sql.exportResultCsv";
+  const needsActiveFilter = command.id === "view.saveFilter";
   const needsAggregate =
     command.id === "selection.copyAggregate" ||
     command.id === "selection.cycleAggregate" ||
@@ -617,6 +620,7 @@ function isCommandDisabled(command) {
     command.implemented === false ||
     (command.requiresDocument && !hasDocument) ||
     (needsSQLResult && !sqlResultAvailable()) ||
+    (needsActiveFilter && !activeFilter) ||
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     writeBlocked
   );
@@ -2480,6 +2484,9 @@ async function executeCommand(commandID) {
       break;
     case "view.filterBuilder":
       openConditionBuilder();
+      break;
+    case "view.saveFilter":
+      saveActiveFilter();
       break;
     case "view.sort":
       await sortSelectedColumn();
@@ -4732,36 +4739,169 @@ function clearActiveFilter() {
 }
 
 function renderViewChips() {
+  const saved = savedFilters();
   viewChips.replaceChildren();
-  if (!activeFilter) {
+  if (!activeFilter && saved.length === 0) {
     viewChips.hidden = true;
     document.body.dataset.activeFilter = "";
+    document.body.dataset.savedFilterCount = "0";
     return;
   }
   viewChips.hidden = false;
-  document.body.dataset.activeFilter = activeFilter.display;
+  document.body.dataset.activeFilter = activeFilter?.display ?? "";
+  document.body.dataset.savedFilterCount = String(saved.length);
 
-  const chip = document.createElement("div");
-  chip.className = "view-chip";
-  chip.title = activeFilter.display;
+  if (activeFilter) {
+    const chip = document.createElement("div");
+    chip.className = "view-chip";
+    chip.title = activeFilter.display;
 
-  const label = document.createElement("span");
-  label.textContent = activeFilter.display;
+    const label = document.createElement("span");
+    label.textContent = activeFilter.display;
 
-  const sqlButton = document.createElement("button");
-  sqlButton.type = "button";
-  sqlButton.textContent = "SQL";
-  sqlButton.title = "Open this filter in SQL";
-  sqlButton.addEventListener("click", openActiveFilterInSQL);
+    const sqlButton = document.createElement("button");
+    sqlButton.type = "button";
+    sqlButton.textContent = "SQL";
+    sqlButton.title = "Open this filter in SQL";
+    sqlButton.addEventListener("click", openActiveFilterInSQL);
 
-  const clearButton = document.createElement("button");
-  clearButton.type = "button";
-  clearButton.textContent = "Clear";
-  clearButton.title = "Clear filter and sort";
-  clearButton.addEventListener("click", clearView);
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "Save";
+    saveButton.title = "Save this filter";
+    saveButton.addEventListener("click", saveActiveFilter);
 
-  chip.append(label, sqlButton, clearButton);
-  viewChips.append(chip);
+    const clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.textContent = "Clear";
+    clearButton.title = "Clear filter and sort";
+    clearButton.addEventListener("click", clearView);
+
+    chip.append(label, sqlButton, saveButton, clearButton);
+    viewChips.append(chip);
+  }
+
+  for (const filter of saved) {
+    const chip = document.createElement("div");
+    chip.className = "view-chip saved-filter-chip";
+    chip.title = filter.display;
+    chip.dataset.filterId = filter.id;
+
+    const label = document.createElement("span");
+    label.textContent = `Saved: ${filter.name}`;
+
+    const applyButton = document.createElement("button");
+    applyButton.type = "button";
+    applyButton.textContent = "Apply";
+    applyButton.title = "Apply saved filter";
+    applyButton.addEventListener("click", () => applySavedFilter(filter.id));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.title = "Delete saved filter";
+    deleteButton.addEventListener("click", () => deleteSavedFilter(filter.id));
+
+    chip.append(label, applyButton, deleteButton);
+    viewChips.append(chip);
+  }
+}
+
+function savedFilters() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(savedFiltersStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((filter) => filter && typeof filter === "object" && typeof filter.expression === "string")
+      .map((filter) => ({
+        id: filter.id || savedFilterID(filter.expression),
+        name: filter.name || savedFilterName(filter.display || filter.expression),
+        display: filter.display || `Filter: where ${filter.expression}`,
+        expression: filter.expression,
+        createdAt: filter.createdAt || new Date().toISOString(),
+      }))
+      .slice(0, savedFiltersLimit);
+  } catch {
+    return [];
+  }
+}
+
+function saveSavedFilters(filters) {
+  const unique = [];
+  const seen = new Set();
+  for (const filter of filters) {
+    if (!filter?.expression || seen.has(filter.expression)) continue;
+    seen.add(filter.expression);
+    unique.push(filter);
+  }
+  const next = unique.slice(0, savedFiltersLimit);
+  localStorage.setItem(savedFiltersStorageKey, JSON.stringify(next));
+  document.body.dataset.savedFilterCount = String(next.length);
+}
+
+function saveActiveFilter() {
+  if (!activeFilter?.expression) {
+    status.textContent = "Apply a filter before saving it.";
+    return;
+  }
+  const saved = {
+    id: savedFilterID(activeFilter.expression),
+    name: savedFilterName(activeFilter.display),
+    display: activeFilter.display,
+    expression: activeFilter.expression,
+    createdAt: new Date().toISOString(),
+  };
+  const next = [saved, ...savedFilters().filter((filter) => filter.expression !== saved.expression)];
+  saveSavedFilters(next);
+  renderViewChips();
+  document.body.dataset.savedFilterPreview = `${saved.name}|${saved.expression}`;
+  status.textContent = `Saved filter: ${saved.name}`;
+}
+
+async function applySavedFilter(filterID) {
+  if (!documentId) return;
+  const filter = savedFilters().find((item) => item.id === filterID);
+  if (!filter) {
+    status.textContent = "Saved filter not found.";
+    renderViewChips();
+    return;
+  }
+  commandInput.value = `where ${filter.expression}`;
+  document.body.dataset.savedFilterApplied = filter.name;
+  await applyFilterRequest(
+    { documentId, mode: "sql", expression: filter.expression },
+    `Saved filter ${filter.name}`,
+    selected.col,
+  );
+}
+
+function deleteSavedFilter(filterID) {
+  const before = savedFilters();
+  const next = before.filter((filter) => filter.id !== filterID);
+  saveSavedFilters(next);
+  renderViewChips();
+  status.textContent = before.length === next.length ? "Saved filter not found." : "Deleted saved filter.";
+}
+
+function savedFilterID(expression) {
+  return `filter-${hashText(expression)}`;
+}
+
+function savedFilterName(display) {
+  const base = String(display || "")
+    .replace(/^Filter:\s*/i, "")
+    .replace(/^where\s+/i, "")
+    .trim();
+  return base.length > 42 ? `${base.slice(0, 39)}...` : base || "Saved filter";
+}
+
+function hashText(value) {
+  let hash = 2166136261;
+  for (const char of String(value)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function openActiveFilterInSQL() {
