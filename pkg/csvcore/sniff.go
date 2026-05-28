@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -132,29 +133,71 @@ func inferHeader(sample []byte, delimiter rune) bool {
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
 
-	first, err := reader.Read()
-	if err != nil || len(first) == 0 {
+	records := make([][]string, 0, 8)
+	for len(records) < cap(records) {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
+		if len(record) == 1 && strings.TrimSpace(record[0]) == "" {
+			continue
+		}
+		records = append(records, record)
+	}
+	if len(records) < 2 || len(records[0]) == 0 || len(records[1]) == 0 {
 		return false
 	}
 
-	second, err := reader.Read()
-	if err != nil || len(second) == 0 {
+	first := records[0]
+	columns := len(first)
+	if columns <= 1 {
+		return false
+	}
+	for _, record := range records[1:] {
+		if len(record) < columns {
+			columns = len(record)
+		}
+	}
+	if columns <= 1 {
 		return false
 	}
 
-	textyFirst := 0
-	numericSecond := 0
-	columns := min(len(first), len(second))
-	for i := 0; i < columns; i++ {
-		if !looksNumeric(first[i]) && strings.TrimSpace(first[i]) != "" {
-			textyFirst++
+	nameLikeFirst := 0
+	semanticNameFirst := 0
+	typeChanges := 0
+	uniqueHeaderNames := map[string]bool{}
+	for col := 0; col < columns; col++ {
+		header := strings.TrimSpace(first[col])
+		if header == "" {
+			return false
 		}
-		if looksNumeric(second[i]) {
-			numericSecond++
+		lowerHeader := strings.ToLower(header)
+		if uniqueHeaderNames[lowerHeader] {
+			return false
+		}
+		uniqueHeaderNames[lowerHeader] = true
+
+		if looksHeaderName(header) {
+			nameLikeFirst++
+		}
+		if looksSemanticHeaderName(header) {
+			semanticNameFirst++
+		}
+		for _, record := range records[1:] {
+			if col >= len(record) {
+				continue
+			}
+			if fieldKind(header) != fieldKind(record[col]) {
+				typeChanges++
+				break
+			}
 		}
 	}
 
-	return textyFirst >= max(1, columns/2) && numericSecond > 0
+	strongNames := nameLikeFirst >= max(1, (columns+1)/2)
+	enoughTypeSignal := typeChanges >= max(1, columns/4)
+	enoughSemanticSignal := semanticNameFirst >= max(2, (columns+1)/2)
+	return strongNames && (enoughTypeSignal || enoughSemanticSignal)
 }
 
 func looksNumeric(value string) bool {
@@ -164,4 +207,138 @@ func looksNumeric(value string) bool {
 	}
 	_, err := strconv.ParseFloat(value, 64)
 	return err == nil
+}
+
+func looksHeaderName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || looksNumeric(value) {
+		return false
+	}
+	hasLetter := false
+	for _, r := range value {
+		switch {
+		case unicode.IsLetter(r):
+			hasLetter = true
+		case unicode.IsDigit(r), r == '_', r == '-', r == ' ', r == '.', r == '/', r == '#':
+		default:
+			return false
+		}
+	}
+	return hasLetter
+}
+
+func fieldKind(value string) string {
+	value = strings.TrimSpace(value)
+	switch {
+	case value == "":
+		return "blank"
+	case looksNumeric(value):
+		return "number"
+	case looksBool(value):
+		return "bool"
+	case looksISODate(value):
+		return "date"
+	default:
+		return "text"
+	}
+}
+
+func looksBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "false", "yes", "no":
+		return true
+	default:
+		return false
+	}
+}
+
+func looksSemanticHeaderName(value string) bool {
+	normalized := normalizeHeaderName(value)
+	if _, ok := commonHeaderNames[normalized]; ok {
+		return true
+	}
+	return hasNumericHeaderSuffix(normalized, "field") || hasNumericHeaderSuffix(normalized, "column") || hasNumericHeaderSuffix(normalized, "col")
+}
+
+func normalizeHeaderName(value string) string {
+	var builder strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			builder.WriteRune(r)
+		}
+	}
+	return builder.String()
+}
+
+func hasNumericHeaderSuffix(value, prefix string) bool {
+	if !strings.HasPrefix(value, prefix) || len(value) == len(prefix) {
+		return false
+	}
+	for _, r := range value[len(prefix):] {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func looksISODate(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < len("2006-01-02") {
+		return false
+	}
+	return isDigitAt(value, 0) &&
+		isDigitAt(value, 1) &&
+		isDigitAt(value, 2) &&
+		isDigitAt(value, 3) &&
+		value[4] == '-' &&
+		isDigitAt(value, 5) &&
+		isDigitAt(value, 6) &&
+		value[7] == '-' &&
+		isDigitAt(value, 8) &&
+		isDigitAt(value, 9)
+}
+
+func isDigitAt(value string, index int) bool {
+	return index < len(value) && value[index] >= '0' && value[index] <= '9'
+}
+
+var commonHeaderNames = map[string]struct{}{
+	"address":     {},
+	"amount":      {},
+	"category":    {},
+	"city":        {},
+	"code":        {},
+	"count":       {},
+	"country":     {},
+	"createdat":   {},
+	"date":        {},
+	"description": {},
+	"email":       {},
+	"firstname":   {},
+	"fullname":    {},
+	"id":          {},
+	"key":         {},
+	"label":       {},
+	"lastname":    {},
+	"name":        {},
+	"note":        {},
+	"notes":       {},
+	"phone":       {},
+	"price":       {},
+	"qty":         {},
+	"quantity":    {},
+	"region":      {},
+	"score":       {},
+	"segment":     {},
+	"state":       {},
+	"status":      {},
+	"team":        {},
+	"time":        {},
+	"timestamp":   {},
+	"total":       {},
+	"type":        {},
+	"updatedat":   {},
+	"valid":       {},
+	"value":       {},
 }

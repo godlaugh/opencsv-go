@@ -1,7 +1,5 @@
 const canvas = document.querySelector("#grid");
-const headerCanvas = document.querySelector("#gridHeader");
 const ctx = canvas.getContext("2d");
-const headerCtx = headerCanvas.getContext("2d");
 const editor = document.querySelector("#editor");
 const status = document.querySelector("#status");
 const encodingStatus = document.querySelector("#encodingStatus");
@@ -222,11 +220,8 @@ function syncCanvasSize() {
   const width = Math.max(1, rect.width);
   const height = Math.max(1, rect.height);
   syncCanvasCSSSize(canvas, width, height);
-  syncCanvasCSSSize(headerCanvas, width, headerHeight);
   resizeCanvasBackingStore(canvas, width, height, scale);
-  resizeCanvasBackingStore(headerCanvas, width, headerHeight, scale);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  headerCtx.setTransform(scale, 0, 0, scale, 0, 0);
   return { width, height };
 }
 
@@ -382,7 +377,6 @@ function draw() {
   }
   const { width, height } = syncCanvasSize();
   ctx.clearRect(0, 0, width, height);
-  headerCtx.clearRect(0, 0, width, headerHeight);
 
   ctx.fillStyle = themeColors.gridBg;
   ctx.fillRect(0, 0, width, height);
@@ -2176,7 +2170,7 @@ async function executeCommand(commandID) {
 function drawHeaders(width) {
   const headerNameY = Math.max(14, Math.round(headerHeight * 0.34));
   const headerTypeY = Math.min(headerHeight - 10, Math.round(headerHeight * 0.72));
-  const target = headerCtx;
+  const target = ctx;
   target.save();
   target.beginPath();
   target.rect(0, 0, width, headerHeight);

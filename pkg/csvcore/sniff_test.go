@@ -24,3 +24,45 @@ func TestSniffDetectsTab(t *testing.T) {
 		t.Fatalf("delimiter name = %q, want tab", dialect.DelimiterName)
 	}
 }
+
+func TestSniffDetectsTextDimensionHeader(t *testing.T) {
+	dialect := Sniff([]byte("region,label\nAPAC,Asia Pacific\nEU,Europe\n"))
+	if !dialect.HasHeader {
+		t.Fatal("expected text dimension table header")
+	}
+}
+
+func TestSniffAvoidsWeakAllTextHeader(t *testing.T) {
+	dialect := Sniff([]byte("A,B\nC,D\nE,F\n"))
+	if dialect.HasHeader {
+		t.Fatal("did not expect weak all-text rows to be promoted to header")
+	}
+}
+
+func TestSniffAvoidsPersonNameRowsAsHeader(t *testing.T) {
+	dialect := Sniff([]byte("Ada,Lovelace\nGrace,Hopper\nLinus,Torvalds\n"))
+	if dialect.HasHeader {
+		t.Fatal("did not expect person-name data rows to be promoted to header")
+	}
+}
+
+func TestSniffRequiresMoreThanOneSemanticTextHeader(t *testing.T) {
+	dialect := Sniff([]byte("Ada,score\nGrace,Hopper\nLinus,Torvalds\n"))
+	if dialect.HasHeader {
+		t.Fatal("did not expect one common-looking text value to promote a text table header")
+	}
+}
+
+func TestSniffDetectsGeneratedFieldHeaders(t *testing.T) {
+	dialect := Sniff([]byte("field_01,field_02\nsegment_0,2026-05-01\nsegment_1,2026-05-02\n"))
+	if !dialect.HasHeader {
+		t.Fatal("expected generated field headers")
+	}
+}
+
+func TestSniffRejectsDuplicateHeaderNames(t *testing.T) {
+	dialect := Sniff([]byte("name,name\nAda,Lovelace\nGrace,Hopper\n"))
+	if dialect.HasHeader {
+		t.Fatal("did not expect duplicate header names to be promoted")
+	}
+}

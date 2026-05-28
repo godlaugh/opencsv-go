@@ -326,28 +326,10 @@ button:disabled {
   touch-action: none;
 }
 
-.grid-frame #gridHeader {
-  position: absolute;
-  inset: 0 0 auto 0;
-  z-index: 2;
-  min-height: var(--grid-header-height);
-  max-height: var(--grid-header-height);
-  contain: strict;
-  display: block;
-  width: 100%;
-  height: var(--grid-header-height);
-  pointer-events: none;
-  transform: translateZ(0);
-}
-
 .grid-frame.sql-mode #grid,
-.grid-frame.sql-mode #gridHeader,
 .grid-frame.diff-mode #grid,
-.grid-frame.diff-mode #gridHeader,
 .grid-frame.profile-mode #grid,
-.grid-frame.profile-mode #gridHeader,
-.grid-frame.settings-mode #grid,
-.grid-frame.settings-mode #gridHeader {
+.grid-frame.settings-mode #grid {
   visibility: hidden;
 }
 

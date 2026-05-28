@@ -1166,6 +1166,10 @@ func TestServerSQLFileReference(t *testing.T) {
 	if err := os.WriteFile(teamsPath, []byte("id,team\n1,Compiler\n2,Kernel\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	regionsPath := filepath.Join(dir, "regions.csv")
+	if err := os.WriteFile(regionsPath, []byte("region,label\nAPAC,Asia Pacific\nEU,Europe\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	payload := postJSON(t, New(dir).Handler(), "/api/sql", map[string]any{
 		"query": `SELECT name FROM "@file:` + path + `" WHERE id = 2`,
 	})
@@ -1180,6 +1184,14 @@ func TestServerSQLFileReference(t *testing.T) {
 	joinRows := joinPayload["rows"].([]any)
 	if len(joinRows) != 1 || joinRows[0].([]any)[0] != "Linus" || joinRows[0].([]any)[1] != "Kernel" {
 		t.Fatalf("unexpected SQL join rows: %#v", joinRows)
+	}
+
+	textHeaderPayload := postJSON(t, New(dir).Handler(), "/api/sql", map[string]any{
+		"query": `SELECT label FROM "@file:` + regionsPath + `" WHERE region = 'APAC'`,
+	})
+	textHeaderRows := textHeaderPayload["rows"].([]any)
+	if len(textHeaderRows) != 1 || textHeaderRows[0].([]any)[0] != "Asia Pacific" {
+		t.Fatalf("unexpected SQL text-header rows: %#v", textHeaderRows)
 	}
 }
 
