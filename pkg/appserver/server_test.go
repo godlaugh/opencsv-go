@@ -132,6 +132,23 @@ func TestServerOpenWithFormatOverrides(t *testing.T) {
 	}
 }
 
+func TestServerFileSample(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	if err := os.WriteFile(path, []byte("id|name\n1|Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	payload := postJSON(t, handler, "/api/file-sample", map[string]any{
+		"path":     path,
+		"maxBytes": 7,
+	})
+	if payload["sample"] != "id|name" {
+		t.Fatalf("sample = %#v, want id|name", payload["sample"])
+	}
+}
+
 func TestServerBatchEditUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

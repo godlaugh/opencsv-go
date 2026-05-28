@@ -43,6 +43,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("GET /api/health", server.handleHealth)
 	server.mux.HandleFunc("GET /api/commands", server.handleCommands)
 	server.mux.HandleFunc("POST /api/open", server.handleOpen)
+	server.mux.HandleFunc("POST /api/file-sample", server.handleFileSample)
 	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
 	server.mux.HandleFunc("GET /api/window", server.handleWindow)
 	server.mux.HandleFunc("POST /api/edit", server.handleEdit)
@@ -106,6 +107,15 @@ type openResponse struct {
 	Document   csvcore.Document `json:"document"`
 }
 
+type fileSampleRequest struct {
+	Path     string `json:"path"`
+	MaxBytes int    `json:"maxBytes"`
+}
+
+type fileSampleResponse struct {
+	Sample string `json:"sample"`
+}
+
 func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 	var request openRequest
 	if err := readJSON(r, &request); err != nil {
@@ -167,6 +177,39 @@ func delimiterRune(value string) (rune, error) {
 		return 0, fmt.Errorf("delimiter must be one character")
 	}
 	return runes[0], nil
+}
+
+func (server *Server) handleFileSample(w http.ResponseWriter, r *http.Request) {
+	var request fileSampleRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.Path == "" {
+		writeError(w, http.StatusBadRequest, errors.New("path is required"))
+		return
+	}
+	if request.MaxBytes <= 0 {
+		request.MaxBytes = 8192
+	}
+	if request.MaxBytes > 65536 {
+		request.MaxBytes = 65536
+	}
+
+	file, err := os.Open(request.Path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	defer file.Close()
+
+	buffer := make([]byte, request.MaxBytes)
+	n, err := file.Read(buffer)
+	if err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, fileSampleResponse{Sample: string(buffer[:n])})
 }
 
 func (server *Server) handleUploadOpen(w http.ResponseWriter, r *http.Request) {

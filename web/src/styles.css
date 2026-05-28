@@ -172,6 +172,7 @@ button:disabled {
   display: grid;
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr) 28px;
+  overflow: hidden;
 }
 
 .toolbar {
@@ -976,8 +977,9 @@ button:disabled {
 .statusbar {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 8px;
   min-width: 0;
+  overflow: hidden;
   padding: 0 12px;
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -986,7 +988,8 @@ button:disabled {
 }
 
 .statusbar span:first-child {
-  flex: 1;
+  flex: 1 1 80px;
+  min-width: 80px;
   overflow: hidden;
   color: var(--text);
   text-overflow: ellipsis;
@@ -995,17 +998,20 @@ button:disabled {
 
 .statusbar span:not(:first-child),
 .status-toggle,
-.status-select {
+.status-select,
+.status-input {
+  min-width: 0;
   white-space: nowrap;
 }
 
 .aggregate-status,
 .status-toggle,
-.status-select {
+.status-select,
+.status-input {
   height: 24px;
   flex: 0 0 auto;
   border-radius: 6px;
-  padding: 0 8px;
+  padding: 0 6px;
   color: var(--text);
   font:
     12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
@@ -1014,7 +1020,13 @@ button:disabled {
 }
 
 .status-select {
-  max-width: 132px;
+  max-width: 112px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.status-input {
+  width: 88px;
   border: 1px solid var(--border);
   background: var(--panel);
 }

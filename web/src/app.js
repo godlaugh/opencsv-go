@@ -14,6 +14,8 @@ const aggregateStatusButton = document.querySelector("#aggregateStatusButton");
 const formatPresetSelect = document.querySelector("#formatPresetSelect");
 const saveFormatPresetButton = document.querySelector("#saveFormatPresetButton");
 const applyFormatPresetButton = document.querySelector("#applyFormatPresetButton");
+const formatRuleInput = document.querySelector("#formatRuleInput");
+const saveFormatRuleButton = document.querySelector("#saveFormatRuleButton");
 const columnName = document.querySelector("#columnName");
 const columnType = document.querySelector("#columnType");
 const columnNulls = document.querySelector("#columnNulls");
@@ -130,6 +132,7 @@ const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
+const formatRuleSampleBytes = 65536;
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -459,6 +462,8 @@ function applyCommandMetadata() {
       button.textContent = "Save Preset";
     } else if (button.dataset.command === "format.applyPreset") {
       button.textContent = "Apply";
+    } else if (button.dataset.command === "format.saveRule") {
+      button.textContent = "Save Rule";
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -493,6 +498,8 @@ function updateCommandState() {
   formatPresetSelect.disabled = !hasDocument || formatPresets().length === 0;
   saveFormatPresetButton.disabled = !hasDocument;
   applyFormatPresetButton.disabled = !hasDocument || !formatPresetSelect.value;
+  formatRuleInput.disabled = !hasDocument;
+  saveFormatRuleButton.disabled = !hasDocument;
 }
 
 function isCommandDisabled(command) {
@@ -628,6 +635,7 @@ function currentFormatPreset() {
     hasHeader: Boolean(metadata.dialect.hasHeader),
     encodingName: metadata.encoding?.name ?? "utf-8",
     lineEndingName: metadata.lineEnding?.name ?? "LF",
+    rules: [],
   };
 }
 
@@ -637,6 +645,7 @@ function formatPresets() {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((preset) => preset && typeof preset === "object" && typeof preset.id === "string")
+      .map((preset) => ({ ...preset, rules: normalizeFormatRules(preset.rules) }))
       .slice(0, formatPresetsLimit);
   } catch {
     return [];
@@ -654,7 +663,9 @@ function renderFormatPresetSelect() {
   const presets = formatPresets();
   const options = [new Option("Preset", "")];
   for (const preset of presets) {
-    options.push(new Option(preset.name || preset.id, preset.id));
+    const ruleCount = preset.rules?.length ?? 0;
+    const label = ruleCount > 0 ? `${preset.name || preset.id} (${ruleCount})` : preset.name || preset.id;
+    options.push(new Option(label, preset.id));
   }
   formatPresetSelect.replaceChildren(...options);
   if (presets.some((preset) => preset.id === selectedValue)) {
@@ -665,20 +676,50 @@ function renderFormatPresetSelect() {
   document.body.dataset.formatPresets = String(presets.length);
 }
 
-function saveCurrentFormatPreset() {
+function saveCurrentFormatPreset(rulePattern = "") {
   const preset = currentFormatPreset();
   if (!preset) {
     status.textContent = "Open a file before saving a format preset.";
-    return;
+    return null;
   }
   const id = formatPresetID(preset);
-  const saved = { ...preset, id, name: formatPresetName(preset) };
-  const presets = [saved, ...formatPresets().filter((item) => item.id !== id)].slice(0, formatPresetsLimit);
+  const existing = formatPresets().find((item) => item.id === id);
+  const rules = normalizeFormatRules(existing?.rules);
+  let ruleKey = "";
+  if (rulePattern) {
+    const normalized = normalizeFormatRule({ pattern: rulePattern });
+    ruleKey = normalized ? formatRuleKey(normalized) : "";
+    if (normalized && !rules.some((rule) => formatRuleKey(rule) === formatRuleKey(normalized))) {
+      rules.push(normalized);
+    }
+  }
+  const saved = { ...preset, id, name: formatPresetName(preset), rules };
+  const otherPresets = formatPresets()
+    .filter((item) => item.id !== id)
+    .map((item) => (
+      ruleKey
+        ? { ...item, rules: normalizeFormatRules(item.rules).filter((rule) => formatRuleKey(rule) !== ruleKey) }
+        : item
+    ));
+  const presets = [saved, ...otherPresets].slice(0, formatPresetsLimit);
   saveFormatPresets(presets);
   formatPresetSelect.value = id;
   document.body.dataset.formatPresetPreview = formatPresetPreview(saved);
-  status.textContent = `Saved format preset: ${saved.name}`;
+  status.textContent = rulePattern ? `Saved format rule: ${rulePattern} -> ${saved.name}` : `Saved format preset: ${saved.name}`;
   updateCommandState();
+  return saved;
+}
+
+function saveCurrentFormatRule() {
+  const pattern = formatRuleInput.value.trim() || defaultFormatRulePattern();
+  if (!pattern) {
+    status.textContent = "Enter a rule pattern after opening a file.";
+    return;
+  }
+  const saved = saveCurrentFormatPreset(pattern);
+  if (!saved) return;
+  formatRuleInput.value = pattern;
+  document.body.dataset.formatRulePreview = `${formatRuleTarget(pattern)}:${formatRulePattern(pattern)}`;
 }
 
 async function applySelectedFormatPreset() {
@@ -694,6 +735,116 @@ async function applySelectedFormatPreset() {
   }
   document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
   await openPath(path, { preset });
+}
+
+function normalizeFormatRules(rules) {
+  if (!Array.isArray(rules)) return [];
+  const normalized = [];
+  for (const rule of rules) {
+    const item = normalizeFormatRule(rule);
+    if (item && !normalized.some((existing) => formatRuleKey(existing) === formatRuleKey(item))) {
+      normalized.push(item);
+    }
+  }
+  return normalized.slice(0, 12);
+}
+
+function normalizeFormatRule(rule) {
+  const pattern = typeof rule === "string" ? rule : rule?.pattern;
+  if (typeof pattern !== "string" || pattern.trim() === "") return null;
+  return { pattern: pattern.trim() };
+}
+
+function formatRuleKey(rule) {
+  return rule.pattern.toLowerCase();
+}
+
+function formatRuleTarget(pattern) {
+  const lower = pattern.trim().toLowerCase();
+  if (lower.startsWith("path:")) return "path";
+  if (lower.startsWith("content:")) return "content";
+  return "name";
+}
+
+function formatRulePattern(pattern) {
+  return pattern.replace(/^(name|path|content):/i, "").trim();
+}
+
+function defaultFormatRulePattern(path = metadata?.path || pathInput.value.trim()) {
+  const name = fileNameFromPath(path);
+  const dot = name.lastIndexOf(".");
+  if (dot > 0 && dot < name.length - 1) return `*.${name.slice(dot + 1)}`;
+  return name ? `name:${name}` : "";
+}
+
+function updateFormatRulePlaceholder(path = metadata?.path || pathInput.value.trim()) {
+  const pattern = defaultFormatRulePattern(path);
+  if (pattern) formatRuleInput.placeholder = pattern;
+}
+
+async function matchingFormatPresetForPath(path) {
+  const pathMatch = findMatchingFormatPreset(path, "");
+  if (pathMatch) return pathMatch;
+  if (!formatPresets().some((preset) => preset.rules?.some((rule) => formatRuleTarget(rule.pattern) === "content"))) {
+    return null;
+  }
+  const sample = await fileSampleForRules(path);
+  if (sample === null) return null;
+  return findMatchingFormatPreset(path, sample);
+}
+
+function findMatchingFormatPreset(path, sample) {
+  const basename = fileNameFromPath(path).toLowerCase();
+  const normalizedPath = path.replace(/\\/g, "/").toLowerCase();
+  const normalizedSample = sample.toLowerCase();
+  for (const preset of formatPresets()) {
+    for (const rule of preset.rules ?? []) {
+      const target = formatRuleTarget(rule.pattern);
+      const pattern = formatRulePattern(rule.pattern);
+      if (!pattern) continue;
+      if (target === "content") {
+        if (normalizedSample && normalizedSample.includes(pattern.toLowerCase())) {
+          return { preset, rule };
+        }
+        continue;
+      }
+      const value = target === "path" ? normalizedPath : basename;
+      if (matchesFormatRuleValue(value, pattern.toLowerCase())) {
+        return { preset, rule };
+      }
+    }
+  }
+  return null;
+}
+
+function matchesFormatRuleValue(value, pattern) {
+  if (pattern.includes("*") || pattern.includes("?")) {
+    return globToRegExp(pattern).test(value);
+  }
+  return value === pattern || value.includes(pattern);
+}
+
+function globToRegExp(pattern) {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`, "i");
+}
+
+async function fileSampleForRules(path) {
+  try {
+    const response = await fetch("/api/file-sample", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, maxBytes: formatRuleSampleBytes }),
+    });
+    const payload = await response.json();
+    if (!response.ok) return null;
+    return payload.sample ?? "";
+  } catch {
+    return null;
+  }
 }
 
 function formatPresetID(preset) {
@@ -1558,6 +1709,9 @@ async function executeCommand(commandID) {
     case "format.applyPreset":
       await applySelectedFormatPreset();
       break;
+    case "format.saveRule":
+      saveCurrentFormatRule();
+      break;
     case "edit.undo":
       await undoCurrentDocument();
       break;
@@ -2383,7 +2537,16 @@ function displayRowForSourceRow(sourceRow) {
 
 async function openPath(path, options = {}) {
   status.textContent = `Opening ${path}...`;
-  const preset = options.preset ?? null;
+  let preset = options.preset ?? null;
+  let matchedRule = null;
+  if (!preset && options.applyRules !== false) {
+    const match = await matchingFormatPresetForPath(path);
+    if (match) {
+      preset = match.preset;
+      matchedRule = match.rule;
+      document.body.dataset.formatRulePreview = `${formatRuleTarget(matchedRule.pattern)}:${formatRulePattern(matchedRule.pattern)}`;
+    }
+  }
   const body = { path, previewRows: windowSize, indexRows: -1 };
   if (preset) {
     body.delimiter = preset.delimiter;
@@ -2405,10 +2568,13 @@ async function openPath(path, options = {}) {
   externalFileChanged = false;
   loadDocument(payload.document);
   updateFileList(fileNameFromPath(path), metadata.path, totalRows, { remember: true });
+  updateFormatRulePlaceholder(path);
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
-  if (preset) {
+  if (matchedRule) {
+    status.textContent = `Applied format rule: ${matchedRule.pattern} -> ${preset.name || formatPresetName(preset)}`;
+  } else if (preset) {
     status.textContent = `Applied format preset: ${preset.name || formatPresetName(preset)}`;
   }
   canvas.focus();
@@ -2431,6 +2597,7 @@ async function uploadAndOpen(file) {
   externalFileChanged = false;
   loadDocument(payload.document);
   pathInput.value = file.name;
+  updateFormatRulePlaceholder(file.name);
   updateFileList(file.name, "temporary upload", totalRows);
   draw();
   startFileStatusChecks();
@@ -5269,6 +5436,12 @@ headerStatus.addEventListener("click", () => executeCommand("table.toggleHeaderR
 saveFormatPresetButton.addEventListener("click", () => executeCommand("format.savePreset"));
 applyFormatPresetButton.addEventListener("click", () => executeCommand("format.applyPreset"));
 formatPresetSelect.addEventListener("change", () => updateCommandState());
+formatRuleInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  executeCommand("format.saveRule");
+});
+saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));

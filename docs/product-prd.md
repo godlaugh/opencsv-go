@@ -2,7 +2,7 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 ## 1. Source Baseline
 
@@ -17,7 +17,7 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-05-27. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work.
+Latest public source check: 2026-05-28. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work.
 
 Additional official source details captured from the current public pages:
 
