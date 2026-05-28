@@ -1,5 +1,7 @@
 const canvas = document.querySelector("#grid");
+const headerCanvas = document.querySelector("#gridHeader");
 const ctx = canvas.getContext("2d");
+const headerCtx = headerCanvas.getContext("2d");
 const editor = document.querySelector("#editor");
 const status = document.querySelector("#status");
 const encodingStatus = document.querySelector("#encodingStatus");
@@ -196,12 +198,18 @@ function syncCanvasSize() {
   const scale = window.devicePixelRatio || 1;
   const width = Math.max(1, rect.width);
   const height = Math.max(1, rect.height);
+  resizeCanvasBackingStore(canvas, width, height, scale);
+  resizeCanvasBackingStore(headerCanvas, width, headerHeight, scale);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  headerCtx.setTransform(scale, 0, 0, scale, 0, 0);
+  return { width, height };
+}
+
+function resizeCanvasBackingStore(target, width, height, scale) {
   const pixelWidth = Math.max(1, Math.round(width * scale));
   const pixelHeight = Math.max(1, Math.round(height * scale));
-  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  return { width, height };
+  if (target.width !== pixelWidth) target.width = pixelWidth;
+  if (target.height !== pixelHeight) target.height = pixelHeight;
 }
 
 function maxVerticalScroll() {
@@ -324,6 +332,7 @@ function draw() {
   }
   const { width, height } = syncCanvasSize();
   ctx.clearRect(0, 0, width, height);
+  headerCtx.clearRect(0, 0, width, headerHeight);
 
   ctx.fillStyle = themeColors.gridBg;
   ctx.fillRect(0, 0, width, height);
@@ -1471,78 +1480,79 @@ async function executeCommand(commandID) {
 function drawHeaders(width) {
   const headerNameY = Math.max(14, Math.round(headerHeight * 0.34));
   const headerTypeY = Math.min(headerHeight - 10, Math.round(headerHeight * 0.72));
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, width, headerHeight);
-  ctx.clip();
-  ctx.fillStyle = themeColors.gridHeader;
-  ctx.fillRect(0, 0, width, headerHeight);
-  ctx.fillStyle = themeColors.gridGutter;
-  ctx.fillRect(0, 0, rowNumberWidth, headerHeight);
-  ctx.strokeStyle = themeColors.gridLine;
-  ctx.beginPath();
-  ctx.moveTo(0, headerHeight - 0.5);
-  ctx.lineTo(width, headerHeight - 0.5);
-  ctx.moveTo(rowNumberWidth + 0.5, 0);
-  ctx.lineTo(rowNumberWidth + 0.5, headerHeight);
-  ctx.stroke();
+  const target = headerCtx;
+  target.save();
+  target.beginPath();
+  target.rect(0, 0, width, headerHeight);
+  target.clip();
+  target.fillStyle = themeColors.gridHeader;
+  target.fillRect(0, 0, width, headerHeight);
+  target.fillStyle = themeColors.gridGutter;
+  target.fillRect(0, 0, rowNumberWidth, headerHeight);
+  target.strokeStyle = themeColors.gridLine;
+  target.beginPath();
+  target.moveTo(0, headerHeight - 0.5);
+  target.lineTo(width, headerHeight - 0.5);
+  target.moveTo(rowNumberWidth + 0.5, 0);
+  target.lineTo(rowNumberWidth + 0.5, headerHeight);
+  target.stroke();
 
-  ctx.font = "600 12px Inter, system-ui, sans-serif";
-  ctx.textBaseline = "middle";
+  target.font = "600 12px Inter, system-ui, sans-serif";
+  target.textBaseline = "middle";
 
   if (columns.length === 0) {
-    ctx.fillStyle = themeColors.muted;
-    ctx.fillText("Open a CSV file", rowNumberWidth + 10, headerHeight / 2);
-    ctx.restore();
+    target.fillStyle = themeColors.muted;
+    target.fillText("Open a CSV file", rowNumberWidth + 10, headerHeight / 2);
+    target.restore();
     return;
   }
 
   let x = rowNumberWidth - scrollX;
   for (const column of columns) {
     if (x + column.width >= rowNumberWidth && x <= width) {
-      ctx.fillStyle = themeColors.text;
-      drawHeaderText(column.name, x, column.width, headerNameY, width);
-      ctx.fillStyle = themeColors.muted;
-      ctx.font = "600 11px Inter, system-ui, sans-serif";
-      drawHeaderText(column.type ?? "string", x, column.width, headerTypeY, width);
-      ctx.font = "600 12px Inter, system-ui, sans-serif";
-      drawHeaderMenuGlyph(x, column.width, headerNameY);
-      ctx.strokeStyle = themeColors.gridLine;
-      ctx.beginPath();
-      ctx.moveTo(x + column.width + 0.5, 0);
-      ctx.lineTo(x + column.width + 0.5, headerHeight);
-      ctx.stroke();
+      target.fillStyle = themeColors.text;
+      drawHeaderText(target, column.name, x, column.width, headerNameY, width);
+      target.fillStyle = themeColors.muted;
+      target.font = "600 11px Inter, system-ui, sans-serif";
+      drawHeaderText(target, column.type ?? "string", x, column.width, headerTypeY, width);
+      target.font = "600 12px Inter, system-ui, sans-serif";
+      drawHeaderMenuGlyph(target, x, column.width, headerNameY);
+      target.strokeStyle = themeColors.gridLine;
+      target.beginPath();
+      target.moveTo(x + column.width + 0.5, 0);
+      target.lineTo(x + column.width + 0.5, headerHeight);
+      target.stroke();
     }
     x += column.width;
   }
-  ctx.restore();
+  target.restore();
 }
 
-function drawHeaderText(text, x, columnWidth, y, canvasWidth) {
+function drawHeaderText(target, text, x, columnWidth, y, canvasWidth) {
   const left = Math.max(x + 8, rowNumberWidth + 8);
   const right = Math.min(x + columnWidth - 28, canvasWidth - 4);
   const width = right - left;
   if (width <= 0) return;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(left, 0, width, headerHeight);
-  ctx.clip();
-  ctx.fillText(text, left, y);
-  ctx.restore();
+  target.save();
+  target.beginPath();
+  target.rect(left, 0, width, headerHeight);
+  target.clip();
+  target.fillText(text, left, y);
+  target.restore();
 }
 
-function drawHeaderMenuGlyph(x, width, centerY) {
+function drawHeaderMenuGlyph(target, x, width, centerY) {
   const centerX = x + width - 14;
   if (centerX < rowNumberWidth + 8) return;
-  ctx.save();
-  ctx.fillStyle = themeColors.muted;
-  ctx.beginPath();
-  ctx.moveTo(centerX - 4, centerY - 2);
-  ctx.lineTo(centerX + 4, centerY - 2);
-  ctx.lineTo(centerX, centerY + 3);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+  target.save();
+  target.fillStyle = themeColors.muted;
+  target.beginPath();
+  target.moveTo(centerX - 4, centerY - 2);
+  target.lineTo(centerX + 4, centerY - 2);
+  target.lineTo(centerX, centerY + 3);
+  target.closePath();
+  target.fill();
+  target.restore();
 }
 
 function drawBodySeparators(width, height) {
