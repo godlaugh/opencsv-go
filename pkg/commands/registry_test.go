@@ -23,6 +23,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"file.exportView",
 		"file.exportXlsx",
 		"file.toggleReadOnly",
+		"format.savePreset",
+		"format.applyPreset",
 		"workbench.toggleTheme",
 		"edit.copyWithHeaders",
 		"selection.toggleHeaders",

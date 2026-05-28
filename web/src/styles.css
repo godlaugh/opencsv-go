@@ -994,12 +994,14 @@ button:disabled {
 }
 
 .statusbar span:not(:first-child),
-.status-toggle {
+.status-toggle,
+.status-select {
   white-space: nowrap;
 }
 
 .aggregate-status,
-.status-toggle {
+.status-toggle,
+.status-select {
   height: 24px;
   flex: 0 0 auto;
   border-radius: 6px;
@@ -1009,6 +1011,12 @@ button:disabled {
     12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
     monospace;
   white-space: nowrap;
+}
+
+.status-select {
+  max-width: 132px;
+  border: 1px solid var(--border);
+  background: var(--panel);
 }
 
 .status-toggle {

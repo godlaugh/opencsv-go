@@ -92,9 +92,13 @@ func (server *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 }
 
 type openRequest struct {
-	Path        string `json:"path"`
-	PreviewRows int    `json:"previewRows"`
-	IndexRows   *int   `json:"indexRows"`
+	Path          string `json:"path"`
+	PreviewRows   int    `json:"previewRows"`
+	IndexRows     *int   `json:"indexRows"`
+	Delimiter     string `json:"delimiter,omitempty"`
+	DelimiterName string `json:"delimiterName,omitempty"`
+	HasHeader     *bool  `json:"hasHeader,omitempty"`
+	EncodingName  string `json:"encodingName,omitempty"`
 }
 
 type openResponse struct {
@@ -120,16 +124,49 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 		indexRows = *request.IndexRows
 	}
 
-	session, err := server.documents.OpenPath(request.Path, docstore.SourceFile, filepath.Base(request.Path), csvcore.OpenOptions{
+	options := csvcore.OpenOptions{
 		PreviewRows: request.PreviewRows,
 		IndexRows:   indexRows,
-	})
+	}
+	if request.Delimiter != "" {
+		delimiter, err := delimiterRune(request.Delimiter)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.Delimiter = &delimiter
+		options.DelimiterName = request.DelimiterName
+	}
+	if request.HasHeader != nil {
+		options.HasHeader = request.HasHeader
+	}
+	if strings.TrimSpace(request.EncodingName) != "" {
+		encoding, err := csvcore.ParseEncodingName(request.EncodingName)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.Encoding = &encoding
+	}
+
+	session, err := server.documents.OpenPath(request.Path, docstore.SourceFile, filepath.Base(request.Path), options)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+}
+
+func delimiterRune(value string) (rune, error) {
+	if value == "\\t" || strings.EqualFold(value, "tab") {
+		return '\t', nil
+	}
+	runes := []rune(value)
+	if len(runes) != 1 {
+		return 0, fmt.Errorf("delimiter must be one character")
+	}
+	return runes[0], nil
 }
 
 func (server *Server) handleUploadOpen(w http.ResponseWriter, r *http.Request) {

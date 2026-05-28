@@ -100,6 +100,38 @@ func TestServerOpenXLSXPath(t *testing.T) {
 	}
 }
 
+func TestServerOpenWithFormatOverrides(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "pipe.txt")
+	if err := os.WriteFile(path, []byte("id|name\n1|Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":          path,
+		"previewRows":   3,
+		"indexRows":     -1,
+		"delimiter":     "|",
+		"delimiterName": "pipe",
+		"hasHeader":     false,
+		"encodingName":  "utf-8",
+	})
+	document := openPayload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["delimiterName"] != "pipe" {
+		t.Fatalf("delimiterName = %#v, want pipe", dialect["delimiterName"])
+	}
+	if dialect["hasHeader"] != false {
+		t.Fatalf("hasHeader = %#v, want false", dialect["hasHeader"])
+	}
+	preview := document["preview"].([]any)
+	if got := preview[0].([]any)[0]; got != "id" {
+		t.Fatalf("preview first field = %#v, want id", got)
+	}
+}
+
 func TestServerBatchEditUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

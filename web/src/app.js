@@ -11,6 +11,9 @@ const headerStatus = document.querySelector("#headerStatus");
 const readOnlyStatus = document.querySelector("#readOnlyStatus");
 const externalStatus = document.querySelector("#externalStatus");
 const aggregateStatusButton = document.querySelector("#aggregateStatusButton");
+const formatPresetSelect = document.querySelector("#formatPresetSelect");
+const saveFormatPresetButton = document.querySelector("#saveFormatPresetButton");
+const applyFormatPresetButton = document.querySelector("#applyFormatPresetButton");
 const columnName = document.querySelector("#columnName");
 const columnType = document.querySelector("#columnType");
 const columnNulls = document.querySelector("#columnNulls");
@@ -125,6 +128,8 @@ const commandHistoryLimit = 8;
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
+const formatPresetsStorageKey = "opencsv-format-presets";
+const formatPresetsLimit = 12;
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -450,6 +455,10 @@ function applyCommandMetadata() {
       button.textContent = "Copy";
     } else if (button.dataset.command === "view.filterBuilder") {
       button.textContent = "Builder";
+    } else if (button.dataset.command === "format.savePreset") {
+      button.textContent = "Save Preset";
+    } else if (button.dataset.command === "format.applyPreset") {
+      button.textContent = "Apply";
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -481,6 +490,9 @@ function updateCommandState() {
   }
   copyFormatSelect.disabled = !hasDocument;
   copyHeadersToggle.disabled = !hasDocument;
+  formatPresetSelect.disabled = !hasDocument || formatPresets().length === 0;
+  saveFormatPresetButton.disabled = !hasDocument;
+  applyFormatPresetButton.disabled = !hasDocument || !formatPresetSelect.value;
 }
 
 function isCommandDisabled(command) {
@@ -604,6 +616,101 @@ function lineEndingLabel(info = metadata?.lineEnding) {
 
 function documentFormatSummary() {
   return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()}`;
+}
+
+function currentFormatPreset() {
+  if (!metadata?.dialect) return null;
+  return {
+    id: "",
+    name: documentFormatSummary(),
+    delimiter: delimiterChar(metadata.dialect),
+    delimiterName: metadata.dialect.delimiterName || delimiterLabel(metadata.dialect).toLowerCase(),
+    hasHeader: Boolean(metadata.dialect.hasHeader),
+    encodingName: metadata.encoding?.name ?? "utf-8",
+    lineEndingName: metadata.lineEnding?.name ?? "LF",
+  };
+}
+
+function formatPresets() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(formatPresetsStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((preset) => preset && typeof preset === "object" && typeof preset.id === "string")
+      .slice(0, formatPresetsLimit);
+  } catch {
+    return [];
+  }
+}
+
+function saveFormatPresets(presets) {
+  localStorage.setItem(formatPresetsStorageKey, JSON.stringify(presets.slice(0, formatPresetsLimit)));
+  document.body.dataset.formatPresets = String(presets.length);
+  renderFormatPresetSelect();
+}
+
+function renderFormatPresetSelect() {
+  const selectedValue = formatPresetSelect.value;
+  const presets = formatPresets();
+  const options = [new Option("Preset", "")];
+  for (const preset of presets) {
+    options.push(new Option(preset.name || preset.id, preset.id));
+  }
+  formatPresetSelect.replaceChildren(...options);
+  if (presets.some((preset) => preset.id === selectedValue)) {
+    formatPresetSelect.value = selectedValue;
+  }
+  formatPresetSelect.disabled = !documentId || presets.length === 0;
+  applyFormatPresetButton.disabled = !documentId || !formatPresetSelect.value;
+  document.body.dataset.formatPresets = String(presets.length);
+}
+
+function saveCurrentFormatPreset() {
+  const preset = currentFormatPreset();
+  if (!preset) {
+    status.textContent = "Open a file before saving a format preset.";
+    return;
+  }
+  const id = formatPresetID(preset);
+  const saved = { ...preset, id, name: formatPresetName(preset) };
+  const presets = [saved, ...formatPresets().filter((item) => item.id !== id)].slice(0, formatPresetsLimit);
+  saveFormatPresets(presets);
+  formatPresetSelect.value = id;
+  document.body.dataset.formatPresetPreview = formatPresetPreview(saved);
+  status.textContent = `Saved format preset: ${saved.name}`;
+  updateCommandState();
+}
+
+async function applySelectedFormatPreset() {
+  const preset = formatPresets().find((item) => item.id === formatPresetSelect.value);
+  if (!preset) {
+    status.textContent = "Choose a format preset first.";
+    return;
+  }
+  const path = metadata?.path || pathInput.value.trim();
+  if (!path) {
+    status.textContent = "Open a local file before applying a format preset.";
+    return;
+  }
+  document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
+  await openPath(path, { preset });
+}
+
+function formatPresetID(preset) {
+  return [
+    preset.delimiter === "\t" ? "tab" : preset.delimiter,
+    preset.hasHeader ? "header" : "no-header",
+    (preset.encodingName || "utf-8").toLowerCase(),
+  ].join(":");
+}
+
+function formatPresetName(preset) {
+  const delimiter = preset.delimiterName || (preset.delimiter === "\t" ? "tab" : preset.delimiter);
+  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${preset.hasHeader ? "Header" : "No header"} · ${(preset.encodingName || "UTF-8").toUpperCase()}`;
+}
+
+function formatPresetPreview(preset) {
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|${preset.encodingName || "utf-8"}`;
 }
 
 function quoteLabel(value) {
@@ -1445,6 +1552,12 @@ async function executeCommand(commandID) {
     case "file.toggleReadOnly":
       await toggleReadOnly();
       break;
+    case "format.savePreset":
+      saveCurrentFormatPreset();
+      break;
+    case "format.applyPreset":
+      await applySelectedFormatPreset();
+      break;
     case "edit.undo":
       await undoCurrentDocument();
       break;
@@ -2268,12 +2381,20 @@ function displayRowForSourceRow(sourceRow) {
   return -1;
 }
 
-async function openPath(path) {
+async function openPath(path, options = {}) {
   status.textContent = `Opening ${path}...`;
+  const preset = options.preset ?? null;
+  const body = { path, previewRows: windowSize, indexRows: -1 };
+  if (preset) {
+    body.delimiter = preset.delimiter;
+    body.delimiterName = preset.delimiterName;
+    body.hasHeader = Boolean(preset.hasHeader);
+    body.encodingName = preset.encodingName;
+  }
   const response = await fetch("/api/open", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, previewRows: windowSize, indexRows: -1 }),
+    body: JSON.stringify(body),
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error ?? "open failed");
@@ -2287,6 +2408,9 @@ async function openPath(path) {
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
+  if (preset) {
+    status.textContent = `Applied format preset: ${preset.name || formatPresetName(preset)}`;
+  }
   canvas.focus();
 }
 
@@ -5142,6 +5266,9 @@ aggregateStatusButton.addEventListener("click", async (event) => {
   cycleAggregateMetric();
 });
 headerStatus.addEventListener("click", () => executeCommand("table.toggleHeaderRow"));
+saveFormatPresetButton.addEventListener("click", () => executeCommand("format.savePreset"));
+applyFormatPresetButton.addEventListener("click", () => executeCommand("format.applyPreset"));
+formatPresetSelect.addEventListener("change", () => updateCommandState());
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));
@@ -5331,4 +5458,5 @@ loadCommandRegistry();
 resize();
 renderFileList();
 renderSQLHistory();
+renderFormatPresetSelect();
 openInitialURLTarget();
