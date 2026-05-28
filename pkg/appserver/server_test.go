@@ -223,6 +223,49 @@ func TestServerHeaderMode(t *testing.T) {
 	}
 }
 
+func TestServerQuotePolicySave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	policyPayload := postJSON(t, handler, "/api/quote-policy", map[string]any{
+		"documentId": documentID,
+		"quoteChar":  "double",
+		"quoteMode":  "always",
+	})
+	if policyPayload["dirty"] != true {
+		t.Fatalf("dirty after quote policy = %#v, want true", policyPayload["dirty"])
+	}
+	document := policyPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["quoteMode"] != "always" {
+		t.Fatalf("quoteMode = %#v, want always", dialect["quoteMode"])
+	}
+
+	backup := false
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     backup,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",\"note\"\n\"1\",\"plain\"\n"
+	if string(saved) != want {
+		t.Fatalf("saved quote policy = %q, want %q", string(saved), want)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

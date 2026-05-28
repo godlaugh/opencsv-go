@@ -51,6 +51,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/undo", server.handleUndo)
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
+	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
 	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
 	server.mux.HandleFunc("POST /api/refresh", server.handleRefresh)
@@ -98,6 +99,8 @@ type openRequest struct {
 	IndexRows     *int   `json:"indexRows"`
 	Delimiter     string `json:"delimiter,omitempty"`
 	DelimiterName string `json:"delimiterName,omitempty"`
+	QuoteChar     string `json:"quoteChar,omitempty"`
+	QuoteMode     string `json:"quoteMode,omitempty"`
 	HasHeader     *bool  `json:"hasHeader,omitempty"`
 	EncodingName  string `json:"encodingName,omitempty"`
 }
@@ -149,6 +152,22 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 	}
 	if request.HasHeader != nil {
 		options.HasHeader = request.HasHeader
+	}
+	if strings.TrimSpace(request.QuoteChar) != "" {
+		quoteChar, err := csvcore.NormalizeQuoteChar(request.QuoteChar)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.QuoteChar = &quoteChar
+	}
+	if strings.TrimSpace(request.QuoteMode) != "" {
+		quoteMode, err := csvcore.NormalizeQuoteMode(request.QuoteMode)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.QuoteMode = quoteMode
 	}
 	if strings.TrimSpace(request.EncodingName) != "" {
 		encoding, err := csvcore.ParseEncodingName(request.EncodingName)
@@ -402,6 +421,12 @@ type headerModeRequest struct {
 	HasHeader  bool   `json:"hasHeader"`
 }
 
+type quotePolicyRequest struct {
+	DocumentID string `json:"documentId"`
+	QuoteChar  string `json:"quoteChar"`
+	QuoteMode  string `json:"quoteMode"`
+}
+
 func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 	var request headerModeRequest
 	if err := readJSON(r, &request); err != nil {
@@ -409,6 +434,20 @@ func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.SetHeaderMode(request.DocumentID, request.HasHeader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleQuotePolicy(w http.ResponseWriter, r *http.Request) {
+	var request quotePolicyRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetQuotePolicy(request.DocumentID, request.QuoteChar, request.QuoteMode)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

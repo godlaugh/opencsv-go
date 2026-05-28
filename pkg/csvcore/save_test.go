@@ -78,6 +78,45 @@ func TestEncodeRecordsUsesDialectAndLineEnding(t *testing.T) {
 	}
 }
 
+func TestEncodeRecordsQuoteModes(t *testing.T) {
+	records := [][]string{
+		{"id", "note"},
+		{"1", "plain"},
+		{"2", "has,comma"},
+	}
+	metadata := FileMetadata{
+		Dialect: Dialect{Delimiter: ',', QuoteChar: `"`, QuoteMode: QuoteModeAlways},
+	}
+	got, err := EncodeRecords(records, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",\"note\"\n\"1\",\"plain\"\n\"2\",\"has,comma\"\n"
+	if string(got) != want {
+		t.Fatalf("always quote = %q, want %q", string(got), want)
+	}
+
+	metadata.Dialect.QuoteMode = QuoteModeNever
+	got, err = EncodeRecords(records, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "id,note\n1,plain\n2,has,comma\n"
+	if string(got) != want {
+		t.Fatalf("never quote = %q, want %q", string(got), want)
+	}
+
+	metadata.Dialect = Dialect{Delimiter: ',', QuoteChar: "'", QuoteMode: QuoteModeMinimal}
+	got, err = EncodeRecords([][]string{{"id", "note"}, {"1", "O'Reilly"}}, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "id,note\n1,'O''Reilly'\n"
+	if string(got) != want {
+		t.Fatalf("single quote = %q, want %q", string(got), want)
+	}
+}
+
 func TestSaveRecordsPreservesUTF16LE(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "utf16.csv")

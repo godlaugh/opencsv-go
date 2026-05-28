@@ -90,6 +90,10 @@ const profileIssues = document.querySelector("#profileIssues");
 const settingsPanel = document.querySelector("#settingsPanel");
 const settingsSearch = document.querySelector("#settingsSearch");
 const settingsModifiedBadge = document.querySelector("#settingsModifiedBadge");
+const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
+const quoteModeSelect = document.querySelector("#quoteModeSelect");
+const quoteCharSelect = document.querySelector("#quoteCharSelect");
+const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
 const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
 const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
@@ -198,7 +202,7 @@ let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
-const quotePolicy = "minimal";
+let quotePolicyDraftDirty = false;
 const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let themePreference = localStorage.getItem(themeStorageKey) || "system";
@@ -477,6 +481,8 @@ function applyCommandMetadata() {
       button.textContent = "Apply";
     } else if (button.dataset.command === "format.saveRule") {
       button.textContent = "Save Rule";
+    } else if (button.dataset.command === "format.applyQuotePolicy") {
+      button.textContent = "Apply Quote";
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -513,6 +519,9 @@ function updateCommandState() {
   applyFormatPresetButton.disabled = !hasDocument || !formatPresetSelect.value;
   formatRuleInput.disabled = !hasDocument;
   saveFormatRuleButton.disabled = !hasDocument;
+  quoteModeSelect.disabled = !hasDocument;
+  quoteCharSelect.disabled = !hasDocument;
+  applyQuotePolicyButton.disabled = !hasDocument || readOnly;
 }
 
 function isCommandDisabled(command) {
@@ -555,7 +564,8 @@ function isCommandDisabled(command) {
       command.id === "cell.fillDown" ||
       command.id === "cell.fillRight" ||
       command.id === "cell.fillUp" ||
-      command.id === "cell.fillLeft"
+      command.id === "cell.fillLeft" ||
+      command.id === "format.applyQuotePolicy"
     );
   return (
     command.implemented === false ||
@@ -599,12 +609,13 @@ function updateFormatStatus() {
   }
   encodingStatus.textContent = encodingLabel();
   delimiterStatus.textContent = delimiterLabel(metadata.dialect);
-  quoteStatus.textContent = "Quote minimal";
+  quoteStatus.textContent = quotePolicyLabel(metadata.dialect);
   headerStatus.textContent = metadata.dialect?.hasHeader ? "Header row" : "No header";
   headerStatus.disabled = !documentId;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   externalStatus.textContent = externalFileChanged ? "Changed on disk" : "Synced";
+  syncQuotePolicyControls();
 }
 
 function encodingLabel(info = metadata?.encoding) {
@@ -634,8 +645,46 @@ function lineEndingLabel(info = metadata?.lineEnding) {
   return (info?.name ?? "LF").toUpperCase();
 }
 
+function quoteModeValue(dialect = metadata?.dialect) {
+  const raw = String(dialect?.quoteMode || "minimal").toLowerCase();
+  return ["minimal", "always", "never"].includes(raw) ? raw : "minimal";
+}
+
+function quoteCharValue(dialect = metadata?.dialect) {
+  const raw = dialect?.quoteChar;
+  if (raw === "'" || raw === "single") return "single";
+  if (raw === "" || raw === "none") return "none";
+  return "double";
+}
+
+function quoteCharLiteral(dialect = metadata?.dialect) {
+  return quoteCharValue(dialect) === "single" ? "'" : quoteCharValue(dialect) === "none" ? "" : '"';
+}
+
+function quoteCharLabel(dialect = metadata?.dialect) {
+  const value = quoteCharValue(dialect);
+  if (value === "single") return "single";
+  if (value === "none") return "none";
+  return "double";
+}
+
+function quotePolicyLabel(dialect = metadata?.dialect) {
+  return `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)}`;
+}
+
+function syncQuotePolicyControls() {
+  if (!quoteModeSelect || !quoteCharSelect) return;
+  if (quotePolicyDraftDirty) {
+    settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+    return;
+  }
+  quoteModeSelect.value = quoteModeValue();
+  quoteCharSelect.value = quoteCharValue();
+  settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()}` : "minimal double";
+}
+
 function documentFormatSummary() {
-  return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()}`;
+  return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)}`;
 }
 
 function currentFormatPreset() {
@@ -648,6 +697,8 @@ function currentFormatPreset() {
     hasHeader: Boolean(metadata.dialect.hasHeader),
     encodingName: metadata.encoding?.name ?? "utf-8",
     lineEndingName: metadata.lineEnding?.name ?? "LF",
+    quoteChar: quoteCharValue(metadata.dialect),
+    quoteMode: quoteModeValue(metadata.dialect),
     rules: [],
   };
 }
@@ -658,7 +709,12 @@ function formatPresets() {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((preset) => preset && typeof preset === "object" && typeof preset.id === "string")
-      .map((preset) => ({ ...preset, rules: normalizeFormatRules(preset.rules) }))
+      .map((preset) => ({
+        ...preset,
+        quoteChar: preset.quoteChar || "double",
+        quoteMode: preset.quoteMode || "minimal",
+        rules: normalizeFormatRules(preset.rules),
+      }))
       .slice(0, formatPresetsLimit);
   } catch {
     return [];
@@ -757,6 +813,7 @@ function openSettingsPanel() {
 
 function renderSettingsPanel() {
   if (!settingsPresetList) return;
+  syncQuotePolicyControls();
   const presets = formatPresets();
   const query = settingsSearch.value.trim().toLowerCase();
   const visiblePresets = query
@@ -783,6 +840,8 @@ function formatPresetSearchText(preset) {
     preset.id,
     preset.delimiterName,
     preset.encodingName,
+    preset.quoteMode,
+    preset.quoteChar,
     ...(preset.rules ?? []).map((rule) => rule.pattern),
   ].filter(Boolean).join(" ").toLowerCase();
 }
@@ -921,6 +980,40 @@ function resetFormatPresets() {
   status.textContent = "Reset format presets.";
 }
 
+async function applyQuotePolicy() {
+  if (!documentId) {
+    status.textContent = "Open a file before changing quote policy.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Quote policy blocked: document is read-only";
+    return;
+  }
+  const quoteMode = quoteModeSelect.value;
+  const quoteChar = quoteCharSelect.value;
+  const response = await fetch("/api/quote-policy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, quoteChar, quoteMode }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Quote policy failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  quotePolicyDraftDirty = false;
+  applyMutationPayload(payload, `Quote policy set to ${quoteMode} ${quoteChar}.`);
+  if (metadata?.dialect) {
+    metadata.dialect.quoteMode = quoteMode;
+    metadata.dialect.quoteChar = quoteChar === "single" ? "'" : quoteChar === "none" ? "" : '"';
+  }
+  syncQuotePolicyControls();
+  updateFormatStatus();
+  updateInspector();
+  status.textContent = `Quote policy set to ${quoteMode} ${quoteChar}.`;
+  document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}`;
+}
+
 function normalizeFormatRules(rules) {
   if (!Array.isArray(rules)) return [];
   const normalized = [];
@@ -1036,20 +1129,22 @@ function formatPresetID(preset) {
     preset.delimiter === "\t" ? "tab" : preset.delimiter,
     preset.hasHeader ? "header" : "no-header",
     (preset.encodingName || "utf-8").toLowerCase(),
+    preset.quoteChar || "double",
+    preset.quoteMode || "minimal",
   ].join(":");
 }
 
 function formatPresetName(preset) {
   const delimiter = preset.delimiterName || (preset.delimiter === "\t" ? "tab" : preset.delimiter);
-  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${preset.hasHeader ? "Header" : "No header"} · ${(preset.encodingName || "UTF-8").toUpperCase()}`;
+  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${preset.hasHeader ? "Header" : "No header"} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
 }
 
 function formatPresetPreview(preset) {
-  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|${preset.encodingName || "utf-8"}`;
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|${preset.encodingName || "utf-8"}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
 }
 
 function quoteLabel(value) {
-  return requiresQuote(value) ? "will quote on save" : "no quote needed";
+  return shouldQuote(value) ? "will quote on save" : "no quote needed";
 }
 
 function syncCellValuePanel() {
@@ -1899,6 +1994,9 @@ async function executeCommand(commandID) {
     case "format.saveRule":
       saveCurrentFormatRule();
       break;
+    case "format.applyQuotePolicy":
+      await applyQuotePolicy();
+      break;
     case "edit.undo":
       await undoCurrentDocument();
       break;
@@ -2226,7 +2324,7 @@ function drawRows(width, height) {
         ctx.rect(x + 1, y + 1, column.width - 2, rowHeight - 2);
         ctx.clip();
         ctx.fillText(value, x + 8, y + rowHeight / 2);
-        if (requiresQuote(value)) {
+        if (shouldQuote(value)) {
           drawQuoteIndicator(x, y, column.width);
         }
         ctx.restore();
@@ -2260,14 +2358,20 @@ function drawQuoteIndicator(x, y, width) {
   ctx.restore();
 }
 
+function shouldQuote(value) {
+  const mode = quoteModeValue();
+  if (mode !== "minimal") return mode === "always";
+  return requiresQuote(value);
+}
+
 function requiresQuote(value) {
-  if (quotePolicy !== "minimal") return quotePolicy === "always";
   const text = String(value ?? "");
   if (text === "") return false;
   const delimiter = delimiterChar();
+  const quote = quoteCharLiteral();
   return (
     text.includes(delimiter) ||
-    text.includes('"') ||
+    (quote !== "" && text.includes(quote)) ||
     text.includes("\n") ||
     text.includes("\r") ||
     /^\s/u.test(text)
@@ -2740,6 +2844,8 @@ async function openPath(path, options = {}) {
     body.delimiterName = preset.delimiterName;
     body.hasHeader = Boolean(preset.hasHeader);
     body.encodingName = preset.encodingName;
+    body.quoteChar = preset.quoteChar || "double";
+    body.quoteMode = preset.quoteMode || "minimal";
   }
   const response = await fetch("/api/open", {
     method: "POST",
@@ -5632,6 +5738,15 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
+quoteModeSelect.addEventListener("change", () => {
+  quotePolicyDraftDirty = true;
+  settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+});
+quoteCharSelect.addEventListener("change", () => {
+  quotePolicyDraftDirty = true;
+  settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+});
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
 exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));

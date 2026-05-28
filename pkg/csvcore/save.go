@@ -2,7 +2,6 @@ package csvcore
 
 import (
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -62,19 +61,30 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 // line-ending policy. It does not apply the original file encoding or BOM.
 func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 	var buffer bytes.Buffer
-	writer := csv.NewWriter(&buffer)
-	writer.Comma = metadata.Dialect.Delimiter
-	writer.UseCRLF = metadata.LineEnding.Name == LineEndingCRLF
-	for _, record := range records {
-		if err := writer.Write(record); err != nil {
-			return nil, err
-		}
+	delimiter := metadata.Dialect.Delimiter
+	if delimiter == 0 {
+		delimiter = ','
 	}
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		return nil, err
+	quoteChar := DialectQuoteChar(metadata.Dialect)
+	for _, record := range records {
+		for index, field := range record {
+			if index > 0 {
+				buffer.WriteRune(delimiter)
+			}
+			if ShouldQuote(field, metadata.Dialect) && quoteChar != "" {
+				buffer.WriteString(quoteChar)
+				buffer.WriteString(strings.ReplaceAll(field, quoteChar, quoteChar+quoteChar))
+				buffer.WriteString(quoteChar)
+			} else {
+				buffer.WriteString(field)
+			}
+		}
+		buffer.WriteByte('\n')
 	}
 
+	if metadata.LineEnding.Name == LineEndingCRLF {
+		return bytes.ReplaceAll(buffer.Bytes(), []byte("\n"), []byte("\r\n")), nil
+	}
 	if metadata.LineEnding.Name == LineEndingCR {
 		return bytes.ReplaceAll(buffer.Bytes(), []byte("\n"), []byte("\r")), nil
 	}

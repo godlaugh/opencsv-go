@@ -40,7 +40,7 @@ func TestParseRootOptionsInterspersedFlags(t *testing.T) {
 
 func TestOpenOptionsFromFormat(t *testing.T) {
 	headerRows := 1
-	format := protocol.FormatParams{Delimiter: "tab", Encoding: "utf8", HeaderRows: &headerRows}
+	format := protocol.FormatParams{Delimiter: "tab", Encoding: "utf8", Quote: "single", QuoteMode: "always", HeaderRows: &headerRows}
 	options, err := openOptionsFromFormat(format)
 	if err != nil {
 		t.Fatal(err)
@@ -50,6 +50,9 @@ func TestOpenOptionsFromFormat(t *testing.T) {
 	}
 	if options.Encoding == nil || options.Encoding.Name != "utf-8" {
 		t.Fatalf("encoding override = %#v", options.Encoding)
+	}
+	if options.QuoteChar == nil || *options.QuoteChar != "'" || options.QuoteMode != "always" {
+		t.Fatalf("quote override = %#v %q", options.QuoteChar, options.QuoteMode)
 	}
 	if options.HasHeader == nil || !*options.HasHeader {
 		t.Fatalf("header override = %#v", options.HasHeader)

@@ -27,6 +27,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"format.savePreset",
 		"format.applyPreset",
 		"format.saveRule",
+		"format.applyQuotePolicy",
 		"workbench.toggleTheme",
 		"edit.copyWithHeaders",
 		"selection.toggleHeaders",

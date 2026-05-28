@@ -353,6 +353,35 @@ func (manager *Manager) SetHeaderMode(id string, hasHeader bool) (MutationResult
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode string) (MutationResult, error) {
+	normalizedQuoteChar, err := csvcore.NormalizeQuoteChar(quoteChar)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	normalizedQuoteMode, err := csvcore.NormalizeQuoteMode(quoteMode)
+	if err != nil {
+		return MutationResult{}, err
+	}
+
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	session, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return MutationResult{}, errors.New("document is read-only")
+	}
+	if session.Document.Metadata.Dialect.QuoteChar == normalizedQuoteChar &&
+		csvcore.DialectQuoteMode(session.Document.Metadata.Dialect) == normalizedQuoteMode {
+		return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	session.Document.Metadata.Dialect.QuoteChar = normalizedQuoteChar
+	session.Document.Metadata.Dialect.QuoteMode = normalizedQuoteMode
+	session.Dirty = true
+	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
+}
+
 type ExportViewOptions struct {
 	Columns []int `json:"columns"`
 	Format  string
@@ -966,6 +995,8 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	refreshed, refreshedWorkingPath, openErr := openDocumentForPath(outputPath, csvcore.OpenOptions{
 		PreviewRows: max(1, len(session.Document.Preview)),
 		IndexRows:   max(1, len(session.Document.Preview)),
+		QuoteChar:   &session.Document.Metadata.Dialect.QuoteChar,
+		QuoteMode:   session.Document.Metadata.Dialect.QuoteMode,
 	})
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -1856,6 +1887,8 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 		Delimiter:   &delimiter,
 		HasHeader:   &hasHeader,
 		Encoding:    &metadata.Encoding,
+		QuoteChar:   &metadata.Dialect.QuoteChar,
+		QuoteMode:   metadata.Dialect.QuoteMode,
 	})
 	if err != nil {
 		return nil, err

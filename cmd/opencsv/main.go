@@ -321,6 +321,20 @@ func openOptionsFromFormat(format protocol.FormatParams) (csvcore.OpenOptions, e
 		}
 		options.Encoding = &encoding
 	}
+	if format.Quote != "" {
+		quoteChar, err := csvcore.NormalizeQuoteChar(format.Quote)
+		if err != nil {
+			return csvcore.OpenOptions{}, err
+		}
+		options.QuoteChar = &quoteChar
+	}
+	if format.QuoteMode != "" {
+		quoteMode, err := csvcore.NormalizeQuoteMode(format.QuoteMode)
+		if err != nil {
+			return csvcore.OpenOptions{}, err
+		}
+		options.QuoteMode = quoteMode
+	}
 	if format.HeaderRows != nil {
 		hasHeader := *format.HeaderRows > 0
 		options.HasHeader = &hasHeader

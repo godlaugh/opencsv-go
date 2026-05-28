@@ -12,6 +12,8 @@ import (
 type Dialect struct {
 	Delimiter        rune   `json:"delimiter"`
 	DelimiterName    string `json:"delimiterName"`
+	QuoteChar        string `json:"quoteChar"`
+	QuoteMode        string `json:"quoteMode"`
 	HasHeader        bool   `json:"hasHeader"`
 	UTF8BOM          bool   `json:"utf8Bom"`
 	EstimatedColumns int    `json:"estimatedColumns"`
@@ -21,6 +23,8 @@ func Sniff(sample []byte) Dialect {
 	dialect := Dialect{
 		Delimiter:     ',',
 		DelimiterName: "comma",
+		QuoteChar:     `"`,
+		QuoteMode:     QuoteModeMinimal,
 	}
 
 	if bytes.HasPrefix(sample, []byte{0xEF, 0xBB, 0xBF}) {

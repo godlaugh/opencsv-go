@@ -33,6 +33,8 @@ type OpenOptions struct {
 	SampleBytes   int `json:"sampleBytes"`
 	Delimiter     *rune
 	DelimiterName string
+	QuoteChar     *string
+	QuoteMode     string
 	HasHeader     *bool
 	Encoding      *EncodingInfo
 }
@@ -81,6 +83,20 @@ func OpenDocument(path string, options OpenOptions) (Document, error) {
 	}
 	if options.HasHeader != nil {
 		dialect.HasHeader = *options.HasHeader
+	}
+	if options.QuoteChar != nil {
+		quoteChar, err := NormalizeQuoteChar(*options.QuoteChar)
+		if err != nil {
+			return Document{}, err
+		}
+		dialect.QuoteChar = quoteChar
+	}
+	if strings.TrimSpace(options.QuoteMode) != "" {
+		quoteMode, err := NormalizeQuoteMode(options.QuoteMode)
+		if err != nil {
+			return Document{}, err
+		}
+		dialect.QuoteMode = quoteMode
 	}
 
 	metadata := FileMetadata{
