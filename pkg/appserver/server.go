@@ -361,9 +361,11 @@ type documentRequest struct {
 }
 
 type exportViewRequest struct {
-	DocumentID string `json:"documentId"`
-	Columns    []int  `json:"columns,omitempty"`
-	Format     string `json:"format,omitempty"`
+	DocumentID     string `json:"documentId"`
+	Columns        []int  `json:"columns,omitempty"`
+	Rows           []int  `json:"rows,omitempty"`
+	Format         string `json:"format,omitempty"`
+	IncludeHeaders *bool  `json:"includeHeaders,omitempty"`
 }
 
 type rowMutationRequest struct {
@@ -751,7 +753,12 @@ func (server *Server) handleExportView(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("documentId is required"))
 		return
 	}
-	result, err := server.documents.ExportView(request.DocumentID, docstore.ExportViewOptions{Columns: request.Columns, Format: request.Format})
+	result, err := server.documents.ExportView(request.DocumentID, docstore.ExportViewOptions{
+		Columns:        request.Columns,
+		Rows:           request.Rows,
+		Format:         request.Format,
+		IncludeHeaders: request.IncludeHeaders,
+	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

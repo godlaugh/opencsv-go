@@ -248,6 +248,10 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 	if hasHeader {
 		start = 1
 	}
+	includeHeaders := hasHeader
+	if options.IncludeHeaders != nil {
+		includeHeaders = hasHeader && *options.IncludeHeaders
+	}
 	viewRows := append([]int(nil), session.ViewRows...)
 	if !session.ViewActive {
 		viewRows = make([]int, 0, max(0, len(records)-start))
@@ -255,9 +259,22 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 			viewRows = append(viewRows, row)
 		}
 	}
+	if len(options.Rows) > 0 {
+		slicedRows := make([]int, 0, len(options.Rows))
+		for _, displayRow := range options.Rows {
+			if displayRow < 0 {
+				return ExportViewResult{}, errors.New("row must be non-negative")
+			}
+			if displayRow >= len(viewRows) {
+				return ExportViewResult{}, fmt.Errorf("row %d is outside the current view", displayRow)
+			}
+			slicedRows = append(slicedRows, viewRows[displayRow])
+		}
+		viewRows = slicedRows
+	}
 
 	exportRecords := make([][]string, 0, len(viewRows)+1)
-	if hasHeader {
+	if includeHeaders {
 		exportRecords = append(exportRecords, projectRecord(records[0], options.Columns))
 	}
 	exportedRows := 0
@@ -270,15 +287,20 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 	}
 
 	format := strings.ToLower(strings.TrimSpace(options.Format))
-	contentType := exportViewContentType(session.Document.Metadata.Dialect.Delimiter)
-	filename := exportViewFilename(session.DisplayName, session.Document.Metadata.Dialect.Delimiter)
+	metadata := session.Document.Metadata
+	if format == "tsv" {
+		metadata.Dialect.Delimiter = '\t'
+		metadata.Dialect.DelimiterName = "tab"
+	}
+	contentType := exportViewContentType(metadata.Dialect.Delimiter)
+	filename := exportViewFilename(session.DisplayName, metadata.Dialect.Delimiter)
 	var data []byte
 	if format == "xlsx" {
 		data, err = xlsx.EncodeWorkbook(exportRecords)
 		contentType = xlsx.ContentType()
 		filename = exportViewXLSXFilename(session.DisplayName)
 	} else {
-		data, err = csvcore.EncodeRecords(exportRecords, session.Document.Metadata)
+		data, err = csvcore.EncodeRecords(exportRecords, metadata)
 	}
 	if err != nil {
 		return ExportViewResult{}, err
@@ -384,8 +406,10 @@ func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode st
 }
 
 type ExportViewOptions struct {
-	Columns []int `json:"columns"`
-	Format  string
+	Columns        []int `json:"columns"`
+	Rows           []int `json:"rows"`
+	Format         string
+	IncludeHeaders *bool
 }
 
 type ExportViewResult struct {

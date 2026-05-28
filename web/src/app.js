@@ -1422,6 +1422,14 @@ function renderGridContextMenu(target, clientX, clientY) {
   addCommand("edit.copy", "Copy");
   addCommand("edit.copyWithHeaders", "Copy with Headers");
   addCommand("edit.copyCsv", "Copy as CSV");
+  if (target.kind !== "column") {
+    addCommand("edit.copyRow", "Copy Row");
+    addCommand("edit.copyRowWithHeaders", "Copy Row with Headers");
+  }
+  if (target.kind !== "row") {
+    addCommand("edit.copyColumn", "Copy Column");
+    addCommand("edit.copyColumnWithHeader", "Copy Column with Header");
+  }
 
   const url = target.kind === "cell" ? normalizeURL(valueAt(selected.row, selected.col)) : "";
   if (url) {
@@ -2267,6 +2275,18 @@ async function executeCommand(commandID) {
       break;
     case "edit.copyWithHeaders":
       await copySelection("tsv", { includeHeaders: true });
+      break;
+    case "edit.copyRow":
+      await copyActiveRow({ includeHeaders: false });
+      break;
+    case "edit.copyRowWithHeaders":
+      await copyActiveRow({ includeHeaders: true });
+      break;
+    case "edit.copyColumn":
+      await copyActiveColumn({ includeHeaders: false });
+      break;
+    case "edit.copyColumnWithHeader":
+      await copyActiveColumn({ includeHeaders: true });
       break;
     case "selection.toggleHeaders":
       toggleHeaderInSelection();
@@ -3660,6 +3680,71 @@ async function copySelection(format = "tsv", options = {}) {
     status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel} as ${format.toUpperCase()}`;
   } catch (error) {
     status.textContent = `Copy failed: ${error.message}`;
+  }
+}
+
+async function copyActiveRow(options = {}) {
+  if (!documentId) return;
+  if (selected.row >= sourceRowCount) {
+    await copySelection("tsv", { includeHeaders: Boolean(options.includeHeaders) });
+    return;
+  }
+  const includeHeaders = Boolean(options.includeHeaders);
+  await copyExportViewSlice({
+    label: includeHeaders ? "row with headers" : "row",
+    body: {
+      documentId,
+      rows: [selected.row],
+      columns: columns.map((column) => column.sourceCol),
+      format: "tsv",
+      includeHeaders,
+    },
+    cellCount: columns.length,
+  });
+}
+
+async function copyActiveColumn(options = {}) {
+  if (!documentId || !columns[selected.col]) return;
+  const includeHeaders = Boolean(options.includeHeaders);
+  await copyExportViewSlice({
+    label: includeHeaders ? "column with header" : "column",
+    body: {
+      documentId,
+      columns: [sourceColFor(selected.col)],
+      format: "tsv",
+      includeHeaders,
+    },
+    cellCount: sourceRowCount,
+  });
+}
+
+async function copyExportViewSlice({ label, body, cellCount }) {
+  const response = await fetch("/api/export-view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const blob = await response.blob();
+  const text = await blob.text();
+  if (!response.ok) {
+    status.textContent = `Copy ${label} failed: ${errorFromResponseText(text)}`;
+    return;
+  }
+  if (!text) {
+    status.textContent = `No ${label} data to copy.`;
+    return;
+  }
+  window.__opencsvLastCopiedText = text;
+  document.body.dataset.copyPreview = text.slice(0, 500);
+  document.body.dataset.copySlice = label;
+  try {
+    await writeClipboardText(text);
+    const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
+    const cols = Number(response.headers.get("X-Opencsv-Columns") || 0);
+    const shape = rows && cols ? `${formatCount(rows)} rows, ${formatCount(cols)} columns` : `${formatCount(cellCount)} cells`;
+    status.textContent = `Copied ${label}: ${shape} as TSV`;
+  } catch (error) {
+    status.textContent = `Copy ${label} failed: ${error.message}`;
   }
 }
 

@@ -324,6 +324,25 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	if sorted.Filename != "export.view.csv" {
 		t.Fatalf("export filename = %q, want export.view.csv", sorted.Filename)
 	}
+	includeHeaders := false
+	rowSlice, err := manager.ExportView(session.ID, ExportViewOptions{
+		Columns:        []int{1, 2},
+		Rows:           []int{1},
+		Format:         "tsv",
+		IncludeHeaders: &includeHeaders,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rowSlice.Filename != "export.view.tsv" {
+		t.Fatalf("row slice filename = %q, want export.view.tsv", rowSlice.Filename)
+	}
+	if rowSlice.ContentType != "text/tab-separated-values; charset=utf-8" {
+		t.Fatalf("row slice content type = %q", rowSlice.ContentType)
+	}
+	if rowSlice.Rows != 1 || rowSlice.Columns != 2 || string(rowSlice.Data) != "Ada\t9\n" {
+		t.Fatalf("row slice rows=%d cols=%d data=%q", rowSlice.Rows, rowSlice.Columns, string(rowSlice.Data))
+	}
 	xlsxExport, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{1}, Format: "xlsx"})
 	if err != nil {
 		t.Fatal(err)

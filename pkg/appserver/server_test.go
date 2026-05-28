@@ -886,6 +886,24 @@ func TestServerExportView(t *testing.T) {
 		t.Fatalf("export body = %q", got)
 	}
 
+	includeHeaders := false
+	rowResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId":     documentID,
+		"columns":        []int{1, 2},
+		"rows":           []int{0},
+		"format":         "tsv",
+		"includeHeaders": includeHeaders,
+	})
+	if rowResponse.Code != http.StatusOK {
+		t.Fatalf("row export status = %d body=%s", rowResponse.Code, rowResponse.Body.String())
+	}
+	if got := rowResponse.Header().Get("Content-Type"); got != "text/tab-separated-values; charset=utf-8" {
+		t.Fatalf("row export content type = %q", got)
+	}
+	if got := rowResponse.Body.String(); got != "Ada\t9\n" {
+		t.Fatalf("row export body = %q", got)
+	}
+
 	xlsxResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
 		"documentId": documentID,
 		"columns":    []int{0, 2},
