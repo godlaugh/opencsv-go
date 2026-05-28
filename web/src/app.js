@@ -312,6 +312,8 @@ function refreshThemeColors() {
     gridRowAlt: read("--grid-row-alt"),
     gridLine: read("--grid-line"),
     gridLineSoft: read("--grid-line-soft"),
+    findActiveHighlight: read("--find-active-highlight"),
+    findHighlight: read("--find-highlight"),
     muted: read("--muted"),
     panelSubtle: read("--panel-subtle"),
     quoteMarker: read("--quote-marker"),
@@ -2380,6 +2382,8 @@ function drawRows(width, height) {
         ctx.beginPath();
         ctx.rect(x + 1, y + 1, column.width - 2, rowHeight - 2);
         ctx.clip();
+        drawFindHighlights(value, row, col, x, y, column.width);
+        ctx.fillStyle = themeColors.text;
         ctx.fillText(value, x + 8, y + rowHeight / 2);
         if (shouldQuote(value)) {
           drawQuoteIndicator(x, y, column.width);
@@ -2433,6 +2437,84 @@ function requiresQuote(value) {
     text.includes("\r") ||
     /^\s/u.test(text)
   );
+}
+
+function drawFindHighlights(value, displayRow, visibleCol, x, y, width) {
+  const ranges = findRangesForCell(value, displayRow, visibleCol);
+  if (!ranges.length) return;
+  const active = isActiveFindCell(displayRow, visibleCol);
+  ctx.save();
+  ctx.fillStyle = active ? themeColors.findActiveHighlight : themeColors.findHighlight;
+  for (const range of ranges) {
+    const before = String(value ?? "").slice(0, range.start);
+    const match = String(value ?? "").slice(range.start, range.end);
+    const left = x + 8 + ctx.measureText(before).width;
+    const highlightWidth = Math.max(2, ctx.measureText(match).width);
+    ctx.fillRect(left - 1, y + 4, highlightWidth + 2, rowHeight - 8);
+  }
+  ctx.restore();
+}
+
+function findRangesForCell(value, displayRow, visibleCol) {
+  if (!findState.matches.length || !findState.search) return [];
+  const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
+  const sourceCol = sourceColFor(visibleCol);
+  if (!findState.matches.some((match) => match.row === sourceRow && match.col === sourceCol)) {
+    return [];
+  }
+  return findTextRanges(String(value ?? ""), findState.search);
+}
+
+function isActiveFindCell(displayRow, visibleCol) {
+  const match = findState.matches[findState.index];
+  if (!match) return false;
+  const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
+  return match.row === sourceRow && match.col === sourceColFor(visibleCol);
+}
+
+function findTextRanges(value, search) {
+  if (!value) return [];
+  if (search.regex) return regexFindRanges(value, search.query, search.caseSensitive);
+  if (search.wholeCell) {
+    const haystack = search.caseSensitive ? value : value.toLowerCase();
+    const needle = search.caseSensitive ? search.query : search.query.toLowerCase();
+    return haystack === needle ? [{ start: 0, end: value.length }] : [];
+  }
+  return substringFindRanges(value, search.query, search.caseSensitive);
+}
+
+function substringFindRanges(value, query, caseSensitive) {
+  if (!query) return [];
+  const haystack = caseSensitive ? value : value.toLowerCase();
+  const needle = caseSensitive ? query : query.toLowerCase();
+  const ranges = [];
+  let start = 0;
+  while (start <= haystack.length) {
+    const index = haystack.indexOf(needle, start);
+    if (index < 0) break;
+    ranges.push({ start: index, end: index + needle.length });
+    start = index + Math.max(1, needle.length);
+    if (ranges.length >= 20) break;
+  }
+  return ranges;
+}
+
+function regexFindRanges(value, query, caseSensitive) {
+  try {
+    const flags = caseSensitive ? "g" : "gi";
+    const regex = new RegExp(query, flags);
+    const ranges = [];
+    for (const match of value.matchAll(regex)) {
+      if (match.index == null) continue;
+      const end = match.index + match[0].length;
+      if (end === match.index) continue;
+      ranges.push({ start: match.index, end });
+      if (ranges.length >= 20) break;
+    }
+    return ranges;
+  } catch {
+    return [];
+  }
 }
 
 function drawSelection() {
@@ -3857,6 +3939,7 @@ async function refreshFindState(search, key) {
   findState = {
     key,
     criteriaKey: findCriteriaKey(search),
+    search: findCriteriaKeyObject(search),
     matches: payload.matches ?? [],
     total: payload.total ?? payload.matches?.length ?? 0,
     truncated: Boolean(payload.truncated),
@@ -3864,6 +3947,7 @@ async function refreshFindState(search, key) {
     scopeCells: cells,
   };
   updateFindMatchCount();
+  updateFindHighlightDataset();
   return true;
 }
 
@@ -3877,6 +3961,7 @@ async function selectFindMatch(match, query) {
   await maybeLoadWindow(displayRow);
   draw();
   updateFindMatchCount();
+  updateFindHighlightDataset();
   const ordinal = findState.index + 1;
   const total = findState.total;
   const loadedNote = findState.truncated ? ` (showing first ${findState.matches.length.toLocaleString()})` : "";
@@ -4014,12 +4099,13 @@ function selectedSearchScopeKey() {
 }
 
 function emptyFindState() {
-  return { key: "", criteriaKey: "", matches: [], total: 0, truncated: false, index: 0, scopeCells: [] };
+  return { key: "", criteriaKey: "", search: null, matches: [], total: 0, truncated: false, index: 0, scopeCells: [] };
 }
 
 function invalidateFindState() {
   findState = emptyFindState();
   updateFindMatchCount();
+  updateFindHighlightDataset();
 }
 
 function updateFindMatchCount() {
@@ -4029,6 +4115,21 @@ function updateFindMatchCount() {
   const enabled = Boolean(documentId && total > 0);
   findPrevButton.disabled = !enabled;
   findNextButton.disabled = !enabled;
+}
+
+function updateFindHighlightDataset() {
+  const match = findState.matches[findState.index];
+  if (!match || !findState.search) {
+    document.body.dataset.findHighlight = "";
+    return;
+  }
+  const displayRow = Math.max(0, match.row - dataStartRow);
+  const visibleCol = visibleColForSource(match.col);
+  const value = visibleCol >= 0 ? valueAt(displayRow, visibleCol) : "";
+  const ranges = findTextRanges(value, findState.search);
+  document.body.dataset.findHighlight = ranges
+    .map((range) => `${displayRow}:${visibleCol}:${range.start}-${range.end}`)
+    .join(",");
 }
 
 function toggleFindOption(option) {

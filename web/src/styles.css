@@ -20,6 +20,8 @@
   --grid-line: #d8e0e2;
   --grid-line-soft: #edf1f2;
   --selection-bg: rgba(15, 127, 120, 0.12);
+  --find-highlight: rgba(227, 179, 65, 0.32);
+  --find-active-highlight: rgba(15, 127, 120, 0.24);
   --quote-marker: #e3b341;
   --quote-marker-text: #5b4300;
   --diff-changed: #fff7d8;
@@ -55,6 +57,8 @@ body[data-theme="dark"] {
   --grid-line: #334141;
   --grid-line-soft: #243030;
   --selection-bg: rgba(42, 163, 154, 0.18);
+  --find-highlight: rgba(217, 170, 58, 0.32);
+  --find-active-highlight: rgba(42, 163, 154, 0.28);
   --quote-marker: #d9aa3a;
   --quote-marker-text: #211600;
   --diff-changed: #3c3216;

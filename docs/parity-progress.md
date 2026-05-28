@@ -40,6 +40,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-005 | Replace current/all foundation | Started | `/api/replace`, `pkg/document` tests, Browser verification |
 | FR-005 | Find/Replace mode toggles | Started | API support, Browser toolbar verification |
 | FR-005 | Find match count and previous/next navigation | Started | `pkg/document`/`pkg/appserver` tests, Browser toolbar verification |
+| FR-005 | In-cell find match highlighting | Started | Browser find-highlight verification |
 | FR-005 | Search/replace within selection foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser toolbar verification |
 | FR-006 | Basic contains filter | Started | `/api/filter`, toolbar query, Browser verification |
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
@@ -92,6 +93,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Replace UI opens a 720,000-row file and replaces the first `segment_7` match with `segment_x`, reporting `Replaced 1 cell`.
 - Find mode verification on `/tmp/opencsv-find-modes.csv`: default case-insensitive search for `ada` selects row 1; enabling `Aa` selects row 2; enabling `=` whole-cell mode matches exact `Ada`; enabling `.*` regex mode matches `^Ada Byron$` at row 3. The three toolbar toggles expose correct `aria-pressed` state.
 - Find navigation verification on `/tmp/opencsv-find-nav.csv`: searching `Ada` reports `1/3`, Next advances to `2/3`, and Previous returns to `1/3` while the selected grid row follows the active match.
+- Find highlight verification on `/tmp/opencsv-find-highlight.csv`: searching `ada` records active highlight range `0:1:0-3`, Next moves it to `2:1:8-11`, and regex search `A[a-z]+` records multiple in-cell highlight ranges `0:1:0-3,0:1:9-12` for the active cell.
 - Search-in-selection verification on `/tmp/opencsv-find-selection.csv`: selecting two cells in column `a`, enabling `Sel`, and searching `Ada` reports `2/2` even though column `b` also contains `Ada`; Replace All with the same scoped find changes both selected `a` cells to `Grace` while adjacent `b` cells remain `Ada`.
 - Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the overlay canvas header at a CSS-driven constant height without clipped body text touching its lower edge.
 - Mouse selection verification on `/tmp/opencsv-m0-bench.csv`: URL boot open via `?open=/tmp/opencsv-m0-bench.csv` loads the file, body drag selects `0:0-2:1`, row-label click selects `1:0-1:11`, column-header click selects `0:0-9999:0`, `Shift+Alt+H` toggles header inclusion so the selection marker becomes `0:0-9999:0:headers`, and clicking the header menu glyph still opens the `id` column menu.
@@ -177,6 +179,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find now supports regex/case/whole-cell options, total match counts, and truncated result windows in the API layer. Replace current/all stores edits through the document edit overlay and marks the session dirty.
 - Frontend Find/Replace now exposes `Aa`, `=`, and `.*` toggles for case-sensitive, whole-cell, and regex modes, and sends those options to `/api/find` and `/api/replace`.
 - Frontend Find now caches the current result window, shows `current/total`, and supports Previous/Next navigation from the toolbar and Enter/Shift+Enter in the query field.
+- Frontend grid now highlights matched text spans inside visible cells for literal, whole-cell, and regex find modes, with a stronger highlight on the active match.
 - Frontend Find/Replace now supports a `Sel` search-in-selection toggle. The selected source-cell scope is sent to `/api/find` and `/api/replace`, and the original find scope is retained after navigation collapses the active selection to a match.
 - Toolbar wraps into two rows on narrower workspaces so Find/Replace buttons stay clickable instead of sliding under the inspector.
 - `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key. It supports ignore-case, ignore-whitespace, ignored columns, header-name column alignment, explicit row alignment by key column, and inline character spans for changed cells.
