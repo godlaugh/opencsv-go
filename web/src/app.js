@@ -4556,6 +4556,13 @@ function selectColumnRange(col, extend = false) {
   selected = { row: 0, col: clampedCol };
 }
 
+function selectAllBodyCells() {
+  if (totalRows <= 0 || columns.length === 0) return;
+  const lastDataRow = Math.max(0, sourceRowCount - 1);
+  selectionAnchor = { row: 0, col: 0 };
+  selected = { row: lastDataRow, col: columns.length - 1 };
+}
+
 function startColumnResize(col, clientX) {
   if (!columns[col]) return;
   resizingColumn = col;
@@ -9017,6 +9024,21 @@ canvas.addEventListener("mousedown", (event) => {
   }
   if (y < headerHeight) {
     const col = columnAt(x);
+    if (x < rowNumberWidth) {
+      event.preventDefault();
+      if (editing) commitEditor();
+      closeColumnMenu();
+      clearSmartSelectionRanges();
+      setHeaderInSelection(event.altKey);
+      selectAllBodyCells();
+      draggingSelection = false;
+      dragSelectionMode = "cell";
+      draw();
+      status.textContent = event.altKey
+        ? "Selected all body cells with headers"
+        : "Selected all body cells";
+      return;
+    }
     if (x >= rowNumberWidth && col >= 0) {
       event.preventDefault();
       if (editing) commitEditor();
@@ -9024,10 +9046,7 @@ canvas.addEventListener("mousedown", (event) => {
         openColumnMenu(col, event.clientX, rect.top + headerHeight + 4);
       } else {
         closeColumnMenu();
-        if (event.altKey) {
-          includeHeadersInSelection = true;
-          document.body.dataset.headerInSelection = "true";
-        }
+        setHeaderInSelection(event.altKey);
         selectColumnRange(col, event.shiftKey);
         draggingSelection = true;
         dragSelectionMode = "column";
@@ -9040,6 +9059,7 @@ canvas.addEventListener("mousedown", (event) => {
   if (x < rowNumberWidth) {
     event.preventDefault();
     if (editing) commitEditor();
+    setHeaderInSelection(event.altKey);
     selectRowRange(rowAt(y), event.shiftKey);
     draggingSelection = true;
     dragSelectionMode = "row";
