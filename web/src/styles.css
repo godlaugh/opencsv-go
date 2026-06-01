@@ -1580,6 +1580,7 @@ button:disabled {
 
 #cellValueInput {
   min-height: 128px;
+  max-height: 220px;
   resize: vertical;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1590,9 +1591,36 @@ button:disabled {
   line-height: calc(var(--editor-font-size) + 5px);
 }
 
+#cellValueInput.expanded {
+  max-height: 360px;
+}
+
 #cellValueInput:disabled {
   background: var(--panel-subtle);
   color: var(--muted);
+}
+
+.cell-value-meta {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cell-value-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-value-meta button {
+  min-height: 26px;
+  border-radius: 6px;
+  padding: 0 8px;
+  font: inherit;
 }
 
 .cell-actions {

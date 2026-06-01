@@ -305,6 +305,7 @@ The app shall render a spreadsheet-like grid with:
 - Scroll position persistence per file.
 - Open hyperlink command for URL-like cell values.
 - Link audit for recognized URL values, including trusted standard schemes, safe custom protocols, and blocked unsafe protocols.
+- Cell Value panel support for multiline and large cell values, including edit statistics, dirty draft recovery, and expandable editing space.
 
 Acceptance:
 
@@ -312,6 +313,7 @@ Acceptance:
 - Header height must remain visually stable.
 - Missing cells in rows shorter than the estimated table width must not look like editable empty cells.
 - Unsafe protocols such as `javascript:` and `data:` must not be opened from cells.
+- Multiline values edited from the Cell Value panel must keep embedded line breaks after apply and save.
 - 1M rows must scroll without DOM row explosion.
 
 ### FR-004 Editing

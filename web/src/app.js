@@ -23,6 +23,9 @@ const columnDistinct = document.querySelector("#columnDistinct");
 const cellQuote = document.querySelector("#cellQuote");
 const formatSummary = document.querySelector("#formatSummary");
 const cellValueInput = document.querySelector("#cellValueInput");
+const cellValueStats = document.querySelector("#cellValueStats");
+const toggleCellValueLargeButton = document.querySelector("#toggleCellValueLargeButton");
+const revertCellValueButton = document.querySelector("#revertCellValueButton");
 const applyCellValueButton = document.querySelector("#applyCellValueButton");
 const openCellLink = document.querySelector("#openCellLink");
 const cellLinkAudit = document.querySelector("#cellLinkAudit");
@@ -330,6 +333,7 @@ let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
+let cellValueExpanded = false;
 let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
@@ -2145,9 +2149,54 @@ function syncCellValuePanel() {
     cellValueInputKey = key;
     cellValueInputDirty = false;
   }
-  cellValueInput.disabled = !documentId || readOnly || aggregate;
-  applyCellValueButton.disabled = !documentId || readOnly || aggregate || !cellValueInputDirty;
+  const disabled = !documentId || readOnly || aggregate;
+  const panelValue = cellValueInputDirty && key === cellValueInputKey ? cellValueInput.value : value;
+  cellValueInput.disabled = disabled;
+  applyCellValueButton.disabled = disabled || !cellValueInputDirty;
+  revertCellValueButton.disabled = disabled || !cellValueInputDirty;
+  syncCellValueStats(panelValue);
+  syncCellValueEditorSize();
+  syncCellLinkState(panelValue);
+}
+
+function syncCellValueStats(value) {
+  const text = String(value ?? "");
+  const chars = Array.from(text).length;
+  const lines = text.length ? text.split(/\r\n|\r|\n/).length : 1;
+  cellValueStats.textContent = `${chars} ${chars === 1 ? "char" : "chars"} · ${lines} ${lines === 1 ? "line" : "lines"}`;
+  document.body.dataset.cellValueChars = String(chars);
+  document.body.dataset.cellValueLines = String(lines);
+  document.body.dataset.cellValueDirty = cellValueInputDirty ? "true" : "false";
+}
+
+function syncCellValueEditorSize() {
+  cellValueInput.classList.toggle("expanded", cellValueExpanded);
+  toggleCellValueLargeButton.textContent = cellValueExpanded ? "Collapse" : "Expand";
+  toggleCellValueLargeButton.setAttribute("aria-pressed", cellValueExpanded ? "true" : "false");
+  document.body.dataset.cellValueExpanded = cellValueExpanded ? "true" : "false";
+  cellValueInput.style.height = "auto";
+  const maxHeight = cellValueExpanded ? 360 : 220;
+  const desiredHeight = Math.max(128, Math.min(maxHeight, cellValueInput.scrollHeight + 2));
+  cellValueInput.style.height = `${desiredHeight}px`;
+  cellValueInput.style.overflowY = cellValueInput.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
+function toggleCellValueLarge() {
+  cellValueExpanded = !cellValueExpanded;
+  syncCellValueEditorSize();
+}
+
+function revertCellValueInput() {
+  if (!cellValueInputDirty) return;
+  const value = documentId ? valueAt(selected.row, selected.col) : "";
+  cellValueInput.value = value;
+  cellValueInputDirty = false;
+  applyCellValueButton.disabled = true;
+  revertCellValueButton.disabled = true;
+  syncCellValueStats(value);
+  syncCellValueEditorSize();
   syncCellLinkState(value);
+  status.textContent = "Cell edit reverted";
 }
 
 function syncCellLinkState(value) {
@@ -9657,16 +9706,29 @@ columnClearView.addEventListener("click", async () => {
 });
 cellValueInput.addEventListener("input", () => {
   cellValueInputDirty = true;
-  applyCellValueButton.disabled = readOnly || !documentId;
+  const disabled = !documentId || readOnly || Boolean(aggregateRowAt(selected.row));
+  applyCellValueButton.disabled = disabled;
+  revertCellValueButton.disabled = disabled;
+  syncCellValueStats(cellValueInput.value);
+  syncCellValueEditorSize();
   syncCellLinkState(cellValueInput.value);
 });
 cellValueInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
     event.preventDefault();
+    event.stopPropagation();
     applyCellValue();
+    return;
+  }
+  if (event.key === "Escape" && cellValueInputDirty) {
+    event.preventDefault();
+    event.stopPropagation();
+    revertCellValueInput();
   }
 });
 applyCellValueButton.addEventListener("click", applyCellValue);
+toggleCellValueLargeButton.addEventListener("click", toggleCellValueLarge);
+revertCellValueButton.addEventListener("click", revertCellValueInput);
 openCellLink.addEventListener("click", (event) => {
   if (openCellLink.getAttribute("aria-disabled") === "true") {
     event.preventDefault();
