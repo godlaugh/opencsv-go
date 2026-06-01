@@ -260,6 +260,8 @@ const formatPresetsLimit = 12;
 const formatPresetExportKind = "opencsv-format-presets";
 const quoteRulesExportKind = "opencsv-quote-rules";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
+const scrollPositionsStorageKey = "opencsv-scroll-positions";
+const scrollPositionsLimit = 32;
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
 const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
@@ -291,6 +293,7 @@ let hiddenSourceColumns = new Set();
 let scrollX = 0;
 let scrollY = 0;
 let wheelRemainderY = 0;
+let scrollPositionSaveTimer = 0;
 let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
 let smartSelectionRanges = [];
@@ -403,6 +406,96 @@ function maxVerticalScroll() {
   const viewportRowsHeight = Math.max(0, canvas.clientHeight - headerHeight);
   const fullVisibleRows = Math.max(1, Math.floor(viewportRowsHeight / rowHeight));
   return Math.max(0, totalRows - fullVisibleRows) * rowHeight;
+}
+
+function maxHorizontalScroll() {
+  const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  return Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
+}
+
+function scrollPositionKey() {
+  const path = metadata?.path || activeFileEntry?.detail || "";
+  return path && path !== "temporary upload" ? path : "";
+}
+
+function scrollPositionEntry() {
+  const path = scrollPositionKey();
+  if (!documentId || !path) return null;
+  return {
+    path,
+    scrollX: Math.max(0, Math.round(scrollX)),
+    scrollY: Math.max(0, Math.round(scrollY)),
+    updatedAt: Date.now(),
+  };
+}
+
+function scrollPositions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(scrollPositionsStorageKey) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveScrollPositionEntry(entry) {
+  if (!entry) return;
+  const next = [
+    entry,
+    ...scrollPositions().filter((item) => item?.path && item.path !== entry.path),
+  ].slice(0, scrollPositionsLimit);
+  localStorage.setItem(scrollPositionsStorageKey, JSON.stringify(next));
+}
+
+function updateScrollPositionDataset() {
+  if (!documentId) {
+    delete document.body.dataset.scrollPosition;
+    delete document.body.dataset.scrollPositionKey;
+    return;
+  }
+  const key = scrollPositionKey();
+  document.body.dataset.scrollPosition = `${Math.round(scrollX)}:${Math.round(scrollY)}`;
+  document.body.dataset.scrollPositionKey = key;
+}
+
+function queueScrollPositionSave() {
+  updateScrollPositionDataset();
+  const entry = scrollPositionEntry();
+  if (!entry) return;
+  if (scrollPositionSaveTimer) window.clearTimeout(scrollPositionSaveTimer);
+  scrollPositionSaveTimer = window.setTimeout(() => {
+    scrollPositionSaveTimer = 0;
+    saveScrollPositionEntry(entry);
+  }, 200);
+}
+
+function saveCurrentScrollPosition() {
+  if (scrollPositionSaveTimer) {
+    window.clearTimeout(scrollPositionSaveTimer);
+    scrollPositionSaveTimer = 0;
+  }
+  saveScrollPositionEntry(scrollPositionEntry());
+}
+
+function restoreScrollPosition() {
+  const key = scrollPositionKey();
+  if (!documentId || !key) {
+    delete document.body.dataset.scrollPositionRestored;
+    updateScrollPositionDataset();
+    return false;
+  }
+  const entry = scrollPositions().find((item) => item?.path === key);
+  if (!entry) {
+    delete document.body.dataset.scrollPositionRestored;
+    updateScrollPositionDataset();
+    return false;
+  }
+  scrollX = Math.max(0, Math.min(maxHorizontalScroll(), Number(entry.scrollX) || 0));
+  scrollY = Math.max(0, Math.min(maxVerticalScroll(), Number(entry.scrollY) || 0));
+  wheelRemainderY = 0;
+  document.body.dataset.scrollPositionRestored = `${Math.round(scrollX)}:${Math.round(scrollY)}`;
+  updateScrollPositionDataset();
+  return true;
 }
 
 function applyVerticalWheelDelta(deltaY) {
@@ -748,6 +841,7 @@ function draw() {
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
   document.body.dataset.gridHeaderHeight = String(headerHeight);
   document.body.dataset.gridHeaderLayer = `${headerCanvas.clientHeight}:${headerCanvas.height}`;
+  queueScrollPositionSave();
   copyHeadersToggle.checked = includeHeadersInSelection;
   updateAggregateStatus(aggregateStats);
   status.textContent =
@@ -5073,6 +5167,7 @@ function displayRowForSourceRow(sourceRow) {
 }
 
 async function openPath(path, options = {}) {
+  saveCurrentScrollPosition();
   status.textContent = `Opening ${path}...`;
   let preset = options.preset ?? null;
   const formatOverride = options.formatOverride ?? null;
@@ -5180,12 +5275,12 @@ function scrollRangeIntoView(range) {
   const widthBeforeColumn = columns
     .slice(0, range.startCol)
     .reduce((sum, column) => sum + column.width, 0);
-  const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
-  const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
+  const maxX = maxHorizontalScroll();
   scrollX = Math.max(0, Math.min(maxX, widthBeforeColumn));
 }
 
 async function uploadAndOpen(file) {
+  saveCurrentScrollPosition();
   status.textContent = `Opening ${file.name}...`;
   const formData = new FormData();
   formData.append("file", file);
@@ -5249,6 +5344,7 @@ function loadDocument(document) {
   scrollX = 0;
   scrollY = 0;
   wheelRemainderY = 0;
+  restoreScrollPosition();
   setHeaderInSelection(false);
   clearURLHover();
   dirty = false;
@@ -9027,8 +9123,7 @@ canvas.addEventListener(
     event.preventDefault();
     closeColumnMenu();
     closeGridContextMenu();
-    const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
-    const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
+    const maxX = maxHorizontalScroll();
     applyVerticalWheelDelta(event.deltaY);
     scrollX = Math.max(0, Math.min(maxX, scrollX + event.deltaX));
     if (editing) commitEditor();
