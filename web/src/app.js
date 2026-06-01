@@ -101,6 +101,12 @@ const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton")
 const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
 const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
+const settingsAppearanceSummary = document.querySelector("#settingsAppearanceSummary");
+const gridFontSelect = document.querySelector("#gridFontSelect");
+const gridFontSizeInput = document.querySelector("#gridFontSizeInput");
+const textEditorFontSelect = document.querySelector("#textEditorFontSelect");
+const textEditorFontSizeInput = document.querySelector("#textEditorFontSizeInput");
+const resetEditorAppearanceButton = document.querySelector("#resetEditorAppearanceButton");
 const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
 const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
@@ -166,7 +172,19 @@ const savedSortsStorageKey = "opencsv-saved-sorts";
 const savedSortsLimit = 12;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
+const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const formatRuleSampleBytes = 65536;
+const editorFontFamilies = {
+  mono: 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace',
+  sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  serif: 'Georgia, "Times New Roman", Times, serif',
+};
+const defaultEditorAppearance = {
+  gridFont: "mono",
+  gridSize: 13,
+  editorFont: "mono",
+  editorSize: 13,
+};
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -242,8 +260,10 @@ const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let themePreference = localStorage.getItem(themeStorageKey) || "system";
 let themeColors = {};
+let editorAppearance = loadEditorAppearance();
 
 initializeTheme();
+applyEditorAppearance(editorAppearance, false);
 
 function resize() {
   draw();
@@ -330,6 +350,79 @@ function cycleTheme() {
   const order = ["light", "dark", "system"];
   const current = order.includes(themePreference) ? order.indexOf(themePreference) : 2;
   applyTheme(order[(current + 1) % order.length]);
+}
+
+function loadEditorAppearance() {
+  try {
+    return normalizeEditorAppearance(JSON.parse(localStorage.getItem(editorAppearanceStorageKey) || "{}"));
+  } catch {
+    return { ...defaultEditorAppearance };
+  }
+}
+
+function normalizeEditorAppearance(value) {
+  const fontValue = (candidate, fallback) => (editorFontFamilies[candidate] ? candidate : fallback);
+  return {
+    gridFont: fontValue(value?.gridFont, defaultEditorAppearance.gridFont),
+    gridSize: clampFontSize(value?.gridSize, defaultEditorAppearance.gridSize),
+    editorFont: fontValue(value?.editorFont, defaultEditorAppearance.editorFont),
+    editorSize: clampFontSize(value?.editorSize, defaultEditorAppearance.editorSize),
+  };
+}
+
+function clampFontSize(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? Math.max(11, Math.min(18, parsed)) : fallback;
+}
+
+function applyEditorAppearance(next, persist = true) {
+  editorAppearance = normalizeEditorAppearance(next);
+  if (persist) {
+    localStorage.setItem(editorAppearanceStorageKey, JSON.stringify(editorAppearance));
+  }
+  const root = document.documentElement;
+  root.style.setProperty("--grid-font-family", editorFontFamilies[editorAppearance.gridFont]);
+  root.style.setProperty("--grid-font-size", `${editorAppearance.gridSize}px`);
+  root.style.setProperty("--editor-font-family", editorFontFamilies[editorAppearance.editorFont]);
+  root.style.setProperty("--editor-font-size", `${editorAppearance.editorSize}px`);
+  document.body.dataset.editorAppearance = `${editorAppearance.gridFont}:${editorAppearance.gridSize}/${editorAppearance.editorFont}:${editorAppearance.editorSize}`;
+  syncEditorAppearanceControls();
+  draw();
+}
+
+function syncEditorAppearanceControls() {
+  if (!gridFontSelect) return;
+  gridFontSelect.value = editorAppearance.gridFont;
+  gridFontSizeInput.value = String(editorAppearance.gridSize);
+  textEditorFontSelect.value = editorAppearance.editorFont;
+  textEditorFontSizeInput.value = String(editorAppearance.editorSize);
+  settingsAppearanceSummary.textContent = `Grid ${editorAppearance.gridSize}px · Editor ${editorAppearance.editorSize}px`;
+  resetEditorAppearanceButton.disabled = !editorAppearanceModified();
+}
+
+function editorAppearanceModified() {
+  return JSON.stringify(editorAppearance) !== JSON.stringify(defaultEditorAppearance);
+}
+
+function updateEditorAppearanceFromControls() {
+  applyEditorAppearance({
+    gridFont: gridFontSelect.value,
+    gridSize: gridFontSizeInput.value,
+    editorFont: textEditorFontSelect.value,
+    editorSize: textEditorFontSizeInput.value,
+  });
+  renderSettingsPanel();
+  status.textContent = "Editor appearance updated.";
+}
+
+function resetEditorAppearance() {
+  applyEditorAppearance(defaultEditorAppearance);
+  renderSettingsPanel();
+  status.textContent = "Editor appearance reset.";
+}
+
+function gridBodyFont() {
+  return `${editorAppearance.gridSize}px ${editorFontFamilies[editorAppearance.gridFont]}`;
 }
 
 function refreshThemeColors() {
@@ -894,12 +987,13 @@ function openSettingsPanel() {
 function renderSettingsPanel() {
   if (!settingsPresetList) return;
   syncQuotePolicyControls();
+  syncEditorAppearanceControls();
   const presets = formatPresets();
   const query = settingsSearch.value.trim().toLowerCase();
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || editorAppearanceModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   resetFormatPresetsButton.disabled = presets.length === 0;
   settingsPresetList.replaceChildren();
@@ -2821,8 +2915,7 @@ function drawRows(width, height) {
   ctx.rect(0, headerHeight, width, Math.max(0, height - headerHeight));
   ctx.clip();
 
-  ctx.font =
-    "13px ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace";
+  ctx.font = gridBodyFont();
   ctx.textBaseline = "middle";
 
   for (let i = 0; i < visibleRows; i++) {
@@ -3608,7 +3701,7 @@ function autoFitColumnWidth(column, values) {
       (value) =>
         longestLineWidth(
           value,
-          "13px ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace",
+          gridBodyFont(),
         ) + 24,
     ),
   );
@@ -7697,6 +7790,11 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
+gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
+textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
+textEditorFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
+resetEditorAppearanceButton.addEventListener("click", resetEditorAppearance);
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
 toggleCellQuoteButton.addEventListener("click", () => executeCommand("format.toggleCellQuote"));
 quoteHeaderRuleToggle.addEventListener("change", () => toggleQuoteRule("header", quoteHeaderRuleToggle.checked));

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-url-goto-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-editor-fonts-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -165,6 +165,39 @@
                   <input id="quoteColumnRuleToggle" type="checkbox" aria-label="Quote active column" />
                   <span>Column</span>
                 </label>
+              </div>
+            </section>
+            <section class="settings-section settings-appearance-section" aria-label="Editor appearance">
+              <header>
+                <strong>Editor Appearance</strong>
+                <span id="settingsAppearanceSummary">Default fonts</span>
+              </header>
+              <div class="settings-appearance-grid">
+                <label>
+                  <span>Grid Font</span>
+                  <select id="gridFontSelect" aria-label="Grid font">
+                    <option value="mono">Mono</option>
+                    <option value="sans">Sans</option>
+                    <option value="serif">Serif</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Grid Size</span>
+                  <input id="gridFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Grid font size" />
+                </label>
+                <label>
+                  <span>Editor Font</span>
+                  <select id="textEditorFontSelect" aria-label="Text editor font">
+                    <option value="mono">Mono</option>
+                    <option value="sans">Sans</option>
+                    <option value="serif">Serif</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Editor Size</span>
+                  <input id="textEditorFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Text editor font size" />
+                </label>
+                <button id="resetEditorAppearanceButton" type="button">Reset Fonts</button>
               </div>
             </section>
             <section class="settings-section" aria-label="File format presets">
@@ -367,6 +400,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-url-goto-1"></script>
+    <script type="module" src="./src/app.js?v=m2-editor-fonts-1"></script>
   </body>
 </html>
