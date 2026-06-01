@@ -923,6 +923,7 @@ type findRequest struct {
 	WholeCell     bool            `json:"wholeCell"`
 	Regex         bool            `json:"regex"`
 	Limit         int             `json:"limit"`
+	Offset        int             `json:"offset"`
 }
 
 func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
@@ -939,6 +940,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 		WholeCell:     request.WholeCell,
 		Regex:         request.Regex,
 		Limit:         request.Limit,
+		Offset:        request.Offset,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

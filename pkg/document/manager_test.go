@@ -491,6 +491,20 @@ func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
 	if result.Total != 3 || len(result.Matches) != 1 || !result.Truncated {
 		t.Fatalf("find result = %#v, want total 3, one stored match, truncated", result)
 	}
+	next, err := manager.FindDetailed(session.ID, FindOptions{Query: "ada", Limit: 1, Offset: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Total != 3 || next.Offset != 1 || len(next.Matches) != 1 || next.Matches[0].Row != 2 || !next.Truncated {
+		t.Fatalf("offset find result = %#v, want second match with total 3", next)
+	}
+	last, err := manager.FindDetailed(session.ID, FindOptions{Query: "ada", Limit: 2, Offset: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last.Total != 3 || last.Offset != 2 || len(last.Matches) != 1 || last.Matches[0].Row != 3 || last.Truncated {
+		t.Fatalf("last offset find result = %#v, want final match without truncation", last)
+	}
 }
 
 func TestManagerFindAndReplaceSelectionScope(t *testing.T) {

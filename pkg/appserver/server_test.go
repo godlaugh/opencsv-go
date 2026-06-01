@@ -1098,6 +1098,21 @@ func TestServerFindFilterSort(t *testing.T) {
 		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
 	}
 
+	findPayload = postJSON(t, handler, "/api/find", map[string]any{
+		"documentId": documentID,
+		"query":      "i",
+		"limit":      1,
+		"offset":     1,
+	})
+	matches, ok = findPayload["matches"].([]any)
+	if !ok || len(matches) != 1 {
+		t.Fatalf("offset matches = %#v, want one match", findPayload["matches"])
+	}
+	match := matches[0].(map[string]any)
+	if findPayload["offset"].(float64) != 1 || match["row"].(float64) != 2 {
+		t.Fatalf("offset find payload = %#v, want second matching row", findPayload)
+	}
+
 	previewPayload := postJSON(t, handler, "/api/replace", map[string]any{
 		"documentId":  documentID,
 		"query":       "Linus",

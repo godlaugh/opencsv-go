@@ -194,6 +194,7 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const findPageSize = 100;
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const shortcutExportKind = "opencsv-shortcuts";
 const shortcutPresets = [
@@ -5843,8 +5844,16 @@ async function runFind(direction, forceRefresh) {
     return;
   }
   const key = findKey(search);
-  if (forceRefresh || findState.key !== key || findState.matches.length === 0) {
-    const ok = await refreshFindState(search, key);
+  const criteriaKey = findCriteriaKey(search);
+  const sameSelectionScope =
+    search.inSelection &&
+    !forceRefresh &&
+    findState.criteriaKey === criteriaKey &&
+    Array.isArray(findState.scopeCells) &&
+    findState.scopeCells.length > 0;
+  const stateKey = sameSelectionScope ? findState.key : key;
+  if (forceRefresh || (!sameSelectionScope && findState.key !== key) || findState.matches.length === 0) {
+    const ok = await refreshFindState(search, stateKey, { offset: 0, index: 0 });
     if (!ok) return;
   }
   if (findState.matches.length === 0) {
@@ -5853,13 +5862,42 @@ async function runFind(direction, forceRefresh) {
     return;
   }
   if (direction !== 0) {
-    findState.index = (findState.index + direction + findState.matches.length) % findState.matches.length;
+    const paged = await advanceFindState(search, stateKey, direction);
+    if (!paged) return;
   }
   await selectFindMatch(findState.matches[findState.index], search.query);
 }
 
-async function refreshFindState(search, key) {
-  const cells = search.inSelection ? selectedCellsForSearch() : [];
+async function advanceFindState(search, key, direction) {
+  const nextIndex = findState.index + direction;
+  if (nextIndex >= 0 && nextIndex < findState.matches.length) {
+    findState.index = nextIndex;
+    return true;
+  }
+  if (direction > 0) {
+    const nextOffset = findState.offset + findState.matches.length;
+    return refreshFindState(search, key, {
+      offset: nextOffset < findState.total ? nextOffset : 0,
+      index: 0,
+      scopeCells: findState.scopeCells,
+    });
+  }
+  const lastPageOffset = findState.total > 0
+    ? Math.floor((findState.total - 1) / findState.limit) * findState.limit
+    : 0;
+  const previousOffset = findState.offset > 0
+    ? Math.max(0, findState.offset - findState.limit)
+    : lastPageOffset;
+  return refreshFindState(search, key, {
+    offset: previousOffset,
+    index: -1,
+    scopeCells: findState.scopeCells,
+  });
+}
+
+async function refreshFindState(search, key, options = {}) {
+  const offset = Math.max(0, options.offset ?? 0);
+  const cells = options.scopeCells ?? (search.inSelection ? selectedCellsForSearch() : []);
   if (cells == null) return false;
   const response = await fetch("/api/find", {
     method: "POST",
@@ -5871,7 +5909,8 @@ async function refreshFindState(search, key) {
       caseSensitive: search.caseSensitive,
       wholeCell: search.wholeCell,
       cells,
-      limit: 5000,
+      limit: findPageSize,
+      offset,
     }),
   });
   const payload = await response.json();
@@ -5885,10 +5924,17 @@ async function refreshFindState(search, key) {
     search: findCriteriaKeyObject(search),
     matches: payload.matches ?? [],
     total: payload.total ?? payload.matches?.length ?? 0,
+    offset: payload.offset ?? offset,
+    limit: findPageSize,
     truncated: Boolean(payload.truncated),
     index: 0,
     scopeCells: cells,
   };
+  if (options.index === -1) {
+    findState.index = Math.max(0, findState.matches.length - 1);
+  } else {
+    findState.index = Math.max(0, Math.min(findState.matches.length - 1, options.index ?? 0));
+  }
   updateFindMatchCount();
   updateFindHighlightDataset();
   return true;
@@ -5905,9 +5951,13 @@ async function selectFindMatch(match, query) {
   draw();
   updateFindMatchCount();
   updateFindHighlightDataset();
-  const ordinal = findState.index + 1;
+  const ordinal = findState.offset + findState.index + 1;
   const total = findState.total;
-  const loadedNote = findState.truncated ? ` (showing first ${findState.matches.length.toLocaleString()})` : "";
+  const pageStart = findState.matches.length ? findState.offset + 1 : 0;
+  const pageEnd = findState.offset + findState.matches.length;
+  const loadedNote = findState.truncated || findState.offset > 0
+    ? ` (showing matches ${pageStart.toLocaleString()}-${pageEnd.toLocaleString()})`
+    : "";
   status.textContent = `Found ${ordinal.toLocaleString()} of ${total.toLocaleString()} for ${query} at row ${displayRow + 1}, column ${match.col + 1}${loadedNote}`;
 }
 
@@ -6109,7 +6159,7 @@ function selectedSearchScopeKey() {
 }
 
 function emptyFindState() {
-  return { key: "", criteriaKey: "", search: null, matches: [], total: 0, truncated: false, index: 0, scopeCells: [] };
+  return { key: "", criteriaKey: "", search: null, matches: [], total: 0, offset: 0, limit: findPageSize, truncated: false, index: 0, scopeCells: [] };
 }
 
 function invalidateFindState() {
@@ -6120,7 +6170,7 @@ function invalidateFindState() {
 }
 
 function updateFindMatchCount() {
-  const current = findState.matches.length ? findState.index + 1 : 0;
+  const current = findState.matches.length ? findState.offset + findState.index + 1 : 0;
   const total = findState.total || 0;
   findMatchCount.textContent = `${current.toLocaleString()}/${total.toLocaleString()}`;
   const enabled = Boolean(documentId && total > 0);

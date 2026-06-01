@@ -1413,6 +1413,7 @@ type FindOptions struct {
 	WholeCell     bool   `json:"wholeCell"`
 	Regex         bool   `json:"regex"`
 	Limit         int    `json:"limit"`
+	Offset        int    `json:"offset"`
 }
 
 type Match struct {
@@ -1424,6 +1425,7 @@ type Match struct {
 type FindResult struct {
 	Matches   []Match `json:"matches"`
 	Total     int     `json:"total"`
+	Offset    int     `json:"offset"`
 	Truncated bool    `json:"truncated"`
 }
 
@@ -1445,6 +1447,9 @@ func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult
 	}
 	if options.Limit <= 0 {
 		options.Limit = 100
+	}
+	if options.Offset < 0 {
+		options.Offset = 0
 	}
 	matcher, err := newMatcher(options)
 	if err != nil {
@@ -1470,13 +1475,16 @@ func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult
 			}
 			if matcher.matches(value) {
 				total++
+				if total <= options.Offset {
+					continue
+				}
 				if len(matches) < options.Limit {
 					matches = append(matches, Match{Row: row, Col: col, Value: value})
 				}
 			}
 		}
 	}
-	return FindResult{Matches: matches, Total: total, Truncated: total > len(matches)}, nil
+	return FindResult{Matches: matches, Total: total, Offset: options.Offset, Truncated: total > options.Offset+len(matches)}, nil
 }
 
 type ReplaceOptions struct {
