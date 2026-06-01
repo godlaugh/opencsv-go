@@ -32,14 +32,19 @@ func TestMatchHeaderNamesAndCColumns(t *testing.T) {
 }
 
 func TestMatchCastTryCastAndNulls(t *testing.T) {
-	headers := []string{"id", "amount", "bad", "created_at"}
-	record := []string{"7", "19.75", "nope", "2026-05-27"}
+	headers := []string{"id", "amount", "bad", "created_at", "seen_at", "duration", "age"}
+	record := []string{"7", "19.75", "nope", "2026-05-27", "15:30:00.123", "1 02:30 day to minute", "1-2 year to month"}
 
 	tests := []string{
 		"CAST(amount AS number) >= 19.75",
 		"CAST(id AS bigint) = 7",
 		"TRY_CAST(bad AS number) IS NULL",
 		"CAST(created_at AS date) >= DATE '2026-01-01'",
+		"CAST(seen_at AS time) = TIME '15:30:00.123'",
+		"TIMESTAMP '2026-05-27 15:30:00.123' > TIMESTAMP '2026-05-27 15:29:59.999'",
+		"CAST(duration AS interval) = INTERVAL '1 02:30' day to minute",
+		"CAST(age AS interval) = INTERVAL '1-2' year to month",
+		"INTERVAL '30' second > INTERVAL '10' second",
 	}
 
 	for _, source := range tests {
@@ -85,5 +90,11 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("CAST(amount number)", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected cast syntax error")
+	}
+	if _, err := Match("INTERVAL '1' banana = INTERVAL '1' day", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected interval field syntax error")
+	}
+	if _, err := Match("INTERVAL '1:02:03' hour to minute = INTERVAL '62' minute", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected hour-to-minute interval syntax error")
 	}
 }

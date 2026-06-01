@@ -56,13 +56,16 @@ const (
 	valueString
 	valueNumber
 	valueBool
+	valueInterval
 )
 
 type value struct {
-	kind valueKind
-	text string
-	num  float64
-	bool bool
+	kind            valueKind
+	text            string
+	num             float64
+	bool            bool
+	intervalMonths  int64
+	intervalSeconds float64
 }
 
 func nullValue() value {
@@ -81,6 +84,10 @@ func boolValue(b bool) value {
 	return value{kind: valueBool, bool: b}
 }
 
+func intervalValue(months int64, seconds float64) value {
+	return value{kind: valueInterval, intervalMonths: months, intervalSeconds: seconds}
+}
+
 func (v value) string() string {
 	switch v.kind {
 	case valueNull:
@@ -94,6 +101,8 @@ func (v value) string() string {
 			return "true"
 		}
 		return "false"
+	case valueInterval:
+		return fmt.Sprintf("interval:%d:%g", v.intervalMonths, v.intervalSeconds)
 	default:
 		return ""
 	}
@@ -325,7 +334,9 @@ func (expr castExpr) eval(ctx evalContext) (value, error) {
 
 func compare(left value, right value, op string) bool {
 	var result int
-	if left.kind == valueNull || right.kind == valueNull {
+	if left.kind == valueInterval || right.kind == valueInterval {
+		result = compareIntervals(left, right)
+	} else if left.kind == valueNull || right.kind == valueNull {
 		result = strings.Compare(left.string(), right.string())
 	} else if leftNum, leftOK := left.number(); leftOK {
 		if rightNum, rightOK := right.number(); rightOK {
@@ -359,6 +370,24 @@ func compare(left value, right value, op string) bool {
 		return result >= 0
 	default:
 		return false
+	}
+}
+
+func compareIntervals(left value, right value) int {
+	if left.kind != valueInterval || right.kind != valueInterval {
+		return strings.Compare(left.string(), right.string())
+	}
+	switch {
+	case left.intervalMonths < right.intervalMonths:
+		return -1
+	case left.intervalMonths > right.intervalMonths:
+		return 1
+	case left.intervalSeconds < right.intervalSeconds:
+		return -1
+	case left.intervalSeconds > right.intervalSeconds:
+		return 1
+	default:
+		return 0
 	}
 }
 
@@ -555,24 +584,297 @@ func castValue(input value, rawType string) (value, error) {
 		}
 		return nullValue(), fmt.Errorf("cannot cast %q as boolean", input.string())
 	case "date":
-		if _, err := time.Parse("2006-01-02", strings.TrimSpace(input.string())); err != nil {
-			return nullValue(), err
-		}
-		return stringValue(strings.TrimSpace(input.string())), nil
-	case "time":
-		if _, err := time.Parse("15:04:05", strings.TrimSpace(input.string())); err != nil {
-			return nullValue(), err
-		}
-		return stringValue(strings.TrimSpace(input.string())), nil
-	case "timestamp":
-		raw := strings.TrimSpace(input.string())
-		if _, err := time.Parse("2006-01-02 15:04:05", raw); err != nil {
+		raw, err := normalizeDate(input.string())
+		if err != nil {
 			return nullValue(), err
 		}
 		return stringValue(raw), nil
+	case "time":
+		raw, err := normalizeClockTime(input.string())
+		if err != nil {
+			return nullValue(), err
+		}
+		return stringValue(raw), nil
+	case "timestamp":
+		raw, err := normalizeTimestamp(input.string())
+		if err != nil {
+			return nullValue(), err
+		}
+		return stringValue(raw), nil
+	case "interval":
+		return parseFlexibleInterval(input.string())
 	default:
 		return nullValue(), fmt.Errorf("unsupported cast type %s", rawType)
 	}
+}
+
+func normalizeDate(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	parsed, err := time.Parse("2006-01-02", trimmed)
+	if err != nil {
+		return "", err
+	}
+	return parsed.Format("2006-01-02"), nil
+}
+
+func normalizeClockTime(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	for _, layout := range []string{"15:04:05.999999999", "15:04:05"} {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed.Format("15:04:05.999999999"), nil
+		}
+	}
+	return "", fmt.Errorf("cannot parse %q as time", raw)
+}
+
+func normalizeTimestamp(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	for _, layout := range []string{"2006-01-02 15:04:05.999999999", "2006-01-02 15:04:05"} {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed.Format("2006-01-02 15:04:05.999999999"), nil
+		}
+	}
+	return "", fmt.Errorf("cannot parse %q as timestamp", raw)
+}
+
+func normalizeTemporalLiteral(kind string, raw string) (string, error) {
+	switch kind {
+	case "date":
+		return normalizeDate(raw)
+	case "time":
+		return normalizeClockTime(raw)
+	case "timestamp":
+		return normalizeTimestamp(raw)
+	default:
+		return "", fmt.Errorf("unsupported temporal literal %s", kind)
+	}
+}
+
+func parseFlexibleInterval(raw string) (value, error) {
+	trimmed := strings.TrimSpace(strings.ToLower(raw))
+	for _, suffix := range []string{
+		"year to month",
+		"day to second",
+		"day to minute",
+		"day to hour",
+		"hour to second",
+		"hour to minute",
+		"minute to second",
+		"year",
+		"month",
+		"day",
+		"hour",
+		"minute",
+		"second",
+	} {
+		marker := " " + suffix
+		if strings.HasSuffix(trimmed, marker) {
+			quantity := strings.TrimSpace(strings.TrimSuffix(trimmed, marker))
+			return parseIntervalLiteral(quantity, strings.Fields(suffix))
+		}
+	}
+	return nullValue(), fmt.Errorf("cannot cast %q as interval", raw)
+}
+
+func parseIntervalLiteral(quantity string, fields []string) (value, error) {
+	field := strings.ToLower(strings.Join(fields, " "))
+	switch field {
+	case "year":
+		years, err := parseIntegerQuantity(quantity)
+		return intervalValue(years*12, 0), err
+	case "month":
+		months, err := parseIntegerQuantity(quantity)
+		return intervalValue(months, 0), err
+	case "year to month":
+		parts := strings.Split(quantity, "-")
+		if len(parts) != 2 {
+			return nullValue(), fmt.Errorf("interval %q does not match year to month", quantity)
+		}
+		years, err := parseIntegerQuantity(parts[0])
+		if err != nil {
+			return nullValue(), err
+		}
+		months, err := parseIntegerQuantity(parts[1])
+		if err != nil {
+			return nullValue(), err
+		}
+		return intervalValue(years*12+months, 0), nil
+	case "day":
+		days, err := parseFloatQuantity(quantity)
+		return intervalValue(0, days*86400), err
+	case "hour":
+		hours, err := parseFloatQuantity(quantity)
+		return intervalValue(0, hours*3600), err
+	case "minute":
+		minutes, err := parseFloatQuantity(quantity)
+		return intervalValue(0, minutes*60), err
+	case "second":
+		seconds, err := parseFloatQuantity(quantity)
+		return intervalValue(0, seconds), err
+	case "day to hour", "day to minute", "day to second":
+		return parseDayTimeInterval(quantity, field)
+	case "hour to minute", "hour to second":
+		return parseClockInterval(quantity, field, 0)
+	case "minute to second":
+		return parseMinuteSecondInterval(quantity)
+	default:
+		return nullValue(), fmt.Errorf("unsupported interval field %q", field)
+	}
+}
+
+func parseIntegerQuantity(raw string) (int64, error) {
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid interval quantity %q", raw)
+	}
+	return value, nil
+}
+
+func parseFloatQuantity(raw string) (float64, error) {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid interval quantity %q", raw)
+	}
+	return value, nil
+}
+
+func parseDayTimeInterval(quantity string, field string) (value, error) {
+	parts := strings.Fields(strings.TrimSpace(quantity))
+	if len(parts) == 0 || len(parts) > 2 {
+		return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+	}
+	days, err := parseFloatQuantity(parts[0])
+	if err != nil {
+		return nullValue(), err
+	}
+	seconds := days * 86400
+	if len(parts) == 1 {
+		return intervalValue(0, seconds), nil
+	}
+	clock, err := parseDayClockInterval(parts[1], field)
+	if err != nil {
+		return nullValue(), err
+	}
+	return intervalValue(0, seconds+clock.intervalSeconds), nil
+}
+
+func parseDayClockInterval(quantity string, field string) (value, error) {
+	parts := strings.Split(strings.TrimSpace(quantity), ":")
+	switch field {
+	case "day to hour":
+		if len(parts) != 1 {
+			return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+		}
+		hours, err := parseFloatQuantity(parts[0])
+		if err != nil {
+			return nullValue(), err
+		}
+		return intervalValue(0, hours*3600), nil
+	case "day to minute":
+		if len(parts) != 2 {
+			return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+		}
+	case "day to second":
+		if len(parts) != 3 {
+			return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+		}
+	default:
+		return nullValue(), fmt.Errorf("unsupported interval field %q", field)
+	}
+	hours, err := parseFloatQuantity(parts[0])
+	if err != nil {
+		return nullValue(), err
+	}
+	minutes, err := parseFloatQuantity(parts[1])
+	if err != nil {
+		return nullValue(), err
+	}
+	seconds := hours*3600 + minutes*60
+	if len(parts) == 3 {
+		extra, err := parseFloatQuantity(parts[2])
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds += extra
+	}
+	return intervalValue(0, seconds), nil
+}
+
+func parseClockInterval(quantity string, field string, baseHours float64) (value, error) {
+	parts := strings.Split(strings.TrimSpace(quantity), ":")
+	var seconds float64
+	switch field {
+	case "hour to minute":
+		if len(parts) != 2 {
+			return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+		}
+		hours, err := parseFloatQuantity(parts[0])
+		if err != nil {
+			return nullValue(), err
+		}
+		minutes, err := parseFloatQuantity(parts[1])
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds = (baseHours+hours)*3600 + minutes*60
+	case "hour to second":
+		if len(parts) != 3 {
+			return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
+		}
+		hours, err := parseFloatQuantity(parts[0])
+		if err != nil {
+			return nullValue(), err
+		}
+		minutes, err := parseFloatQuantity(parts[1])
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds = (baseHours+hours)*3600 + minutes*60
+		extra, err := parseFloatQuantity(parts[2])
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds += extra
+	case "hour":
+		hours, err := parseFloatQuantity(quantity)
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds = (baseHours + hours) * 3600
+	case "minute":
+		minutes, err := parseFloatQuantity(quantity)
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds = baseHours*3600 + minutes*60
+	case "second":
+		extra, err := parseFloatQuantity(quantity)
+		if err != nil {
+			return nullValue(), err
+		}
+		seconds = baseHours*3600 + extra
+	default:
+		return nullValue(), fmt.Errorf("unsupported interval clock field %q", field)
+	}
+	return intervalValue(0, seconds), nil
+}
+
+func parseMinuteSecondInterval(quantity string) (value, error) {
+	parts := strings.Split(strings.TrimSpace(quantity), ":")
+	if len(parts) != 2 {
+		return nullValue(), fmt.Errorf("interval %q does not match minute to second", quantity)
+	}
+	minutes, err := parseFloatQuantity(parts[0])
+	if err != nil {
+		return nullValue(), err
+	}
+	seconds, err := parseFloatQuantity(parts[1])
+	if err != nil {
+		return nullValue(), err
+	}
+	return intervalValue(0, minutes*60+seconds), nil
 }
 
 type tokenKind int
@@ -877,11 +1179,31 @@ func (parser *parser) parsePrimary() (expr, error) {
 		if lower == "true" || lower == "false" {
 			return literalExpr{value: boolValue(lower == "true")}, nil
 		}
-		if lower == "date" || lower == "time" || lower == "timestamp" || lower == "interval" {
+		if lower == "date" || lower == "time" || lower == "timestamp" {
 			if parser.peek().kind != tokenString {
 				return nil, fmt.Errorf("%s literal expects a quoted value", lower)
 			}
-			return literalExpr{value: stringValue(parser.advance().text)}, nil
+			raw := parser.advance().text
+			normalized, err := normalizeTemporalLiteral(lower, raw)
+			if err != nil {
+				return nil, err
+			}
+			return literalExpr{value: stringValue(normalized)}, nil
+		}
+		if lower == "interval" {
+			if parser.peek().kind != tokenString {
+				return nil, errors.New("interval literal expects a quoted value")
+			}
+			quantity := parser.advance().text
+			fields, err := parser.parseIntervalFields()
+			if err != nil {
+				return nil, err
+			}
+			interval, err := parseIntervalLiteral(quantity, fields)
+			if err != nil {
+				return nil, err
+			}
+			return literalExpr{value: interval}, nil
 		}
 		if lower == "cast" || lower == "try_cast" {
 			return parser.parseCast(lower == "try_cast")
@@ -930,6 +1252,37 @@ func (parser *parser) parseCast(try bool) (expr, error) {
 		return nil, errors.New("cast expects closing parenthesis")
 	}
 	return castExpr{input: input, typ: strings.Join(typ, " "), try: try}, nil
+}
+
+func (parser *parser) parseIntervalFields() ([]string, error) {
+	if parser.peek().kind != tokenIdentifier {
+		return nil, errors.New("interval literal expects a field")
+	}
+	first := strings.ToLower(parser.advance().text)
+	if !isIntervalField(first) {
+		return nil, fmt.Errorf("unsupported interval field %q", first)
+	}
+	fields := []string{first}
+	if parser.matchKeyword("to") {
+		if parser.peek().kind != tokenIdentifier {
+			return nil, errors.New("interval literal expects a field after to")
+		}
+		second := strings.ToLower(parser.advance().text)
+		if !isIntervalField(second) {
+			return nil, fmt.Errorf("unsupported interval field %q", second)
+		}
+		fields = append(fields, "to", second)
+	}
+	return fields, nil
+}
+
+func isIntervalField(field string) bool {
+	switch field {
+	case "year", "month", "day", "hour", "minute", "second":
+		return true
+	default:
+		return false
+	}
 }
 
 func (parser *parser) parseArguments() ([]expr, error) {

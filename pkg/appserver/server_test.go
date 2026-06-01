@@ -888,6 +888,36 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "temporal.csv")
+	if err := os.WriteFile(path, []byte("id,created_at,seen_at,duration\n1,2026-05-27,15:30:00.123,1 02:30 day to minute\n2,2026-05-28,15:29:00,10 second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "CAST(created_at AS date) = DATE '2026-05-27' AND CAST(seen_at AS time) = TIME '15:30:00.123' AND CAST(duration AS interval) = INTERVAL '1 02:30' day to minute",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL temporal filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
+		t.Fatalf("SQL temporal filtered window rows = %#v, want row 1", rows)
+	}
+}
+
 func TestServerExportView(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "export.csv")

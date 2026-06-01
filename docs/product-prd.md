@@ -23,7 +23,7 @@ Latest public source check: 2026-06-01. The homepage still centers spreadsheet-l
 Additional official source details captured from the current public pages:
 
 - The homepage positions SmoothCSV as an intuitive spreadsheet-like CSV editor with find/replace, sort/filter, SQL queries, multi-cell editing, command palette access to all features, large-file speed, and Windows/macOS/Linux availability.
-- The feature catalog positions reusable column workflows as first-class product behavior: quick value filters, visual conditions, SQL filters, smart sort, multi-column sort, and type-aware sorting must remain discoverable from column/header surfaces and command workflows.
+- The feature catalog positions reusable column workflows as first-class product behavior: quick value filters, visual conditions, SQL filters, smart sort, multi-column sort, and type-aware sorting must remain discoverable from column/header surfaces and command workflows. It also defines Smart Selection as explicit range add/subtract/invert behavior, not just ordinary drag selection.
 - The download page publishes macOS Universal, Windows user/MSI/portable builds for x64 and ARM64, Linux `.deb`, `.rpm`, AppImage packages, and AUR distribution. Product parity must therefore keep packaging and CLI assumptions cross-platform.
 - The pricing/license pages state that every feature remains free, licenses are one-time support purchases, work offline, and have no per-person device limit. opencsv does not need to clone SmoothCSV's commercial flow, but it must preserve the same local/offline feature availability principle.
 - The "Best CSV Editors in 2026" blog emphasizes dedicated CSV editing, data preservation, large-file handling, quote preservation, frequent updates, thoughtful UX, and SQL console support as the competitive baseline.
@@ -31,6 +31,7 @@ Additional official source details captured from the current public pages:
 - The v3 technical article describes a command-centric, VS Code-like architecture with command metadata, keybindings, context-aware enablement, menu/context-menu/button dispatch, lazy-loaded system extensions, and local-first desktop operation with no external communication except update checks.
 - The virtual scrolling article identifies browser element-size limits around million-row datasets and requires a custom scrolling strategy or canvas rendering that is not capped by DOM spacer height.
 - The official SQL Console documentation requires SQLite syntax, direct path/`file://`/`@file:` table references, current opened-file references, text-backed CSV values, and explicit `CAST` for reliable numeric comparisons.
+- The current public roadmap lists SmoothCSV in Browser, an extension system, CSV schema/validation, additional formats such as JSON/Avro/Parquet, and AI integration. These are tracked as strategic post-parity directions unless an official shipping claim moves them into the product baseline.
 
 The goal is not to clone SmoothCSV source code. The goal is to build an open, Go-first CSV workbench with comparable product coverage, stronger UX discipline, and measurable performance.
 
@@ -231,8 +232,11 @@ SQL console:
 
 ### 6.2 Can Ship After Product Parity v1
 
-- Extension marketplace.
+- SmoothCSV-in-browser parity beyond a local prototype.
+- Extension marketplace/system.
 - AI-assisted transforms.
+- CSV schema authoring beyond validation/profile basics.
+- Additional structured formats beyond CSV/TSV/XLSX import/export, such as JSON, Avro, and Parquet.
 - Cloud collaboration.
 - Browser-hosted SaaS version.
 - Full Excel workbook editing beyond CSV import/export.
@@ -289,6 +293,7 @@ The app shall render a spreadsheet-like grid with:
 - Cell selection.
 - Range selection.
 - Multi-cell selection.
+- Additive, subtractive, and inverted selection commands.
 - Body-first row/column/corner selection that initially excludes headers and can include/toggle headers via Alt/Option or command.
 - Stable sticky header behavior.
 - Short/ragged rows where missing cells are visually distinct from real empty cells.
@@ -381,7 +386,7 @@ Acceptance:
 
 - Header names work when header rows are enabled.
 - `c1`, `c2`, ... work when no header row exists.
-- `CAST` and `TRY_CAST` work for numeric/date cases.
+- `CAST` and `TRY_CAST` work for numeric, date, time, timestamp, and interval cases.
 - Filtered row count is visible.
 
 ### FR-007 Sort
