@@ -843,8 +843,15 @@ function isCommandDisabled(command) {
       command.id === "format.toggleHeaderQuote" ||
       command.id === "format.toggleBodyQuote" ||
       command.id === "format.toggleColumnQuote" ||
-      command.id === "format.toggleCellQuote"
+      command.id === "format.toggleCellQuote" ||
+      command.id === "format.quoteSelection" ||
+      command.id === "format.noQuoteSelection" ||
+      command.id === "format.clearSelectionQuote"
     );
+  const needsSelectedCells =
+    command.id === "format.quoteSelection" ||
+    command.id === "format.noQuoteSelection" ||
+    command.id === "format.clearSelectionQuote";
   return (
     command.implemented === false ||
     (command.requiresDocument && !hasDocument) ||
@@ -852,6 +859,7 @@ function isCommandDisabled(command) {
     (needsActiveFilter && !activeFilter) ||
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
+    (needsSelectedCells && selectionCellCount() === 0) ||
     writeBlocked
   );
 }
@@ -1592,6 +1600,71 @@ async function toggleQuoteRule(target, quoted = null) {
   syncQuotePolicyControls();
 }
 
+async function setSelectedCellQuoteOverrides(mode) {
+  const labels = {
+    quote: "Quote Selection",
+    "no-quote": "No Quote Selection",
+    clear: "Clear Selection Quote Overrides",
+  };
+  const label = labels[mode] ?? "Quote Selection";
+  if (!documentId) {
+    status.textContent = "Open a file before changing selection quote rules.";
+    return;
+  }
+  if (!ensureEditable(label)) return;
+  const cells = selectedCellsForTransform();
+  if (!cells) return;
+  const selectedKeys = new Set(cells.map(quoteCellKey));
+  const settings = currentQuoteRuleSettings();
+  const nextSettings = {
+    ...settings,
+    quoteCells: settings.quoteCells.filter((cell) => !selectedKeys.has(quoteCellKey(cell))),
+    noQuoteCells: settings.noQuoteCells.filter((cell) => !selectedKeys.has(quoteCellKey(cell))),
+  };
+  if (mode === "quote") {
+    nextSettings.quoteCells.push(
+      ...cells.filter((cell) => !quoteSettingsPreservesCell(settings, cell)),
+    );
+  } else if (mode === "no-quote") {
+    nextSettings.noQuoteCells.push(...cells);
+  }
+  nextSettings.quoteCells = normalizeQuoteRuleCells(nextSettings.quoteCells);
+  nextSettings.noQuoteCells = normalizeQuoteRuleCells(nextSettings.noQuoteCells);
+  const signature = quoteRulesSignature(nextSettings);
+  document.body.dataset.quoteSelection = `${mode}:${cells.length}:${signature}`;
+  if (signature === quoteRulesSignature(settings)) {
+    status.textContent = `${label}: no quote overrides changed.`;
+    return;
+  }
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...nextSettings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    document.body.dataset.quoteSelection = "error";
+    return;
+  }
+  quotePolicyDraftDirty = false;
+  applyMutationPayload(payload, `${label}: ${formatCount(cells.length)} cells updated.`);
+  syncQuotePolicyControls();
+}
+
+function quoteCellKey(cell) {
+  return `${cell.row}:${cell.col}`;
+}
+
+function quoteSettingsPreservesCell(settings, cell) {
+  const hasHeader = Boolean(metadata?.dialect?.hasHeader);
+  const bodyRow = !hasHeader || cell.row > 0;
+  if (hasHeader && settings.quoteHeader && cell.row === 0) return true;
+  if (settings.quoteBody && bodyRow) return true;
+  if (bodyRow && settings.quoteColumns.includes(cell.col)) return true;
+  return settings.quoteCells.some((quotedCell) => quotedCell.row === cell.row && quotedCell.col === cell.col);
+}
+
 function quoteRuleLabel(target) {
   if (target === "header") return "Header";
   if (target === "body") return "Body";
@@ -2160,6 +2233,9 @@ function renderGridContextMenu(target, clientX, clientY) {
   if (target.kind === "cell") {
     addSeparator();
     addCommand("format.toggleCellQuote", "Toggle Cell Quote");
+    addCommand("format.quoteSelection", "Quote Selection");
+    addCommand("format.noQuoteSelection", "No Quote Selection");
+    addCommand("format.clearSelectionQuote", "Clear Selection Quote");
     addItem("Filter by Cell", () => filterSelectedCellValue());
     addItem("Sort Column Ascending", () => sortColumn(selected.col, false, false));
     addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
@@ -3316,6 +3392,15 @@ async function executeCommand(commandID) {
       break;
     case "format.toggleCellQuote":
       await toggleCellQuote();
+      break;
+    case "format.quoteSelection":
+      await setSelectedCellQuoteOverrides("quote");
+      break;
+    case "format.noQuoteSelection":
+      await setSelectedCellQuoteOverrides("no-quote");
+      break;
+    case "format.clearSelectionQuote":
+      await setSelectedCellQuoteOverrides("clear");
       break;
     case "edit.undo":
       await undoCurrentDocument();
