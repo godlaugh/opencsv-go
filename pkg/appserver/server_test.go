@@ -547,6 +547,34 @@ func TestServerReadOnlyAndRefresh(t *testing.T) {
 	if rowIndex["rows"].(float64) != 3 {
 		t.Fatalf("refresh rowIndex = %#v, want 3 rows", rowIndex)
 	}
+
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"value":      "Local",
+	})
+	if err := os.WriteFile(path, []byte("id,name\n1,Disk\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	response = postJSONResponse(t, handler, "/api/refresh", map[string]any{"documentId": documentID})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("dirty refresh status = %d, want 400", response.Code)
+	}
+	refreshPayload = postJSON(t, handler, "/api/refresh", map[string]any{
+		"documentId":   documentID,
+		"discardDirty": true,
+	})
+	session = refreshPayload["session"].(map[string]any)
+	if session["dirty"] == true {
+		t.Fatalf("discard refresh session = %#v, want clean", session)
+	}
+	document = session["document"].(map[string]any)
+	preview := document["preview"].([]any)
+	row := preview[1].([]any)
+	if row[1] != "Disk" {
+		t.Fatalf("discard refresh preview row = %#v, want disk value", row)
+	}
 }
 
 func TestServerUndoRedoAndStructuralMutations(t *testing.T) {

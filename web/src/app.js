@@ -156,6 +156,13 @@ const saveAsPath = document.querySelector("#saveAsPath");
 const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
 const cancelSaveAsButton = document.querySelector("#cancelSaveAsButton");
 const confirmSaveAsButton = document.querySelector("#confirmSaveAsButton");
+const externalChangePanel = document.querySelector("#externalChangePanel");
+const externalChangeTitle = document.querySelector("#externalChangeTitle");
+const externalChangeMessage = document.querySelector("#externalChangeMessage");
+const closeExternalChangeButton = document.querySelector("#closeExternalChangeButton");
+const keepExternalChangeButton = document.querySelector("#keepExternalChangeButton");
+const saveAsExternalChangeButton = document.querySelector("#saveAsExternalChangeButton");
+const reloadExternalChangeButton = document.querySelector("#reloadExternalChangeButton");
 const gridContextMenu = document.querySelector("#gridContextMenu");
 const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
@@ -314,6 +321,7 @@ let conditionBuilderOpen = false;
 let columnMenuColumn = -1;
 let readOnly = false;
 let externalFileChanged = false;
+let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
@@ -978,9 +986,8 @@ function updateFormatStatus() {
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
     document.body.dataset.headerColumns = "";
-    document.body.dataset.externalFileChanged = "false";
     readOnlyStatus.textContent = "Editable";
-    externalStatus.textContent = "Synced";
+    syncExternalChangeControls(false);
     return;
   }
   encodingStatus.textContent = encodingLabel();
@@ -990,10 +997,28 @@ function updateFormatStatus() {
   headerStatus.disabled = !documentId;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
-  document.body.dataset.externalFileChanged = String(Boolean(externalFileChanged));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
-  externalStatus.textContent = externalFileChanged ? "Changed on disk" : "Synced";
+  syncExternalChangeControls();
   syncQuotePolicyControls();
+}
+
+function syncExternalChangeControls(hasDocument = Boolean(metadata)) {
+  const changed = Boolean(hasDocument && externalFileChanged);
+  const conflict = Boolean(changed && dirty);
+  document.body.dataset.externalFileChanged = String(changed);
+  document.body.dataset.externalConflict = conflict ? "dirty" : changed ? "available" : "";
+  externalStatus.textContent = changed ? "Changed on disk" : "Synced";
+  externalStatus.disabled = !changed;
+  externalStatus.title = changed
+    ? conflict
+      ? "Resolve external file change with unsaved edits"
+      : "Refresh changed file from disk"
+    : "Synced";
+  if (!changed && externalChangePanel && !externalChangePanel.hidden) {
+    closeExternalChangePanel();
+  } else if (changed && externalChangePanel && !externalChangePanel.hidden) {
+    updateExternalChangePanel();
+  }
 }
 
 function encodingLabel(info = metadata?.encoding) {
@@ -7833,6 +7858,50 @@ function closeSaveAsDialog() {
   canvas.focus();
 }
 
+function updateExternalChangePanel() {
+  const conflict = Boolean(dirty);
+  externalChangeTitle.textContent = conflict ? "Unsaved Edits Conflict" : "File Changed on Disk";
+  externalChangeMessage.textContent = conflict
+    ? "The backing file changed on disk while this document has unsaved edits."
+    : "The backing file changed on disk and can be refreshed now.";
+  saveAsExternalChangeButton.hidden = !conflict;
+  reloadExternalChangeButton.textContent = conflict ? "Reload from Disk" : "Refresh from Disk";
+  reloadExternalChangeButton.title = conflict ? "Discard unsaved edits and load the disk file" : "Load the disk file";
+}
+
+function openExternalChangePanel() {
+  if (!documentId || !externalFileChanged) return;
+  updateExternalChangePanel();
+  externalChangePanel.hidden = false;
+  reloadExternalChangeButton.focus();
+}
+
+function closeExternalChangePanel() {
+  if (!externalChangePanel.hidden) externalChangePanel.hidden = true;
+  externalChangePanelDismissed = true;
+  canvas.focus();
+}
+
+function saveAsExternalChange() {
+  externalChangePanel.hidden = true;
+  openSaveAsDialog();
+}
+
+async function reloadExternalChangeFromDisk() {
+  if (!documentId || !externalFileChanged) return;
+  const discardDirty = Boolean(dirty);
+  status.textContent = discardDirty
+    ? "Reloading from disk and discarding local edits..."
+    : "Refreshing from disk...";
+  const refreshed = await refreshCurrentDocument({ discardDirty, manual: true });
+  if (refreshed) {
+    externalChangePanel.hidden = true;
+    externalChangePanelDismissed = false;
+  } else {
+    updateExternalChangePanel();
+  }
+}
+
 function suggestedSaveAsPath() {
   const current = metadata?.path || activeFileEntry?.detail || pathInput.value.trim() || "/tmp/output.csv";
   if (current === "temporary upload") return `/tmp/${activeFileEntry?.name || "opencsv-output.csv"}`;
@@ -7911,14 +7980,23 @@ async function checkFileStatus(autoRefresh = true) {
     readOnly = Boolean(payload.readOnly);
     const wasChanged = externalFileChanged;
     externalFileChanged = Boolean(payload.changedExternally);
-    if (externalFileChanged && autoRefresh && autoRefreshMode === "clean" && !dirty && !readOnly && !viewMapped) {
+    if (!externalFileChanged) {
+      externalChangePanelDismissed = false;
+    }
+    if (externalFileChanged && autoRefresh && autoRefreshMode === "clean" && !dirty && !viewMapped) {
       await refreshCurrentDocument();
       return;
     }
     if (externalFileChanged && autoRefresh && !wasChanged) {
-      status.textContent = autoRefreshMode === "notify"
-        ? "File changed on disk; auto-refresh is set to notify only."
-        : "File changed on disk.";
+      externalChangePanelDismissed = false;
+      if (dirty) {
+        status.textContent = "File changed on disk while local edits are unsaved.";
+        if (!externalChangePanelDismissed) openExternalChangePanel();
+      } else {
+        status.textContent = autoRefreshMode === "notify"
+          ? "File changed on disk; auto-refresh is set to notify only."
+          : "File changed on disk.";
+      }
     }
     updateFormatStatus();
     updateCommandState();
@@ -7927,32 +8005,36 @@ async function checkFileStatus(autoRefresh = true) {
   }
 }
 
-async function refreshCurrentDocument() {
+async function refreshCurrentDocument(options = {}) {
   if (!documentId) return;
   const response = await fetch("/api/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId }),
+    body: JSON.stringify({ documentId, discardDirty: Boolean(options.discardDirty) }),
   });
   const payload = await response.json();
   if (!response.ok) {
     externalFileChanged = true;
-    status.textContent = `Refresh failed: ${payload.error ?? "unknown error"}`;
+    const message = `Refresh failed: ${payload.error ?? "unknown error"}`;
+    updateFormatStatus();
     draw();
-    return;
+    status.textContent = message;
+    return false;
   }
   const session = payload.session;
-  if (!session?.document) return;
+  if (!session?.document) return false;
   metadata = session.document.metadata;
   readOnly = Boolean(session.readOnly);
   externalFileChanged = false;
+  externalChangePanelDismissed = false;
   loadDocument(session.document);
   updateFileList(session.displayName || fileNameFromPath(metadata.path), metadata.path, totalRows);
   updateFormatStatus();
   updateInspector();
   updateCommandState();
   draw();
-  status.textContent = "Auto-refreshed external changes";
+  status.textContent = options.manual ? "Refreshed external changes" : "Auto-refreshed external changes";
+  return true;
 }
 
 function startFileStatusChecks() {
@@ -8821,6 +8903,11 @@ function handleGlobalShortcut(event) {
     closeConditionBuilder();
     return true;
   }
+  if (event.key === "Escape" && !externalChangePanel.hidden) {
+    event.preventDefault();
+    closeExternalChangePanel();
+    return true;
+  }
   if (event.key === "Escape" && smartSelectionRanges.length > 0) {
     event.preventDefault();
     clearSmartSelectionRanges();
@@ -9095,6 +9182,7 @@ aggregateStatusButton.addEventListener("click", async (event) => {
   cycleAggregateMetric();
 });
 headerStatus.addEventListener("click", () => executeCommand("table.toggleHeaderRow"));
+externalStatus.addEventListener("click", openExternalChangePanel);
 saveFormatPresetButton.addEventListener("click", () => executeCommand("format.savePreset"));
 applyFormatPresetButton.addEventListener("click", () => executeCommand("format.applyPreset"));
 formatPresetSelect.addEventListener("change", () => updateCommandState());
@@ -9243,10 +9331,20 @@ shortcutsPanel.addEventListener("mousedown", (event) => {
 closeSaveAsButton.addEventListener("click", closeSaveAsDialog);
 cancelSaveAsButton.addEventListener("click", closeSaveAsDialog);
 confirmSaveAsButton.addEventListener("click", confirmSaveAs);
+closeExternalChangeButton.addEventListener("click", closeExternalChangePanel);
+keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
+saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
+reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDisk);
 saveAsPanel.addEventListener("mousedown", (event) => {
   if (event.target === saveAsPanel) {
     event.preventDefault();
     closeSaveAsDialog();
+  }
+});
+externalChangePanel.addEventListener("mousedown", (event) => {
+  if (event.target === externalChangePanel) {
+    event.preventDefault();
+    closeExternalChangePanel();
   }
 });
 saveAsPath.addEventListener("keydown", async (event) => {

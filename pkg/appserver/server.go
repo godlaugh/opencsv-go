@@ -370,7 +370,8 @@ func (server *Server) handleEditBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 type documentRequest struct {
-	DocumentID string `json:"documentId"`
+	DocumentID   string `json:"documentId"`
+	DiscardDirty bool   `json:"discardDirty,omitempty"`
 }
 
 type exportViewRequest struct {
@@ -591,7 +592,7 @@ func (server *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := server.documents.Refresh(request.DocumentID)
+	session, err := server.documents.Refresh(request.DocumentID, request.DiscardDirty)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

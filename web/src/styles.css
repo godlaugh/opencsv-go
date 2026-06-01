@@ -1334,6 +1334,19 @@ button:disabled {
   font-size: 12px;
 }
 
+.external-change-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.external-change-body p {
+  margin: 0;
+}
+
 .condition-grid select,
 .condition-grid input,
 .save-as-body input {
@@ -1534,6 +1547,12 @@ button:disabled {
 
 .status-toggle {
   color: var(--muted);
+}
+
+.external-status {
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .aggregate-status:not(:disabled),

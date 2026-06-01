@@ -2241,12 +2241,12 @@ func (manager *Manager) FileStatus(id string) (FileStatus, error) {
 	return status, nil
 }
 
-func (manager *Manager) Refresh(id string) (*Session, error) {
+func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) {
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return nil, errors.New("document not found")
 	}
-	if session.Dirty {
+	if session.Dirty && !discardDirty {
 		return nil, errors.New("document has unsaved edits")
 	}
 	path := session.trackedPath()

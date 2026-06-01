@@ -1219,7 +1219,7 @@ func TestManagerReadOnlyAndFileStatusRefresh(t *testing.T) {
 	if !status.ChangedExternally {
 		t.Fatalf("status = %#v, want changedExternally", status)
 	}
-	refreshed, err := manager.Refresh(session.ID)
+	refreshed, err := manager.Refresh(session.ID, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1232,6 +1232,27 @@ func TestManagerReadOnlyAndFileStatusRefresh(t *testing.T) {
 	}
 	if status.ChangedExternally {
 		t.Fatalf("status after refresh = %#v, want no external change", status)
+	}
+
+	if err := manager.Edit(session.ID, 1, 1, "Local"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("id,name\n1,Disk\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Refresh(session.ID, false); err == nil {
+		t.Fatal("dirty refresh without discard succeeded")
+	}
+	refreshed, err = manager.Refresh(session.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, records, err := manager.Records(refreshed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Disk" || refreshed.Dirty {
+		t.Fatalf("discard refresh records = %#v dirty=%v", records, refreshed.Dirty)
 	}
 }
 
