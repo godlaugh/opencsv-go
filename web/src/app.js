@@ -285,6 +285,7 @@ let paletteIndex = 0;
 let customShortcuts = new Map();
 let shortcutEditorOpen = false;
 let recordingShortcutID = "";
+let pendingShortcutConflict = null;
 let conditionBuilderOpen = false;
 let columnMenuColumn = -1;
 let readOnly = false;
@@ -2253,6 +2254,7 @@ function closeCommandPalette() {
 function openKeyboardShortcuts() {
   shortcutEditorOpen = true;
   recordingShortcutID = "";
+  pendingShortcutConflict = null;
   shortcutsSearch.value = "";
   shortcutImportPanel.hidden = true;
   shortcutImportText.value = "";
@@ -2265,6 +2267,7 @@ function openKeyboardShortcuts() {
 function closeKeyboardShortcuts() {
   shortcutEditorOpen = false;
   recordingShortcutID = "";
+  pendingShortcutConflict = null;
   shortcutsPanel.hidden = true;
   shortcutImportPanel.hidden = true;
   shortcutImportText.value = "";
@@ -2309,6 +2312,7 @@ function renderKeyboardShortcuts() {
     recordButton.textContent = command.id === recordingShortcutID ? "Cancel" : "Record";
     recordButton.addEventListener("click", () => {
       recordingShortcutID = command.id === recordingShortcutID ? "" : command.id;
+      pendingShortcutConflict = null;
       renderKeyboardShortcuts();
     });
     const resetButton = document.createElement("button");
@@ -2317,6 +2321,20 @@ function renderKeyboardShortcuts() {
     resetButton.disabled = !customShortcuts.has(command.id);
     resetButton.addEventListener("click", () => resetCustomShortcut(command.id));
     actions.append(recordButton, resetButton);
+    if (pendingShortcutConflict?.commandID === command.id) {
+      const conflictCommand = commandsById.get(pendingShortcutConflict.conflictID);
+      const conflictNote = document.createElement("span");
+      conflictNote.className = "shortcut-conflict";
+      conflictNote.textContent = conflictCommand
+        ? `${pendingShortcutConflict.shortcut} is assigned to ${conflictCommand.title}`
+        : `${pendingShortcutConflict.shortcut} is already assigned`;
+      const replaceButton = document.createElement("button");
+      replaceButton.type = "button";
+      replaceButton.textContent = "Replace";
+      replaceButton.addEventListener("click", replaceShortcutConflict);
+      meta.append(conflictNote);
+      actions.append(replaceButton);
+    }
 
     row.append(meta, shortcut, actions);
     fragment.append(row);
@@ -2325,7 +2343,7 @@ function renderKeyboardShortcuts() {
 }
 
 function effectiveShortcut(command) {
-  return customShortcuts.get(command.id) || command.shortcut || "";
+  return customShortcuts.has(command.id) ? customShortcuts.get(command.id) : command.shortcut || "";
 }
 
 function defaultShortcutActive(commandID) {
@@ -2338,8 +2356,8 @@ function loadCustomShortcuts() {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
     return new Map(
       Object.entries(parsed)
-        .filter(([id, shortcut]) => typeof id === "string" && typeof shortcut === "string" && shortcut.trim())
-        .map(([id, shortcut]) => [id, shortcut]),
+        .filter(([id, shortcut]) => typeof id === "string" && typeof shortcut === "string")
+        .map(([id, shortcut]) => [id, normalizeShortcutText(shortcut)]),
     );
   } catch {
     return new Map();
@@ -2360,6 +2378,7 @@ function applyShortcutPreset() {
   const preset = shortcutPresets.find((item) => item.id === shortcutPresetSelect.value) ?? shortcutPresets[0];
   const result = shortcutMapFromEntries(Object.entries(preset.shortcuts));
   customShortcuts = result.shortcuts;
+  pendingShortcutConflict = null;
   saveCustomShortcuts();
   document.body.dataset.shortcutPreset = `${preset.id}:${result.applied}:${result.skipped}`;
   status.textContent = `Applied ${preset.name} shortcut preset: ${formatCount(result.applied)} shortcuts${result.skipped ? `, skipped ${formatCount(result.skipped)}` : ""}.`;
@@ -2432,6 +2451,7 @@ function applyShortcutImport() {
   try {
     const imported = parseShortcutImport(shortcutImportText.value);
     const result = mergeImportedShortcuts(imported);
+    pendingShortcutConflict = null;
     saveCustomShortcuts();
     shortcutImportPanel.hidden = true;
     shortcutImportText.value = "";
@@ -2460,8 +2480,7 @@ function parseShortcutImport(text) {
   }
   return Object.entries(source)
     .filter(([commandID, shortcut]) => typeof commandID === "string" && typeof shortcut === "string")
-    .map(([commandID, shortcut]) => [commandID, normalizeShortcutText(shortcut)])
-    .filter(([, shortcut]) => shortcut);
+    .map(([commandID, shortcut]) => [commandID, normalizeShortcutText(shortcut)]);
 }
 
 function normalizeShortcutText(shortcut) {
@@ -2478,6 +2497,15 @@ function mergeImportedShortcuts(imported) {
   const next = new Map(customShortcuts);
   for (const [commandID, shortcut] of imported) {
     const command = commandsById.get(commandID);
+    if (shortcut === "") {
+      if (!command || command.implemented === false) {
+        skipped++;
+        continue;
+      }
+      next.set(commandID, "");
+      importedCount++;
+      continue;
+    }
     if (!command || command.implemented === false || !shortcutAllowed(shortcut)) {
       skipped++;
       continue;
@@ -2501,7 +2529,7 @@ function mergeImportedShortcuts(imported) {
 function commandForShortcutWithMap(shortcut, exceptID, customMap) {
   for (const command of commandsById.values()) {
     if (command.id === exceptID) continue;
-    const effective = customMap.get(command.id) || command.shortcut || "";
+    const effective = customMap.has(command.id) ? customMap.get(command.id) : command.shortcut || "";
     if (effective === shortcut) return command;
   }
   return null;
@@ -2510,6 +2538,7 @@ function commandForShortcutWithMap(shortcut, exceptID, customMap) {
 function resetCustomShortcut(commandID) {
   const command = commandsById.get(commandID);
   if (!command) return;
+  pendingShortcutConflict = null;
   customShortcuts.delete(commandID);
   saveCustomShortcuts();
   status.textContent = `Reset shortcut for ${command.title}`;
@@ -2541,18 +2570,49 @@ function handleShortcutEditorKeydown(event) {
   if (!command) return true;
   const conflict = commandForShortcut(shortcut, command.id);
   if (conflict) {
+    pendingShortcutConflict = { commandID: command.id, conflictID: conflict.id, shortcut };
+    document.body.dataset.shortcutConflict = `${command.id}:${conflict.id}:${shortcut}`;
+    renderKeyboardShortcuts();
     status.textContent = `${shortcut} is already assigned to ${conflict.title}`;
     return true;
   }
-  if (shortcut === command.shortcut) {
-    customShortcuts.delete(command.id);
-  } else {
-    customShortcuts.set(command.id, shortcut);
-  }
+  assignShortcut(command, shortcut, customShortcuts);
   recordingShortcutID = "";
+  pendingShortcutConflict = null;
   saveCustomShortcuts();
   status.textContent = `Shortcut for ${command.title}: ${shortcut}`;
   return true;
+}
+
+function replaceShortcutConflict() {
+  if (!pendingShortcutConflict) return;
+  const target = commandsById.get(pendingShortcutConflict.commandID);
+  const conflict = commandsById.get(pendingShortcutConflict.conflictID);
+  if (!target || !conflict) return;
+  clearShortcut(conflict, pendingShortcutConflict.shortcut, customShortcuts);
+  assignShortcut(target, pendingShortcutConflict.shortcut, customShortcuts);
+  const message = `${pendingShortcutConflict.shortcut} moved from ${conflict.title} to ${target.title}`;
+  recordingShortcutID = "";
+  pendingShortcutConflict = null;
+  document.body.dataset.shortcutConflict = "resolved";
+  saveCustomShortcuts();
+  status.textContent = message;
+}
+
+function assignShortcut(command, shortcut, customMap) {
+  if (shortcut === command.shortcut) {
+    customMap.delete(command.id);
+  } else {
+    customMap.set(command.id, shortcut);
+  }
+}
+
+function clearShortcut(command, shortcut, customMap) {
+  if ((command.shortcut || "") === shortcut) {
+    customMap.set(command.id, "");
+  } else if (customMap.has(command.id) && customMap.get(command.id) === shortcut) {
+    customMap.delete(command.id);
+  }
 }
 
 function shortcutAllowed(shortcut) {
