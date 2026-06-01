@@ -3699,6 +3699,7 @@ function displayRowForSourceRow(sourceRow) {
 async function openPath(path, options = {}) {
   status.textContent = `Opening ${path}...`;
   let preset = options.preset ?? null;
+  const formatOverride = options.formatOverride ?? null;
   let matchedRule = null;
   if (!preset && options.applyRules !== false) {
     const match = await matchingFormatPresetForPath(path);
@@ -3717,6 +3718,7 @@ async function openPath(path, options = {}) {
     body.quoteChar = preset.quoteChar || "double";
     body.quoteMode = preset.quoteMode || "minimal";
   }
+  applyFormatOverride(body, formatOverride);
   const response = await fetch("/api/open", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -3735,12 +3737,27 @@ async function openPath(path, options = {}) {
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
-  if (matchedRule) {
+  if (hasFormatOverride(formatOverride)) {
+    status.textContent = `Applied URL format: ${documentFormatSummary()}`;
+  } else if (matchedRule) {
     status.textContent = `Applied format rule: ${matchedRule.pattern} -> ${preset.name || formatPresetName(preset)}`;
   } else if (preset) {
     status.textContent = `Applied format preset: ${preset.name || formatPresetName(preset)}`;
   }
   canvas.focus();
+}
+
+function applyFormatOverride(body, override) {
+  if (!override) return;
+  for (const [key, value] of Object.entries(override)) {
+    if (value !== undefined && value !== "") {
+      body[key] = value;
+    }
+  }
+}
+
+function hasFormatOverride(override) {
+  return Boolean(override && Object.keys(override).length);
 }
 
 async function uploadAndOpen(file) {
@@ -7483,7 +7500,7 @@ async function openInitialURLTarget() {
   if (!path) return;
   pathInput.value = path;
   try {
-    await openPath(path);
+    await openPath(path, { formatOverride: formatOverrideFromParams(params) });
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
   }
@@ -7491,6 +7508,58 @@ async function openInitialURLTarget() {
 
 function truthyParam(value) {
   return value === "1" || value === "true" || value === "yes";
+}
+
+function formatOverrideFromParams(params) {
+  const firstParam = (...names) => {
+    for (const name of names) {
+      const value = params.get(name);
+      if (value) return value;
+    }
+    return "";
+  };
+  const override = {};
+  const delimiter = firstParam("delimiter", "d");
+  if (delimiter) {
+    const normalized = normalizeDelimiterOverride(delimiter);
+    override.delimiter = normalized.delimiter;
+    override.delimiterName = normalized.delimiterName;
+  }
+  const quoteChar = firstParam("quote", "q");
+  if (quoteChar) override.quoteChar = quoteChar;
+  const quoteMode = firstParam("quote-mode", "quoteMode", "quote_mode", "qm");
+  if (quoteMode) override.quoteMode = quoteMode;
+  const encodingName = firstParam("encoding", "e");
+  if (encodingName) override.encodingName = encodingName;
+  const headerRows = firstParam("header-rows", "headerRows");
+  if (headerRows) {
+    const rows = Number.parseInt(headerRows, 10);
+    if (Number.isFinite(rows) && rows >= 0) override.hasHeader = rows > 0;
+  }
+  const header = firstParam("header");
+  if (header) override.hasHeader = truthyParam(header);
+  const noHeader = firstParam("no-header", "noHeader");
+  if (noHeader && truthyParam(noHeader)) override.hasHeader = false;
+  return override;
+}
+
+function normalizeDelimiterOverride(value) {
+  const raw = String(value);
+  switch (raw.toLowerCase()) {
+    case "comma":
+      return { delimiter: ",", delimiterName: "comma" };
+    case "tab":
+    case "\\t":
+      return { delimiter: "\t", delimiterName: "tab" };
+    case "semicolon":
+      return { delimiter: ";", delimiterName: "semicolon" };
+    case "pipe":
+      return { delimiter: "|", delimiterName: "pipe" };
+    case "space":
+      return { delimiter: " ", delimiterName: "space" };
+    default:
+      return { delimiter: raw, delimiterName: raw };
+  }
 }
 
 openButton.addEventListener("click", openPathInputOrPicker);

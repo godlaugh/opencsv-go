@@ -73,6 +73,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-008/015 | SQL Console result range selection and copy/export as CSV | Started | command registry, Browser SQL result verification |
 | FR-014/016 | Column profile and CSVLint-style validation foundation | Started | `pkg/dataprofile` tests, `/api/profile`, Browser Profile View verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
+| FR-010/011 | URL format query overrides for browser open | Started | `/api/open` test, Browser URL/save verification |
 | FR-010 | CLI stdin open foundation | Started | `cmd/opencsv` test, CLI smoke |
 | FR-012 | Command registry and Command Palette foundation | Started | `pkg/commands` tests, `/api/commands`, Browser command palette verification |
 | FR-012 | Command Palette fuzzy search and recent command history | Started | Browser palette verification |
@@ -189,6 +190,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Format preset verification on `/tmp/opencsv-format-preset.csv`: saving the detected `Comma · Header · UTF-8` format stores one local preset with preview `,|header|utf-8`; toggling to `No header` changes the active column to `Column 1` and first cell to `id`; applying the preset reopens the path with overrides, restores `Header row`, column `id`, first data value `1`, and does not mark the document edited.
 - Format rule verification on `/tmp/opencsv-auto-rule-source.csv`, `/tmp/opencsv-auto-rule-target2.csv`, and `/tmp/opencsv-content-rule-target2.data`: the `Save Rule` control remains inside the workspace hit target instead of sliding under the Inspector; saving `name:opencsv-auto-rule-target2.csv` and `content:auto-rule-token` rules attaches them to the `Comma · No header · UTF-8` preset; reopening matching local paths automatically applies the preset before detection, reports `Applied format rule`, shows `No header`, column `Column 1`, and keeps the source header text as the first data value.
 - Settings format manager verification on `/tmp/opencsv-settings-manager.csv`: `Settings` opens from the toolbar and Command Palette, hides the grid canvas while active, and shows modified/default state plus preset/rule counts; after resetting old presets, saving `Comma · Header · UTF-8` with `name:opencsv-settings-target.csv` appears as one preset with one rule; Settings search for `target` keeps the matching preset visible; adding `path:/tmp/opencsv-settings-*` updates the count to two rules; removing a rule updates status and filtering; deleting the preset returns Settings to `Defaults`, disables reset, and returns the status select to only `Preset`.
+- URL format override verification on `/tmp/opencsv-url-format.csv`: URL boot `?open=/tmp/opencsv-url-format.csv&delimiter=pipe&header-rows=1&quote=single&quote-mode=always` reports `Applied URL format: UTF-8 · Pipe · LF · Quote always single`, updates the delimiter/quote/header status surfaces, and Save writes `'id'|'note'\n'1'|'plain'\n'2'|'free'\n`.
 
 ## Implementation Notes
 
@@ -202,7 +204,8 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `pkg/sqlexpr` provides the first SQL WHERE expression engine for row filters: identifiers/header names, `c1` columns, comparisons, `AND`/`OR`/`NOT`, `LIKE`, `IS NULL`, arithmetic, `CAST`/`TRY_CAST`, core string/numeric/conditional functions, validated date/time/timestamp literals, and first-pass interval literals/casts.
 - `pkg/protocol` parses official-style goto locations and `smoothcsv://file/...` URLs, including row/cell/range locations and shared format query parameters.
 - Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands.
-- CLI open applies delimiter, encoding, and header-row overrides to `csvcore.OpenDocument`; quote and quote-mode are parsed and preserved in invocation metadata but not yet applied by the CSV reader/writer.
+- CLI open applies delimiter, encoding, quote character, quote mode, and header-row overrides to `csvcore.OpenDocument`.
+- Browser URL boot-open now applies `delimiter`, `quote`, `quote-mode`, `encoding`, and header query params to `/api/open`, with explicit URL params taking precedence over matched format rules.
 - Find now supports regex/case/whole-cell options, total match counts, and truncated result windows in the API layer. Replace current/all stores edits through the document edit overlay and marks the session dirty, while replace preview returns the same proposed changes without mutating the document or pushing undo history.
 - Frontend Find/Replace now exposes `Aa`, `=`, and `.*` toggles for case-sensitive, whole-cell, and regex modes, and sends those options to `/api/find` and `/api/replace`.
 - Frontend Find now caches the current result window, shows `current/total`, and supports Previous/Next navigation from the toolbar and Enter/Shift+Enter in the query field.

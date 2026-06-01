@@ -165,6 +165,8 @@ func TestServerOpenWithFormatOverrides(t *testing.T) {
 		"delimiterName": "pipe",
 		"hasHeader":     false,
 		"encodingName":  "utf-8",
+		"quoteChar":     "single",
+		"quoteMode":     "always",
 	})
 	document := openPayload["document"].(map[string]any)
 	metadata := document["metadata"].(map[string]any)
@@ -174,6 +176,9 @@ func TestServerOpenWithFormatOverrides(t *testing.T) {
 	}
 	if dialect["hasHeader"] != false {
 		t.Fatalf("hasHeader = %#v, want false", dialect["hasHeader"])
+	}
+	if dialect["quoteChar"] != "'" || dialect["quoteMode"] != "always" {
+		t.Fatalf("quote override = %#v", dialect)
 	}
 	preview := document["preview"].([]any)
 	if got := preview[0].([]any)[0]; got != "id" {
