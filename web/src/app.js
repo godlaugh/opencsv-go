@@ -3700,6 +3700,7 @@ async function openPath(path, options = {}) {
   status.textContent = `Opening ${path}...`;
   let preset = options.preset ?? null;
   const formatOverride = options.formatOverride ?? null;
+  const urlLocation = options.location ?? null;
   let matchedRule = null;
   if (!preset && options.applyRules !== false) {
     const match = await matchingFormatPresetForPath(path);
@@ -3737,8 +3738,12 @@ async function openPath(path, options = {}) {
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
-  if (hasFormatOverride(formatOverride)) {
-    status.textContent = `Applied URL format: ${documentFormatSummary()}`;
+  const locationApplied = await applyURLLocation(urlLocation);
+  const statusMessages = [];
+  if (hasFormatOverride(formatOverride)) statusMessages.push(`Applied URL format: ${documentFormatSummary()}`);
+  if (locationApplied) statusMessages.push(`Applied URL location: ${selectionSummary()}`);
+  if (statusMessages.length) {
+    status.textContent = statusMessages.join(" · ");
   } else if (matchedRule) {
     status.textContent = `Applied format rule: ${matchedRule.pattern} -> ${preset.name || formatPresetName(preset)}`;
   } else if (preset) {
@@ -3758,6 +3763,48 @@ function applyFormatOverride(body, override) {
 
 function hasFormatOverride(override) {
   return Boolean(override && Object.keys(override).length);
+}
+
+async function applyURLLocation(location) {
+  const range = normalizeURLLocation(location);
+  if (!range) return false;
+  setSmartSelectionRanges([]);
+  selectionAnchor = { row: range.startRow, col: range.startCol };
+  selected = { row: range.endRow, col: range.endCol };
+  scrollRangeIntoView(range);
+  await maybeLoadWindow(selected.row);
+  document.body.dataset.urlLocation = selectionSummary();
+  draw();
+  return true;
+}
+
+function normalizeURLLocation(location) {
+  if (!location || !documentId || sourceRowCount <= 0 || columns.length === 0) return null;
+  const toIndex = (value, fallback) => {
+    if (value === "last") return columns.length - 1;
+    const parsed = Number.parseInt(String(value ?? ""), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed - 1 : fallback;
+  };
+  const startRow = toIndex(location.startRow, 0);
+  const startCol = toIndex(location.startCol, 0);
+  const endRow = toIndex(location.endRow, startRow);
+  const endCol = toIndex(location.endCol, startCol);
+  return normalizeRange({
+    startRow: Math.max(0, Math.min(startRow, endRow)),
+    endRow: Math.min(sourceRowCount - 1, Math.max(startRow, endRow)),
+    startCol: Math.max(0, Math.min(startCol, endCol)),
+    endCol: Math.min(columns.length - 1, Math.max(startCol, endCol)),
+  });
+}
+
+function scrollRangeIntoView(range) {
+  scrollY = Math.max(0, Math.min(maxVerticalScroll(), range.startRow * rowHeight - rowHeight * 2));
+  const widthBeforeColumn = columns
+    .slice(0, range.startCol)
+    .reduce((sum, column) => sum + column.width, 0);
+  const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  const maxX = Math.max(0, totalWidth - canvas.clientWidth + rowNumberWidth);
+  scrollX = Math.max(0, Math.min(maxX, widthBeforeColumn));
 }
 
 async function uploadAndOpen(file) {
@@ -7500,7 +7547,10 @@ async function openInitialURLTarget() {
   if (!path) return;
   pathInput.value = path;
   try {
-    await openPath(path, { formatOverride: formatOverrideFromParams(params) });
+    await openPath(path, {
+      formatOverride: formatOverrideFromParams(params),
+      location: locationFromParams(params),
+    });
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
   }
@@ -7541,6 +7591,38 @@ function formatOverrideFromParams(params) {
   const noHeader = firstParam("no-header", "noHeader");
   if (noHeader && truthyParam(noHeader)) override.hasHeader = false;
   return override;
+}
+
+function locationFromParams(params) {
+  const raw = params.get("goto") || params.get("location") || params.get("range");
+  if (raw) return parseURLLocation(raw);
+  const startRow = params.get("row");
+  if (!startRow) return null;
+  const endRow = params.get("endRow") || params.get("end-row") || startRow;
+  const startCol = params.get("col") || params.get("column") || 1;
+  return {
+    startRow,
+    startCol,
+    endRow,
+    endCol:
+      params.get("endCol") ||
+      params.get("end-column") ||
+      params.get("endColumn") ||
+      (endRow !== startRow && !params.get("col") && !params.get("column") ? "last" : startCol),
+  };
+}
+
+function parseURLLocation(raw) {
+  const value = String(raw).trim();
+  let match = value.match(/^([0-9]+):([0-9]+)-([0-9]+):([0-9]+)$/);
+  if (match) return { startRow: match[1], startCol: match[2], endRow: match[3], endCol: match[4] };
+  match = value.match(/^([0-9]+)-([0-9]+)$/);
+  if (match) return { startRow: match[1], startCol: 1, endRow: match[2], endCol: "last" };
+  match = value.match(/^([0-9]+):([0-9]+)$/);
+  if (match) return { startRow: match[1], startCol: match[2] };
+  match = value.match(/^([0-9]+)$/);
+  if (match) return { startRow: match[1], startCol: 1 };
+  return null;
 }
 
 function normalizeDelimiterOverride(value) {
