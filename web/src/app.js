@@ -274,6 +274,7 @@ let resizingColumn = -1;
 let resizeStartClientX = 0;
 let resizeStartWidth = 0;
 let editing = false;
+let structureClipboard = null;
 let documentId = "";
 let activeFileEntry = null;
 let metadata = null;
@@ -601,6 +602,25 @@ function columnNameForSource(sourceCol) {
   return allColumns.find((column) => column.sourceCol === sourceCol)?.name ?? `Column ${sourceCol + 1}`;
 }
 
+function setStructureClipboard(kind, source, cut = false) {
+  structureClipboard = { documentId, kind, source, cut };
+  document.body.dataset.structureClipboard = `${kind}:${cut ? "cut" : "copy"}:${source}`;
+  updateCommandState();
+}
+
+function clearStructureClipboard() {
+  structureClipboard = null;
+  document.body.dataset.structureClipboard = "";
+  updateCommandState();
+}
+
+function structureClipboardFor(kind) {
+  if (!structureClipboard || structureClipboard.documentId !== documentId || structureClipboard.kind !== kind) {
+    return null;
+  }
+  return structureClipboard;
+}
+
 function applyHiddenColumns() {
   columns = allColumns.filter((column) => !hiddenSourceColumns.has(column.sourceCol));
 }
@@ -796,6 +816,10 @@ function isCommandDisabled(command) {
     command.id === "selection.cycleAggregate" ||
     command.id === "selection.insertAggregateRow";
   const needsColumn = command.id === "format.toggleColumnQuote";
+  const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
+  const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
+  const needsRowClipboard = command.id === "row.paste";
+  const needsColumnClipboard = command.id === "column.paste";
   const writeBlocked =
     readOnly &&
     (
@@ -808,11 +832,15 @@ function isCommandDisabled(command) {
       command.id === "edit.replaceAll" ||
       command.id === "row.insert" ||
       command.id === "row.delete" ||
+      command.id === "row.cut" ||
+      command.id === "row.paste" ||
       command.id === "row.hide" ||
       command.id === "row.moveUp" ||
       command.id === "row.moveDown" ||
       command.id === "column.insert" ||
       command.id === "column.delete" ||
+      command.id === "column.cut" ||
+      command.id === "column.paste" ||
       command.id === "column.hide" ||
       command.id === "column.moveLeft" ||
       command.id === "column.moveRight" ||
@@ -859,6 +887,10 @@ function isCommandDisabled(command) {
     (needsActiveFilter && !activeFilter) ||
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
+    (needsVisibleColumn && columns.length === 0) ||
+    (needsBodyRow && selected.row >= sourceRowCount) ||
+    (needsRowClipboard && !structureClipboardFor("row")) ||
+    (needsColumnClipboard && !structureClipboardFor("column")) ||
     (needsSelectedCells && selectionCellCount() === 0) ||
     writeBlocked
   );
@@ -2287,12 +2319,16 @@ function renderGridContextMenu(target, clientX, clientY) {
     addSeparator();
     addCommand("row.insert");
     addCommand("row.delete");
+    addCommand("row.cut");
+    addCommand("row.paste");
     addCommand("row.hide");
   }
   if (target.kind !== "row") {
     addSeparator();
     addCommand("column.insert");
     addCommand("column.delete");
+    addCommand("column.cut");
+    addCommand("column.paste");
     addCommand("column.hide");
   }
   addSeparator();
@@ -3532,6 +3568,12 @@ async function executeCommand(commandID) {
     case "row.delete":
       await deleteSelectedRow();
       break;
+    case "row.cut":
+      cutSelectedRow();
+      break;
+    case "row.paste":
+      await pasteRowFromClipboard();
+      break;
     case "row.hide":
       await hideSelectedRow();
       break;
@@ -3546,6 +3588,12 @@ async function executeCommand(commandID) {
       break;
     case "column.delete":
       await deleteSelectedColumn();
+      break;
+    case "column.cut":
+      cutSelectedColumn();
+      break;
+    case "column.paste":
+      await pasteColumnFromClipboard();
       break;
     case "column.hide":
       hideSelectedColumn();
@@ -4698,6 +4746,7 @@ async function openPath(path, options = {}) {
   metadata = payload.document.metadata;
   readOnly = false;
   externalFileChanged = false;
+  clearStructureClipboard();
   loadDocument(payload.document);
   updateFileList(fileNameFromPath(path), metadata.path, totalRows, { remember: true });
   updateFormatRulePlaceholder(path);
@@ -4788,6 +4837,7 @@ async function uploadAndOpen(file) {
   metadata = payload.document.metadata;
   readOnly = false;
   externalFileChanged = false;
+  clearStructureClipboard();
   loadDocument(payload.document);
   pathInput.value = file.name;
   updateFormatRulePlaceholder(file.name);
@@ -5072,7 +5122,8 @@ async function copyActiveRow(options = {}) {
     return;
   }
   const includeHeaders = Boolean(options.includeHeaders);
-  await copyExportViewSlice({
+  const sourceRow = selectedSourceRow();
+  const copied = await copyExportViewSlice({
     label: includeHeaders ? "row with headers" : "row",
     body: {
       documentId,
@@ -5083,21 +5134,24 @@ async function copyActiveRow(options = {}) {
     },
     cellCount: columns.length,
   });
+  if (!includeHeaders && copied) setStructureClipboard("row", sourceRow, false);
 }
 
 async function copyActiveColumn(options = {}) {
   if (!documentId || !columns[selected.col]) return;
   const includeHeaders = Boolean(options.includeHeaders);
-  await copyExportViewSlice({
+  const sourceCol = sourceColFor(selected.col);
+  const copied = await copyExportViewSlice({
     label: includeHeaders ? "column with header" : "column",
     body: {
       documentId,
-      columns: [sourceColFor(selected.col)],
+      columns: [sourceCol],
       format: "tsv",
       includeHeaders,
     },
     cellCount: sourceRowCount,
   });
+  if (!includeHeaders && copied) setStructureClipboard("column", sourceCol, false);
 }
 
 async function copyExportViewSlice({ label, body, cellCount }) {
@@ -5110,11 +5164,11 @@ async function copyExportViewSlice({ label, body, cellCount }) {
   const text = await blob.text();
   if (!response.ok) {
     status.textContent = `Copy ${label} failed: ${errorFromResponseText(text)}`;
-    return;
+    return false;
   }
   if (!text) {
     status.textContent = `No ${label} data to copy.`;
-    return;
+    return false;
   }
   window.__opencsvLastCopiedText = text;
   document.body.dataset.copyPreview = text.slice(0, 500);
@@ -5128,6 +5182,7 @@ async function copyExportViewSlice({ label, body, cellCount }) {
   } catch (error) {
     status.textContent = `Copy ${label} failed: ${error.message}`;
   }
+  return true;
 }
 
 async function exportCurrentView(format = "csv") {
@@ -6968,6 +7023,55 @@ async function redoCurrentDocument() {
   applyMutationPayload(payload, `Redo: ${formatCount(payload.totalRows ?? 0)} rows`);
 }
 
+function cutSelectedRow() {
+  if (!documentId) return;
+  if (!ensureEditable("Cut Row")) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  setStructureClipboard("row", selectedSourceRow(), true);
+  status.textContent = "Cut row for paste.";
+}
+
+async function pasteRowFromClipboard() {
+  if (!documentId) return;
+  if (!ensureEditable("Paste Row")) return;
+  if (aggregateRowAt(selected.row)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  const clipboard = structureClipboardFor("row");
+  if (!clipboard) {
+    status.textContent = "Copy or cut a row first.";
+    updateCommandState();
+    return;
+  }
+  const targetRow = selectedSourceRow();
+  const action = clipboard.cut ? "Move row" : "Paste row";
+  status.textContent = `${action}...`;
+  const response = await fetch("/api/row/paste", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId,
+      sourceRow: clipboard.source,
+      targetRow,
+      cut: clipboard.cut,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${action} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  const message = changed > 0 ? (clipboard.cut ? "Moved row" : "Pasted row") : "Row paste did not change the document";
+  applyMutationPayload(payload, message);
+  document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${clipboard.source}->${targetRow}`;
+  if (clipboard.cut) clearStructureClipboard();
+}
+
 async function insertSelectedRow() {
   if (aggregateRowAt(selected.row)) {
     status.textContent = "Aggregate rows are view-only.";
@@ -7049,6 +7153,55 @@ async function insertSelectedColumn() {
 
 async function deleteSelectedColumn() {
   await mutateStructure("/api/column/delete", { col: sourceColFor(selected.col) }, "Deleted column");
+}
+
+function cutSelectedColumn() {
+  if (!documentId) return;
+  if (!ensureEditable("Cut Column")) return;
+  if (!columns[selected.col]) {
+    status.textContent = "Select a column first.";
+    return;
+  }
+  setStructureClipboard("column", sourceColFor(selected.col), true);
+  status.textContent = "Cut column for paste.";
+}
+
+async function pasteColumnFromClipboard() {
+  if (!documentId) return;
+  if (!ensureEditable("Paste Column")) return;
+  if (!columns[selected.col]) {
+    status.textContent = "Select a column first.";
+    return;
+  }
+  const clipboard = structureClipboardFor("column");
+  if (!clipboard) {
+    status.textContent = "Copy or cut a column first.";
+    updateCommandState();
+    return;
+  }
+  const targetCol = sourceColFor(selected.col);
+  const action = clipboard.cut ? "Move column" : "Paste column";
+  status.textContent = `${action}...`;
+  const response = await fetch("/api/column/paste", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId,
+      sourceCol: clipboard.source,
+      targetCol,
+      cut: clipboard.cut,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${action} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  const message = changed > 0 ? (clipboard.cut ? "Moved column" : "Pasted column") : "Column paste did not change the document";
+  applyMutationPayload(payload, message);
+  document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${clipboard.source}->${targetCol}`;
+  if (clipboard.cut) clearStructureClipboard();
 }
 
 function hideSelectedColumn() {

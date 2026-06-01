@@ -658,6 +658,81 @@ func TestServerMoveRowsAndColumns(t *testing.T) {
 	}
 }
 
+func TestServerPasteRowsAndColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "paste.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,10\n2,Linus,20\n3,Grace,30\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	rowCopyPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": documentID,
+		"sourceRow":  2,
+		"targetRow":  1,
+		"cut":        false,
+	})
+	if rowCopyPayload["changed"].(float64) != 1 || rowCopyPayload["totalRows"].(float64) != 5 {
+		t.Fatalf("row copy paste payload = %#v", rowCopyPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Linus" || rows[2].([]any)[1] != "Ada" || rows[3].([]any)[1] != "Linus" {
+		t.Fatalf("rows after copy paste = %#v", rows)
+	}
+
+	rowCutPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": documentID,
+		"sourceRow":  4,
+		"targetRow":  2,
+		"cut":        true,
+	})
+	if rowCutPayload["changed"].(float64) != 1 || rowCutPayload["totalRows"].(float64) != 5 {
+		t.Fatalf("row cut paste payload = %#v", rowCutPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Linus" || rows[2].([]any)[1] != "Grace" || rows[3].([]any)[1] != "Ada" {
+		t.Fatalf("rows after cut paste = %#v", rows)
+	}
+
+	columnCopyPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": documentID,
+		"sourceCol":  2,
+		"targetCol":  1,
+		"cut":        false,
+	})
+	if columnCopyPayload["changed"].(float64) != 1 {
+		t.Fatalf("column copy paste payload = %#v", columnCopyPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows = windowPayload["rows"].([]any)
+	if rows[0].([]any)[1] != "score" || rows[0].([]any)[2] != "name" || rows[1].([]any)[1] != "20" || rows[1].([]any)[2] != "Linus" {
+		t.Fatalf("rows after column copy paste = %#v", rows)
+	}
+
+	columnCutPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": documentID,
+		"sourceCol":  2,
+		"targetCol":  1,
+		"cut":        true,
+	})
+	if columnCutPayload["changed"].(float64) != 1 {
+		t.Fatalf("column cut paste payload = %#v", columnCutPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows = windowPayload["rows"].([]any)
+	if rows[0].([]any)[1] != "name" || rows[0].([]any)[2] != "score" || rows[1].([]any)[1] != "Linus" || rows[1].([]any)[2] != "20" {
+		t.Fatalf("rows after column cut paste = %#v", rows)
+	}
+}
+
 func TestServerHideRowAndClearView(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hide.csv")

@@ -710,6 +710,61 @@ func (manager *Manager) MoveRow(id string, row int, delta int) (MutationResult, 
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) PasteRow(id string, sourceRow int, targetRow int, cut bool) (MutationResult, error) {
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	records = cloneRecords(records)
+	if sourceRow < 0 || sourceRow >= len(records) {
+		return MutationResult{}, errors.New("source row is out of range")
+	}
+	minRow := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		minRow = 1
+	}
+	if sourceRow < minRow {
+		return MutationResult{}, errors.New("header row cannot be pasted")
+	}
+	if targetRow < minRow {
+		targetRow = minRow
+	}
+	if targetRow > len(records) {
+		targetRow = len(records)
+	}
+	if cut && (targetRow == sourceRow || targetRow == sourceRow+1) {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	pasted := append([]string(nil), records[sourceRow]...)
+	if cut {
+		records = append(records[:sourceRow], records[sourceRow+1:]...)
+		if targetRow > sourceRow {
+			targetRow--
+		}
+	}
+	records = append(records, nil)
+	copy(records[targetRow+1:], records[targetRow:])
+	records[targetRow] = pasted
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+}
+
 func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
 	session, ok := manager.snapshot(id)
 	if !ok {
@@ -826,6 +881,65 @@ func (manager *Manager) MoveColumn(id string, col int, delta int) (MutationResul
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
 	records = moveColumnRecords(records, col, target, width)
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+}
+
+func (manager *Manager) PasteColumn(id string, sourceCol int, targetCol int, cut bool) (MutationResult, error) {
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	records = cloneRecords(records)
+	width := maxRecordWidth(records)
+	if sourceCol < 0 || sourceCol >= width {
+		return MutationResult{}, errors.New("source column is out of range")
+	}
+	if targetCol < 0 {
+		targetCol = 0
+	}
+	if targetCol > width {
+		targetCol = width
+	}
+	if cut && (targetCol == sourceCol || targetCol == sourceCol+1) {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	values := make([]string, len(records))
+	for row := range records {
+		ensureRecordWidth(&records[row], width)
+		values[row] = records[row][sourceCol]
+	}
+	if cut {
+		for row := range records {
+			records[row] = append(records[row][:sourceCol], records[row][sourceCol+1:]...)
+		}
+		if targetCol > sourceCol {
+			targetCol--
+		}
+		width--
+	}
+	for row := range records {
+		ensureRecordWidth(&records[row], width)
+		records[row] = append(records[row], "")
+		copy(records[row][targetCol+1:], records[row][targetCol:])
+		records[row][targetCol] = values[row]
+	}
 	metadata := session.Document.Metadata
 	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
 	if err := manager.pushUndo(id); err != nil {

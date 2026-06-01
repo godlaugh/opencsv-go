@@ -61,10 +61,12 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/row/insert", server.handleInsertRow)
 	server.mux.HandleFunc("POST /api/row/delete", server.handleDeleteRow)
 	server.mux.HandleFunc("POST /api/row/move", server.handleMoveRow)
+	server.mux.HandleFunc("POST /api/row/paste", server.handlePasteRow)
 	server.mux.HandleFunc("POST /api/row/hide", server.handleHideRow)
 	server.mux.HandleFunc("POST /api/column/insert", server.handleInsertColumn)
 	server.mux.HandleFunc("POST /api/column/delete", server.handleDeleteColumn)
 	server.mux.HandleFunc("POST /api/column/move", server.handleMoveColumn)
+	server.mux.HandleFunc("POST /api/column/paste", server.handlePasteColumn)
 	server.mux.HandleFunc("POST /api/transpose", server.handleTranspose)
 	server.mux.HandleFunc("POST /api/dedupe-rows", server.handleDedupeRows)
 	server.mux.HandleFunc("POST /api/dedupe-columns", server.handleDedupeColumns)
@@ -385,10 +387,24 @@ type rowMutationRequest struct {
 	Delta      int    `json:"delta"`
 }
 
+type rowPasteRequest struct {
+	DocumentID string `json:"documentId"`
+	SourceRow  int    `json:"sourceRow"`
+	TargetRow  int    `json:"targetRow"`
+	Cut        bool   `json:"cut"`
+}
+
 type columnMutationRequest struct {
 	DocumentID string `json:"documentId"`
 	Col        int    `json:"col"`
 	Delta      int    `json:"delta"`
+}
+
+type columnPasteRequest struct {
+	DocumentID string `json:"documentId"`
+	SourceCol  int    `json:"sourceCol"`
+	TargetCol  int    `json:"targetCol"`
+	Cut        bool   `json:"cut"`
 }
 
 type transposeRequest struct {
@@ -623,6 +639,20 @@ func (server *Server) handleMoveRow(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (server *Server) handlePasteRow(w http.ResponseWriter, r *http.Request) {
+	var request rowPasteRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.PasteRow(request.DocumentID, request.SourceRow, request.TargetRow, request.Cut)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (server *Server) handleHideRow(w http.ResponseWriter, r *http.Request) {
 	var request rowMutationRequest
 	if err := readJSON(r, &request); err != nil {
@@ -672,6 +702,20 @@ func (server *Server) handleMoveColumn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.MoveColumn(request.DocumentID, request.Col, request.Delta)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handlePasteColumn(w http.ResponseWriter, r *http.Request) {
+	var request columnPasteRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.PasteColumn(request.DocumentID, request.SourceCol, request.TargetCol, request.Cut)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
