@@ -315,6 +315,59 @@ func TestServerQuotePolicySave(t *testing.T) {
 	}
 }
 
+func TestServerManualCellQuoteSaveAndUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "manual-quote.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n2,free\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	_ = postJSON(t, handler, "/api/quote-policy", map[string]any{
+		"documentId": documentID,
+		"quoteChar":  "double",
+		"quoteMode":  "manual",
+	})
+	cellPayload := postJSON(t, handler, "/api/cell-quote", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"quoted":     true,
+	})
+	document := cellPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["quoteMode"] != "manual" || len(dialect["quoteCells"].([]any)) != 1 {
+		t.Fatalf("manual cell quote dialect = %#v", dialect)
+	}
+
+	backup := false
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     backup,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "id,note\n1,\"plain\"\n2,free\n"
+	if string(saved) != want {
+		t.Fatalf("manual quote save = %q, want %q", string(saved), want)
+	}
+
+	undoPayload := postJSON(t, handler, "/api/undo", map[string]any{"documentId": documentID})
+	undoDocument := undoPayload["session"].(map[string]any)["document"].(map[string]any)
+	undoDialect := undoDocument["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if _, ok := undoDialect["quoteCells"]; ok {
+		t.Fatalf("undo should remove cell quote override: %#v", undoDialect)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

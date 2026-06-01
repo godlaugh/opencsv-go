@@ -406,6 +406,35 @@ func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode st
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetCellQuote(id string, row int, col int, quoted bool) (MutationResult, error) {
+	if row < 0 || col < 0 {
+		return MutationResult{}, errors.New("cell coordinates must be non-negative")
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return MutationResult{}, errors.New("document is read-only")
+	}
+	nextDialect, changed := csvcore.SetCellQuote(session.Document.Metadata.Dialect, row, col, quoted)
+	if !changed {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	current, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	current.Document.Metadata.Dialect = nextDialect
+	current.Dirty = true
+	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
+}
+
 type ExportViewOptions struct {
 	Columns        []int `json:"columns"`
 	Rows           []int `json:"rows"`

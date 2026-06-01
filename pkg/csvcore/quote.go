@@ -11,6 +11,7 @@ const (
 	QuoteModeMinimal = "minimal"
 	QuoteModeAlways  = "always"
 	QuoteModeNever   = "never"
+	QuoteModeManual  = "manual"
 )
 
 func NormalizeQuoteMode(value string) (string, error) {
@@ -21,8 +22,10 @@ func NormalizeQuoteMode(value string) (string, error) {
 		return QuoteModeAlways, nil
 	case QuoteModeNever, "none":
 		return QuoteModeNever, nil
+	case QuoteModeManual:
+		return QuoteModeManual, nil
 	default:
-		return "", fmt.Errorf("quote mode must be minimal, always, or never")
+		return "", fmt.Errorf("quote mode must be minimal, always, never, or manual")
 	}
 }
 
@@ -63,11 +66,16 @@ func ShouldQuote(value string, dialect Dialect) bool {
 }
 
 func ShouldQuoteField(value string, dialect Dialect, row int, col int) bool {
+	if SuppressesQuote(dialect, row, col) {
+		return false
+	}
 	switch DialectQuoteMode(dialect) {
 	case QuoteModeAlways:
 		return true
 	case QuoteModeNever:
 		return false
+	case QuoteModeManual:
+		return PreservesQuote(dialect, row, col)
 	default:
 		return RequiresQuote(value, dialect) || PreservesQuote(dialect, row, col)
 	}
@@ -119,6 +127,36 @@ func PreservesQuote(dialect Dialect, row int, col int) bool {
 		}
 	}
 	return false
+}
+
+func SuppressesQuote(dialect Dialect, row int, col int) bool {
+	if row < 0 || col < 0 {
+		return false
+	}
+	for _, cell := range dialect.NoQuoteCells {
+		if cell.Row == row && cell.Col == col {
+			return true
+		}
+	}
+	return false
+}
+
+func SetCellQuote(dialect Dialect, row int, col int, quoted bool) (Dialect, bool) {
+	cell := Cell{Row: row, Col: col}
+	beforeQuoteCells := append([]Cell(nil), dialect.QuoteCells...)
+	beforeNoQuoteCells := append([]Cell(nil), dialect.NoQuoteCells...)
+	if quoted {
+		dialect.NoQuoteCells = removeCell(dialect.NoQuoteCells, cell)
+		if !PreservesQuote(dialect, row, col) {
+			dialect.QuoteCells = addCell(dialect.QuoteCells, cell)
+		}
+	} else {
+		dialect.QuoteCells = removeCell(dialect.QuoteCells, cell)
+		dialect.NoQuoteCells = addCell(dialect.NoQuoteCells, cell)
+	}
+	sortCells(dialect.QuoteCells)
+	sortCells(dialect.NoQuoteCells)
+	return dialect, !sameCells(beforeQuoteCells, dialect.QuoteCells) || !sameCells(beforeNoQuoteCells, dialect.NoQuoteCells)
 }
 
 func DetectQuoteRules(sample []byte, dialect Dialect) Dialect {
@@ -175,6 +213,46 @@ func DetectQuoteRules(sample []byte, dialect Dialect) Dialect {
 		}
 	}
 	return dialect
+}
+
+func addCell(cells []Cell, cell Cell) []Cell {
+	for _, candidate := range cells {
+		if candidate == cell {
+			return cells
+		}
+	}
+	return append(cells, cell)
+}
+
+func removeCell(cells []Cell, cell Cell) []Cell {
+	result := cells[:0]
+	for _, candidate := range cells {
+		if candidate != cell {
+			result = append(result, candidate)
+		}
+	}
+	return result
+}
+
+func sortCells(cells []Cell) {
+	sort.Slice(cells, func(i, j int) bool {
+		if cells[i].Row == cells[j].Row {
+			return cells[i].Col < cells[j].Col
+		}
+		return cells[i].Row < cells[j].Row
+	})
+}
+
+func sameCells(left []Cell, right []Cell) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func allTrue(values []bool) bool {

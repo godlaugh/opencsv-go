@@ -115,6 +115,22 @@ func TestEncodeRecordsQuoteModes(t *testing.T) {
 	if string(got) != want {
 		t.Fatalf("single quote = %q, want %q", string(got), want)
 	}
+
+	metadata.Dialect = Dialect{
+		Delimiter:    ',',
+		QuoteChar:    `"`,
+		QuoteMode:    QuoteModeManual,
+		QuoteCells:   []Cell{{Row: 1, Col: 1}},
+		NoQuoteCells: []Cell{{Row: 2, Col: 1}},
+	}
+	got, err = EncodeRecords(records, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "id,note\n1,\"plain\"\n2,has,comma\n"
+	if string(got) != want {
+		t.Fatalf("manual quote = %q, want %q", string(got), want)
+	}
 }
 
 func TestSaveRecordsPreservesDetectedQuoteRules(t *testing.T) {

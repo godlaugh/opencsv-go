@@ -25,6 +25,7 @@ const formatSummary = document.querySelector("#formatSummary");
 const cellValueInput = document.querySelector("#cellValueInput");
 const applyCellValueButton = document.querySelector("#applyCellValueButton");
 const openCellLink = document.querySelector("#openCellLink");
+const toggleCellQuoteButton = document.querySelector("#toggleCellQuoteButton");
 const fileList = document.querySelector("#fileList");
 const openForm = document.querySelector("#openForm");
 const openButton = document.querySelector("#openButton");
@@ -529,6 +530,8 @@ function applyCommandMetadata() {
       button.textContent = "Save Rule";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
       button.textContent = "Apply Quote";
+    } else if (button.dataset.command === "format.toggleCellQuote") {
+      button.textContent = "Toggle";
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -568,6 +571,7 @@ function updateCommandState() {
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
+  toggleCellQuoteButton.disabled = !hasDocument || readOnly || sourceRowCount <= 0;
 }
 
 function isCommandDisabled(command) {
@@ -620,7 +624,8 @@ function isCommandDisabled(command) {
       command.id === "cell.fillRight" ||
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
-      command.id === "format.applyQuotePolicy"
+      command.id === "format.applyQuotePolicy" ||
+      command.id === "format.toggleCellQuote"
     );
   return (
     command.implemented === false ||
@@ -703,7 +708,7 @@ function lineEndingLabel(info = metadata?.lineEnding) {
 
 function quoteModeValue(dialect = metadata?.dialect) {
   const raw = String(dialect?.quoteMode || "minimal").toLowerCase();
-  return ["minimal", "always", "never"].includes(raw) ? raw : "minimal";
+  return ["minimal", "always", "never", "manual"].includes(raw) ? raw : "minimal";
 }
 
 function quoteCharValue(dialect = metadata?.dialect) {
@@ -1070,6 +1075,36 @@ async function applyQuotePolicy() {
   document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}`;
 }
 
+async function toggleCellQuote() {
+  if (!documentId) {
+    status.textContent = "Open a file before changing cell quote state.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Cell quote blocked: document is read-only";
+    return;
+  }
+  if (selected.row >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  const quoted = !shouldQuote(valueAt(selected.row, selected.col), selected.row, selected.col);
+  const row = selectedSourceRow();
+  const col = sourceColFor(selected.col);
+  const response = await fetch("/api/cell-quote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, row, col, quoted }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Cell quote failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  applyMutationPayload(payload, quoted ? "Cell quote enabled." : "Cell quote disabled.");
+  document.body.dataset.cellQuoteOverride = `${row}:${col}:${quoted ? "quote" : "no-quote"}`;
+}
+
 function normalizeFormatRules(rules) {
   if (!Array.isArray(rules)) return [];
   const normalized = [];
@@ -1200,8 +1235,9 @@ function formatPresetPreview(preset) {
 }
 
 function quoteLabel(value, displayRow = selected.row, visibleCol = selected.col) {
-  if (preservesQuote(displayRow, visibleCol)) return "will preserve quote on save";
-  return shouldQuote(value, displayRow, visibleCol) ? "will quote on save" : "no quote needed";
+  if (suppressesQuote(displayRow, visibleCol)) return "manual no quote";
+  if (!shouldQuote(value, displayRow, visibleCol)) return "no quote needed";
+  return preservesQuote(displayRow, visibleCol) ? "will preserve quote on save" : "will quote on save";
 }
 
 function syncCellValuePanel() {
@@ -1454,6 +1490,7 @@ function renderGridContextMenu(target, clientX, clientY) {
 
   if (target.kind === "cell") {
     addSeparator();
+    addCommand("format.toggleCellQuote", "Toggle Cell Quote");
     addItem("Filter by Cell", () => filterSelectedCellValue());
     addItem("Sort Column Ascending", () => sortColumn(selected.col, false, false));
     addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
@@ -2363,6 +2400,9 @@ async function executeCommand(commandID) {
     case "format.applyQuotePolicy":
       await applyQuotePolicy();
       break;
+    case "format.toggleCellQuote":
+      await toggleCellQuote();
+      break;
     case "edit.undo":
       await undoCurrentDocument();
       break;
@@ -2781,7 +2821,10 @@ function drawQuoteIndicator(x, y, width) {
 
 function shouldQuote(value, displayRow = selected.row, visibleCol = selected.col) {
   const mode = quoteModeValue();
-  if (mode !== "minimal") return mode === "always";
+  if (suppressesQuote(displayRow, visibleCol)) return false;
+  if (mode === "always") return true;
+  if (mode === "never") return false;
+  if (mode === "manual") return preservesQuote(displayRow, visibleCol);
   return requiresQuote(value) || preservesQuote(displayRow, visibleCol);
 }
 
@@ -2796,6 +2839,15 @@ function preservesQuote(displayRow, visibleCol) {
     return dialect.quoteCells.some((cell) => cell.row === sourceRow && cell.col === sourceCol);
   }
   return false;
+}
+
+function suppressesQuote(displayRow, visibleCol) {
+  const dialect = metadata?.dialect;
+  if (!dialect || visibleCol < 0) return false;
+  const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
+  const sourceCol = sourceColFor(visibleCol);
+  if (!Array.isArray(dialect.noQuoteCells)) return false;
+  return dialect.noQuoteCells.some((cell) => cell.row === sourceRow && cell.col === sourceCol);
 }
 
 function requiresQuote(value) {
@@ -7411,6 +7463,7 @@ saveFormatRuleButton.addEventListener("click", () => executeCommand("format.save
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
+toggleCellQuoteButton.addEventListener("click", () => executeCommand("format.toggleCellQuote"));
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
   settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;

@@ -52,6 +52,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
+	server.mux.HandleFunc("POST /api/cell-quote", server.handleCellQuote)
 	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
 	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
 	server.mux.HandleFunc("POST /api/refresh", server.handleRefresh)
@@ -429,6 +430,13 @@ type quotePolicyRequest struct {
 	QuoteMode  string `json:"quoteMode"`
 }
 
+type cellQuoteRequest struct {
+	DocumentID string `json:"documentId"`
+	Row        int    `json:"row"`
+	Col        int    `json:"col"`
+	Quoted     bool   `json:"quoted"`
+}
+
 func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 	var request headerModeRequest
 	if err := readJSON(r, &request); err != nil {
@@ -450,6 +458,20 @@ func (server *Server) handleQuotePolicy(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	result, err := server.documents.SetQuotePolicy(request.DocumentID, request.QuoteChar, request.QuoteMode)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleCellQuote(w http.ResponseWriter, r *http.Request) {
+	var request cellQuoteRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetCellQuote(request.DocumentID, request.Row, request.Col, request.Quoted)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

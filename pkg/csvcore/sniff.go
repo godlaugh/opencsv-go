@@ -18,6 +18,7 @@ type Dialect struct {
 	QuoteHeader      bool   `json:"quoteHeader,omitempty"`
 	QuoteColumns     []int  `json:"quoteColumns,omitempty"`
 	QuoteCells       []Cell `json:"quoteCells,omitempty"`
+	NoQuoteCells     []Cell `json:"noQuoteCells,omitempty"`
 	HasHeader        bool   `json:"hasHeader"`
 	UTF8BOM          bool   `json:"utf8Bom"`
 	EstimatedColumns int    `json:"estimatedColumns"`

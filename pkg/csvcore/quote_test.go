@@ -36,6 +36,10 @@ func TestNormalizeQuotePolicy(t *testing.T) {
 	if err != nil || mode != QuoteModeAlways {
 		t.Fatalf("mode = %q, err=%v", mode, err)
 	}
+	mode, err = NormalizeQuoteMode("manual")
+	if err != nil || mode != QuoteModeManual {
+		t.Fatalf("manual mode = %q, err=%v", mode, err)
+	}
 	quoteChar, err := NormalizeQuoteChar("single")
 	if err != nil || quoteChar != "'" {
 		t.Fatalf("quote char = %q, err=%v", quoteChar, err)
@@ -45,5 +49,13 @@ func TestNormalizeQuotePolicy(t *testing.T) {
 	}
 	if ShouldQuote("has,comma", Dialect{Delimiter: ',', QuoteMode: QuoteModeNever}) {
 		t.Fatal("never mode should not quote delimiter-containing values")
+	}
+	dialect, changed := SetCellQuote(Dialect{Delimiter: ',', QuoteMode: QuoteModeManual}, 1, 2, true)
+	if !changed || !ShouldQuoteField("plain", dialect, 1, 2) {
+		t.Fatalf("manual quote toggle failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetCellQuote(dialect, 1, 2, false)
+	if !changed || ShouldQuoteField("plain", dialect, 1, 2) {
+		t.Fatalf("manual unquote toggle failed: changed=%v dialect=%+v", changed, dialect)
 	}
 }

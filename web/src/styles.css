@@ -1413,6 +1413,14 @@ button:disabled {
   font-size: 14px;
 }
 
+.metric button {
+  width: max-content;
+  min-height: 28px;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
