@@ -110,6 +110,9 @@ const cancelQuoteRulesImportButton = document.querySelector("#cancelQuoteRulesIm
 const settingsThemeSummary = document.querySelector("#settingsThemeSummary");
 const themePreferenceSelect = document.querySelector("#themePreferenceSelect");
 const resetThemePreferenceButton = document.querySelector("#resetThemePreferenceButton");
+const settingsRefreshSummary = document.querySelector("#settingsRefreshSummary");
+const autoRefreshModeSelect = document.querySelector("#autoRefreshModeSelect");
+const resetAutoRefreshButton = document.querySelector("#resetAutoRefreshButton");
 const settingsAppearanceSummary = document.querySelector("#settingsAppearanceSummary");
 const gridFontSelect = document.querySelector("#gridFontSelect");
 const gridFontSizeInput = document.querySelector("#gridFontSizeInput");
@@ -234,6 +237,9 @@ const formatPresetsLimit = 12;
 const formatPresetExportKind = "opencsv-format-presets";
 const quoteRulesExportKind = "opencsv-quote-rules";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
+const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
+const defaultAutoRefreshMode = "clean";
+const autoRefreshModes = ["clean", "notify"];
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
 const themePreferences = ["light", "dark", "high-contrast", "system"];
@@ -324,10 +330,12 @@ let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
+let autoRefreshMode = normalizeAutoRefreshMode(localStorage.getItem(autoRefreshStorageKey));
 let themeColors = {};
 let editorAppearance = loadEditorAppearance();
 
 initializeTheme();
+setAutoRefreshMode(autoRefreshMode, false);
 applyEditorAppearance(editorAppearance, false);
 
 function resize() {
@@ -454,6 +462,48 @@ function updateThemeFromSettings() {
 function resetThemePreference() {
   applyTheme(defaultThemePreference);
   renderSettingsPanel();
+}
+
+function normalizeAutoRefreshMode(value) {
+  return autoRefreshModes.includes(value) ? value : defaultAutoRefreshMode;
+}
+
+function autoRefreshModeLabel(mode = autoRefreshMode) {
+  return mode === "notify" ? "Notify only" : "Auto-refresh clean files";
+}
+
+function setAutoRefreshMode(mode, persist = true) {
+  autoRefreshMode = normalizeAutoRefreshMode(mode);
+  if (persist) {
+    localStorage.setItem(autoRefreshStorageKey, autoRefreshMode);
+  }
+  document.body.dataset.autoRefreshMode = autoRefreshMode;
+  syncAutoRefreshControls();
+}
+
+function syncAutoRefreshControls() {
+  if (!autoRefreshModeSelect) return;
+  autoRefreshModeSelect.value = autoRefreshMode;
+  settingsRefreshSummary.textContent = autoRefreshModeLabel();
+  resetAutoRefreshButton.disabled = !autoRefreshModeModified();
+}
+
+function autoRefreshModeModified() {
+  return autoRefreshMode !== defaultAutoRefreshMode;
+}
+
+function updateAutoRefreshModeFromSettings() {
+  setAutoRefreshMode(autoRefreshModeSelect.value);
+  renderSettingsPanel();
+  status.textContent = autoRefreshMode === "clean"
+    ? "Clean documents will auto-refresh when files change."
+    : "External file changes will be reported without auto-refresh.";
+}
+
+function resetAutoRefreshMode() {
+  setAutoRefreshMode(defaultAutoRefreshMode);
+  renderSettingsPanel();
+  status.textContent = "External change refresh reset.";
 }
 
 function loadEditorAppearance() {
@@ -928,6 +978,7 @@ function updateFormatStatus() {
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
     document.body.dataset.headerColumns = "";
+    document.body.dataset.externalFileChanged = "false";
     readOnlyStatus.textContent = "Editable";
     externalStatus.textContent = "Synced";
     return;
@@ -939,6 +990,7 @@ function updateFormatStatus() {
   headerStatus.disabled = !documentId;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
+  document.body.dataset.externalFileChanged = String(Boolean(externalFileChanged));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   externalStatus.textContent = externalFileChanged ? "Changed on disk" : "Synced";
   syncQuotePolicyControls();
@@ -1308,6 +1360,7 @@ function openSettingsPanel() {
 function renderSettingsPanel() {
   if (!settingsPresetList) return;
   syncThemeControls();
+  syncAutoRefreshControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
@@ -1317,7 +1370,7 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${sorts.length} sorts`;
   resetFormatPresetsButton.disabled = presets.length === 0;
@@ -7856,10 +7909,16 @@ async function checkFileStatus(autoRefresh = true) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "status failed");
     readOnly = Boolean(payload.readOnly);
+    const wasChanged = externalFileChanged;
     externalFileChanged = Boolean(payload.changedExternally);
-    if (externalFileChanged && autoRefresh && !dirty && !readOnly && !viewMapped) {
+    if (externalFileChanged && autoRefresh && autoRefreshMode === "clean" && !dirty && !readOnly && !viewMapped) {
       await refreshCurrentDocument();
       return;
+    }
+    if (externalFileChanged && autoRefresh && !wasChanged) {
+      status.textContent = autoRefreshMode === "notify"
+        ? "File changed on disk; auto-refresh is set to notify only."
+        : "File changed on disk.";
     }
     updateFormatStatus();
     updateCommandState();
@@ -7889,6 +7948,9 @@ async function refreshCurrentDocument() {
   externalFileChanged = false;
   loadDocument(session.document);
   updateFileList(session.displayName || fileNameFromPath(metadata.path), metadata.path, totalRows);
+  updateFormatStatus();
+  updateInspector();
+  updateCommandState();
   draw();
   status.textContent = "Auto-refreshed external changes";
 }
@@ -9056,6 +9118,8 @@ applyFormatPresetImportButton.addEventListener("click", applyFormatPresetImport)
 cancelFormatPresetImportButton.addEventListener("click", cancelFormatPresetImport);
 themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
 resetThemePreferenceButton.addEventListener("click", resetThemePreference);
+autoRefreshModeSelect.addEventListener("change", updateAutoRefreshModeFromSettings);
+resetAutoRefreshButton.addEventListener("click", resetAutoRefreshMode);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
