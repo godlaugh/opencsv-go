@@ -98,6 +98,9 @@ const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
 const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
+const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
+const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
+const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
 const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
 const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
@@ -571,6 +574,9 @@ function updateCommandState() {
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
+  quoteHeaderRuleToggle.disabled = !hasDocument || readOnly;
+  quoteBodyRuleToggle.disabled = !hasDocument || readOnly;
+  quoteColumnRuleToggle.disabled = !hasDocument || readOnly || columns.length === 0;
   toggleCellQuoteButton.disabled = !hasDocument || readOnly || sourceRowCount <= 0;
 }
 
@@ -582,6 +588,7 @@ function isCommandDisabled(command) {
     command.id === "selection.copyAggregate" ||
     command.id === "selection.cycleAggregate" ||
     command.id === "selection.insertAggregateRow";
+  const needsColumn = command.id === "format.toggleColumnQuote";
   const writeBlocked =
     readOnly &&
     (
@@ -625,6 +632,9 @@ function isCommandDisabled(command) {
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
       command.id === "format.applyQuotePolicy" ||
+      command.id === "format.toggleHeaderQuote" ||
+      command.id === "format.toggleBodyQuote" ||
+      command.id === "format.toggleColumnQuote" ||
       command.id === "format.toggleCellQuote"
     );
   return (
@@ -633,6 +643,7 @@ function isCommandDisabled(command) {
     (needsSQLResult && !sqlResultAvailable()) ||
     (needsActiveFilter && !activeFilter) ||
     (needsAggregate && selectionAggregateStats().count <= 1) ||
+    (needsColumn && columns.length === 0) ||
     writeBlocked
   );
 }
@@ -653,6 +664,7 @@ function updateInspector() {
   columnDistinct.textContent = profile ? formatCount(profile.distinct) : "unknown";
   cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
   formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
+  syncQuotePolicyControls();
   syncCellValuePanel();
 }
 
@@ -737,11 +749,18 @@ function syncQuotePolicyControls() {
   if (!quoteModeSelect || !quoteCharSelect) return;
   if (quotePolicyDraftDirty) {
     settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
-    return;
+  } else {
+    quoteModeSelect.value = quoteModeValue();
+    quoteCharSelect.value = quoteCharValue();
+    settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()}` : "minimal double";
   }
-  quoteModeSelect.value = quoteModeValue();
-  quoteCharSelect.value = quoteCharValue();
-  settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()}` : "minimal double";
+  const dialect = metadata?.dialect;
+  quoteHeaderRuleToggle.checked = Boolean(dialect?.quoteHeader);
+  quoteBodyRuleToggle.checked = Boolean(dialect?.quoteBody);
+  quoteColumnRuleToggle.checked = Boolean(dialect && isSourceColumnQuoted(sourceColFor(selected.col)));
+  quoteHeaderRuleToggle.disabled = !documentId || readOnly;
+  quoteBodyRuleToggle.disabled = !documentId || readOnly;
+  quoteColumnRuleToggle.disabled = !documentId || readOnly || columns.length === 0;
 }
 
 function documentFormatSummary() {
@@ -1103,6 +1122,52 @@ async function toggleCellQuote() {
   }
   applyMutationPayload(payload, quoted ? "Cell quote enabled." : "Cell quote disabled.");
   document.body.dataset.cellQuoteOverride = `${row}:${col}:${quoted ? "quote" : "no-quote"}`;
+}
+
+async function toggleQuoteRule(target, quoted = null) {
+  if (!documentId) {
+    status.textContent = "Open a file before changing quote rules.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Quote rule blocked: document is read-only";
+    return;
+  }
+  const sourceCol = sourceColFor(selected.col);
+  let nextQuoted = quoted;
+  if (nextQuoted == null) {
+    if (target === "header") nextQuoted = !Boolean(metadata?.dialect?.quoteHeader);
+    if (target === "body") nextQuoted = !Boolean(metadata?.dialect?.quoteBody);
+    if (target === "column") nextQuoted = !isSourceColumnQuoted(sourceCol);
+  }
+  const body = { documentId, target, quoted: Boolean(nextQuoted) };
+  if (target === "column") {
+    if (sourceCol < 0) {
+      status.textContent = "Select a column before changing column quote.";
+      return;
+    }
+    body.col = sourceCol;
+  }
+  const response = await fetch("/api/quote-rule", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Quote rule failed: ${payload.error ?? "unknown error"}`;
+    syncQuotePolicyControls();
+    return;
+  }
+  applyMutationPayload(payload, `${quoteRuleLabel(target)} quote ${nextQuoted ? "enabled" : "disabled"}.`);
+  document.body.dataset.quoteRuleOverride = `${target}:${target === "column" ? sourceCol : "*"}:${nextQuoted ? "quote" : "off"}`;
+  syncQuotePolicyControls();
+}
+
+function quoteRuleLabel(target) {
+  if (target === "header") return "Header";
+  if (target === "body") return "Body";
+  return "Column";
 }
 
 function normalizeFormatRules(rules) {
@@ -1496,6 +1561,7 @@ function renderGridContextMenu(target, clientX, clientY) {
     addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
   } else if (target.kind === "column") {
     addSeparator();
+    addCommand("format.toggleColumnQuote", "Toggle Column Quote");
     addItem("Sort Ascending", () => sortColumn(selected.col, false, false));
     addItem("Sort Descending", () => sortColumn(selected.col, true, false));
     addItem("Filter Builder", () => openConditionBuilder());
@@ -2400,6 +2466,15 @@ async function executeCommand(commandID) {
     case "format.applyQuotePolicy":
       await applyQuotePolicy();
       break;
+    case "format.toggleHeaderQuote":
+      await toggleQuoteRule("header");
+      break;
+    case "format.toggleBodyQuote":
+      await toggleQuoteRule("body");
+      break;
+    case "format.toggleColumnQuote":
+      await toggleQuoteRule("column");
+      break;
     case "format.toggleCellQuote":
       await toggleCellQuote();
       break;
@@ -2834,11 +2909,20 @@ function preservesQuote(displayRow, visibleCol) {
   const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
   const sourceCol = sourceColFor(visibleCol);
   if (dialect.hasHeader && dialect.quoteHeader && sourceRow === 0) return true;
-  if (Array.isArray(dialect.quoteColumns) && dialect.quoteColumns.includes(sourceCol)) return true;
+  if (dialect.quoteBody && isBodySourceRow(sourceRow)) return true;
+  if (isSourceColumnQuoted(sourceCol) && isBodySourceRow(sourceRow)) return true;
   if (Array.isArray(dialect.quoteCells)) {
     return dialect.quoteCells.some((cell) => cell.row === sourceRow && cell.col === sourceCol);
   }
   return false;
+}
+
+function isBodySourceRow(sourceRow) {
+  return !metadata?.dialect?.hasHeader || sourceRow > 0;
+}
+
+function isSourceColumnQuoted(sourceCol) {
+  return Array.isArray(metadata?.dialect?.quoteColumns) && metadata.dialect.quoteColumns.includes(sourceCol);
 }
 
 function suppressesQuote(displayRow, visibleCol) {
@@ -7464,6 +7548,9 @@ settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
 toggleCellQuoteButton.addEventListener("click", () => executeCommand("format.toggleCellQuote"));
+quoteHeaderRuleToggle.addEventListener("change", () => toggleQuoteRule("header", quoteHeaderRuleToggle.checked));
+quoteBodyRuleToggle.addEventListener("change", () => toggleQuoteRule("body", quoteBodyRuleToggle.checked));
+quoteColumnRuleToggle.addEventListener("change", () => toggleQuoteRule("column", quoteColumnRuleToggle.checked));
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
   settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;

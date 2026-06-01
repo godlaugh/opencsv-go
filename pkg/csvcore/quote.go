@@ -116,8 +116,11 @@ func PreservesQuote(dialect Dialect, row int, col int) bool {
 	if dialect.HasHeader && dialect.QuoteHeader && row == 0 {
 		return true
 	}
+	if dialect.QuoteBody && isBodyRow(dialect, row) {
+		return true
+	}
 	for _, quoteCol := range dialect.QuoteColumns {
-		if quoteCol == col {
+		if quoteCol == col && isBodyRow(dialect, row) {
 			return true
 		}
 	}
@@ -127,6 +130,10 @@ func PreservesQuote(dialect Dialect, row int, col int) bool {
 		}
 	}
 	return false
+}
+
+func isBodyRow(dialect Dialect, row int) bool {
+	return !dialect.HasHeader || row > 0
 }
 
 func SuppressesQuote(dialect Dialect, row int, col int) bool {
@@ -157,6 +164,33 @@ func SetCellQuote(dialect Dialect, row int, col int, quoted bool) (Dialect, bool
 	sortCells(dialect.QuoteCells)
 	sortCells(dialect.NoQuoteCells)
 	return dialect, !sameCells(beforeQuoteCells, dialect.QuoteCells) || !sameCells(beforeNoQuoteCells, dialect.NoQuoteCells)
+}
+
+func SetQuoteHeader(dialect Dialect, quoted bool) (Dialect, bool) {
+	if dialect.QuoteHeader == quoted {
+		return dialect, false
+	}
+	dialect.QuoteHeader = quoted
+	return dialect, true
+}
+
+func SetQuoteBody(dialect Dialect, quoted bool) (Dialect, bool) {
+	if dialect.QuoteBody == quoted {
+		return dialect, false
+	}
+	dialect.QuoteBody = quoted
+	return dialect, true
+}
+
+func SetQuoteColumn(dialect Dialect, col int, quoted bool) (Dialect, bool) {
+	before := append([]int(nil), dialect.QuoteColumns...)
+	if quoted {
+		dialect.QuoteColumns = addInt(dialect.QuoteColumns, col)
+	} else {
+		dialect.QuoteColumns = removeInt(dialect.QuoteColumns, col)
+	}
+	sort.Ints(dialect.QuoteColumns)
+	return dialect, !sameInts(before, dialect.QuoteColumns)
 }
 
 func DetectQuoteRules(sample []byte, dialect Dialect) Dialect {
@@ -244,6 +278,37 @@ func sortCells(cells []Cell) {
 }
 
 func sameCells(left []Cell, right []Cell) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func addInt(values []int, value int) []int {
+	for _, candidate := range values {
+		if candidate == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func removeInt(values []int, value int) []int {
+	result := values[:0]
+	for _, candidate := range values {
+		if candidate != value {
+			result = append(result, candidate)
+		}
+	}
+	return result
+}
+
+func sameInts(left []int, right []int) bool {
 	if len(left) != len(right) {
 		return false
 	}

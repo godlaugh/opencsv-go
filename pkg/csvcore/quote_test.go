@@ -58,4 +58,29 @@ func TestNormalizeQuotePolicy(t *testing.T) {
 	if !changed || ShouldQuoteField("plain", dialect, 1, 2) {
 		t.Fatalf("manual unquote toggle failed: changed=%v dialect=%+v", changed, dialect)
 	}
+
+	dialect, changed = SetQuoteHeader(Dialect{Delimiter: ',', QuoteMode: QuoteModeManual, HasHeader: true}, true)
+	if !changed || !ShouldQuoteField("id", dialect, 0, 0) || ShouldQuoteField("plain", dialect, 1, 0) {
+		t.Fatalf("header quote rule failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetQuoteBody(dialect, true)
+	if !changed || !ShouldQuoteField("plain", dialect, 1, 0) {
+		t.Fatalf("body quote rule failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetQuoteBody(dialect, false)
+	if !changed || ShouldQuoteField("plain", dialect, 1, 0) {
+		t.Fatalf("body quote off failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetQuoteHeader(dialect, false)
+	if !changed || ShouldQuoteField("id", dialect, 0, 0) {
+		t.Fatalf("header quote off failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetQuoteColumn(dialect, 1, true)
+	if !changed || !ShouldQuoteField("plain", dialect, 1, 1) || ShouldQuoteField("note", dialect, 0, 1) {
+		t.Fatalf("column quote rule failed: changed=%v dialect=%+v", changed, dialect)
+	}
+	dialect, changed = SetQuoteColumn(dialect, 1, false)
+	if !changed || ShouldQuoteField("plain", dialect, 1, 1) {
+		t.Fatalf("column quote off failed: changed=%v dialect=%+v", changed, dialect)
+	}
 }

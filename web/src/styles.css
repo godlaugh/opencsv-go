@@ -498,6 +498,59 @@ button:disabled {
   overflow: auto;
 }
 
+.settings-policy-grid,
+.quote-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.settings-policy-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-policy-grid select {
+  height: 30px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.settings-policy-grid button {
+  align-self: end;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.quote-rule-grid {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.quote-rule-toggle {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.quote-rule-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 .settings-preset-list {
   display: grid;
 }

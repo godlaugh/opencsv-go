@@ -368,6 +368,67 @@ func TestServerManualCellQuoteSaveAndUndo(t *testing.T) {
 	}
 }
 
+func TestServerQuoteRulesSaveAndUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote-rules.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n2,free\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/quote-policy", map[string]any{
+		"documentId": documentID,
+		"quoteChar":  "double",
+		"quoteMode":  "manual",
+	})
+	_ = postJSON(t, handler, "/api/quote-rule", map[string]any{
+		"documentId": documentID,
+		"target":     "header",
+		"quoted":     true,
+	})
+	_ = postJSON(t, handler, "/api/quote-rule", map[string]any{
+		"documentId": documentID,
+		"target":     "column",
+		"col":        1,
+		"quoted":     true,
+	})
+	bodyPayload := postJSON(t, handler, "/api/quote-rule", map[string]any{
+		"documentId": documentID,
+		"target":     "body",
+		"quoted":     true,
+	})
+	document := bodyPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["quoteHeader"] != true || dialect["quoteBody"] != true || len(dialect["quoteColumns"].([]any)) != 1 {
+		t.Fatalf("quote rules dialect = %#v", dialect)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",\"note\"\n\"1\",\"plain\"\n\"2\",\"free\"\n"
+	if string(saved) != want {
+		t.Fatalf("quote rules save = %q, want %q", string(saved), want)
+	}
+
+	undoPayload := postJSON(t, handler, "/api/undo", map[string]any{"documentId": documentID})
+	undoDocument := undoPayload["session"].(map[string]any)["document"].(map[string]any)
+	undoDialect := undoDocument["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if undoDialect["quoteBody"] == true {
+		t.Fatalf("undo should remove body quote rule: %#v", undoDialect)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

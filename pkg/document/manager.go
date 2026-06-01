@@ -435,6 +435,46 @@ func (manager *Manager) SetCellQuote(id string, row int, col int, quoted bool) (
 	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetQuoteRule(id string, target string, col int, quoted bool) (MutationResult, error) {
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return MutationResult{}, errors.New("document is read-only")
+	}
+	nextDialect := session.Document.Metadata.Dialect
+	var changed bool
+	switch strings.ToLower(strings.TrimSpace(target)) {
+	case "header":
+		nextDialect, changed = csvcore.SetQuoteHeader(nextDialect, quoted)
+	case "body":
+		nextDialect, changed = csvcore.SetQuoteBody(nextDialect, quoted)
+	case "column":
+		if col < 0 {
+			return MutationResult{}, errors.New("column must be non-negative")
+		}
+		nextDialect, changed = csvcore.SetQuoteColumn(nextDialect, col, quoted)
+	default:
+		return MutationResult{}, errors.New("quote rule target must be header, body, or column")
+	}
+	if !changed {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	current, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	current.Document.Metadata.Dialect = nextDialect
+	current.Dirty = true
+	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
+}
+
 type ExportViewOptions struct {
 	Columns        []int `json:"columns"`
 	Rows           []int `json:"rows"`
