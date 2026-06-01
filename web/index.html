@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-shortcut-conflicts-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-saved-view-import-export-3" />
   </head>
   <body>
     <main class="app-shell">
@@ -127,6 +127,24 @@
               <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" />
               <button id="resetFormatPresetsButton" type="button">Reset Formats</button>
             </div>
+            <section class="settings-section" aria-label="Saved filters and sorts">
+              <header>
+                <strong>Saved Filters & Sorts</strong>
+                <span id="settingsViewsSummary">0 filters, 0 sorts</span>
+                <div class="settings-section-actions">
+                  <button id="exportSavedViewsButton" type="button" data-command="view.exportSavedSets">Export Views</button>
+                  <button id="showImportSavedViewsButton" type="button" data-command="view.importSavedSets">Import Views</button>
+                </div>
+              </header>
+              <div id="savedViewImportPanel" class="settings-import-panel" hidden>
+                <textarea id="savedViewImportText" spellcheck="false" aria-label="Saved filters and sorts import JSON" placeholder='{"kind":"opencsv-saved-views","filters":[],"sorts":[]}'></textarea>
+                <div class="settings-import-actions">
+                  <button id="applySavedViewImportButton" type="button">Apply Import</button>
+                  <button id="cancelSavedViewImportButton" type="button">Cancel</button>
+                </div>
+              </div>
+              <div id="settingsSavedViewList" class="settings-preset-list"></div>
+            </section>
             <section class="settings-section settings-theme-section" aria-label="Theme">
               <header>
                 <strong>Theme</strong>
@@ -449,6 +467,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-shortcut-conflicts-1"></script>
+    <script type="module" src="./src/app.js?v=m2-saved-view-import-export-3"></script>
   </body>
 </html>

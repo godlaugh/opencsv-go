@@ -112,6 +112,8 @@ func Registry() []Command {
 		{ID: "view.sort", Title: "Sort", Description: "Sort the selected column.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "view.saveSort", Title: "Save Current Sort", Description: "Save the active sort keys for quick reuse.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"saved sort", "sort preset", "save sort"}},
 		{ID: "view.clear", Title: "Clear View", Description: "Clear active filter and sort view.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
+		{ID: "view.exportSavedSets", Title: "Export Saved Filters and Sorts", Description: "Download saved filter and sort sets as JSON.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"export filters", "export sorts", "saved view json"}},
+		{ID: "view.importSavedSets", Title: "Import Saved Filters and Sorts", Description: "Import saved filter and sort sets from JSON.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"import filters", "import sorts", "saved view json"}},
 		{ID: "view.sql", Title: "SQL Console", Description: "Open the SQL console for the current workspace.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"query"}},
 		{ID: "sql.copyResultCsv", Title: "Copy SQL Result as CSV", Description: "Copy the latest SQL result headers and rows as CSV text.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"copy sql result", "sql result csv"}},
 		{ID: "sql.exportResultCsv", Title: "Export SQL Result as CSV", Description: "Download the latest SQL result headers and rows as a CSV file.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"export sql result", "download sql result"}},

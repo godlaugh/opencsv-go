@@ -112,6 +112,14 @@ const textEditorFontSizeInput = document.querySelector("#textEditorFontSizeInput
 const resetEditorAppearanceButton = document.querySelector("#resetEditorAppearanceButton");
 const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
+const settingsViewsSummary = document.querySelector("#settingsViewsSummary");
+const settingsSavedViewList = document.querySelector("#settingsSavedViewList");
+const exportSavedViewsButton = document.querySelector("#exportSavedViewsButton");
+const showImportSavedViewsButton = document.querySelector("#showImportSavedViewsButton");
+const savedViewImportPanel = document.querySelector("#savedViewImportPanel");
+const savedViewImportText = document.querySelector("#savedViewImportText");
+const applySavedViewImportButton = document.querySelector("#applySavedViewImportButton");
+const cancelSavedViewImportButton = document.querySelector("#cancelSavedViewImportButton");
 const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
 const exportFormatPresetsButton = document.querySelector("#exportFormatPresetsButton");
 const showImportFormatPresetsButton = document.querySelector("#showImportFormatPresetsButton");
@@ -213,6 +221,7 @@ const savedFiltersStorageKey = "opencsv-saved-filters";
 const savedFiltersLimit = 12;
 const savedSortsStorageKey = "opencsv-saved-sorts";
 const savedSortsLimit = 12;
+const savedViewsExportKind = "opencsv-saved-views";
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
 const formatPresetExportKind = "opencsv-format-presets";
@@ -724,6 +733,10 @@ function applyCommandMetadata() {
       button.textContent = "Export";
     } else if (button.dataset.command === "settings.importShortcuts") {
       button.textContent = "Import";
+    } else if (button.dataset.command === "view.exportSavedSets") {
+      button.textContent = "Export Views";
+    } else if (button.dataset.command === "view.importSavedSets") {
+      button.textContent = "Import Views";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -1219,13 +1232,17 @@ function renderSettingsPanel() {
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
+  const filters = savedFilters();
+  const sorts = savedSorts();
   const query = settingsSearch.value.trim().toLowerCase();
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || editorAppearanceModified() || themePreferenceModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
+  settingsViewsSummary.textContent = `${filters.length} filters, ${sorts.length} sorts`;
   resetFormatPresetsButton.disabled = presets.length === 0;
+  renderSavedViewSettingsList(filters, sorts, query);
   settingsPresetList.replaceChildren();
   document.body.dataset.settingsPresetCount = String(presets.length);
   document.body.dataset.settingsVisiblePresetCount = String(visiblePresets.length);
@@ -1236,6 +1253,75 @@ function renderSettingsPanel() {
   for (const preset of visiblePresets) {
     settingsPresetList.append(formatPresetSettingsRow(preset));
   }
+}
+
+function renderSavedViewSettingsList(filters, sorts, query) {
+  if (!settingsSavedViewList) return;
+  const items = [
+    ...filters.map((item) => ({ kind: "filter", item })),
+    ...sorts.map((item) => ({ kind: "sort", item })),
+  ];
+  const visible = query
+    ? items.filter(({ kind, item }) => savedViewSearchText(kind, item).includes(query))
+    : items;
+  settingsSavedViewList.replaceChildren();
+  document.body.dataset.settingsSavedFilterCount = String(filters.length);
+  document.body.dataset.settingsSavedSortCount = String(sorts.length);
+  document.body.dataset.settingsVisibleSavedViewCount = String(visible.length);
+  if (visible.length === 0) {
+    settingsSavedViewList.append(emptySettingsNode(items.length ? "No matching saved views" : "No saved filters or sorts"));
+    return;
+  }
+  for (const entry of visible) {
+    settingsSavedViewList.append(savedViewSettingsRow(entry.kind, entry.item));
+  }
+}
+
+function savedViewSearchText(kind, item) {
+  return [
+    kind,
+    item.name,
+    item.display,
+    item.expression,
+    ...(item.keys ?? []).flatMap((key) => [key.name, key.mode, key.descending ? "descending" : "ascending"]),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function savedViewSettingsRow(kind, item) {
+  const row = document.createElement("section");
+  row.className = "settings-preset-row";
+  row.dataset.savedViewKind = kind;
+  row.dataset.savedViewId = item.id;
+
+  const header = document.createElement("header");
+  const title = document.createElement("strong");
+  title.textContent = item.name;
+  const meta = document.createElement("span");
+  meta.textContent = kind === "filter" ? `Filter · ${item.expression}` : `Sort · ${formatStoredSortKeys(item.keys)}`;
+  const actions = document.createElement("div");
+  actions.className = "settings-preset-actions";
+  const applyButton = settingsActionButton("Apply");
+  applyButton.disabled = !documentId;
+  applyButton.addEventListener("click", () => {
+    if (kind === "filter") {
+      applySavedFilter(item.id);
+    } else {
+      applySavedSort(item.id);
+    }
+  });
+  const deleteButton = settingsActionButton("Delete");
+  deleteButton.addEventListener("click", () => {
+    if (kind === "filter") {
+      deleteSavedFilter(item.id);
+    } else {
+      deleteSavedSort(item.id);
+    }
+    renderSettingsPanel();
+  });
+  actions.append(applyButton, deleteButton);
+  header.append(title, meta, actions);
+  row.append(header);
+  return row;
 }
 
 function formatPresetSearchText(preset) {
@@ -3235,6 +3321,12 @@ async function executeCommand(commandID) {
       break;
     case "view.saveSort":
       saveActiveSort();
+      break;
+    case "view.exportSavedSets":
+      exportSavedViews();
+      break;
+    case "view.importSavedSets":
+      showSavedViewImportPanel();
       break;
     case "view.sort":
       await sortSelectedColumn();
@@ -5816,6 +5908,7 @@ function saveSavedFilters(filters) {
   const next = unique.slice(0, savedFiltersLimit);
   localStorage.setItem(savedFiltersStorageKey, JSON.stringify(next));
   document.body.dataset.savedFilterCount = String(next.length);
+  if (viewMode === "settings") renderSettingsPanel();
 }
 
 function saveActiveFilter() {
@@ -5916,6 +6009,7 @@ function saveSavedSorts(sorts) {
   const next = unique.slice(0, savedSortsLimit);
   localStorage.setItem(savedSortsStorageKey, JSON.stringify(next));
   document.body.dataset.savedSortCount = String(next.length);
+  if (viewMode === "settings") renderSettingsPanel();
 }
 
 function saveActiveSort() {
@@ -5968,6 +6062,118 @@ function deleteSavedSort(sortID) {
   saveSavedSorts(next);
   renderViewChips();
   status.textContent = before.length === next.length ? "Saved sort not found." : "Deleted saved sort.";
+}
+
+function exportSavedViews() {
+  const filters = savedFilters();
+  const sorts = savedSorts();
+  const payload = {
+    kind: savedViewsExportKind,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    filters,
+    sorts,
+  };
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  window.__opencsvLastSavedViewExportText = text;
+  document.body.dataset.savedViewExport = `${filters.length}:${sorts.length}`;
+  document.body.dataset.savedViewExportPreview = text.slice(0, 500);
+  triggerDownload(text, "opencsv-saved-views.json", "application/json;charset=utf-8");
+  status.textContent = `Exported ${formatCount(filters.length)} filters, ${formatCount(sorts.length)} sorts.`;
+}
+
+function showSavedViewImportPanel() {
+  openSettingsPanel();
+  savedViewImportPanel.hidden = false;
+  savedViewImportText.value = "";
+  document.body.dataset.savedViewImportPanel = "open";
+  syncSavedViewImportControls();
+  savedViewImportText.focus();
+}
+
+function cancelSavedViewImport() {
+  savedViewImportPanel.hidden = true;
+  savedViewImportText.value = "";
+  document.body.dataset.savedViewImportPanel = "closed";
+  syncSavedViewImportControls();
+}
+
+function syncSavedViewImportControls() {
+  if (!savedViewImportText) return;
+  applySavedViewImportButton.disabled = savedViewImportText.value.trim() === "";
+}
+
+function applySavedViewImport() {
+  try {
+    const imported = parseSavedViewImport(savedViewImportText.value);
+    saveSavedFilters([...imported.filters, ...savedFilters()]);
+    saveSavedSorts([...imported.sorts, ...savedSorts()]);
+    savedViewImportPanel.hidden = true;
+    savedViewImportText.value = "";
+    document.body.dataset.savedViewImport = `${imported.filters.length}:${imported.sorts.length}`;
+    document.body.dataset.savedViewImportPanel = "closed";
+    renderViewChips();
+    renderSettingsPanel();
+    status.textContent = `Imported ${formatCount(imported.filters.length)} filters, ${formatCount(imported.sorts.length)} sorts.`;
+  } catch (error) {
+    status.textContent = `Saved view import failed: ${error.message}`;
+    document.body.dataset.savedViewImport = "error";
+  }
+  syncSavedViewImportControls();
+}
+
+function parseSavedViewImport(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("invalid JSON");
+  }
+  const rawFilters = Array.isArray(parsed) ? parsed : parsed?.filters;
+  const rawSorts = Array.isArray(parsed?.sorts) ? parsed.sorts : [];
+  if (!Array.isArray(rawFilters) && !Array.isArray(rawSorts)) {
+    throw new Error("missing filters or sorts array");
+  }
+  return {
+    filters: (Array.isArray(rawFilters) ? rawFilters : [])
+      .map(normalizeSavedFilterImport)
+      .filter(Boolean),
+    sorts: (Array.isArray(rawSorts) ? rawSorts : [])
+      .map(normalizeSavedSortImport)
+      .filter(Boolean),
+  };
+}
+
+function normalizeSavedFilterImport(filter) {
+  if (!filter || typeof filter !== "object" || typeof filter.expression !== "string") return null;
+  const expression = filter.expression.trim().replace(/^where\s+/i, "");
+  if (!expression) return null;
+  const display = typeof filter.display === "string" && filter.display.trim()
+    ? filter.display.trim()
+    : `Filter: where ${expression}`;
+  return {
+    id: typeof filter.id === "string" && filter.id ? filter.id : savedFilterID(expression),
+    name: typeof filter.name === "string" && filter.name.trim() ? filter.name.trim() : savedFilterName(display),
+    display,
+    expression,
+    createdAt: typeof filter.createdAt === "string" && filter.createdAt ? filter.createdAt : new Date().toISOString(),
+  };
+}
+
+function normalizeSavedSortImport(sort) {
+  if (!sort || typeof sort !== "object") return null;
+  const keys = Array.isArray(sort.keys) ? sort.keys.map(normalizeStoredSortKey).filter(Boolean) : [];
+  if (keys.length === 0) return null;
+  const display = typeof sort.display === "string" && sort.display.trim()
+    ? sort.display.trim()
+    : `Sort: ${formatStoredSortKeys(keys)}`;
+  return {
+    id: typeof sort.id === "string" && sort.id ? sort.id : savedSortID(keys),
+    name: typeof sort.name === "string" && sort.name.trim() ? sort.name.trim() : savedSortName(display),
+    display,
+    keys,
+    createdAt: typeof sort.createdAt === "string" && sort.createdAt ? sort.createdAt : new Date().toISOString(),
+  };
 }
 
 function storedSortKey(key) {
@@ -8255,6 +8461,11 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+exportSavedViewsButton.addEventListener("click", () => executeCommand("view.exportSavedSets"));
+showImportSavedViewsButton.addEventListener("click", () => executeCommand("view.importSavedSets"));
+savedViewImportText.addEventListener("input", syncSavedViewImportControls);
+applySavedViewImportButton.addEventListener("click", applySavedViewImport);
+cancelSavedViewImportButton.addEventListener("click", cancelSavedViewImport);
 exportFormatPresetsButton.addEventListener("click", () => executeCommand("format.exportPresets"));
 showImportFormatPresetsButton.addEventListener("click", () => executeCommand("format.importPresets"));
 formatPresetImportText.addEventListener("input", syncFormatPresetImportControls);

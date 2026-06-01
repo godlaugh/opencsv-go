@@ -476,8 +476,9 @@ button:disabled {
 }
 
 .settings-panel {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: block;
   gap: 0;
+  overflow: auto;
   padding: 0;
 }
 
@@ -534,7 +535,7 @@ button:disabled {
 
 .settings-section {
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .settings-section > header {
