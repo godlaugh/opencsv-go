@@ -733,6 +733,92 @@ func TestServerPasteRowsAndColumns(t *testing.T) {
 	}
 }
 
+func TestServerPasteMultipleRowsAndColumns(t *testing.T) {
+	dir := t.TempDir()
+	rowPath := filepath.Join(dir, "paste-rows.csv")
+	if err := os.WriteFile(rowPath, []byte("id,name,score\n1,Ada,10\n2,Linus,20\n3,Grace,30\n4,Ken,40\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        rowPath,
+		"previewRows": 8,
+		"indexRows":   -1,
+	})
+	rowDocumentID := openPayload["documentId"].(string)
+
+	rowCopyPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": rowDocumentID,
+		"sourceRows": []int{2, 3},
+		"targetRow":  1,
+		"cut":        false,
+	})
+	if rowCopyPayload["changed"].(float64) != 2 || rowCopyPayload["totalRows"].(float64) != 7 {
+		t.Fatalf("multi-row copy paste payload = %#v", rowCopyPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+rowDocumentID+"&start=0&count=7")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Linus" || rows[2].([]any)[1] != "Grace" || rows[3].([]any)[1] != "Ada" {
+		t.Fatalf("rows after multi-row copy paste = %#v", rows)
+	}
+
+	rowCutPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": rowDocumentID,
+		"sourceRows": []int{5, 6},
+		"targetRow":  3,
+		"cut":        true,
+	})
+	if rowCutPayload["changed"].(float64) != 2 || rowCutPayload["totalRows"].(float64) != 7 {
+		t.Fatalf("multi-row cut paste payload = %#v", rowCutPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+rowDocumentID+"&start=0&count=7")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Linus" || rows[2].([]any)[1] != "Grace" || rows[3].([]any)[1] != "Grace" || rows[4].([]any)[1] != "Ken" {
+		t.Fatalf("rows after multi-row cut paste = %#v", rows)
+	}
+
+	columnPath := filepath.Join(dir, "paste-columns.csv")
+	if err := os.WriteFile(columnPath, []byte("id,name,score,city\n1,Ada,10,UK\n2,Linus,20,FI\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	openPayload = postJSON(t, handler, "/api/open", map[string]any{
+		"path":        columnPath,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	columnDocumentID := openPayload["documentId"].(string)
+
+	columnCutPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": columnDocumentID,
+		"sourceCols": []int{2, 3},
+		"targetCol":  1,
+		"cut":        true,
+	})
+	if columnCutPayload["changed"].(float64) != 2 {
+		t.Fatalf("multi-column cut paste payload = %#v", columnCutPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+columnDocumentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[0].([]any)[1] != "score" || rows[0].([]any)[2] != "city" || rows[0].([]any)[3] != "name" || rows[1].([]any)[1] != "10" || rows[1].([]any)[2] != "UK" {
+		t.Fatalf("rows after multi-column cut paste = %#v", rows)
+	}
+
+	columnCopyPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": columnDocumentID,
+		"sourceCols": []int{1, 2},
+		"targetCol":  4,
+		"cut":        false,
+	})
+	if columnCopyPayload["changed"].(float64) != 2 {
+		t.Fatalf("multi-column copy paste payload = %#v", columnCopyPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+columnDocumentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if len(rows[0].([]any)) != 6 || rows[0].([]any)[4] != "score" || rows[0].([]any)[5] != "city" || rows[1].([]any)[4] != "10" || rows[1].([]any)[5] != "UK" {
+		t.Fatalf("rows after multi-column copy paste = %#v", rows)
+	}
+}
+
 func TestServerHideRowAndClearView(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hide.csv")

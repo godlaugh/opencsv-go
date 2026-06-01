@@ -711,6 +711,10 @@ func (manager *Manager) MoveRow(id string, row int, delta int) (MutationResult, 
 }
 
 func (manager *Manager) PasteRow(id string, sourceRow int, targetRow int, cut bool) (MutationResult, error) {
+	return manager.PasteRows(id, []int{sourceRow}, targetRow, cut)
+}
+
+func (manager *Manager) PasteRows(id string, sourceRows []int, targetRow int, cut bool) (MutationResult, error) {
 	if err := manager.ensureWritable(id); err != nil {
 		return MutationResult{}, err
 	}
@@ -724,15 +728,21 @@ func (manager *Manager) PasteRow(id string, sourceRow int, targetRow int, cut bo
 	}
 	applyEdits(records, 0, session.Edits)
 	records = cloneRecords(records)
-	if sourceRow < 0 || sourceRow >= len(records) {
-		return MutationResult{}, errors.New("source row is out of range")
+	sourceRows = uniqueIndexesInOrder(sourceRows)
+	if len(sourceRows) == 0 {
+		return MutationResult{}, errors.New("source rows are required")
 	}
 	minRow := 0
 	if session.Document.Metadata.Dialect.HasHeader {
 		minRow = 1
 	}
-	if sourceRow < minRow {
-		return MutationResult{}, errors.New("header row cannot be pasted")
+	for _, sourceRow := range sourceRows {
+		if sourceRow < 0 || sourceRow >= len(records) {
+			return MutationResult{}, errors.New("source row is out of range")
+		}
+		if sourceRow < minRow {
+			return MutationResult{}, errors.New("header row cannot be pasted")
+		}
 	}
 	if targetRow < minRow {
 		targetRow = minRow
@@ -740,19 +750,33 @@ func (manager *Manager) PasteRow(id string, sourceRow int, targetRow int, cut bo
 	if targetRow > len(records) {
 		targetRow = len(records)
 	}
-	if cut && (targetRow == sourceRow || targetRow == sourceRow+1) {
+	before := cloneRecords(records)
+	pasted := make([][]string, 0, len(sourceRows))
+	for _, sourceRow := range sourceRows {
+		pasted = append(pasted, append([]string(nil), records[sourceRow]...))
+	}
+	if cut {
+		sourceSet := indexSet(sourceRows)
+		targetRow -= countIndexesBefore(sourceRows, targetRow)
+		filtered := make([][]string, 0, len(records)-len(sourceSet))
+		for row, record := range records {
+			if sourceSet[row] {
+				continue
+			}
+			filtered = append(filtered, record)
+		}
+		records = filtered
+	}
+	if targetRow < minRow {
+		targetRow = minRow
+	}
+	if targetRow > len(records) {
+		targetRow = len(records)
+	}
+	records = insertRecords(records, targetRow, pasted)
+	if reflect.DeepEqual(before, records) {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
-	pasted := append([]string(nil), records[sourceRow]...)
-	if cut {
-		records = append(records[:sourceRow], records[sourceRow+1:]...)
-		if targetRow > sourceRow {
-			targetRow--
-		}
-	}
-	records = append(records, nil)
-	copy(records[targetRow+1:], records[targetRow:])
-	records[targetRow] = pasted
 	metadata := session.Document.Metadata
 	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
 	if err := manager.pushUndo(id); err != nil {
@@ -762,7 +786,7 @@ func (manager *Manager) PasteRow(id string, sourceRow int, targetRow int, cut bo
 	if err != nil {
 		return MutationResult{}, err
 	}
-	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: len(sourceRows)}, nil
 }
 
 func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
@@ -894,6 +918,10 @@ func (manager *Manager) MoveColumn(id string, col int, delta int) (MutationResul
 }
 
 func (manager *Manager) PasteColumn(id string, sourceCol int, targetCol int, cut bool) (MutationResult, error) {
+	return manager.PasteColumns(id, []int{sourceCol}, targetCol, cut)
+}
+
+func (manager *Manager) PasteColumns(id string, sourceCols []int, targetCol int, cut bool) (MutationResult, error) {
 	if err := manager.ensureWritable(id); err != nil {
 		return MutationResult{}, err
 	}
@@ -908,8 +936,14 @@ func (manager *Manager) PasteColumn(id string, sourceCol int, targetCol int, cut
 	applyEdits(records, 0, session.Edits)
 	records = cloneRecords(records)
 	width := maxRecordWidth(records)
-	if sourceCol < 0 || sourceCol >= width {
-		return MutationResult{}, errors.New("source column is out of range")
+	sourceCols = uniqueIndexesInOrder(sourceCols)
+	if len(sourceCols) == 0 {
+		return MutationResult{}, errors.New("source columns are required")
+	}
+	for _, sourceCol := range sourceCols {
+		if sourceCol < 0 || sourceCol >= width {
+			return MutationResult{}, errors.New("source column is out of range")
+		}
 	}
 	if targetCol < 0 {
 		targetCol = 0
@@ -917,28 +951,42 @@ func (manager *Manager) PasteColumn(id string, sourceCol int, targetCol int, cut
 	if targetCol > width {
 		targetCol = width
 	}
-	if cut && (targetCol == sourceCol || targetCol == sourceCol+1) {
-		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
-	}
-	values := make([]string, len(records))
+	before := cloneRecords(records)
+	values := make([][]string, len(records))
 	for row := range records {
 		ensureRecordWidth(&records[row], width)
-		values[row] = records[row][sourceCol]
+		values[row] = make([]string, len(sourceCols))
+		for index, sourceCol := range sourceCols {
+			values[row][index] = records[row][sourceCol]
+		}
 	}
 	if cut {
+		sourceSet := indexSet(sourceCols)
 		for row := range records {
-			records[row] = append(records[row][:sourceCol], records[row][sourceCol+1:]...)
+			filtered := make([]string, 0, width-len(sourceSet))
+			for col, value := range records[row] {
+				if sourceSet[col] {
+					continue
+				}
+				filtered = append(filtered, value)
+			}
+			records[row] = filtered
 		}
-		if targetCol > sourceCol {
-			targetCol--
-		}
-		width--
+		targetCol -= countIndexesBefore(sourceCols, targetCol)
+		width -= len(sourceCols)
+	}
+	if targetCol < 0 {
+		targetCol = 0
+	}
+	if targetCol > width {
+		targetCol = width
 	}
 	for row := range records {
 		ensureRecordWidth(&records[row], width)
-		records[row] = append(records[row], "")
-		copy(records[row][targetCol+1:], records[row][targetCol:])
-		records[row][targetCol] = values[row]
+		records[row] = insertRecordValues(records[row], targetCol, values[row])
+	}
+	if reflect.DeepEqual(before, records) {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
 	metadata := session.Document.Metadata
 	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
@@ -949,7 +997,7 @@ func (manager *Manager) PasteColumn(id string, sourceCol int, targetCol int, cut
 	if err != nil {
 		return MutationResult{}, err
 	}
-	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: len(sourceCols)}, nil
 }
 
 func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, error) {
@@ -2473,6 +2521,23 @@ func moveRecord(records [][]string, from int, to int) [][]string {
 	return records
 }
 
+func insertRecords(records [][]string, index int, inserted [][]string) [][]string {
+	if len(inserted) == 0 {
+		return records
+	}
+	if index < 0 {
+		index = 0
+	}
+	if index > len(records) {
+		index = len(records)
+	}
+	output := make([][]string, 0, len(records)+len(inserted))
+	output = append(output, records[:index]...)
+	output = append(output, inserted...)
+	output = append(output, records[index:]...)
+	return output
+}
+
 func moveColumnRecords(records [][]string, from int, to int, width int) [][]string {
 	order := make([]int, width)
 	for i := range order {
@@ -2497,6 +2562,54 @@ func moveColumnRecords(records [][]string, from int, to int, width int) [][]stri
 		output[row] = next
 	}
 	return output
+}
+
+func insertRecordValues(record []string, index int, inserted []string) []string {
+	if len(inserted) == 0 {
+		return record
+	}
+	if index < 0 {
+		index = 0
+	}
+	if index > len(record) {
+		index = len(record)
+	}
+	output := make([]string, 0, len(record)+len(inserted))
+	output = append(output, record[:index]...)
+	output = append(output, inserted...)
+	output = append(output, record[index:]...)
+	return output
+}
+
+func uniqueIndexesInOrder(indexes []int) []int {
+	seen := make(map[int]bool, len(indexes))
+	output := make([]int, 0, len(indexes))
+	for _, index := range indexes {
+		if seen[index] {
+			continue
+		}
+		seen[index] = true
+		output = append(output, index)
+	}
+	return output
+}
+
+func indexSet(indexes []int) map[int]bool {
+	set := make(map[int]bool, len(indexes))
+	for _, index := range indexes {
+		set[index] = true
+	}
+	return set
+}
+
+func countIndexesBefore(indexes []int, target int) int {
+	count := 0
+	for _, index := range indexes {
+		if index < target {
+			count++
+		}
+	}
+	return count
 }
 
 func visibleRowCount(session *Session, recordCount int, dataStart int) int {

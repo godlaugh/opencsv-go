@@ -390,6 +390,7 @@ type rowMutationRequest struct {
 type rowPasteRequest struct {
 	DocumentID string `json:"documentId"`
 	SourceRow  int    `json:"sourceRow"`
+	SourceRows []int  `json:"sourceRows"`
 	TargetRow  int    `json:"targetRow"`
 	Cut        bool   `json:"cut"`
 }
@@ -403,6 +404,7 @@ type columnMutationRequest struct {
 type columnPasteRequest struct {
 	DocumentID string `json:"documentId"`
 	SourceCol  int    `json:"sourceCol"`
+	SourceCols []int  `json:"sourceCols"`
 	TargetCol  int    `json:"targetCol"`
 	Cut        bool   `json:"cut"`
 }
@@ -645,7 +647,11 @@ func (server *Server) handlePasteRow(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.PasteRow(request.DocumentID, request.SourceRow, request.TargetRow, request.Cut)
+	sourceRows := request.SourceRows
+	if len(sourceRows) == 0 {
+		sourceRows = []int{request.SourceRow}
+	}
+	result, err := server.documents.PasteRows(request.DocumentID, sourceRows, request.TargetRow, request.Cut)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -715,7 +721,11 @@ func (server *Server) handlePasteColumn(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.PasteColumn(request.DocumentID, request.SourceCol, request.TargetCol, request.Cut)
+	sourceCols := request.SourceCols
+	if len(sourceCols) == 0 {
+		sourceCols = []int{request.SourceCol}
+	}
+	result, err := server.documents.PasteColumns(request.DocumentID, sourceCols, request.TargetCol, request.Cut)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

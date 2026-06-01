@@ -602,9 +602,11 @@ function columnNameForSource(sourceCol) {
   return allColumns.find((column) => column.sourceCol === sourceCol)?.name ?? `Column ${sourceCol + 1}`;
 }
 
-function setStructureClipboard(kind, source, cut = false) {
-  structureClipboard = { documentId, kind, source, cut };
-  document.body.dataset.structureClipboard = `${kind}:${cut ? "cut" : "copy"}:${source}`;
+function setStructureClipboard(kind, sources, cut = false) {
+  const normalizedSources = (Array.isArray(sources) ? sources : [sources])
+    .filter((source) => Number.isInteger(source));
+  structureClipboard = { documentId, kind, source: normalizedSources[0], sources: normalizedSources, cut };
+  document.body.dataset.structureClipboard = `${kind}:${cut ? "cut" : "copy"}:${normalizedSources.join(",")}`;
   updateCommandState();
 }
 
@@ -4929,6 +4931,45 @@ function selectedSourceRow() {
   return rowSource.get(selected.row) ?? selected.row + dataStartRow;
 }
 
+function selectedRowsForStructure() {
+  const displayRows = [];
+  const sourceRows = [];
+  const seen = new Set();
+  for (const range of activeSelectionRanges()) {
+    if (range.endRow >= sourceRowCount) {
+      status.textContent = "Aggregate rows are view-only.";
+      return null;
+    }
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      const sourceRow = rowSource.get(row);
+      if (viewMapped && sourceRow == null) {
+        status.textContent = "Load the selected filtered rows before using row structure commands.";
+        return null;
+      }
+      const recordRow = sourceRow ?? row + dataStartRow;
+      if (seen.has(recordRow)) continue;
+      seen.add(recordRow);
+      displayRows.push(row);
+      sourceRows.push(recordRow);
+    }
+  }
+  return displayRows.length ? { displayRows, sourceRows } : null;
+}
+
+function selectedColumnsForStructure() {
+  const sourceCols = [];
+  const seen = new Set();
+  for (const range of activeSelectionRanges()) {
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      const sourceCol = sourceColFor(col);
+      if (seen.has(sourceCol)) continue;
+      seen.add(sourceCol);
+      sourceCols.push(sourceCol);
+    }
+  }
+  return sourceCols.length ? sourceCols : null;
+}
+
 function selectedMatrix() {
   const matrix = [];
   for (const range of activeSelectionRanges()) {
@@ -5122,36 +5163,44 @@ async function copyActiveRow(options = {}) {
     return;
   }
   const includeHeaders = Boolean(options.includeHeaders);
-  const sourceRow = selectedSourceRow();
+  const rowSelection = selectedRowsForStructure();
+  if (!rowSelection) return;
+  const rowCount = rowSelection.sourceRows.length;
   const copied = await copyExportViewSlice({
-    label: includeHeaders ? "row with headers" : "row",
+    label: includeHeaders
+      ? rowCount === 1 ? "row with headers" : "rows with headers"
+      : rowCount === 1 ? "row" : "rows",
     body: {
       documentId,
-      rows: [selected.row],
+      rows: rowSelection.displayRows,
       columns: columns.map((column) => column.sourceCol),
       format: "tsv",
       includeHeaders,
     },
-    cellCount: columns.length,
+    cellCount: columns.length * rowCount,
   });
-  if (!includeHeaders && copied) setStructureClipboard("row", sourceRow, false);
+  if (!includeHeaders && copied) setStructureClipboard("row", rowSelection.sourceRows, false);
 }
 
 async function copyActiveColumn(options = {}) {
   if (!documentId || !columns[selected.col]) return;
   const includeHeaders = Boolean(options.includeHeaders);
-  const sourceCol = sourceColFor(selected.col);
+  const sourceCols = selectedColumnsForStructure();
+  if (!sourceCols) return;
+  const colCount = sourceCols.length;
   const copied = await copyExportViewSlice({
-    label: includeHeaders ? "column with header" : "column",
+    label: includeHeaders
+      ? colCount === 1 ? "column with header" : "columns with headers"
+      : colCount === 1 ? "column" : "columns",
     body: {
       documentId,
-      columns: [sourceCol],
+      columns: sourceCols,
       format: "tsv",
       includeHeaders,
     },
-    cellCount: sourceRowCount,
+    cellCount: sourceRowCount * colCount,
   });
-  if (!includeHeaders && copied) setStructureClipboard("column", sourceCol, false);
+  if (!includeHeaders && copied) setStructureClipboard("column", sourceCols, false);
 }
 
 async function copyExportViewSlice({ label, body, cellCount }) {
@@ -7026,12 +7075,11 @@ async function redoCurrentDocument() {
 function cutSelectedRow() {
   if (!documentId) return;
   if (!ensureEditable("Cut Row")) return;
-  if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
-    return;
-  }
-  setStructureClipboard("row", selectedSourceRow(), true);
-  status.textContent = "Cut row for paste.";
+  const rowSelection = selectedRowsForStructure();
+  if (!rowSelection) return;
+  setStructureClipboard("row", rowSelection.sourceRows, true);
+  const count = rowSelection.sourceRows.length;
+  status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "row" : "rows"} for paste.`;
 }
 
 async function pasteRowFromClipboard() {
@@ -7048,6 +7096,7 @@ async function pasteRowFromClipboard() {
     return;
   }
   const targetRow = selectedSourceRow();
+  const sources = clipboard.sources ?? [clipboard.source];
   const action = clipboard.cut ? "Move row" : "Paste row";
   status.textContent = `${action}...`;
   const response = await fetch("/api/row/paste", {
@@ -7055,7 +7104,8 @@ async function pasteRowFromClipboard() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       documentId,
-      sourceRow: clipboard.source,
+      sourceRow: sources[0],
+      sourceRows: sources,
       targetRow,
       cut: clipboard.cut,
     }),
@@ -7066,9 +7116,11 @@ async function pasteRowFromClipboard() {
     return;
   }
   const changed = payload.changed ?? 0;
-  const message = changed > 0 ? (clipboard.cut ? "Moved row" : "Pasted row") : "Row paste did not change the document";
+  const count = sources.length;
+  const label = `${formatCount(count)} ${count === 1 ? "row" : "rows"}`;
+  const message = changed > 0 ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}`) : "Row paste did not change the document";
   applyMutationPayload(payload, message);
-  document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${clipboard.source}->${targetRow}`;
+  document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${sources.join(",")}->${targetRow}`;
   if (clipboard.cut) clearStructureClipboard();
 }
 
@@ -7162,8 +7214,11 @@ function cutSelectedColumn() {
     status.textContent = "Select a column first.";
     return;
   }
-  setStructureClipboard("column", sourceColFor(selected.col), true);
-  status.textContent = "Cut column for paste.";
+  const sourceCols = selectedColumnsForStructure();
+  if (!sourceCols) return;
+  setStructureClipboard("column", sourceCols, true);
+  const count = sourceCols.length;
+  status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "column" : "columns"} for paste.`;
 }
 
 async function pasteColumnFromClipboard() {
@@ -7180,6 +7235,7 @@ async function pasteColumnFromClipboard() {
     return;
   }
   const targetCol = sourceColFor(selected.col);
+  const sources = clipboard.sources ?? [clipboard.source];
   const action = clipboard.cut ? "Move column" : "Paste column";
   status.textContent = `${action}...`;
   const response = await fetch("/api/column/paste", {
@@ -7187,7 +7243,8 @@ async function pasteColumnFromClipboard() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       documentId,
-      sourceCol: clipboard.source,
+      sourceCol: sources[0],
+      sourceCols: sources,
       targetCol,
       cut: clipboard.cut,
     }),
@@ -7198,9 +7255,11 @@ async function pasteColumnFromClipboard() {
     return;
   }
   const changed = payload.changed ?? 0;
-  const message = changed > 0 ? (clipboard.cut ? "Moved column" : "Pasted column") : "Column paste did not change the document";
+  const count = sources.length;
+  const label = `${formatCount(count)} ${count === 1 ? "column" : "columns"}`;
+  const message = changed > 0 ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}`) : "Column paste did not change the document";
   applyMutationPayload(payload, message);
-  document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${clipboard.source}->${targetCol}`;
+  document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${sources.join(",")}->${targetCol}`;
   if (clipboard.cut) clearStructureClipboard();
 }
 
