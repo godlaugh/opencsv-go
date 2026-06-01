@@ -123,6 +123,8 @@ const commandPalette = document.querySelector("#commandPalette");
 const paletteInput = document.querySelector("#paletteInput");
 const paletteList = document.querySelector("#paletteList");
 const shortcutsPanel = document.querySelector("#shortcutsPanel");
+const shortcutPresetSelect = document.querySelector("#shortcutPresetSelect");
+const applyShortcutPresetButton = document.querySelector("#applyShortcutPresetButton");
 const shortcutsSearch = document.querySelector("#shortcutsSearch");
 const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
@@ -180,6 +182,31 @@ const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const shortcutExportKind = "opencsv-shortcuts";
+const shortcutPresets = [
+  { id: "default", name: "Default", shortcuts: {} },
+  {
+    id: "analysis",
+    name: "Analysis",
+    shortcuts: {
+      "diff.open": "Shift+Alt+O",
+      "selection.copyAggregate": "Shift+Alt+K",
+      "table.transpose": "Shift+Alt+E",
+      "view.profile": "Shift+Alt+P",
+      "view.sql": "Shift+Alt+Q",
+    },
+  },
+  {
+    id: "editing",
+    name: "Editing",
+    shortcuts: {
+      "file.toggleReadOnly": "Shift+Alt+Y",
+      "format.applyQuotePolicy": "Shift+Alt+Q",
+      "format.toggleCellQuote": "Shift+Alt+P",
+      "text.fullWidth": "Shift+Alt+N",
+      "text.halfWidth": "Shift+Alt+Z",
+    },
+  },
+];
 const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 const savedFiltersStorageKey = "opencsv-saved-filters";
@@ -2327,6 +2354,39 @@ function saveCustomShortcuts() {
   applyCommandMetadata();
   renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
+}
+
+function applyShortcutPreset() {
+  const preset = shortcutPresets.find((item) => item.id === shortcutPresetSelect.value) ?? shortcutPresets[0];
+  const result = shortcutMapFromEntries(Object.entries(preset.shortcuts));
+  customShortcuts = result.shortcuts;
+  saveCustomShortcuts();
+  document.body.dataset.shortcutPreset = `${preset.id}:${result.applied}:${result.skipped}`;
+  status.textContent = `Applied ${preset.name} shortcut preset: ${formatCount(result.applied)} shortcuts${result.skipped ? `, skipped ${formatCount(result.skipped)}` : ""}.`;
+}
+
+function shortcutMapFromEntries(entries) {
+  const next = new Map();
+  let applied = 0;
+  let skipped = 0;
+  for (const [commandID, rawShortcut] of entries) {
+    const command = commandsById.get(commandID);
+    const shortcut = normalizeShortcutText(rawShortcut);
+    if (!command || command.implemented === false || !shortcutAllowed(shortcut)) {
+      skipped++;
+      continue;
+    }
+    const conflict = commandForShortcutWithMap(shortcut, commandID, next);
+    if (conflict) {
+      skipped++;
+      continue;
+    }
+    if (shortcut !== command.shortcut) {
+      next.set(commandID, shortcut);
+    }
+    applied++;
+  }
+  return { shortcuts: next, applied, skipped };
 }
 
 function exportShortcuts() {
@@ -8245,6 +8305,7 @@ commandPalette.addEventListener("mousedown", (event) => {
 });
 shortcutsSearch.addEventListener("input", renderKeyboardShortcuts);
 closeShortcutsButton.addEventListener("click", closeKeyboardShortcuts);
+applyShortcutPresetButton.addEventListener("click", applyShortcutPreset);
 exportShortcutsButton.addEventListener("click", () => executeCommand("settings.exportShortcuts"));
 showImportShortcutsButton.addEventListener("click", () => executeCommand("settings.importShortcuts"));
 shortcutImportText.addEventListener("input", syncShortcutImportControls);

@@ -1076,7 +1076,7 @@ button:disabled {
   display: grid;
   width: min(760px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 120px));
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1095,14 +1095,17 @@ button:disabled {
 }
 
 .shortcut-panel-actions,
+.shortcut-preset-bar,
 .shortcut-import-actions {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   justify-content: flex-end;
 }
 
 .shortcut-panel-header button,
+.shortcut-preset-bar button,
 .shortcut-import-actions button,
 .shortcut-actions button {
   min-height: 30px;
@@ -1111,6 +1114,28 @@ button:disabled {
   padding: 0 10px;
   background: var(--panel);
   color: var(--text);
+}
+
+.shortcut-preset-bar {
+  justify-content: flex-start;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  background: var(--panel-subtle);
+}
+
+.shortcut-preset-bar label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shortcut-preset-bar select {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 28px 0 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
 }
 
 .shortcut-import-panel {

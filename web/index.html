@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-shortcut-import-export-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-shortcut-presets-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -313,6 +313,15 @@
             <button id="closeShortcutsButton" type="button">Close</button>
           </div>
         </header>
+        <div class="shortcut-preset-bar">
+          <label for="shortcutPresetSelect">Preset</label>
+          <select id="shortcutPresetSelect" aria-label="Shortcut preset">
+            <option value="default">Default</option>
+            <option value="analysis">Analysis</option>
+            <option value="editing">Editing</option>
+          </select>
+          <button id="applyShortcutPresetButton" type="button">Apply Preset</button>
+        </div>
         <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" />
         <div id="shortcutImportPanel" class="shortcut-import-panel" hidden>
           <textarea id="shortcutImportText" spellcheck="false" aria-label="Shortcut import JSON" placeholder='{"kind":"opencsv-shortcuts","shortcuts":{}}'></textarea>
@@ -440,6 +449,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-shortcut-import-export-1"></script>
+    <script type="module" src="./src/app.js?v=m2-shortcut-presets-1"></script>
   </body>
 </html>
