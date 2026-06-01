@@ -176,6 +176,7 @@ let scrollY = 0;
 let wheelRemainderY = 0;
 let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
+let smartSelectionRanges = [];
 let draggingSelection = false;
 let dragSelectionMode = "cell";
 let draggingFillHandle = false;
@@ -1516,15 +1517,61 @@ function normalizedSelection() {
   };
 }
 
-function selectionCellCount() {
-  if (!documentId || columns.length === 0 || totalRows === 0) return 0;
-  const range = normalizedSelection();
+function normalizedSmartSelectionRanges() {
+  if (!smartSelectionRanges.length) return [];
+  return smartSelectionRanges
+    .map((range) => normalizeRange(range))
+    .filter(Boolean);
+}
+
+function activeSelectionRanges() {
+  const primary = normalizedSelection();
+  const smart = normalizedSmartSelectionRanges();
+  if (smart.some((range) => rangeContainsRange(range, primary))) return dedupeRanges(smart);
+  return dedupeRanges([primary, ...smart].filter(Boolean));
+}
+
+function normalizeRange(range) {
+  if (!documentId || columns.length === 0 || totalRows === 0 || !range) return null;
+  const startRow = Math.max(0, range.startRow);
+  const endRow = Math.min(totalRows - 1, range.endRow);
+  const startCol = Math.max(0, range.startCol);
+  const endCol = Math.min(columns.length - 1, range.endCol);
+  if (endRow < startRow || endCol < startCol) return null;
+  return { startRow, endRow, startCol, endCol };
+}
+
+function rangeKey(range) {
+  return `${range.startRow}:${range.startCol}-${range.endRow}:${range.endCol}`;
+}
+
+function dedupeRanges(ranges) {
+  const seen = new Set();
+  const result = [];
+  for (const range of ranges) {
+    const normalized = normalizeRange(range);
+    if (!normalized) continue;
+    const key = rangeKey(normalized);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+  return result;
+}
+
+function rangeCellCount(range) {
   return (range.endRow - range.startRow + 1) * (range.endCol - range.startCol + 1);
 }
 
-function selectionSummary(range = normalizedSelection()) {
+function selectionCellCount() {
+  if (!documentId || columns.length === 0 || totalRows === 0) return 0;
+  return activeSelectionRanges().reduce((count, range) => count + rangeCellCount(range), 0);
+}
+
+function selectionSummary(range = null) {
   if (!documentId || columns.length === 0 || totalRows === 0) return "";
-  const base = `${range.startRow}:${range.startCol}-${range.endRow}:${range.endCol}`;
+  const ranges = range ? [range] : activeSelectionRanges();
+  const base = ranges.map(rangeKey).join(";");
   return includeHeadersInSelection ? `${base}:headers` : base;
 }
 
@@ -1540,27 +1587,28 @@ function selectionAggregateStats() {
     max: 0,
   };
   if (count <= 1) return stats;
-  const range = normalizedSelection();
-  if (range.endRow >= sourceRowCount) {
-    stats.limited = true;
-    return stats;
-  }
   if (count > 5000) {
     stats.limited = true;
     return stats;
   }
   let minValue = Number.POSITIVE_INFINITY;
   let maxValue = Number.NEGATIVE_INFINITY;
-  for (let row = range.startRow; row <= range.endRow; row++) {
-    for (let col = range.startCol; col <= range.endCol; col++) {
-      const raw = valueAt(row, col).trim();
-      if (raw === "") continue;
-      const value = Number(raw);
-      if (!Number.isFinite(value)) continue;
-      stats.numericCount++;
-      stats.sum += value;
-      minValue = Math.min(minValue, value);
-      maxValue = Math.max(maxValue, value);
+  for (const range of activeSelectionRanges()) {
+    if (range.endRow >= sourceRowCount) {
+      stats.limited = true;
+      return stats;
+    }
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        const raw = valueAt(row, col).trim();
+        if (raw === "") continue;
+        const value = Number(raw);
+        if (!Number.isFinite(value)) continue;
+        stats.numericCount++;
+        stats.sum += value;
+        minValue = Math.min(minValue, value);
+        maxValue = Math.max(maxValue, value);
+      }
     }
   }
   if (stats.numericCount) {
@@ -2345,6 +2393,18 @@ async function executeCommand(commandID) {
     case "selection.toggleHeaders":
       toggleHeaderInSelection();
       break;
+    case "selection.addRange":
+      addSmartSelectionRange();
+      break;
+    case "selection.subtractRange":
+      subtractSmartSelectionRange();
+      break;
+    case "selection.invert":
+      invertSmartSelection();
+      break;
+    case "selection.clearRanges":
+      clearSmartSelectionRanges();
+      break;
     case "selection.cycleAggregate":
       cycleAggregateMetric();
       break;
@@ -2832,25 +2892,25 @@ function regexFindRanges(value, query, caseSensitive) {
 
 function drawSelection() {
   if (columns.length === 0) return;
-  const range = normalizedSelection();
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, headerHeight, canvas.clientWidth, Math.max(0, canvas.clientHeight - headerHeight));
   ctx.clip();
 
-  const firstVisibleRow = Math.max(range.startRow, Math.floor(scrollY / rowHeight));
-  const lastVisibleRow = Math.min(
-    range.endRow,
-    Math.ceil((scrollY + canvas.clientHeight - headerHeight) / rowHeight),
-  );
-  const visibleColumns = visibleColumnIndexes(range);
-
   ctx.fillStyle = themeColors.selectionBg;
-  for (let row = firstVisibleRow; row <= lastVisibleRow; row++) {
-    for (const col of visibleColumns) {
-      const rect = cellRect(row, col);
-      if (!rect) continue;
-      ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+  for (const range of activeSelectionRanges()) {
+    const firstVisibleRow = Math.max(range.startRow, Math.floor(scrollY / rowHeight));
+    const lastVisibleRow = Math.min(
+      range.endRow,
+      Math.ceil((scrollY + canvas.clientHeight - headerHeight) / rowHeight),
+    );
+    const visibleColumns = visibleColumnIndexes(range);
+    for (let row = firstVisibleRow; row <= lastVisibleRow; row++) {
+      for (const col of visibleColumns) {
+        const rect = cellRect(row, col);
+        if (!rect) continue;
+        ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+      }
     }
   }
 
@@ -2861,7 +2921,7 @@ function drawSelection() {
     ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
     ctx.lineWidth = 1;
   }
-  drawFillHandle(range);
+  drawFillHandle(normalizedSelection());
   ctx.restore();
 }
 
@@ -2880,6 +2940,7 @@ function drawFillHandle(range) {
 }
 
 function fillHandleRect(range = normalizedSelection()) {
+  if (smartSelectionRanges.length > 0) return null;
   if (!documentId || readOnly || columns.length === 0 || totalRows === 0 || sourceRowCount <= 0) {
     return null;
   }
@@ -3605,6 +3666,7 @@ function loadDocument(document) {
   applyHiddenColumns();
   selected = { row: 0, col: 0 };
   selectionAnchor = { row: 0, col: 0 };
+  setSmartSelectionRanges([]);
   scrollX = 0;
   scrollY = 0;
   wheelRemainderY = 0;
@@ -3652,20 +3714,21 @@ function selectedSourceRow() {
 }
 
 function selectedMatrix() {
-  const range = normalizedSelection();
   const matrix = [];
-  for (let row = range.startRow; row <= range.endRow; row++) {
-    const values = [];
-    for (let col = range.startCol; col <= range.endCol; col++) {
-      values.push(valueAt(row, col));
+  for (const range of activeSelectionRanges()) {
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      const values = [];
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        values.push(valueAt(row, col));
+      }
+      matrix.push(values);
     }
-    matrix.push(values);
   }
   return matrix;
 }
 
 function selectedHeaders() {
-  const range = normalizedSelection();
+  const range = activeSelectionRanges()[0] ?? normalizedSelection();
   const headers = [];
   for (let col = range.startCol; col <= range.endCol; col++) {
     headers.push(columns[col]?.name ?? `Column ${col + 1}`);
@@ -3683,21 +3746,22 @@ function selectedCellsForTransform(maxCells = 100_000) {
     status.textContent = `Selection has ${formatCount(count)} cells; transform limit is ${formatCount(maxCells)}.`;
     return null;
   }
-  const range = normalizedSelection();
-  if (range.endRow >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
-    return null;
-  }
   const cells = [];
-  for (let row = range.startRow; row <= range.endRow; row++) {
-    const sourceRow = rowSource.get(row);
-    if (viewMapped && sourceRow == null) {
-      status.textContent = "Load the selected filtered rows before transforming them.";
+  for (const range of activeSelectionRanges()) {
+    if (range.endRow >= sourceRowCount) {
+      status.textContent = "Aggregate rows are view-only.";
       return null;
     }
-    const recordRow = sourceRow ?? row + dataStartRow;
-    for (let col = range.startCol; col <= range.endCol; col++) {
-      cells.push({ row: recordRow, col: sourceColFor(col) });
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      const sourceRow = rowSource.get(row);
+      if (viewMapped && sourceRow == null) {
+        status.textContent = "Load the selected filtered rows before transforming them.";
+        return null;
+      }
+      const recordRow = sourceRow ?? row + dataStartRow;
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        cells.push({ row: recordRow, col: sourceColFor(col) });
+      }
     }
   }
   return cells;
@@ -3716,6 +3780,93 @@ function setHeaderInSelection(value) {
   includeHeadersInSelection = Boolean(value);
   copyHeadersToggle.checked = includeHeadersInSelection;
   document.body.dataset.headerInSelection = includeHeadersInSelection ? "true" : "false";
+}
+
+function setSmartSelectionRanges(ranges) {
+  smartSelectionRanges = dedupeRanges(ranges);
+  document.body.dataset.smartSelectionRanges = smartSelectionRanges.length ? smartSelectionRanges.map(rangeKey).join(";") : "";
+}
+
+function addSmartSelectionRange() {
+  if (!documentId || columns.length === 0 || totalRows === 0) return;
+  setSmartSelectionRanges([...smartSelectionRanges, normalizedSelection()]);
+  draw();
+  status.textContent = `Added range to selection: ${formatCount(selectionCellCount())} cells selected`;
+}
+
+function subtractSmartSelectionRange() {
+  if (!documentId || columns.length === 0 || totalRows === 0) return;
+  const cut = normalizedSelection();
+  const base = smartSelectionRanges.length ? normalizedSmartSelectionRanges() : [cut];
+  const next = [];
+  for (const range of base) next.push(...subtractRange(range, cut));
+  setSmartSelectionRanges(next);
+  focusFirstSmartSelectionCell();
+  draw();
+  status.textContent = smartSelectionRanges.length
+    ? `Subtracted range: ${formatCount(selectionCellCount())} cells selected`
+    : "Selection range cleared";
+}
+
+function invertSmartSelection() {
+  if (!documentId || columns.length === 0 || totalRows === 0) return;
+  let inverted = [{ startRow: 0, endRow: Math.max(0, sourceRowCount - 1), startCol: 0, endCol: columns.length - 1 }];
+  for (const cut of activeSelectionRanges()) {
+    inverted = inverted.flatMap((range) => subtractRange(range, cut));
+  }
+  setSmartSelectionRanges(inverted);
+  focusFirstSmartSelectionCell();
+  draw();
+  status.textContent = smartSelectionRanges.length
+    ? `Inverted selection: ${formatCount(selectionCellCount())} cells selected`
+    : "Inverted selection is empty";
+}
+
+function clearSmartSelectionRanges() {
+  if (!smartSelectionRanges.length) return false;
+  setSmartSelectionRanges([]);
+  draw();
+  status.textContent = "Extra selection ranges cleared";
+  return true;
+}
+
+function focusFirstSmartSelectionCell() {
+  const first = smartSelectionRanges[0];
+  if (!first) {
+    selectionAnchor = { ...selected };
+    return;
+  }
+  selected = { row: first.startRow, col: first.startCol };
+  selectionAnchor = { ...selected };
+}
+
+function subtractRange(range, cut) {
+  const base = normalizeRange(range);
+  const eraser = normalizeRange(cut);
+  if (!base) return [];
+  if (!eraser || !rangesOverlap(base, eraser)) return [base];
+
+  const top = { startRow: base.startRow, endRow: eraser.startRow - 1, startCol: base.startCol, endCol: base.endCol };
+  const bottom = { startRow: eraser.endRow + 1, endRow: base.endRow, startCol: base.startCol, endCol: base.endCol };
+  const middleStart = Math.max(base.startRow, eraser.startRow);
+  const middleEnd = Math.min(base.endRow, eraser.endRow);
+  const left = { startRow: middleStart, endRow: middleEnd, startCol: base.startCol, endCol: eraser.startCol - 1 };
+  const right = { startRow: middleStart, endRow: middleEnd, startCol: eraser.endCol + 1, endCol: base.endCol };
+  return [top, bottom, left, right].map(normalizeRange).filter(Boolean);
+}
+
+function rangesOverlap(a, b) {
+  return a.startRow <= b.endRow && a.endRow >= b.startRow && a.startCol <= b.endCol && a.endCol >= b.startCol;
+}
+
+function rangeContainsRange(container, candidate) {
+  if (!container || !candidate) return false;
+  return (
+    container.startRow <= candidate.startRow &&
+    container.endRow >= candidate.endRow &&
+    container.startCol <= candidate.startCol &&
+    container.endCol >= candidate.endCol
+  );
 }
 
 async function copyUsingSelectedFormat() {
@@ -4662,27 +4813,29 @@ function selectedCellsForSearch(maxCells = 100_000) {
     status.textContent = `Selection has ${formatCount(count)} cells; search-in-selection limit is ${formatCount(maxCells)}.`;
     return null;
   }
-  const range = normalizedSelection();
   const cells = [];
-  for (let row = range.startRow; row <= range.endRow; row++) {
-    const sourceRow = rowSource.get(row);
-    if (viewMapped && sourceRow == null) {
-      status.textContent = "Load the selected filtered rows before searching within selection.";
-      return null;
-    }
-    const recordRow = sourceRow ?? row + dataStartRow;
-    for (let col = range.startCol; col <= range.endCol; col++) {
-      cells.push({ row: recordRow, col: sourceColFor(col) });
+  for (const range of activeSelectionRanges()) {
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      const sourceRow = rowSource.get(row);
+      if (viewMapped && sourceRow == null) {
+        status.textContent = "Load the selected filtered rows before searching within selection.";
+        return null;
+      }
+      const recordRow = sourceRow ?? row + dataStartRow;
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        cells.push({ row: recordRow, col: sourceColFor(col) });
+      }
     }
   }
   return cells;
 }
 
 function selectedSearchScopeKey() {
-  const range = normalizedSelection();
-  const startSourceRow = rowSource.get(range.startRow) ?? range.startRow + dataStartRow;
-  const endSourceRow = rowSource.get(range.endRow) ?? range.endRow + dataStartRow;
-  return `${Math.min(startSourceRow, endSourceRow)}:${Math.max(startSourceRow, endSourceRow)}:${sourceColFor(range.startCol)}:${sourceColFor(range.endCol)}`;
+  return activeSelectionRanges().map((range) => {
+    const startSourceRow = rowSource.get(range.startRow) ?? range.startRow + dataStartRow;
+    const endSourceRow = rowSource.get(range.endRow) ?? range.endRow + dataStartRow;
+    return `${Math.min(startSourceRow, endSourceRow)}:${Math.max(startSourceRow, endSourceRow)}:${sourceColFor(range.startCol)}:${sourceColFor(range.endCol)}`;
+  }).join(";");
 }
 
 function emptyFindState() {
@@ -7023,6 +7176,11 @@ function handleGlobalShortcut(event) {
       f: "cell.fillDown",
       g: "cell.fillRight",
       a: "selection.insertAggregateRow",
+      m: "selection.addRange",
+      "-": "selection.subtractRange",
+      "_": "selection.subtractRange",
+      minus: "selection.subtractRange",
+      i: "selection.invert",
       t: "text.trim",
       u: "text.uppercase",
       l: "text.lowercase",
@@ -7057,6 +7215,11 @@ function handleGlobalShortcut(event) {
   if (event.key === "Escape" && conditionBuilderOpen) {
     event.preventDefault();
     closeConditionBuilder();
+    return true;
+  }
+  if (event.key === "Escape" && smartSelectionRanges.length > 0) {
+    event.preventDefault();
+    clearSmartSelectionRanges();
     return true;
   }
   if (event.key === "Escape" && selectionCellCount() > 1) {
