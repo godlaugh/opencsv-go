@@ -36,6 +36,7 @@ type OpenOptions struct {
 	QuoteChar     *string
 	QuoteMode     string
 	HasHeader     *bool
+	HeaderColumns *int
 	Encoding      *EncodingInfo
 }
 
@@ -83,6 +84,9 @@ func OpenDocument(path string, options OpenOptions) (Document, error) {
 	}
 	if options.HasHeader != nil {
 		dialect.HasHeader = *options.HasHeader
+	}
+	if options.HeaderColumns != nil {
+		dialect.HeaderColumns = max(0, *options.HeaderColumns)
 	}
 	if options.QuoteChar != nil {
 		quoteChar, err := NormalizeQuoteChar(*options.QuoteChar)

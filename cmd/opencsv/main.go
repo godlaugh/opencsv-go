@@ -339,6 +339,9 @@ func openOptionsFromFormat(format protocol.FormatParams) (csvcore.OpenOptions, e
 		hasHeader := *format.HeaderRows > 0
 		options.HasHeader = &hasHeader
 	}
+	if format.HeaderCols != nil {
+		options.HeaderColumns = format.HeaderCols
+	}
 	if format.Header != nil {
 		hasHeader := *format.Header
 		options.HasHeader = &hasHeader

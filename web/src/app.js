@@ -892,6 +892,7 @@ function updateFormatStatus() {
     headerStatus.textContent = "Header";
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
+    document.body.dataset.headerColumns = "";
     readOnlyStatus.textContent = "Editable";
     externalStatus.textContent = "Synced";
     return;
@@ -899,9 +900,10 @@ function updateFormatStatus() {
   encodingStatus.textContent = encodingLabel();
   delimiterStatus.textContent = delimiterLabel(metadata.dialect);
   quoteStatus.textContent = quotePolicyLabel(metadata.dialect);
-  headerStatus.textContent = metadata.dialect?.hasHeader ? "Header row" : "No header";
+  headerStatus.textContent = headerModeLabel(metadata.dialect);
   headerStatus.disabled = !documentId;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
+  document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   externalStatus.textContent = externalFileChanged ? "Changed on disk" : "Synced";
   syncQuotePolicyControls();
@@ -961,6 +963,24 @@ function quotePolicyLabel(dialect = metadata?.dialect) {
   return `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)}`;
 }
 
+function headerColumnsValue(dialect = metadata?.dialect) {
+  return normalizeHeaderColumns(dialect?.headerColumns);
+}
+
+function normalizeHeaderColumns(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function headerModeLabel(dialect = metadata?.dialect) {
+  const headerColumns = headerColumnsValue(dialect);
+  const columnLabel = headerColumns === 1 ? "1 header col" : `${headerColumns} header cols`;
+  if (dialect?.hasHeader && headerColumns > 0) return `Header row + ${columnLabel}`;
+  if (dialect?.hasHeader) return "Header row";
+  if (headerColumns > 0) return columnLabel;
+  return "No header";
+}
+
 function syncQuotePolicyControls() {
   if (!quoteModeSelect || !quoteCharSelect) return;
   if (quotePolicyDraftDirty) {
@@ -980,7 +1000,7 @@ function syncQuotePolicyControls() {
 }
 
 function documentFormatSummary() {
-  return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)}`;
+  return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)} · ${headerModeLabel(metadata.dialect)}`;
 }
 
 function currentFormatPreset() {
@@ -991,6 +1011,7 @@ function currentFormatPreset() {
     delimiter: delimiterChar(metadata.dialect),
     delimiterName: metadata.dialect.delimiterName || delimiterLabel(metadata.dialect).toLowerCase(),
     hasHeader: Boolean(metadata.dialect.hasHeader),
+    headerColumns: headerColumnsValue(metadata.dialect),
     encodingName: metadata.encoding?.name ?? "utf-8",
     lineEndingName: metadata.lineEnding?.name ?? "LF",
     quoteChar: quoteCharValue(metadata.dialect),
@@ -1007,6 +1028,7 @@ function formatPresets() {
       .filter((preset) => preset && typeof preset === "object" && typeof preset.id === "string")
       .map((preset) => ({
         ...preset,
+        headerColumns: normalizeHeaderColumns(preset.headerColumns),
         quoteChar: preset.quoteChar || "double",
         quoteMode: preset.quoteMode || "minimal",
         rules: normalizeFormatRules(preset.rules),
@@ -1116,6 +1138,7 @@ function exportFormatPresets() {
       delimiter: preset.delimiter,
       delimiterName: preset.delimiterName,
       hasHeader: Boolean(preset.hasHeader),
+      headerColumns: normalizeHeaderColumns(preset.headerColumns),
       encodingName: preset.encodingName || "utf-8",
       lineEndingName: preset.lineEndingName || "LF",
       quoteChar: preset.quoteChar || "double",
@@ -1202,6 +1225,7 @@ function normalizeImportedFormatPreset(raw) {
     delimiter,
     delimiterName: normalizeImportedDelimiterName(raw.delimiterName, delimiter),
     hasHeader: Boolean(raw.hasHeader),
+    headerColumns: normalizeHeaderColumns(raw.headerColumns),
     encodingName: typeof raw.encodingName === "string" && raw.encodingName.trim() ? raw.encodingName.trim() : "utf-8",
     lineEndingName: typeof raw.lineEndingName === "string" && raw.lineEndingName.trim() ? raw.lineEndingName.trim() : "LF",
     quoteChar,
@@ -1958,22 +1982,34 @@ async function fileSampleForRules(path) {
 }
 
 function formatPresetID(preset) {
-  return [
+  const parts = [
     preset.delimiter === "\t" ? "tab" : preset.delimiter,
     preset.hasHeader ? "header" : "no-header",
     (preset.encodingName || "utf-8").toLowerCase(),
     preset.quoteChar || "double",
     preset.quoteMode || "minimal",
-  ].join(":");
+  ];
+  const headerColumns = normalizeHeaderColumns(preset.headerColumns);
+  if (headerColumns > 0) parts.splice(2, 0, `hcols${headerColumns}`);
+  return parts.join(":");
 }
 
 function formatPresetName(preset) {
   const delimiter = preset.delimiterName || (preset.delimiter === "\t" ? "tab" : preset.delimiter);
-  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${preset.hasHeader ? "Header" : "No header"} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
+  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${formatPresetHeaderLabel(preset)} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
 }
 
 function formatPresetPreview(preset) {
-  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|${preset.encodingName || "utf-8"}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
+}
+
+function formatPresetHeaderLabel(preset) {
+  const headerColumns = normalizeHeaderColumns(preset.headerColumns);
+  const columnLabel = headerColumns === 1 ? "1 Header Col" : `${headerColumns} Header Cols`;
+  if (preset.hasHeader && headerColumns > 0) return `Header Row + ${columnLabel}`;
+  if (preset.hasHeader) return "Header";
+  if (headerColumns > 0) return columnLabel;
+  return "No header";
 }
 
 function quoteLabel(value, displayRow = selected.row, visibleCol = selected.col) {
@@ -4644,6 +4680,7 @@ async function openPath(path, options = {}) {
     body.delimiter = preset.delimiter;
     body.delimiterName = preset.delimiterName;
     body.hasHeader = Boolean(preset.hasHeader);
+    body.headerColumns = normalizeHeaderColumns(preset.headerColumns);
     body.encodingName = preset.encodingName;
     body.quoteChar = preset.quoteChar || "double";
     body.quoteMode = preset.quoteMode || "minimal";
@@ -8628,6 +8665,11 @@ function formatOverrideFromParams(params) {
   if (headerRows) {
     const rows = Number.parseInt(headerRows, 10);
     if (Number.isFinite(rows) && rows >= 0) override.hasHeader = rows > 0;
+  }
+  const headerColumns = firstParam("header-columns", "headerColumns", "header_cols");
+  if (headerColumns) {
+    const cols = Number.parseInt(headerColumns, 10);
+    if (Number.isFinite(cols) && cols >= 0) override.headerColumns = cols;
   }
   const header = firstParam("header");
   if (header) override.hasHeader = truthyParam(header);

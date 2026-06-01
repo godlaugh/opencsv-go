@@ -862,6 +862,7 @@ func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, erro
 	transposed := transposeRecords(records, width)
 	metadata := session.Document.Metadata
 	metadata.Dialect.HasHeader = false
+	metadata.Dialect.HeaderColumns = 0
 	metadata.Dialect.EstimatedColumns = len(records)
 	if err := manager.pushUndo(id); err != nil {
 		return MutationResult{}, err
@@ -1183,11 +1184,18 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		return csvcore.SaveResult{}, err
 	}
 
+	delimiter := session.Document.Metadata.Dialect.Delimiter
+	hasHeader := session.Document.Metadata.Dialect.HasHeader
+	headerColumns := session.Document.Metadata.Dialect.HeaderColumns
 	refreshed, refreshedWorkingPath, openErr := openDocumentForPath(outputPath, csvcore.OpenOptions{
-		PreviewRows: max(1, len(session.Document.Preview)),
-		IndexRows:   max(1, len(session.Document.Preview)),
-		QuoteChar:   &session.Document.Metadata.Dialect.QuoteChar,
-		QuoteMode:   session.Document.Metadata.Dialect.QuoteMode,
+		PreviewRows:   max(1, len(session.Document.Preview)),
+		IndexRows:     max(1, len(session.Document.Preview)),
+		Delimiter:     &delimiter,
+		HasHeader:     &hasHeader,
+		HeaderColumns: &headerColumns,
+		Encoding:      &session.Document.Metadata.Encoding,
+		QuoteChar:     &session.Document.Metadata.Dialect.QuoteChar,
+		QuoteMode:     session.Document.Metadata.Dialect.QuoteMode,
 	})
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -2077,12 +2085,14 @@ func (manager *Manager) Refresh(id string) (*Session, error) {
 	}
 	delimiter := session.Document.Metadata.Dialect.Delimiter
 	hasHeader := session.Document.Metadata.Dialect.HasHeader
+	headerColumns := session.Document.Metadata.Dialect.HeaderColumns
 	refreshed, err := csvcore.OpenDocument(path, csvcore.OpenOptions{
-		PreviewRows: max(160, len(session.Document.Preview)),
-		IndexRows:   -1,
-		Delimiter:   &delimiter,
-		HasHeader:   &hasHeader,
-		Encoding:    &session.Document.Metadata.Encoding,
+		PreviewRows:   max(160, len(session.Document.Preview)),
+		IndexRows:     -1,
+		Delimiter:     &delimiter,
+		HasHeader:     &hasHeader,
+		HeaderColumns: &headerColumns,
+		Encoding:      &session.Document.Metadata.Encoding,
 	})
 	if err != nil {
 		return nil, err
@@ -2209,14 +2219,16 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 	}
 	delimiter := metadata.Dialect.Delimiter
 	hasHeader := metadata.Dialect.HasHeader
+	headerColumns := metadata.Dialect.HeaderColumns
 	refreshed, err := csvcore.OpenDocument(tempPath, csvcore.OpenOptions{
-		PreviewRows: max(160, min(len(records), 1000)),
-		IndexRows:   -1,
-		Delimiter:   &delimiter,
-		HasHeader:   &hasHeader,
-		Encoding:    &metadata.Encoding,
-		QuoteChar:   &metadata.Dialect.QuoteChar,
-		QuoteMode:   metadata.Dialect.QuoteMode,
+		PreviewRows:   max(160, min(len(records), 1000)),
+		IndexRows:     -1,
+		Delimiter:     &delimiter,
+		HasHeader:     &hasHeader,
+		HeaderColumns: &headerColumns,
+		Encoding:      &metadata.Encoding,
+		QuoteChar:     &metadata.Dialect.QuoteChar,
+		QuoteMode:     metadata.Dialect.QuoteMode,
 	})
 	if err != nil {
 		return nil, err

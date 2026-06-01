@@ -167,6 +167,7 @@ func TestServerOpenWithFormatOverrides(t *testing.T) {
 		"encodingName":  "utf-8",
 		"quoteChar":     "single",
 		"quoteMode":     "always",
+		"headerColumns": 1,
 	})
 	document := openPayload["document"].(map[string]any)
 	metadata := document["metadata"].(map[string]any)
@@ -179,6 +180,9 @@ func TestServerOpenWithFormatOverrides(t *testing.T) {
 	}
 	if dialect["quoteChar"] != "'" || dialect["quoteMode"] != "always" {
 		t.Fatalf("quote override = %#v", dialect)
+	}
+	if dialect["headerColumns"] != float64(1) {
+		t.Fatalf("headerColumns = %#v, want 1", dialect["headerColumns"])
 	}
 	preview := document["preview"].([]any)
 	if got := preview[0].([]any)[0]; got != "id" {

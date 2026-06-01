@@ -105,6 +105,7 @@ type openRequest struct {
 	QuoteChar     string `json:"quoteChar,omitempty"`
 	QuoteMode     string `json:"quoteMode,omitempty"`
 	HasHeader     *bool  `json:"hasHeader,omitempty"`
+	HeaderColumns *int   `json:"headerColumns,omitempty"`
 	EncodingName  string `json:"encodingName,omitempty"`
 }
 
@@ -155,6 +156,13 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 	}
 	if request.HasHeader != nil {
 		options.HasHeader = request.HasHeader
+	}
+	if request.HeaderColumns != nil {
+		if *request.HeaderColumns < 0 {
+			writeError(w, http.StatusBadRequest, errors.New("headerColumns must be non-negative"))
+			return
+		}
+		options.HeaderColumns = request.HeaderColumns
 	}
 	if strings.TrimSpace(request.QuoteChar) != "" {
 		quoteChar, err := csvcore.NormalizeQuoteChar(request.QuoteChar)

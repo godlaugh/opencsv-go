@@ -49,7 +49,7 @@ func TestParseGotoLocations(t *testing.T) {
 }
 
 func TestParseSmoothCSVURL(t *testing.T) {
-	target, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv:1:2-10:5?delimiter=tab&quote=double&quote-mode=minimal&encoding=utf8&header-rows=1")
+	target, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv:1:2-10:5?delimiter=tab&quote=double&quote-mode=minimal&encoding=utf8&header-rows=1&header-columns=2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,6 +64,9 @@ func TestParseSmoothCSVURL(t *testing.T) {
 	}
 	if target.Format.HeaderRows == nil || *target.Format.HeaderRows != 1 {
 		t.Fatalf("header rows = %#v, want 1", target.Format.HeaderRows)
+	}
+	if target.Format.HeaderCols == nil || *target.Format.HeaderCols != 2 {
+		t.Fatalf("header columns = %#v, want 2", target.Format.HeaderCols)
 	}
 }
 
