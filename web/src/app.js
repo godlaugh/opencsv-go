@@ -158,6 +158,8 @@ const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 const savedFiltersStorageKey = "opencsv-saved-filters";
 const savedFiltersLimit = 12;
+const savedSortsStorageKey = "opencsv-saved-sorts";
+const savedSortsLimit = 12;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
 const formatRuleSampleBytes = 65536;
@@ -2489,6 +2491,9 @@ async function executeCommand(commandID) {
     case "view.saveFilter":
       saveActiveFilter();
       break;
+    case "view.saveSort":
+      saveActiveSort();
+      break;
     case "view.sort":
       await sortSelectedColumn();
       break;
@@ -4740,16 +4745,22 @@ function clearActiveFilter() {
 
 function renderViewChips() {
   const saved = savedFilters();
+  const savedSortsList = savedSorts();
+  const activeSort = sortKeys.length ? `Sort: ${formatSortKeys(sortKeys)}` : "";
   viewChips.replaceChildren();
-  if (!activeFilter && saved.length === 0) {
+  if (!activeFilter && !activeSort && saved.length === 0 && savedSortsList.length === 0) {
     viewChips.hidden = true;
     document.body.dataset.activeFilter = "";
+    document.body.dataset.activeSort = "";
     document.body.dataset.savedFilterCount = "0";
+    document.body.dataset.savedSortCount = "0";
     return;
   }
   viewChips.hidden = false;
   document.body.dataset.activeFilter = activeFilter?.display ?? "";
+  document.body.dataset.activeSort = activeSort;
   document.body.dataset.savedFilterCount = String(saved.length);
+  document.body.dataset.savedSortCount = String(savedSortsList.length);
 
   if (activeFilter) {
     const chip = document.createElement("div");
@@ -4781,6 +4792,30 @@ function renderViewChips() {
     viewChips.append(chip);
   }
 
+  if (activeSort) {
+    const chip = document.createElement("div");
+    chip.className = "view-chip active-sort-chip";
+    chip.title = activeSort;
+
+    const label = document.createElement("span");
+    label.textContent = activeSort;
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "Save";
+    saveButton.title = "Save this sort";
+    saveButton.addEventListener("click", saveActiveSort);
+
+    const clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.textContent = "Clear";
+    clearButton.title = "Clear filter and sort";
+    clearButton.addEventListener("click", clearView);
+
+    chip.append(label, saveButton, clearButton);
+    viewChips.append(chip);
+  }
+
   for (const filter of saved) {
     const chip = document.createElement("div");
     chip.className = "view-chip saved-filter-chip";
@@ -4801,6 +4836,31 @@ function renderViewChips() {
     deleteButton.textContent = "Delete";
     deleteButton.title = "Delete saved filter";
     deleteButton.addEventListener("click", () => deleteSavedFilter(filter.id));
+
+    chip.append(label, applyButton, deleteButton);
+    viewChips.append(chip);
+  }
+
+  for (const savedSort of savedSortsList) {
+    const chip = document.createElement("div");
+    chip.className = "view-chip saved-sort-chip";
+    chip.title = savedSort.display;
+    chip.dataset.sortId = savedSort.id;
+
+    const label = document.createElement("span");
+    label.textContent = `Saved Sort: ${savedSort.name}`;
+
+    const applyButton = document.createElement("button");
+    applyButton.type = "button";
+    applyButton.textContent = "Apply";
+    applyButton.title = "Apply saved sort";
+    applyButton.addEventListener("click", () => applySavedSort(savedSort.id));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.title = "Delete saved sort";
+    deleteButton.addEventListener("click", () => deleteSavedSort(savedSort.id));
 
     chip.append(label, applyButton, deleteButton);
     viewChips.append(chip);
@@ -4881,6 +4941,177 @@ function deleteSavedFilter(filterID) {
   saveSavedFilters(next);
   renderViewChips();
   status.textContent = before.length === next.length ? "Saved filter not found." : "Deleted saved filter.";
+}
+
+function savedSorts() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(savedSortsStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((sort) => {
+        const keys = Array.isArray(sort?.keys) ? sort.keys.map(normalizeStoredSortKey).filter(Boolean) : [];
+        if (keys.length === 0) return null;
+        const display = sort.display || `Sort: ${formatStoredSortKeys(keys)}`;
+        return {
+          id: sort.id || savedSortID(keys),
+          name: sort.name || savedSortName(display),
+          display,
+          keys,
+          createdAt: sort.createdAt || new Date().toISOString(),
+        };
+      })
+      .filter(Boolean)
+      .slice(0, savedSortsLimit);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeStoredSortKey(key) {
+  if (!key || typeof key !== "object") return null;
+  const column = Number(key.column);
+  if (!Number.isInteger(column) || column < 0) return null;
+  const mode = ["auto", "number", "date", "length", "text"].includes(key.mode)
+    ? key.mode
+    : (key.numeric ? "number" : "auto");
+  return {
+    column,
+    descending: Boolean(key.descending),
+    numeric: Boolean(key.numeric || mode === "number"),
+    mode,
+    name: typeof key.name === "string" ? key.name : "",
+  };
+}
+
+function saveSavedSorts(sorts) {
+  const unique = [];
+  const seen = new Set();
+  for (const sort of sorts) {
+    const keys = Array.isArray(sort?.keys) ? sort.keys.map(normalizeStoredSortKey).filter(Boolean) : [];
+    if (keys.length === 0) continue;
+    const signature = savedSortSignature(keys);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    unique.push({ ...sort, keys });
+  }
+  const next = unique.slice(0, savedSortsLimit);
+  localStorage.setItem(savedSortsStorageKey, JSON.stringify(next));
+  document.body.dataset.savedSortCount = String(next.length);
+}
+
+function saveActiveSort() {
+  if (!sortKeys.length) {
+    status.textContent = "Apply a sort before saving it.";
+    return;
+  }
+  const keys = sortKeys.map(storedSortKey);
+  const display = `Sort: ${formatSortKeys(sortKeys)}`;
+  const saved = {
+    id: savedSortID(keys),
+    name: savedSortName(display),
+    display,
+    keys,
+    createdAt: new Date().toISOString(),
+  };
+  const next = [saved, ...savedSorts().filter((sort) => savedSortSignature(sort.keys) !== savedSortSignature(saved.keys))];
+  saveSavedSorts(next);
+  renderViewChips();
+  document.body.dataset.savedSortPreview = `${saved.name}|${savedSortSignature(saved.keys)}`;
+  status.textContent = `Saved sort: ${saved.name}`;
+}
+
+async function applySavedSort(sortID) {
+  if (!documentId) return;
+  const savedSort = savedSorts().find((item) => item.id === sortID);
+  if (!savedSort) {
+    status.textContent = "Saved sort not found.";
+    renderViewChips();
+    return;
+  }
+  const resolvedKeys = resolveStoredSortKeys(savedSort.keys);
+  if (resolvedKeys.length === 0) {
+    status.textContent = "Saved sort has no matching columns.";
+    renderViewChips();
+    return;
+  }
+  const primaryVisibleCol = Math.max(0, visibleColForSource(resolvedKeys[0].column));
+  document.body.dataset.savedSortApplied = savedSort.name;
+  await applySortKeys(
+    resolvedKeys,
+    primaryVisibleCol,
+    `Saved sort ${savedSort.name} applied: ${formatSortKeys(resolvedKeys)}`,
+  );
+}
+
+function deleteSavedSort(sortID) {
+  const before = savedSorts();
+  const next = before.filter((sort) => sort.id !== sortID);
+  saveSavedSorts(next);
+  renderViewChips();
+  status.textContent = before.length === next.length ? "Saved sort not found." : "Deleted saved sort.";
+}
+
+function storedSortKey(key) {
+  return {
+    column: key.column,
+    descending: Boolean(key.descending),
+    numeric: Boolean(key.numeric),
+    mode: key.mode || (key.numeric ? "number" : "auto"),
+    name: columnNameForSource(key.column),
+  };
+}
+
+function resolveStoredSortKeys(keys) {
+  return keys
+    .map((key) => {
+      const sourceCol = resolveStoredSortColumn(key);
+      if (sourceCol < 0 || sourceCol >= allColumns.length) return null;
+      return {
+        column: sourceCol,
+        descending: Boolean(key.descending),
+        numeric: Boolean(key.numeric || key.mode === "number"),
+        mode: key.mode || (key.numeric ? "number" : "auto"),
+      };
+    })
+    .filter(Boolean);
+}
+
+function resolveStoredSortColumn(key) {
+  if (key.name) {
+    const exact = allColumns.find((column) => column.name === key.name);
+    if (exact) return exact.sourceCol;
+    const lower = key.name.toLowerCase();
+    const folded = allColumns.find((column) => column.name.toLowerCase() === lower);
+    if (folded) return folded.sourceCol;
+  }
+  return Number.isInteger(key.column) ? key.column : -1;
+}
+
+function savedSortID(keys) {
+  return `sort-${hashText(savedSortSignature(keys))}`;
+}
+
+function savedSortSignature(keys) {
+  return keys
+    .map((key) => `${key.column}:${key.name || ""}:${key.mode || "auto"}:${key.descending ? "desc" : "asc"}`)
+    .join("|");
+}
+
+function savedSortName(display) {
+  const base = String(display || "")
+    .replace(/^Sort:\s*/i, "")
+    .trim();
+  return base.length > 48 ? `${base.slice(0, 45)}...` : base || "Saved sort";
+}
+
+function formatStoredSortKeys(keys) {
+  return keys
+    .map((key) => {
+      const label = key.name || columnNameForSource(key.column);
+      const modeLabel = key.mode && key.mode !== "auto" ? ` ${key.mode}` : "";
+      return `${label}${modeLabel} ${key.descending ? "descending" : "ascending"}`;
+    })
+    .join(", then ");
 }
 
 function savedFilterID(expression) {
@@ -5030,6 +5261,11 @@ async function sortSelectedColumn() {
 async function sortColumn(column, descending, append, modeOverride = "") {
   if (!documentId || columns.length === 0 || !columns[column]) return;
   const nextKeys = nextSortKeys(column, descending, append, modeOverride);
+  await applySortKeys(nextKeys, column);
+}
+
+async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
+  if (!documentId || columns.length === 0 || nextKeys.length === 0) return;
   const primaryKey = nextKeys[0];
   const response = await fetch("/api/sort", {
     method: "POST",
@@ -5051,10 +5287,10 @@ async function sortColumn(column, descending, append, modeOverride = "") {
   }
   viewMapped = true;
   sortKeys = nextKeys;
-  sortDescending = descending;
+  sortDescending = Boolean(primaryKey.descending);
   rows = new Map();
   rowSource = new Map();
-  selected = { row: 0, col: column };
+  selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, selectedColumn)) };
   selectionAnchor = { ...selected };
   scrollY = 0;
   wheelRemainderY = 0;
@@ -5064,7 +5300,8 @@ async function sortColumn(column, descending, append, modeOverride = "") {
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `Sorted ${formatSortKeys(sortKeys)}`;
+  renderViewChips();
+  status.textContent = successMessage || `Sorted ${formatSortKeys(sortKeys)}`;
 }
 
 function nextSortKeys(column, descending, append, modeOverride = "") {

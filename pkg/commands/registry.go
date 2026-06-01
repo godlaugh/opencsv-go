@@ -96,6 +96,7 @@ func Registry() []Command {
 		{ID: "view.filterBuilder", Title: "Filter Builder", Description: "Build a column filter without writing SQL.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"condition filter", "visual filter", "filter condition"}},
 		{ID: "view.saveFilter", Title: "Save Current Filter", Description: "Save the active filter expression for quick reuse.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"saved filter", "filter preset", "save filter"}},
 		{ID: "view.sort", Title: "Sort", Description: "Sort the selected column.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
+		{ID: "view.saveSort", Title: "Save Current Sort", Description: "Save the active sort keys for quick reuse.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"saved sort", "sort preset", "save sort"}},
 		{ID: "view.clear", Title: "Clear View", Description: "Clear active filter and sort view.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "view.sql", Title: "SQL Console", Description: "Open the SQL console for the current workspace.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"query"}},
 		{ID: "sql.copyResultCsv", Title: "Copy SQL Result as CSV", Description: "Copy the latest SQL result headers and rows as CSV text.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"copy sql result", "sql result csv"}},

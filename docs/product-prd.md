@@ -2,13 +2,14 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-05-28
+Last updated: 2026-06-01
 
 ## 1. Source Baseline
 
 This PRD is derived from public SmoothCSV product materials and official project documentation:
 
 - SmoothCSV homepage: https://smoothcsv.com/
+- SmoothCSV feature catalog: https://smoothcsv.com/features
 - SmoothCSV blog index: https://smoothcsv.com/blog/
 - SmoothCSV GitHub README/release repository: https://github.com/kohii/smoothcsv3
 - SmoothCSV CLI specification: https://github.com/kohii/smoothcsv3/blob/main/docs/cli.md
@@ -17,11 +18,12 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-05-28. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The release page currently shows v3.20.2 as latest, published 2026-05-22, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, and v3.20.2 shipped 2026-05-22.
+Latest public source check: 2026-06-01. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The current feature catalog adds more explicit product-surface requirements: smart selection, auto-fill, swap cells, aggregate rows, quick value filters, multi-column sort with type/direction per column, CSV compare against files or clipboard, quoting control including manual cell-level preservation, file format presets/rules, copy/export formats, CLI/deep links, Windows portable and AUR distribution, auto-backup, and auto-refresh. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The GitHub release API currently shows v3.20.2 as latest, published 2026-05-22, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, and v3.20.2 shipped 2026-05-22.
 
 Additional official source details captured from the current public pages:
 
 - The homepage positions SmoothCSV as an intuitive spreadsheet-like CSV editor with find/replace, sort/filter, SQL queries, multi-cell editing, command palette access to all features, large-file speed, and Windows/macOS/Linux availability.
+- The feature catalog positions reusable column workflows as first-class product behavior: quick value filters, visual conditions, SQL filters, smart sort, multi-column sort, and type-aware sorting must remain discoverable from column/header surfaces and command workflows.
 - The download page publishes macOS Universal, Windows user/MSI/portable builds for x64 and ARM64, Linux `.deb`, `.rpm`, AppImage packages, and AUR distribution. Product parity must therefore keep packaging and CLI assumptions cross-platform.
 - The pricing/license pages state that every feature remains free, licenses are one-time support purchases, work offline, and have no per-person device limit. opencsv does not need to clone SmoothCSV's commercial flow, but it must preserve the same local/offline feature availability principle.
 - The "Best CSV Editors in 2026" blog emphasizes dedicated CSV editing, data preservation, large-file handling, quote preservation, frequent updates, thoughtful UX, and SQL console support as the competitive baseline.

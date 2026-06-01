@@ -79,6 +79,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"view.filterBuilder",
 		"view.saveFilter",
 		"view.sort",
+		"view.saveSort",
 		"view.sql",
 		"sql.copyResultCsv",
 		"sql.exportResultCsv",
