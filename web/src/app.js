@@ -101,6 +101,9 @@ const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton")
 const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
 const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
+const settingsThemeSummary = document.querySelector("#settingsThemeSummary");
+const themePreferenceSelect = document.querySelector("#themePreferenceSelect");
+const resetThemePreferenceButton = document.querySelector("#resetThemePreferenceButton");
 const settingsAppearanceSummary = document.querySelector("#settingsAppearanceSummary");
 const gridFontSelect = document.querySelector("#gridFontSelect");
 const gridFontSizeInput = document.querySelector("#gridFontSizeInput");
@@ -173,6 +176,9 @@ const savedSortsLimit = 12;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
+const themeStorageKey = "opencsv-theme";
+const defaultThemePreference = "system";
+const themePreferences = ["light", "dark", "high-contrast", "system"];
 const formatRuleSampleBytes = 65536;
 const editorFontFamilies = {
   mono: 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace',
@@ -256,9 +262,8 @@ let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
-const themeStorageKey = "opencsv-theme";
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-let themePreference = localStorage.getItem(themeStorageKey) || "system";
+let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
 let themeColors = {};
 let editorAppearance = loadEditorAppearance();
 
@@ -330,8 +335,22 @@ function initializeTheme() {
   });
 }
 
+function normalizeThemePreference(preference) {
+  return themePreferences.includes(preference) ? preference : defaultThemePreference;
+}
+
+function themePreferenceLabel(preference = themePreference) {
+  const labels = {
+    light: "Light",
+    dark: "Dark",
+    "high-contrast": "High contrast",
+    system: "System",
+  };
+  return labels[preference] || labels[defaultThemePreference];
+}
+
 function applyTheme(preference, announce = true) {
-  if (!["light", "dark", "system"].includes(preference)) preference = "system";
+  preference = normalizeThemePreference(preference);
   themePreference = preference;
   localStorage.setItem(themeStorageKey, preference);
   const resolved = preference === "system"
@@ -339,17 +358,42 @@ function applyTheme(preference, announce = true) {
     : preference;
   document.body.dataset.theme = resolved;
   document.body.dataset.themePreference = preference;
+  syncThemeControls();
   refreshThemeColors();
   draw();
   if (announce && status) {
-    status.textContent = `Theme: ${preference === "system" ? `System (${resolved})` : preference}`;
+    status.textContent = `Theme: ${preference === "system" ? `System (${themePreferenceLabel(resolved)})` : themePreferenceLabel(preference)}`;
   }
 }
 
 function cycleTheme() {
-  const order = ["light", "dark", "system"];
-  const current = order.includes(themePreference) ? order.indexOf(themePreference) : 2;
+  const order = themePreferences;
+  const current = order.includes(themePreference) ? order.indexOf(themePreference) : order.indexOf(defaultThemePreference);
   applyTheme(order[(current + 1) % order.length]);
+}
+
+function syncThemeControls() {
+  if (!themePreferenceSelect) return;
+  themePreferenceSelect.value = themePreference;
+  const resolved = document.body.dataset.theme || defaultThemePreference;
+  settingsThemeSummary.textContent = themePreference === "system"
+    ? `System (${themePreferenceLabel(resolved)})`
+    : themePreferenceLabel(themePreference);
+  resetThemePreferenceButton.disabled = !themePreferenceModified();
+}
+
+function themePreferenceModified() {
+  return themePreference !== defaultThemePreference;
+}
+
+function updateThemeFromSettings() {
+  applyTheme(themePreferenceSelect.value);
+  renderSettingsPanel();
+}
+
+function resetThemePreference() {
+  applyTheme(defaultThemePreference);
+  renderSettingsPanel();
 }
 
 function loadEditorAppearance() {
@@ -986,6 +1030,7 @@ function openSettingsPanel() {
 
 function renderSettingsPanel() {
   if (!settingsPresetList) return;
+  syncThemeControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
@@ -993,7 +1038,7 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || editorAppearanceModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || editorAppearanceModified() || themePreferenceModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   resetFormatPresetsButton.disabled = presets.length === 0;
   settingsPresetList.replaceChildren();
@@ -7790,6 +7835,8 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
+resetThemePreferenceButton.addEventListener("click", resetThemePreference);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);

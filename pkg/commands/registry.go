@@ -25,7 +25,7 @@ func Registry() []Command {
 		{ID: "command.palette", Title: "Command Palette", Description: "Search and run available commands.", Shortcut: "Cmd+Shift+P", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"commands"}},
 		{ID: "settings.open", Title: "Settings", Description: "Open application settings and file format preset management.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"preferences", "format presets"}},
 		{ID: "settings.keyboardShortcuts", Title: "Keyboard Shortcuts", Description: "Customize command keyboard shortcuts.", Shortcut: "Cmd+,", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"keybindings", "shortcuts", "hotkeys"}},
-		{ID: "workbench.toggleTheme", Title: "Toggle Theme", Description: "Cycle between light, dark, and system themes.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"dark mode", "light mode", "color theme"}},
+		{ID: "workbench.toggleTheme", Title: "Toggle Theme", Description: "Cycle between light, dark, high contrast, and system themes.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"dark mode", "light mode", "high contrast", "color theme"}},
 		{ID: "file.open", Title: "Open", Description: "Open a CSV or delimited text file.", Shortcut: "Cmd+O", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"open file"}},
 		{ID: "file.save", Title: "Save", Description: "Save the current document with backup policy.", Shortcut: "Cmd+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "file.saveAs", Title: "Save As", Description: "Save the current document to a chosen local path.", Shortcut: "Cmd+Shift+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"save copy", "save to path"}},

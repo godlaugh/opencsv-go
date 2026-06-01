@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-editor-fonts-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-high-contrast-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -127,6 +127,24 @@
               <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" />
               <button id="resetFormatPresetsButton" type="button">Reset Formats</button>
             </div>
+            <section class="settings-section settings-theme-section" aria-label="Theme">
+              <header>
+                <strong>Theme</strong>
+                <span id="settingsThemeSummary">System</span>
+              </header>
+              <div class="settings-theme-grid">
+                <label>
+                  <span>Mode</span>
+                  <select id="themePreferenceSelect" aria-label="Theme mode">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="high-contrast">High Contrast</option>
+                  </select>
+                </label>
+                <button id="resetThemePreferenceButton" type="button">Reset Theme</button>
+              </div>
+            </section>
             <section class="settings-section settings-policy-section" aria-label="Quote policy">
               <header>
                 <strong>Quote Policy</strong>
@@ -400,6 +418,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-editor-fonts-1"></script>
+    <script type="module" src="./src/app.js?v=m2-high-contrast-1"></script>
   </body>
 </html>

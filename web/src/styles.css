@@ -72,6 +72,39 @@ body[data-theme="dark"] {
   --shadow: rgba(0, 0, 0, 0.48);
 }
 
+body[data-theme="high-contrast"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --panel: #050505;
+  --panel-subtle: #111111;
+  --input-bg: #000000;
+  --text: #ffffff;
+  --muted: #d4d4d4;
+  --border: #ffffff;
+  --accent: #00d7ff;
+  --accent-border: #ffff00;
+  --accent-quiet: #002e38;
+  --danger: #ff6b6b;
+  --warning: #ffff00;
+  --grid-bg: #000000;
+  --grid-header: #111111;
+  --grid-gutter: #080808;
+  --grid-row: #000000;
+  --grid-row-alt: #080808;
+  --grid-line: #f4f4f4;
+  --grid-line-soft: #747474;
+  --selection-bg: rgba(0, 215, 255, 0.34);
+  --find-highlight: rgba(255, 255, 0, 0.44);
+  --find-active-highlight: rgba(0, 215, 255, 0.46);
+  --quote-marker: #ffff00;
+  --quote-marker-text: #000000;
+  --diff-changed: #3d3500;
+  --diff-added: #003c19;
+  --diff-deleted: #4a0000;
+  --overlay: rgba(0, 0, 0, 0.78);
+  --shadow: rgba(255, 255, 255, 0.22);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -503,6 +536,7 @@ button:disabled {
 }
 
 .settings-policy-grid,
+.settings-theme-grid,
 .settings-appearance-grid,
 .quote-rule-grid {
   display: grid;
@@ -512,6 +546,7 @@ button:disabled {
 }
 
 .settings-policy-grid label,
+.settings-theme-grid label,
 .settings-appearance-grid label {
   display: grid;
   gap: 5px;
@@ -521,6 +556,7 @@ button:disabled {
 }
 
 .settings-policy-grid select,
+.settings-theme-grid select,
 .settings-appearance-grid select,
 .settings-appearance-grid input {
   height: 30px;
@@ -533,6 +569,7 @@ button:disabled {
 }
 
 .settings-policy-grid button,
+.settings-theme-grid button,
 .settings-appearance-grid button {
   align-self: end;
   min-height: 30px;
