@@ -113,6 +113,12 @@ const resetEditorAppearanceButton = document.querySelector("#resetEditorAppearan
 const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
 const resetFormatPresetsButton = document.querySelector("#resetFormatPresetsButton");
+const exportFormatPresetsButton = document.querySelector("#exportFormatPresetsButton");
+const showImportFormatPresetsButton = document.querySelector("#showImportFormatPresetsButton");
+const formatPresetImportPanel = document.querySelector("#formatPresetImportPanel");
+const formatPresetImportText = document.querySelector("#formatPresetImportText");
+const applyFormatPresetImportButton = document.querySelector("#applyFormatPresetImportButton");
+const cancelFormatPresetImportButton = document.querySelector("#cancelFormatPresetImportButton");
 const commandPalette = document.querySelector("#commandPalette");
 const paletteInput = document.querySelector("#paletteInput");
 const paletteList = document.querySelector("#paletteList");
@@ -175,6 +181,7 @@ const savedSortsStorageKey = "opencsv-saved-sorts";
 const savedSortsLimit = 12;
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
+const formatPresetExportKind = "opencsv-format-presets";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
@@ -1024,6 +1031,145 @@ async function applySelectedFormatPreset() {
   await openPath(path, { preset });
 }
 
+function exportFormatPresets() {
+  const presets = formatPresets();
+  const ruleCount = presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0);
+  const payload = {
+    kind: formatPresetExportKind,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    presets: presets.map((preset) => ({
+      id: preset.id,
+      name: preset.name,
+      delimiter: preset.delimiter,
+      delimiterName: preset.delimiterName,
+      hasHeader: Boolean(preset.hasHeader),
+      encodingName: preset.encodingName || "utf-8",
+      lineEndingName: preset.lineEndingName || "LF",
+      quoteChar: preset.quoteChar || "double",
+      quoteMode: preset.quoteMode || "minimal",
+      rules: normalizeFormatRules(preset.rules),
+    })),
+  };
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  window.__opencsvLastFormatPresetExportText = text;
+  document.body.dataset.formatPresetExport = `${presets.length}:${ruleCount}`;
+  document.body.dataset.formatPresetExportPreview = text.slice(0, 500);
+  triggerDownload(text, "opencsv-format-presets.json", "application/json;charset=utf-8");
+  status.textContent = `Exported ${formatCount(presets.length)} format presets.`;
+}
+
+function showFormatPresetImportPanel() {
+  openSettingsPanel();
+  formatPresetImportPanel.hidden = false;
+  formatPresetImportText.value = "";
+  document.body.dataset.formatPresetImportPanel = "open";
+  syncFormatPresetImportControls();
+  formatPresetImportText.focus();
+}
+
+function cancelFormatPresetImport() {
+  formatPresetImportPanel.hidden = true;
+  formatPresetImportText.value = "";
+  document.body.dataset.formatPresetImportPanel = "closed";
+  syncFormatPresetImportControls();
+}
+
+function syncFormatPresetImportControls() {
+  if (!formatPresetImportText) return;
+  applyFormatPresetImportButton.disabled = formatPresetImportText.value.trim() === "";
+}
+
+function applyFormatPresetImport() {
+  try {
+    const imported = parseFormatPresetImport(formatPresetImportText.value);
+    const next = mergeImportedFormatPresets(formatPresets(), imported);
+    saveFormatPresets(next);
+    formatPresetImportPanel.hidden = true;
+    formatPresetImportText.value = "";
+    const importedRules = imported.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0);
+    document.body.dataset.formatPresetImport = `${imported.length}:${importedRules}`;
+    document.body.dataset.formatPresetImportPanel = "closed";
+    status.textContent = `Imported ${formatCount(imported.length)} format presets.`;
+    updateCommandState();
+  } catch (error) {
+    status.textContent = `Import failed: ${error.message}`;
+    document.body.dataset.formatPresetImport = "error";
+  }
+  syncFormatPresetImportControls();
+}
+
+function parseFormatPresetImport(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("invalid JSON");
+  }
+  const rawPresets = Array.isArray(parsed) ? parsed : parsed?.presets;
+  if (!Array.isArray(rawPresets)) {
+    throw new Error("missing presets array");
+  }
+  const imported = [];
+  for (const raw of rawPresets) {
+    const preset = normalizeImportedFormatPreset(raw);
+    if (preset && !imported.some((item) => item.id === preset.id)) imported.push(preset);
+  }
+  if (!imported.length) throw new Error("no valid presets");
+  return imported.slice(0, formatPresetsLimit);
+}
+
+function normalizeImportedFormatPreset(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const delimiter = normalizeImportedDelimiter(raw.delimiter, raw.delimiterName);
+  const quoteChar = ["double", "single", "none"].includes(raw.quoteChar) ? raw.quoteChar : "double";
+  const quoteMode = ["minimal", "always", "never", "manual"].includes(raw.quoteMode) ? raw.quoteMode : "minimal";
+  const preset = {
+    id: "",
+    name: "",
+    delimiter,
+    delimiterName: normalizeImportedDelimiterName(raw.delimiterName, delimiter),
+    hasHeader: Boolean(raw.hasHeader),
+    encodingName: typeof raw.encodingName === "string" && raw.encodingName.trim() ? raw.encodingName.trim() : "utf-8",
+    lineEndingName: typeof raw.lineEndingName === "string" && raw.lineEndingName.trim() ? raw.lineEndingName.trim() : "LF",
+    quoteChar,
+    quoteMode,
+    rules: normalizeFormatRules(raw.rules),
+  };
+  preset.id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 160) : formatPresetID(preset);
+  preset.name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, 120) : formatPresetName(preset);
+  return preset;
+}
+
+function normalizeImportedDelimiter(value, name) {
+  if (value === "\t" || value === "\\t") return "\t";
+  if (typeof value === "string" && value.length > 0) return value[0];
+  const lower = typeof name === "string" ? name.trim().toLowerCase() : "";
+  if (lower === "tab" || lower === "tsv") return "\t";
+  if (lower === "semicolon") return ";";
+  if (lower === "pipe") return "|";
+  if (lower === "space") return " ";
+  return ",";
+}
+
+function normalizeImportedDelimiterName(value, delimiter) {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (delimiter === "\t") return "tab";
+  if (delimiter === ";") return "semicolon";
+  if (delimiter === "|") return "pipe";
+  if (delimiter === " ") return "space";
+  if (delimiter === ",") return "comma";
+  return delimiter;
+}
+
+function mergeImportedFormatPresets(existing, imported) {
+  const importedIDs = new Set(imported.map((preset) => preset.id));
+  return [
+    ...imported,
+    ...existing.filter((preset) => !importedIDs.has(preset.id)),
+  ].slice(0, formatPresetsLimit);
+}
+
 function openSettingsPanel() {
   setViewMode("settings");
 }
@@ -1193,6 +1339,12 @@ function resetFormatPresets() {
   document.body.dataset.formatPresets = "0";
   document.body.dataset.formatRulePreview = "reset";
   document.body.dataset.formatPresetPreview = "";
+  document.body.dataset.formatPresetExport = "";
+  document.body.dataset.formatPresetImport = "";
+  document.body.dataset.formatPresetImportPanel = "closed";
+  formatPresetImportPanel.hidden = true;
+  formatPresetImportText.value = "";
+  syncFormatPresetImportControls();
   renderFormatPresetSelect();
   renderSettingsPanel();
   updateCommandState();
@@ -2601,6 +2753,12 @@ async function executeCommand(commandID) {
       break;
     case "format.saveRule":
       saveCurrentFormatRule();
+      break;
+    case "format.exportPresets":
+      exportFormatPresets();
+      break;
+    case "format.importPresets":
+      showFormatPresetImportPanel();
       break;
     case "format.applyQuotePolicy":
       await applyQuotePolicy();
@@ -7835,6 +7993,11 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+exportFormatPresetsButton.addEventListener("click", () => executeCommand("format.exportPresets"));
+showImportFormatPresetsButton.addEventListener("click", () => executeCommand("format.importPresets"));
+formatPresetImportText.addEventListener("input", syncFormatPresetImportControls);
+applyFormatPresetImportButton.addEventListener("click", applyFormatPresetImport);
+cancelFormatPresetImportButton.addEventListener("click", cancelFormatPresetImport);
 themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
 resetThemePreferenceButton.addEventListener("click", resetThemePreference);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);

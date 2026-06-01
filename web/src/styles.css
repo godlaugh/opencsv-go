@@ -518,9 +518,11 @@ button:disabled {
 }
 
 .settings-toolbar button,
+.settings-section-actions button,
 .settings-preset-actions button,
 .settings-rule-row button,
-.settings-add-rule button {
+.settings-add-rule button,
+.settings-import-actions button {
   min-height: 28px;
   flex: 0 0 auto;
   border: 1px solid var(--border);
@@ -533,6 +535,21 @@ button:disabled {
 .settings-section {
   min-height: 0;
   overflow: auto;
+}
+
+.settings-section > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-section-actions,
+.settings-import-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .settings-policy-grid,
@@ -600,6 +617,31 @@ button:disabled {
 
 .settings-preset-list {
   display: grid;
+}
+
+.settings-import-panel {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  background: var(--panel-subtle);
+}
+
+.settings-import-panel[hidden] {
+  display: none;
+}
+
+.settings-import-panel textarea {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: var(--editor-font-size) var(--editor-font-family);
+  line-height: calc(var(--editor-font-size) + 5px);
 }
 
 .settings-preset-row {

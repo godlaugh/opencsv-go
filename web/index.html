@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-high-contrast-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-format-import-export-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -222,7 +222,18 @@
               <header>
                 <strong>File Format Presets</strong>
                 <span id="settingsFormatSummary">0 presets</span>
+                <div class="settings-section-actions">
+                  <button id="exportFormatPresetsButton" type="button" data-command="format.exportPresets">Export Formats</button>
+                  <button id="showImportFormatPresetsButton" type="button" data-command="format.importPresets">Import Formats</button>
+                </div>
               </header>
+              <div id="formatPresetImportPanel" class="settings-import-panel" hidden>
+                <textarea id="formatPresetImportText" spellcheck="false" aria-label="Format preset import JSON" placeholder='{"kind":"opencsv-format-presets","presets":[]}'></textarea>
+                <div class="settings-import-actions">
+                  <button id="applyFormatPresetImportButton" type="button">Apply Import</button>
+                  <button id="cancelFormatPresetImportButton" type="button">Cancel</button>
+                </div>
+              </div>
               <div id="settingsPresetList" class="settings-preset-list"></div>
             </section>
           </section>
@@ -418,6 +429,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-high-contrast-1"></script>
+    <script type="module" src="./src/app.js?v=m2-format-import-export-1"></script>
   </body>
 </html>
