@@ -420,7 +420,6 @@ function draw() {
   drawRows(width, height);
   drawBodySeparators(width, height);
   drawSelection();
-  drawHeaders(ctx, width);
   drawHeaders(headerCtx, width);
 
   const selectedColumn = columns[selected.col]?.name ?? "";
@@ -434,6 +433,7 @@ function draw() {
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
   document.body.dataset.gridHeaderHeight = String(headerHeight);
+  document.body.dataset.gridHeaderLayer = `${headerCanvas.clientHeight}:${headerCanvas.height}`;
   copyHeadersToggle.checked = includeHeadersInSelection;
   updateAggregateStatus(aggregateStats);
   status.textContent =
