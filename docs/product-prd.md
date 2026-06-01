@@ -323,7 +323,7 @@ The app shall support:
 - Swap selected cells with adjacent cells in any direction.
 - Copy/cut/paste rows and columns.
 - Remove duplicate rows and columns.
-- Transform selected text cells: trim, uppercase, lowercase, naming/case conversions, and join/split horizontally and vertically.
+- Transform selected text cells: trim, uppercase, lowercase, naming/case conversions, full-width/half-width conversions, and join/split horizontally and vertically.
 - Undo/redo.
 - Dirty state.
 - Read-only mode that disables editing operations.

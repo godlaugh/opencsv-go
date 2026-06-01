@@ -901,7 +901,7 @@ func TestDeduplicateColumnsKeepsDistinctHeaders(t *testing.T) {
 func TestManagerTextTransforms(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "text.csv")
-	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n3,Customer ID\n4,HTTP response_code\n5,quarter 2026 Q1\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n3,Customer ID\n4,HTTP response_code\n5,quarter 2026 Q1\n6,ABC 123 ｶﾀｶﾅ\n7,ＡＢＣ　１２３　カタカナ\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	manager := NewManager()
@@ -972,6 +972,32 @@ func TestManagerTextTransforms(t *testing.T) {
 		if records[3][1] != tc.want {
 			t.Fatalf("%s record = %q, want %q", tc.mode, records[3][1], tc.want)
 		}
+	}
+
+	session, err = manager.OpenPath(path, SourceFile, "text.csv", csvcore.OpenOptions{PreviewRows: 8, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 6, Col: 1}}, TransformWide)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("wide changed = %d, want 1", result.Changed)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 7, Col: 1}}, TransformNarrow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("narrow changed = %d, want 1", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[6][1] != "ＡＢＣ　１２３　カタカナ" || records[7][1] != "ABC 123 ｶﾀｶﾅ" {
+		t.Fatalf("width transform records = %#v", records)
 	}
 }
 

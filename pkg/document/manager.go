@@ -17,6 +17,7 @@ import (
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/sqlexpr"
 	"github.com/opencsv/opencsv/pkg/xlsx"
+	"golang.org/x/text/width"
 )
 
 type SourceKind string
@@ -729,6 +730,8 @@ const (
 	TransformCamel  TextTransformMode = "camel"
 	TransformPascal TextTransformMode = "pascal"
 	TransformTitle  TextTransformMode = "title"
+	TransformWide   TextTransformMode = "wide"
+	TransformNarrow TextTransformMode = "narrow"
 )
 
 func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
@@ -1728,6 +1731,10 @@ func textTransformFunc(mode TextTransformMode) (func(string) string, error) {
 		return pascalCase, nil
 	case TransformTitle:
 		return titleCase, nil
+	case TransformWide:
+		return width.Widen.String, nil
+	case TransformNarrow:
+		return width.Narrow.String, nil
 	default:
 		return nil, fmt.Errorf("unsupported text transform %q", mode)
 	}

@@ -608,6 +608,8 @@ function isCommandDisabled(command) {
       command.id === "text.camelCase" ||
       command.id === "text.pascalCase" ||
       command.id === "text.titleCase" ||
+      command.id === "text.fullWidth" ||
+      command.id === "text.halfWidth" ||
       command.id === "cell.swap" ||
       command.id === "cell.joinHorizontal" ||
       command.id === "cell.splitHorizontal" ||
@@ -2454,6 +2456,12 @@ async function executeCommand(commandID) {
       break;
     case "text.titleCase":
       await transformSelectedText("title", "Title Case");
+      break;
+    case "text.fullWidth":
+      await transformSelectedText("wide", "Full Width");
+      break;
+    case "text.halfWidth":
+      await transformSelectedText("narrow", "Half Width");
       break;
     case "cell.swap":
       await swapSelectedCells();

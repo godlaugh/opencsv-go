@@ -2,7 +2,10 @@ module github.com/opencsv/opencsv
 
 go 1.24.0
 
-require modernc.org/sqlite v1.36.3
+require (
+	golang.org/x/text v0.25.0
+	modernc.org/sqlite v1.36.3
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect

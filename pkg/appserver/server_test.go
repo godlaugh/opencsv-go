@@ -575,6 +575,47 @@ func TestServerDedupeAndTextTransform(t *testing.T) {
 	}
 }
 
+func TestServerWidthTextTransforms(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "width.csv")
+	if err := os.WriteFile(path, []byte("id,value\n1,ABC 123 ｶﾀｶﾅ\n2,ＡＢＣ　１２３　カタカナ\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	widePayload := postJSON(t, handler, "/api/text-transform", map[string]any{
+		"documentId": documentID,
+		"mode":       "wide",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+		},
+	})
+	if widePayload["changed"].(float64) != 1 {
+		t.Fatalf("wide payload = %#v", widePayload)
+	}
+	narrowPayload := postJSON(t, handler, "/api/text-transform", map[string]any{
+		"documentId": documentID,
+		"mode":       "narrow",
+		"cells": []map[string]any{
+			{"row": 2, "col": 1},
+		},
+	})
+	if narrowPayload["changed"].(float64) != 1 {
+		t.Fatalf("narrow payload = %#v", narrowPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "ＡＢＣ　１２３　カタカナ" || rows[2].([]any)[1] != "ABC 123 ｶﾀｶﾅ" {
+		t.Fatalf("rows after width transforms = %#v", rows)
+	}
+}
+
 func TestServerJoinAndSplitCells(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "join-split.csv")

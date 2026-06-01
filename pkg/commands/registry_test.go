@@ -70,6 +70,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"text.camelCase",
 		"text.pascalCase",
 		"text.titleCase",
+		"text.fullWidth",
+		"text.halfWidth",
 		"cell.swap",
 		"cell.joinHorizontal",
 		"cell.splitHorizontal",
