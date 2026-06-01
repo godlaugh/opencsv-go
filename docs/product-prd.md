@@ -305,7 +305,7 @@ The app shall render a spreadsheet-like grid with:
 - Scroll position persistence per file.
 - Open hyperlink command for URL-like cell values.
 - Link audit for recognized URL values, including trusted standard schemes, safe custom protocols, and blocked unsafe protocols.
-- Cell Value panel support for multiline and large cell values, including edit statistics, dirty draft recovery, and expandable editing space.
+- Cell Value panel support for multiline and large cell values, including edit statistics, dirty draft recovery, expandable editing space, and a detached large-cell editor.
 
 Acceptance:
 

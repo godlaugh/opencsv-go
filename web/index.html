@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-cell-large-text-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-cell-detached-editor-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -309,6 +309,7 @@
           <textarea id="cellValueInput" spellcheck="false" aria-label="Cell value"></textarea>
           <div class="cell-value-meta">
             <span id="cellValueStats">0 chars · 1 line</span>
+            <button id="openCellValueDialogButton" type="button">Pop Out</button>
             <button id="toggleCellValueLargeButton" type="button" aria-pressed="false">Expand</button>
             <button id="revertCellValueButton" type="button" disabled>Revert</button>
           </div>
@@ -422,6 +423,25 @@
       </section>
     </div>
 
+    <div id="cellValueDialog" class="command-palette-backdrop" hidden>
+      <section class="cell-value-dialog" role="dialog" aria-modal="true" aria-label="Cell value editor">
+        <header class="condition-panel-header">
+          <strong>Cell Value</strong>
+          <button id="closeCellValueDialogButton" type="button">Close</button>
+        </header>
+        <div class="cell-value-dialog-body">
+          <div class="cell-value-dialog-meta">
+            <span id="cellValueDialogStats">0 chars · 1 line</span>
+          </div>
+          <textarea id="cellValueDialogInput" spellcheck="false" aria-label="Large cell value"></textarea>
+        </div>
+        <footer class="condition-actions">
+          <button id="revertCellValueDialogButton" type="button" disabled>Revert</button>
+          <button id="applyCellValueDialogButton" type="button">Apply</button>
+        </footer>
+      </section>
+    </div>
+
     <div id="conditionPanel" class="command-palette-backdrop" hidden>
       <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder">
         <header class="condition-panel-header">
@@ -520,6 +540,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-cell-large-text-1"></script>
+    <script type="module" src="./src/app.js?v=m2-cell-detached-editor-1"></script>
   </body>
 </html>

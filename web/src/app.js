@@ -24,6 +24,7 @@ const cellQuote = document.querySelector("#cellQuote");
 const formatSummary = document.querySelector("#formatSummary");
 const cellValueInput = document.querySelector("#cellValueInput");
 const cellValueStats = document.querySelector("#cellValueStats");
+const openCellValueDialogButton = document.querySelector("#openCellValueDialogButton");
 const toggleCellValueLargeButton = document.querySelector("#toggleCellValueLargeButton");
 const revertCellValueButton = document.querySelector("#revertCellValueButton");
 const applyCellValueButton = document.querySelector("#applyCellValueButton");
@@ -169,6 +170,12 @@ const closeExternalChangeButton = document.querySelector("#closeExternalChangeBu
 const keepExternalChangeButton = document.querySelector("#keepExternalChangeButton");
 const saveAsExternalChangeButton = document.querySelector("#saveAsExternalChangeButton");
 const reloadExternalChangeButton = document.querySelector("#reloadExternalChangeButton");
+const cellValueDialog = document.querySelector("#cellValueDialog");
+const closeCellValueDialogButton = document.querySelector("#closeCellValueDialogButton");
+const cellValueDialogInput = document.querySelector("#cellValueDialogInput");
+const cellValueDialogStats = document.querySelector("#cellValueDialogStats");
+const revertCellValueDialogButton = document.querySelector("#revertCellValueDialogButton");
+const applyCellValueDialogButton = document.querySelector("#applyCellValueDialogButton");
 const gridContextMenu = document.querySelector("#gridContextMenu");
 const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
@@ -334,6 +341,7 @@ let fileStatusTimer = 0;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
 let cellValueExpanded = false;
+let cellValueDialogOpen = false;
 let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
@@ -2154,18 +2162,29 @@ function syncCellValuePanel() {
   cellValueInput.disabled = disabled;
   applyCellValueButton.disabled = disabled || !cellValueInputDirty;
   revertCellValueButton.disabled = disabled || !cellValueInputDirty;
+  openCellValueDialogButton.disabled = !documentId;
   syncCellValueStats(panelValue);
   syncCellValueEditorSize();
   syncCellLinkState(panelValue);
+  syncCellValueDialog();
 }
 
-function syncCellValueStats(value) {
+function cellValueSummary(value) {
   const text = String(value ?? "");
   const chars = Array.from(text).length;
   const lines = text.length ? text.split(/\r\n|\r|\n/).length : 1;
-  cellValueStats.textContent = `${chars} ${chars === 1 ? "char" : "chars"} · ${lines} ${lines === 1 ? "line" : "lines"}`;
-  document.body.dataset.cellValueChars = String(chars);
-  document.body.dataset.cellValueLines = String(lines);
+  return {
+    chars,
+    lines,
+    label: `${chars} ${chars === 1 ? "char" : "chars"} · ${lines} ${lines === 1 ? "line" : "lines"}`,
+  };
+}
+
+function syncCellValueStats(value) {
+  const summary = cellValueSummary(value);
+  cellValueStats.textContent = summary.label;
+  document.body.dataset.cellValueChars = String(summary.chars);
+  document.body.dataset.cellValueLines = String(summary.lines);
   document.body.dataset.cellValueDirty = cellValueInputDirty ? "true" : "false";
 }
 
@@ -2186,6 +2205,64 @@ function toggleCellValueLarge() {
   syncCellValueEditorSize();
 }
 
+function cellValueEditorDisabled() {
+  return !documentId || readOnly || Boolean(aggregateRowAt(selected.row));
+}
+
+function syncCellValueDraft(value, source = "panel") {
+  cellValueInputDirty = true;
+  cellValueInput.value = value;
+  const disabled = cellValueEditorDisabled();
+  applyCellValueButton.disabled = disabled;
+  revertCellValueButton.disabled = disabled;
+  syncCellValueStats(value);
+  syncCellValueEditorSize();
+  syncCellLinkState(value);
+  if (cellValueDialogOpen) {
+    if (source !== "dialog") cellValueDialogInput.value = value;
+    syncCellValueDialog();
+  }
+}
+
+function openCellValueDialog() {
+  if (!documentId) {
+    status.textContent = "Open a CSV before using the Cell Value editor.";
+    return;
+  }
+  cellValueDialogOpen = true;
+  cellValueDialog.hidden = false;
+  document.body.dataset.cellValueDialog = "open";
+  cellValueDialogInput.value = cellValueInput.value;
+  syncCellValueDialog();
+  cellValueDialogInput.focus();
+  cellValueDialogInput.select();
+}
+
+function closeCellValueDialog() {
+  if (!cellValueDialogOpen && cellValueDialog.hidden) return;
+  cellValueDialogOpen = false;
+  cellValueDialog.hidden = true;
+  document.body.dataset.cellValueDialog = "closed";
+  cellValueInput.focus();
+}
+
+function syncCellValueDialog() {
+  document.body.dataset.cellValueDialog = cellValueDialogOpen ? "open" : "closed";
+  if (!cellValueDialogOpen) return;
+  if (document.activeElement !== cellValueDialogInput || !cellValueInputDirty) {
+    cellValueDialogInput.value = cellValueInput.value;
+  }
+  const disabled = cellValueEditorDisabled();
+  const summary = cellValueSummary(cellValueDialogInput.value);
+  cellValueDialogStats.textContent = summary.label;
+  cellValueDialogInput.disabled = disabled;
+  applyCellValueDialogButton.disabled = disabled || !cellValueInputDirty;
+  revertCellValueDialogButton.disabled = disabled || !cellValueInputDirty;
+  document.body.dataset.cellValueDialogChars = String(summary.chars);
+  document.body.dataset.cellValueDialogLines = String(summary.lines);
+  document.body.dataset.cellValueDialogDirty = cellValueInputDirty ? "true" : "false";
+}
+
 function revertCellValueInput() {
   if (!cellValueInputDirty) return;
   const value = documentId ? valueAt(selected.row, selected.col) : "";
@@ -2196,6 +2273,10 @@ function revertCellValueInput() {
   syncCellValueStats(value);
   syncCellValueEditorSize();
   syncCellLinkState(value);
+  if (cellValueDialogOpen) {
+    cellValueDialogInput.value = value;
+    syncCellValueDialog();
+  }
   status.textContent = "Cell edit reverted";
 }
 
@@ -9173,6 +9254,11 @@ function handleGlobalShortcut(event) {
     closeConditionBuilder();
     return true;
   }
+  if (event.key === "Escape" && cellValueDialogOpen) {
+    event.preventDefault();
+    closeCellValueDialog();
+    return true;
+  }
   if (event.key === "Escape" && !externalChangePanel.hidden) {
     event.preventDefault();
     closeExternalChangePanel();
@@ -9620,6 +9706,12 @@ closeExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
 reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDisk);
+closeCellValueDialogButton.addEventListener("click", closeCellValueDialog);
+applyCellValueDialogButton.addEventListener("click", () => {
+  cellValueInput.value = cellValueDialogInput.value;
+  applyCellValue();
+});
+revertCellValueDialogButton.addEventListener("click", revertCellValueInput);
 saveAsPanel.addEventListener("mousedown", (event) => {
   if (event.target === saveAsPanel) {
     event.preventDefault();
@@ -9630,6 +9722,12 @@ externalChangePanel.addEventListener("mousedown", (event) => {
   if (event.target === externalChangePanel) {
     event.preventDefault();
     closeExternalChangePanel();
+  }
+});
+cellValueDialog.addEventListener("mousedown", (event) => {
+  if (event.target === cellValueDialog) {
+    event.preventDefault();
+    closeCellValueDialog();
   }
 });
 saveAsPath.addEventListener("keydown", async (event) => {
@@ -9705,13 +9803,7 @@ columnClearView.addEventListener("click", async () => {
   await clearView();
 });
 cellValueInput.addEventListener("input", () => {
-  cellValueInputDirty = true;
-  const disabled = !documentId || readOnly || Boolean(aggregateRowAt(selected.row));
-  applyCellValueButton.disabled = disabled;
-  revertCellValueButton.disabled = disabled;
-  syncCellValueStats(cellValueInput.value);
-  syncCellValueEditorSize();
-  syncCellLinkState(cellValueInput.value);
+  syncCellValueDraft(cellValueInput.value);
 });
 cellValueInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -9727,8 +9819,33 @@ cellValueInput.addEventListener("keydown", (event) => {
   }
 });
 applyCellValueButton.addEventListener("click", applyCellValue);
+openCellValueDialogButton.addEventListener("click", openCellValueDialog);
 toggleCellValueLargeButton.addEventListener("click", toggleCellValueLarge);
 revertCellValueButton.addEventListener("click", revertCellValueInput);
+cellValueDialogInput.addEventListener("input", () => {
+  syncCellValueDraft(cellValueDialogInput.value, "dialog");
+});
+cellValueDialogInput.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    event.stopPropagation();
+    cellValueInput.value = cellValueDialogInput.value;
+    applyCellValue();
+    return;
+  }
+  if (event.key === "Escape" && cellValueInputDirty) {
+    event.preventDefault();
+    event.stopPropagation();
+    revertCellValueInput();
+    cellValueDialogInput.focus();
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeCellValueDialog();
+  }
+});
 openCellLink.addEventListener("click", (event) => {
   if (openCellLink.getAttribute("aria-disabled") === "true") {
     event.preventDefault();
