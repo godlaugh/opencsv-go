@@ -2438,6 +2438,7 @@ function closeGridContextMenu() {
   gridContextMenu.replaceChildren();
   gridContextMenu.dataset.target = "";
   document.body.dataset.gridContextTarget = "";
+  document.body.dataset.sqlResultContext = "";
 }
 
 function normalizedSelection() {
@@ -5356,18 +5357,28 @@ async function copySQLResultCSV() {
     status.textContent = "Run a SQL query before copying results.";
     return;
   }
+  return copySQLMatrix(matrix, selectedMatrix ? "SQL selection" : "SQL result", {
+    bodyRows: selectedMatrix ? matrix.length : Math.max(0, matrix.length - 1),
+  });
+}
+
+async function copySQLMatrix(matrix, label, options = {}) {
+  if (!matrix.length) {
+    status.textContent = `No ${label.toLowerCase()} to copy.`;
+    return false;
+  }
   const text = formatMatrix(matrix, "csv");
   window.__opencsvLastSQLResultText = text;
   document.body.dataset.sqlResultPreview = text.slice(0, 500);
+  document.body.dataset.sqlResultCopy = label;
   try {
     await writeClipboardText(text);
-    if (selectedMatrix) {
-      status.textContent = `Copied SQL selection: ${formatCount(matrix.length)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
-    } else {
-      status.textContent = `Copied SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
-    }
+    const rows = options.bodyRows ?? matrix.length;
+    status.textContent = `Copied ${label}: ${formatCount(rows)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+    return true;
   } catch (error) {
-    status.textContent = `SQL result copy failed: ${error.message}`;
+    status.textContent = `${label} copy failed: ${error.message}`;
+    return false;
   }
 }
 
@@ -5410,6 +5421,34 @@ function sqlSelectedResultMatrix(result) {
     matrix.push(output);
   }
   return matrix.length ? matrix : null;
+}
+
+function sqlResultCellMatrix(row, col) {
+  const rows = lastSQLResult?.rows ?? [];
+  if (row < 0 || col < 0 || row >= rows.length) return [];
+  return [[rows[row]?.[col] ?? ""]];
+}
+
+function sqlResultRowMatrix(row, includeHeaders = false) {
+  const resultColumns = sqlResultColumns(lastSQLResult);
+  const rows = lastSQLResult?.rows ?? [];
+  if (row < 0 || row >= rows.length) return [];
+  const output = [];
+  if (includeHeaders) output.push(resultColumns);
+  output.push(resultColumns.map((_, col) => rows[row]?.[col] ?? ""));
+  return output;
+}
+
+function sqlResultColumnMatrix(col, includeHeader = false) {
+  const resultColumns = sqlResultColumns(lastSQLResult);
+  const rows = lastSQLResult?.rows ?? [];
+  if (col < 0 || col >= resultColumns.length) return [];
+  const output = [];
+  if (includeHeader) output.push([resultColumns[col]]);
+  for (const row of rows) {
+    output.push([row?.[col] ?? ""]);
+  }
+  return output;
 }
 
 function sqlResultColumns(result) {
@@ -5499,6 +5538,69 @@ function sqlResultCellFromEvent(event) {
     row: Number(cell.dataset.sqlRow),
     col: Number(cell.dataset.sqlCol),
   };
+}
+
+function sqlSelectionContains(row, col) {
+  const range = normalizedSQLResultSelection();
+  return Boolean(
+    range &&
+    row >= range.startRow &&
+    row <= range.endRow &&
+    col >= range.startCol &&
+    col <= range.endCol,
+  );
+}
+
+function renderSQLResultContextMenu(target, clientX, clientY) {
+  if (!lastSQLResult) return;
+  if (!sqlSelectionContains(target.row, target.col)) {
+    selectSQLResultCell(target.row, target.col, false);
+  }
+  const resultColumns = sqlResultColumns(lastSQLResult);
+  const columnName = resultColumns[target.col] || `Column ${target.col + 1}`;
+  const heading = document.createElement("strong");
+  heading.textContent = `SQL ${target.row + 1}, ${columnName}`;
+  gridContextMenu.replaceChildren(heading);
+
+  const addSeparator = () => gridContextMenu.append(document.createElement("hr"));
+  const addItem = (label, action, options = {}) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.textContent = label;
+    button.disabled = Boolean(options.disabled);
+    button.addEventListener("click", async () => {
+      closeGridContextMenu();
+      await action();
+    });
+    gridContextMenu.append(button);
+    return button;
+  };
+
+  const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
+  addItem("Copy Cell", () => copySQLMatrix(sqlResultCellMatrix(target.row, target.col), "SQL cell"));
+  addItem("Copy Row", () => copySQLMatrix(sqlResultRowMatrix(target.row, false), "SQL row"));
+  addItem("Copy Row with Headers", () => copySQLMatrix(sqlResultRowMatrix(target.row, true), "SQL row with headers", { bodyRows: 1 }));
+  addItem("Copy Column", () => copySQLMatrix(sqlResultColumnMatrix(target.col, false), "SQL column"));
+  addItem("Copy Column with Header", () => copySQLMatrix(sqlResultColumnMatrix(target.col, true), "SQL column with header", { bodyRows: lastSQLResult.rows?.length ?? 0 }));
+  addSeparator();
+  addItem("Copy Selection as CSV", () => copySQLMatrix(sqlSelectedResultMatrix(lastSQLResult) ?? [], "SQL selection"), { disabled: !selectedMatrix });
+  addItem("Copy Result as CSV", () => copySQLMatrix(sqlResultMatrix(lastSQLResult), "SQL result", { bodyRows: lastSQLResult.rows?.length ?? 0 }));
+  addItem("Export Result CSV", exportSQLResultCSV);
+  addItem("Clear Selection", () => {
+    clearSQLResultSelection();
+    status.textContent = "Cleared SQL result selection.";
+  }, { disabled: !selectedMatrix });
+
+  gridContextMenu.hidden = false;
+  const menuRect = gridContextMenu.getBoundingClientRect();
+  const left = Math.min(Math.max(8, clientX), window.innerWidth - menuRect.width - 8);
+  const top = Math.min(Math.max(8, clientY), window.innerHeight - menuRect.height - 8);
+  gridContextMenu.style.left = `${left}px`;
+  gridContextMenu.style.top = `${top}px`;
+  gridContextMenu.dataset.target = "sql-result";
+  document.body.dataset.gridContextTarget = "sql-result";
+  document.body.dataset.sqlResultContext = `${target.row}:${target.col}`;
 }
 
 function errorFromResponseText(text) {
@@ -9042,6 +9144,14 @@ async function openInitialURLTarget() {
       formatOverride: formatOverrideFromParams(params),
       location: locationFromParams(params),
     });
+    const sqlQuery = params.get("sql");
+    if (sqlQuery != null) {
+      sqlInput.value = sqlQuery;
+      setViewMode("sql");
+      if (truthyParam(params.get("sqlRun"))) {
+        await runSQLQuery();
+      }
+    }
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
   }
@@ -9239,6 +9349,13 @@ sqlResult.addEventListener("click", (event) => {
   const cell = sqlResultCellFromEvent(event);
   if (!cell) return;
   selectSQLResultCell(cell.row, cell.col, event.shiftKey);
+});
+sqlResult.addEventListener("contextmenu", (event) => {
+  const cell = sqlResultCellFromEvent(event);
+  if (!cell) return;
+  event.preventDefault();
+  closeColumnMenu();
+  renderSQLResultContextMenu(cell, event.clientX, event.clientY);
 });
 sqlResult.addEventListener("keydown", async (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
