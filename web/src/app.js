@@ -101,6 +101,12 @@ const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton")
 const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
 const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
+const exportQuoteRulesButton = document.querySelector("#exportQuoteRulesButton");
+const showImportQuoteRulesButton = document.querySelector("#showImportQuoteRulesButton");
+const quoteRulesImportPanel = document.querySelector("#quoteRulesImportPanel");
+const quoteRulesImportText = document.querySelector("#quoteRulesImportText");
+const applyQuoteRulesImportButton = document.querySelector("#applyQuoteRulesImportButton");
+const cancelQuoteRulesImportButton = document.querySelector("#cancelQuoteRulesImportButton");
 const settingsThemeSummary = document.querySelector("#settingsThemeSummary");
 const themePreferenceSelect = document.querySelector("#themePreferenceSelect");
 const resetThemePreferenceButton = document.querySelector("#resetThemePreferenceButton");
@@ -225,6 +231,7 @@ const savedViewsExportKind = "opencsv-saved-views";
 const formatPresetsStorageKey = "opencsv-format-presets";
 const formatPresetsLimit = 12;
 const formatPresetExportKind = "opencsv-format-presets";
+const quoteRulesExportKind = "opencsv-quote-rules";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
@@ -721,6 +728,10 @@ function applyCommandMetadata() {
       button.textContent = "Save Rule";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
       button.textContent = "Apply Quote";
+    } else if (button.dataset.command === "format.exportQuoteRules") {
+      button.textContent = "Export Quotes";
+    } else if (button.dataset.command === "format.importQuoteRules") {
+      button.textContent = "Import Quotes";
     } else if (button.dataset.command === "format.toggleCellQuote") {
       button.textContent = "Toggle";
     } else if (button.dataset.command === "sql.copyResultCsv") {
@@ -828,6 +839,7 @@ function isCommandDisabled(command) {
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
       command.id === "format.applyQuotePolicy" ||
+      command.id === "format.importQuoteRules" ||
       command.id === "format.toggleHeaderQuote" ||
       command.id === "format.toggleBodyQuote" ||
       command.id === "format.toggleColumnQuote" ||
@@ -1584,6 +1596,182 @@ function quoteRuleLabel(target) {
   if (target === "header") return "Header";
   if (target === "body") return "Body";
   return "Column";
+}
+
+function exportQuoteRules() {
+  if (!metadata?.dialect) {
+    status.textContent = "Open a file before exporting quote rules.";
+    return;
+  }
+  const settings = currentQuoteRuleSettings();
+  const payload = {
+    kind: quoteRulesExportKind,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    ...settings,
+  };
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  window.__opencsvLastQuoteRulesExportText = text;
+  document.body.dataset.quoteRulesExport = quoteRulesSignature(settings);
+  document.body.dataset.quoteRulesExportPreview = text.slice(0, 500);
+  triggerDownload(text, "opencsv-quote-rules.json", "application/json;charset=utf-8");
+  status.textContent = `Exported quote rules: ${quoteRulesSummary(settings)}.`;
+}
+
+function showQuoteRulesImportPanel() {
+  openSettingsPanel();
+  quoteRulesImportPanel.hidden = false;
+  quoteRulesImportText.value = "";
+  document.body.dataset.quoteRulesImportPanel = "open";
+  syncQuoteRulesImportControls();
+  quoteRulesImportText.focus();
+}
+
+function cancelQuoteRulesImport() {
+  quoteRulesImportPanel.hidden = true;
+  quoteRulesImportText.value = "";
+  document.body.dataset.quoteRulesImportPanel = "closed";
+  syncQuoteRulesImportControls();
+}
+
+function syncQuoteRulesImportControls() {
+  if (!quoteRulesImportText) return;
+  applyQuoteRulesImportButton.disabled = quoteRulesImportText.value.trim() === "";
+}
+
+async function applyQuoteRulesImport() {
+  if (!documentId) {
+    status.textContent = "Open a file before importing quote rules.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Quote rule import blocked: document is read-only";
+    return;
+  }
+  try {
+    const settings = parseQuoteRulesImport(quoteRulesImportText.value);
+    const response = await fetch("/api/quote-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId, ...settings }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "quote import failed");
+    quotePolicyDraftDirty = false;
+    quoteRulesImportPanel.hidden = true;
+    quoteRulesImportText.value = "";
+    document.body.dataset.quoteRulesImport = quoteRulesSignature(settings);
+    document.body.dataset.quoteRulesImportPanel = "closed";
+    applyMutationPayload(payload, `Imported quote rules: ${quoteRulesSummary(settings)}.`);
+    syncQuotePolicyControls();
+  } catch (error) {
+    status.textContent = `Quote rule import failed: ${error.message}`;
+    document.body.dataset.quoteRulesImport = "error";
+  }
+  syncQuoteRulesImportControls();
+}
+
+function currentQuoteRuleSettings() {
+  const dialect = metadata?.dialect ?? {};
+  return {
+    quoteChar: quoteCharValue(dialect),
+    quoteMode: quoteModeValue(dialect),
+    quoteHeader: Boolean(dialect.quoteHeader),
+    quoteBody: Boolean(dialect.quoteBody),
+    quoteColumns: normalizeIntegerList(dialect.quoteColumns),
+    quoteCells: normalizeQuoteRuleCells(dialect.quoteCells),
+    noQuoteCells: normalizeQuoteRuleCells(dialect.noQuoteCells),
+  };
+}
+
+function parseQuoteRulesImport(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("invalid JSON");
+  }
+  const source = parsed?.rules && typeof parsed.rules === "object" ? parsed.rules : parsed;
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("missing quote rules object");
+  }
+  return {
+    quoteChar: normalizeQuoteRuleChar(source.quoteChar),
+    quoteMode: normalizeQuoteRuleMode(source.quoteMode),
+    quoteHeader: normalizeQuoteRuleBoolean(source.quoteHeader),
+    quoteBody: normalizeQuoteRuleBoolean(source.quoteBody),
+    quoteColumns: normalizeIntegerList(source.quoteColumns),
+    quoteCells: normalizeQuoteRuleCells(source.quoteCells),
+    noQuoteCells: normalizeQuoteRuleCells(source.noQuoteCells),
+  };
+}
+
+function normalizeQuoteRuleMode(value) {
+  const mode = String(value || "manual").toLowerCase().trim();
+  return ["minimal", "always", "never", "manual"].includes(mode) ? mode : "manual";
+}
+
+function normalizeQuoteRuleChar(value) {
+  const raw = String(value ?? "double").toLowerCase().trim();
+  if (raw === "'" || raw === "single") return "single";
+  if (raw === "" || raw === "none") return "none";
+  return "double";
+}
+
+function normalizeQuoteRuleBoolean(value) {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  if (typeof value === "string") {
+    return ["true", "1", "yes", "on"].includes(value.toLowerCase().trim());
+  }
+  return Boolean(value);
+}
+
+function normalizeIntegerList(values) {
+  if (!Array.isArray(values)) return [];
+  return Array.from(new Set(
+    values
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isInteger(value) && value >= 0),
+  )).sort((left, right) => left - right);
+}
+
+function normalizeQuoteRuleCells(values) {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  const cells = [];
+  for (const value of values) {
+    const row = Number.parseInt(value?.row, 10);
+    const col = Number.parseInt(value?.col, 10);
+    if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0) continue;
+    const key = `${row}:${col}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cells.push({ row, col });
+  }
+  return cells.sort((left, right) => left.row === right.row ? left.col - right.col : left.row - right.row);
+}
+
+function quoteRulesSignature(settings) {
+  return [
+    settings.quoteMode,
+    settings.quoteChar,
+    settings.quoteHeader ? "header" : "no-header",
+    settings.quoteBody ? "body" : "no-body",
+    `cols:${settings.quoteColumns.join(",")}`,
+    `quote:${settings.quoteCells.map((cell) => `${cell.row}:${cell.col}`).join(",")}`,
+    `no:${settings.noQuoteCells.map((cell) => `${cell.row}:${cell.col}`).join(",")}`,
+  ].join("|");
+}
+
+function quoteRulesSummary(settings) {
+  const parts = [`${settings.quoteMode} ${settings.quoteChar}`];
+  if (settings.quoteHeader) parts.push("header");
+  if (settings.quoteBody) parts.push("body");
+  if (settings.quoteColumns.length) parts.push(`${settings.quoteColumns.length} columns`);
+  if (settings.quoteCells.length) parts.push(`${settings.quoteCells.length} quoted cells`);
+  if (settings.noQuoteCells.length) parts.push(`${settings.noQuoteCells.length} no-quote cells`);
+  return parts.join(", ");
 }
 
 function normalizeFormatRules(rules) {
@@ -3110,6 +3298,12 @@ async function executeCommand(commandID) {
       break;
     case "format.applyQuotePolicy":
       await applyQuotePolicy();
+      break;
+    case "format.exportQuoteRules":
+      exportQuoteRules();
+      break;
+    case "format.importQuoteRules":
+      showQuoteRulesImportPanel();
       break;
     case "format.toggleHeaderQuote":
       await toggleQuoteRule("header");
@@ -8479,6 +8673,11 @@ textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromContro
 textEditorFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 resetEditorAppearanceButton.addEventListener("click", resetEditorAppearance);
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
+exportQuoteRulesButton.addEventListener("click", () => executeCommand("format.exportQuoteRules"));
+showImportQuoteRulesButton.addEventListener("click", () => executeCommand("format.importQuoteRules"));
+quoteRulesImportText.addEventListener("input", syncQuoteRulesImportControls);
+applyQuoteRulesImportButton.addEventListener("click", applyQuoteRulesImport);
+cancelQuoteRulesImportButton.addEventListener("click", cancelQuoteRulesImport);
 toggleCellQuoteButton.addEventListener("click", () => executeCommand("format.toggleCellQuote"));
 quoteHeaderRuleToggle.addEventListener("change", () => toggleQuoteRule("header", quoteHeaderRuleToggle.checked));
 quoteBodyRuleToggle.addEventListener("change", () => toggleQuoteRule("body", quoteBodyRuleToggle.checked));

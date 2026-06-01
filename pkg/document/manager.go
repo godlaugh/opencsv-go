@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -30,6 +31,16 @@ const (
 type Cell struct {
 	Row int `json:"row"`
 	Col int `json:"col"`
+}
+
+type QuoteSettings struct {
+	QuoteChar    string
+	QuoteMode    string
+	QuoteHeader  bool
+	QuoteBody    bool
+	QuoteColumns []int
+	QuoteCells   []csvcore.Cell
+	NoQuoteCells []csvcore.Cell
 }
 
 type Session struct {
@@ -473,6 +484,80 @@ func (manager *Manager) SetQuoteRule(id string, target string, col int, quoted b
 	current.Document.Metadata.Dialect = nextDialect
 	current.Dirty = true
 	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
+}
+
+func (manager *Manager) SetQuoteSettings(id string, settings QuoteSettings) (MutationResult, error) {
+	normalizedQuoteChar, err := csvcore.NormalizeQuoteChar(settings.QuoteChar)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	normalizedQuoteMode, err := csvcore.NormalizeQuoteMode(settings.QuoteMode)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return MutationResult{}, errors.New("document is read-only")
+	}
+	nextDialect := session.Document.Metadata.Dialect
+	nextDialect.QuoteChar = normalizedQuoteChar
+	nextDialect.QuoteMode = normalizedQuoteMode
+	nextDialect.QuoteHeader = settings.QuoteHeader
+	nextDialect.QuoteBody = settings.QuoteBody
+	nextDialect.QuoteColumns = normalizeQuoteColumns(settings.QuoteColumns)
+	nextDialect.QuoteCells = normalizeQuoteCells(settings.QuoteCells)
+	nextDialect.NoQuoteCells = normalizeQuoteCells(settings.NoQuoteCells)
+	if reflect.DeepEqual(session.Document.Metadata.Dialect, nextDialect) {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	current, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	current.Document.Metadata.Dialect = nextDialect
+	current.Dirty = true
+	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
+}
+
+func normalizeQuoteColumns(columns []int) []int {
+	seen := make(map[int]bool)
+	normalized := make([]int, 0, len(columns))
+	for _, col := range columns {
+		if col < 0 || seen[col] {
+			continue
+		}
+		seen[col] = true
+		normalized = append(normalized, col)
+	}
+	sort.Ints(normalized)
+	return normalized
+}
+
+func normalizeQuoteCells(cells []csvcore.Cell) []csvcore.Cell {
+	seen := make(map[csvcore.Cell]bool)
+	normalized := make([]csvcore.Cell, 0, len(cells))
+	for _, cell := range cells {
+		if cell.Row < 0 || cell.Col < 0 || seen[cell] {
+			continue
+		}
+		seen[cell] = true
+		normalized = append(normalized, cell)
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		if normalized[i].Row == normalized[j].Row {
+			return normalized[i].Col < normalized[j].Col
+		}
+		return normalized[i].Row < normalized[j].Row
+	})
+	return normalized
 }
 
 type ExportViewOptions struct {

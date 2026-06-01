@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-saved-view-import-export-3" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-quote-rule-import-export-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -167,6 +167,10 @@
               <header>
                 <strong>Quote Policy</strong>
                 <span id="settingsQuoteSummary">minimal double</span>
+                <div class="settings-section-actions">
+                  <button id="exportQuoteRulesButton" type="button" data-command="format.exportQuoteRules">Export Quotes</button>
+                  <button id="showImportQuoteRulesButton" type="button" data-command="format.importQuoteRules">Import Quotes</button>
+                </div>
               </header>
               <div class="settings-policy-grid">
                 <label>
@@ -201,6 +205,13 @@
                   <input id="quoteColumnRuleToggle" type="checkbox" aria-label="Quote active column" />
                   <span>Column</span>
                 </label>
+              </div>
+              <div id="quoteRulesImportPanel" class="settings-import-panel" hidden>
+                <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteColumns":[]}'></textarea>
+                <div class="settings-import-actions">
+                  <button id="applyQuoteRulesImportButton" type="button">Apply Import</button>
+                  <button id="cancelQuoteRulesImportButton" type="button">Cancel</button>
+                </div>
               </div>
             </section>
             <section class="settings-section settings-appearance-section" aria-label="Editor appearance">
@@ -467,6 +478,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-saved-view-import-export-3"></script>
+    <script type="module" src="./src/app.js?v=m2-quote-rule-import-export-1"></script>
   </body>
 </html>

@@ -434,6 +434,63 @@ func TestServerQuoteRulesSaveAndUndo(t *testing.T) {
 	}
 }
 
+func TestServerQuoteSettingsImportSaveAndUndo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote-settings.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n2,free\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	settingsPayload := postJSON(t, handler, "/api/quote-settings", map[string]any{
+		"documentId":   documentID,
+		"quoteChar":    "double",
+		"quoteMode":    "manual",
+		"quoteHeader":  true,
+		"quoteBody":    false,
+		"quoteColumns": []int{1, 1, -1},
+		"quoteCells": []map[string]int{
+			{"row": 1, "col": 0},
+		},
+		"noQuoteCells": []map[string]int{
+			{"row": 2, "col": 1},
+		},
+	})
+	document := settingsPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["quoteHeader"] != true || dialect["quoteBody"] == true || len(dialect["quoteColumns"].([]any)) != 1 {
+		t.Fatalf("quote settings dialect = %#v", dialect)
+	}
+	if len(dialect["quoteCells"].([]any)) != 1 || len(dialect["noQuoteCells"].([]any)) != 1 {
+		t.Fatalf("quote settings cell maps = %#v", dialect)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",\"note\"\n\"1\",\"plain\"\n2,free\n"
+	if string(saved) != want {
+		t.Fatalf("quote settings save = %q, want %q", string(saved), want)
+	}
+
+	undoPayload := postJSON(t, handler, "/api/undo", map[string]any{"documentId": documentID})
+	undoDocument := undoPayload["session"].(map[string]any)["document"].(map[string]any)
+	undoDialect := undoDocument["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if undoDialect["quoteHeader"] == true {
+		t.Fatalf("undo should restore quote settings: %#v", undoDialect)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

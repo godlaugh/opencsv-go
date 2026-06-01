@@ -53,6 +53,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/quote-rule", server.handleQuoteRule)
+	server.mux.HandleFunc("POST /api/quote-settings", server.handleQuoteSettings)
 	server.mux.HandleFunc("POST /api/cell-quote", server.handleCellQuote)
 	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
 	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
@@ -445,6 +446,17 @@ type quoteRuleRequest struct {
 	Quoted     bool   `json:"quoted"`
 }
 
+type quoteSettingsRequest struct {
+	DocumentID   string         `json:"documentId"`
+	QuoteChar    string         `json:"quoteChar"`
+	QuoteMode    string         `json:"quoteMode"`
+	QuoteHeader  bool           `json:"quoteHeader"`
+	QuoteBody    bool           `json:"quoteBody"`
+	QuoteColumns []int          `json:"quoteColumns"`
+	QuoteCells   []csvcore.Cell `json:"quoteCells"`
+	NoQuoteCells []csvcore.Cell `json:"noQuoteCells"`
+}
+
 func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 	var request headerModeRequest
 	if err := readJSON(r, &request); err != nil {
@@ -480,6 +492,28 @@ func (server *Server) handleQuoteRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.SetQuoteRule(request.DocumentID, request.Target, request.Col, request.Quoted)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleQuoteSettings(w http.ResponseWriter, r *http.Request) {
+	var request quoteSettingsRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetQuoteSettings(request.DocumentID, docstore.QuoteSettings{
+		QuoteChar:    request.QuoteChar,
+		QuoteMode:    request.QuoteMode,
+		QuoteHeader:  request.QuoteHeader,
+		QuoteBody:    request.QuoteBody,
+		QuoteColumns: request.QuoteColumns,
+		QuoteCells:   request.QuoteCells,
+		NoQuoteCells: request.NoQuoteCells,
+	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
