@@ -1618,6 +1618,43 @@ button:disabled {
   opacity: 0.45;
 }
 
+.cell-link-audit {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--panel-subtle);
+}
+
+.cell-link-audit[hidden] {
+  display: none;
+}
+
+.cell-link-audit span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cell-link-audit strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cell-link-audit.link-custom {
+  border-color: var(--warning);
+}
+
+.cell-link-audit.link-blocked {
+  border-color: var(--danger);
+}
+
 .metric {
   display: grid;
   grid-template-columns: 1fr;

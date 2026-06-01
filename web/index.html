@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-sql-result-menu-2" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-link-audit-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -311,6 +311,10 @@
             <button id="applyCellValueButton" type="button">Apply</button>
             <a id="openCellLink" role="button" target="_blank" rel="noopener noreferrer" aria-disabled="true">Open Link</a>
           </div>
+          <div id="cellLinkAudit" class="cell-link-audit" hidden>
+            <span id="cellLinkProtocol">Link</span>
+            <strong id="cellLinkTarget"></strong>
+          </div>
         </div>
         <h2>Column</h2>
         <div class="metric">
@@ -511,6 +515,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-sql-result-menu-2"></script>
+    <script type="module" src="./src/app.js?v=m2-link-audit-1"></script>
   </body>
 </html>

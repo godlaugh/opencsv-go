@@ -25,6 +25,9 @@ const formatSummary = document.querySelector("#formatSummary");
 const cellValueInput = document.querySelector("#cellValueInput");
 const applyCellValueButton = document.querySelector("#applyCellValueButton");
 const openCellLink = document.querySelector("#openCellLink");
+const cellLinkAudit = document.querySelector("#cellLinkAudit");
+const cellLinkProtocol = document.querySelector("#cellLinkProtocol");
+const cellLinkTarget = document.querySelector("#cellLinkTarget");
 const toggleCellQuoteButton = document.querySelector("#toggleCellQuoteButton");
 const fileList = document.querySelector("#fileList");
 const openForm = document.querySelector("#openForm");
@@ -247,6 +250,8 @@ const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
 const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
+const blockedLinkProtocols = new Set(["javascript:", "data:", "vbscript:", "blob:", "about:"]);
+const trustedLinkProtocols = new Set(["http:", "https:", "mailto:", "file:"]);
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
 const themePreferences = ["light", "dark", "high-contrast", "system"];
@@ -2142,16 +2147,49 @@ function syncCellValuePanel() {
   }
   cellValueInput.disabled = !documentId || readOnly || aggregate;
   applyCellValueButton.disabled = !documentId || readOnly || aggregate || !cellValueInputDirty;
-  const url = normalizeURL(value);
-  if (url) {
-    openCellLink.href = url;
+  syncCellLinkState(value);
+}
+
+function syncCellLinkState(value) {
+  const link = analyzeCellLink(value);
+  syncCellLinkAudit(link);
+  if (link.href) {
+    openCellLink.href = link.href;
+    openCellLink.title = `${link.protocol.toUpperCase()} ${link.target}`;
     openCellLink.setAttribute("aria-disabled", "false");
     openCellLink.classList.remove("disabled");
   } else {
     openCellLink.removeAttribute("href");
+    openCellLink.title = link.status === "blocked" ? linkUnavailableMessage(link) : "No link";
     openCellLink.setAttribute("aria-disabled", "true");
     openCellLink.classList.add("disabled");
   }
+}
+
+function syncCellLinkAudit(link) {
+  const statusValue = link.status || "none";
+  document.body.dataset.cellLinkStatus = statusValue;
+  document.body.dataset.cellLinkProtocol = link.protocol || "";
+  document.body.dataset.cellLinkTarget = link.target || "";
+  document.body.dataset.cellLinkHref = link.href || "";
+  cellLinkAudit.classList.remove("link-trusted", "link-custom", "link-blocked");
+  if (statusValue === "none") {
+    cellLinkAudit.hidden = true;
+    cellLinkProtocol.textContent = "Link";
+    cellLinkTarget.textContent = "";
+    return;
+  }
+  cellLinkAudit.hidden = false;
+  cellLinkAudit.classList.add(`link-${statusValue}`);
+  const protocol = link.protocol ? link.protocol.toUpperCase() : "Link";
+  if (statusValue === "blocked") {
+    cellLinkProtocol.textContent = `${protocol} blocked`;
+  } else if (statusValue === "custom") {
+    cellLinkProtocol.textContent = `${protocol} custom link`;
+  } else {
+    cellLinkProtocol.textContent = `${protocol} link`;
+  }
+  cellLinkTarget.textContent = link.target || link.href || "Link";
 }
 
 function selectedCellKey() {
@@ -2159,23 +2197,105 @@ function selectedCellKey() {
 }
 
 function normalizeURL(value) {
+  return analyzeCellLink(value).href;
+}
+
+function analyzeCellLink(value) {
   const text = String(value ?? "").trim();
-  if (!text) return "";
-  if (/^https?:\/\/[^\s]+$/i.test(text)) return text;
-  if (/^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(text)) return text;
-  if (/^file:\/\/[^\s]+$/i.test(text)) return text;
-  if (/^[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(text)) return `https://${text}`;
-  return "";
+  if (!text) return emptyCellLink();
+  const bareDomain = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:[/?#][^\s]*)?$/i;
+  const hasProtocol = /^[a-z][a-z0-9+.-]*:/i.test(text);
+  if (/\s/.test(text)) {
+    return hasProtocol ? blockedCellLink(text, protocolNameFromText(text), "Contains whitespace") : emptyCellLink();
+  }
+  const candidate = bareDomain.test(text) ? `https://${text}` : text;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(candidate)) return emptyCellLink();
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return blockedCellLink(text, protocolNameFromText(candidate), "Invalid link");
+  }
+  const protocol = parsed.protocol.toLowerCase();
+  const protocolName = protocol.replace(/:$/, "");
+  if (blockedLinkProtocols.has(protocol)) {
+    return blockedCellLink(text, protocolName, "Unsafe protocol");
+  }
+  if ((protocol === "http:" || protocol === "https:") && !parsed.hostname) {
+    return blockedCellLink(text, protocolName, "Missing host");
+  }
+  if (protocol === "mailto:" && !validMailtoLink(candidate)) {
+    return blockedCellLink(text, protocolName, "Invalid email link");
+  }
+  if (protocol === "file:" && !parsed.hostname && !parsed.pathname) {
+    return blockedCellLink(text, protocolName, "Missing file path");
+  }
+  return {
+    href: candidate,
+    protocol: protocolName,
+    status: trustedLinkProtocols.has(protocol) ? "trusted" : "custom",
+    target: linkTargetLabel(parsed, candidate),
+  };
+}
+
+function emptyCellLink() {
+  return { href: "", protocol: "", status: "none", target: "" };
+}
+
+function blockedCellLink(text, protocol, reason) {
+  return {
+    href: "",
+    protocol: protocol || "",
+    status: "blocked",
+    target: protocol ? `${reason}: ${protocol}` : reason || text,
+  };
+}
+
+function protocolNameFromText(text) {
+  const match = String(text ?? "").match(/^([a-z][a-z0-9+.-]*):/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function validMailtoLink(value) {
+  const address = value.replace(/^mailto:/i, "").split(/[?#]/, 1)[0];
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(address);
+}
+
+function linkTargetLabel(parsed, fallback) {
+  if (parsed.protocol === "mailto:") {
+    return safeDecodeURIComponent(parsed.pathname).replace(/^\/+/, "") || fallback;
+  }
+  if (parsed.protocol === "file:") {
+    const prefix = parsed.hostname ? `//${parsed.hostname}` : "";
+    return safeDecodeURIComponent(`${prefix}${parsed.pathname}`) || fallback;
+  }
+  const target = `${parsed.host || ""}${parsed.pathname || ""}${parsed.search || ""}${parsed.hash || ""}`;
+  return safeDecodeURIComponent(target || fallback);
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function linkUnavailableMessage(link) {
+  if (link.status === "blocked") {
+    return link.protocol ? `Link blocked: ${link.protocol} protocol` : "Link blocked";
+  }
+  return "Selected cell is not a link";
 }
 
 function openSelectedCellLink() {
-  const url = normalizeURL(valueAt(selected.row, selected.col));
-  if (!url) {
-    status.textContent = "Selected cell is not a link";
+  const link = analyzeCellLink(valueAt(selected.row, selected.col));
+  if (!link.href) {
+    status.textContent = linkUnavailableMessage(link);
     return;
   }
-  window.open(url, "_blank", "noopener");
-  status.textContent = `Opened ${url}`;
+  window.open(link.href, "_blank", "noopener");
+  status.textContent = `Opened ${link.href}`;
 }
 
 function cellAtPoint(x, y) {
@@ -4728,10 +4848,9 @@ function measuredTextWidth(value, font) {
 
 function syncCellValueAfterEdit() {
   if (!documentId) return;
-  cellValueInput.value = valueAt(selected.row, selected.col);
   cellValueInputKey = selectedCellKey();
   cellValueInputDirty = false;
-  applyCellValueButton.disabled = true;
+  syncCellValuePanel();
 }
 
 function applyCellValue() {
@@ -9539,6 +9658,7 @@ columnClearView.addEventListener("click", async () => {
 cellValueInput.addEventListener("input", () => {
   cellValueInputDirty = true;
   applyCellValueButton.disabled = readOnly || !documentId;
+  syncCellLinkState(cellValueInput.value);
 });
 cellValueInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -9550,7 +9670,10 @@ applyCellValueButton.addEventListener("click", applyCellValue);
 openCellLink.addEventListener("click", (event) => {
   if (openCellLink.getAttribute("aria-disabled") === "true") {
     event.preventDefault();
-    status.textContent = "Selected cell is not a link";
+    status.textContent = linkUnavailableMessage({
+      status: document.body.dataset.cellLinkStatus,
+      protocol: document.body.dataset.cellLinkProtocol,
+    });
   }
 });
 findButton.addEventListener("click", findCurrentQuery);

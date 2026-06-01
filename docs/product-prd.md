@@ -304,12 +304,14 @@ The app shall render a spreadsheet-like grid with:
 - Quote indicators for cells that will be quoted on save.
 - Scroll position persistence per file.
 - Open hyperlink command for URL-like cell values.
+- Link audit for recognized URL values, including trusted standard schemes, safe custom protocols, and blocked unsafe protocols.
 
 Acceptance:
 
 - Header must not be covered by body rows during scroll.
 - Header height must remain visually stable.
 - Missing cells in rows shorter than the estimated table width must not look like editable empty cells.
+- Unsafe protocols such as `javascript:` and `data:` must not be opened from cells.
 - 1M rows must scroll without DOM row explosion.
 
 ### FR-004 Editing
