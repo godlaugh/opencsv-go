@@ -1076,7 +1076,7 @@ button:disabled {
   display: grid;
   width: min(760px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 120px));
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1094,7 +1094,16 @@ button:disabled {
   padding: 0 12px;
 }
 
+.shortcut-panel-actions,
+.shortcut-import-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .shortcut-panel-header button,
+.shortcut-import-actions button,
 .shortcut-actions button {
   min-height: 30px;
   border: 1px solid var(--border);
@@ -1102,6 +1111,31 @@ button:disabled {
   padding: 0 10px;
   background: var(--panel);
   color: var(--text);
+}
+
+.shortcut-import-panel {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--panel-subtle);
+}
+
+.shortcut-import-panel[hidden] {
+  display: none;
+}
+
+.shortcut-import-panel textarea {
+  width: 100%;
+  min-height: 108px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: var(--editor-font-size) var(--editor-font-family);
+  line-height: calc(var(--editor-font-size) + 5px);
 }
 
 #shortcutsSearch {

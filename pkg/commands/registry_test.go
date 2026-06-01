@@ -20,6 +20,8 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"file.open",
 		"settings.open",
 		"settings.keyboardShortcuts",
+		"settings.exportShortcuts",
+		"settings.importShortcuts",
 		"file.save",
 		"file.saveAs",
 		"file.exportView",

@@ -126,6 +126,12 @@ const shortcutsPanel = document.querySelector("#shortcutsPanel");
 const shortcutsSearch = document.querySelector("#shortcutsSearch");
 const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
+const exportShortcutsButton = document.querySelector("#exportShortcutsButton");
+const showImportShortcutsButton = document.querySelector("#showImportShortcutsButton");
+const shortcutImportPanel = document.querySelector("#shortcutImportPanel");
+const shortcutImportText = document.querySelector("#shortcutImportText");
+const applyShortcutImportButton = document.querySelector("#applyShortcutImportButton");
+const cancelShortcutImportButton = document.querySelector("#cancelShortcutImportButton");
 const saveAsPanel = document.querySelector("#saveAsPanel");
 const saveAsPath = document.querySelector("#saveAsPath");
 const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
@@ -173,6 +179,7 @@ const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
+const shortcutExportKind = "opencsv-shortcuts";
 const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 const savedFiltersStorageKey = "opencsv-saved-filters";
@@ -685,6 +692,10 @@ function applyCommandMetadata() {
       button.textContent = "Export CSV";
     } else if (button.dataset.command === "selection.cycleAggregate") {
       updateAggregateStatus(selectionAggregateStats());
+    } else if (button.dataset.command === "settings.exportShortcuts") {
+      button.textContent = "Export";
+    } else if (button.dataset.command === "settings.importShortcuts") {
+      button.textContent = "Import";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = command.title.replace("Replace All", "All");
     }
@@ -2216,6 +2227,9 @@ function openKeyboardShortcuts() {
   shortcutEditorOpen = true;
   recordingShortcutID = "";
   shortcutsSearch.value = "";
+  shortcutImportPanel.hidden = true;
+  shortcutImportText.value = "";
+  syncShortcutImportControls();
   shortcutsPanel.hidden = false;
   renderKeyboardShortcuts();
   shortcutsSearch.focus();
@@ -2225,6 +2239,9 @@ function closeKeyboardShortcuts() {
   shortcutEditorOpen = false;
   recordingShortcutID = "";
   shortcutsPanel.hidden = true;
+  shortcutImportPanel.hidden = true;
+  shortcutImportText.value = "";
+  document.body.dataset.shortcutImportPanel = "closed";
   shortcutsList.replaceChildren();
   canvas.focus();
 }
@@ -2305,10 +2322,129 @@ function loadCustomShortcuts() {
 function saveCustomShortcuts() {
   const value = Object.fromEntries(customShortcuts);
   localStorage.setItem(customShortcutsStorageKey, JSON.stringify(value));
+  document.body.dataset.shortcutCount = String(customShortcuts.size);
   document.body.dataset.shortcutPreview = JSON.stringify(value);
   applyCommandMetadata();
   renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
+}
+
+function exportShortcuts() {
+  const shortcuts = Object.fromEntries(customShortcuts);
+  const payload = {
+    kind: shortcutExportKind,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    shortcuts,
+  };
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  window.__opencsvLastShortcutExportText = text;
+  document.body.dataset.shortcutExport = String(Object.keys(shortcuts).length);
+  document.body.dataset.shortcutExportPreview = text.slice(0, 500);
+  triggerDownload(text, "opencsv-shortcuts.json", "application/json;charset=utf-8");
+  status.textContent = `Exported ${formatCount(Object.keys(shortcuts).length)} shortcuts.`;
+}
+
+function showShortcutImportPanel() {
+  openKeyboardShortcuts();
+  recordingShortcutID = "";
+  shortcutImportPanel.hidden = false;
+  shortcutImportText.value = "";
+  document.body.dataset.shortcutImportPanel = "open";
+  syncShortcutImportControls();
+  shortcutImportText.focus();
+}
+
+function cancelShortcutImport() {
+  shortcutImportPanel.hidden = true;
+  shortcutImportText.value = "";
+  document.body.dataset.shortcutImportPanel = "closed";
+  syncShortcutImportControls();
+  shortcutsSearch.focus();
+}
+
+function syncShortcutImportControls() {
+  if (!shortcutImportText) return;
+  applyShortcutImportButton.disabled = shortcutImportText.value.trim() === "";
+}
+
+function applyShortcutImport() {
+  try {
+    const imported = parseShortcutImport(shortcutImportText.value);
+    const result = mergeImportedShortcuts(imported);
+    saveCustomShortcuts();
+    shortcutImportPanel.hidden = true;
+    shortcutImportText.value = "";
+    document.body.dataset.shortcutImport = `${result.imported}:${result.skipped}`;
+    document.body.dataset.shortcutImportPanel = "closed";
+    status.textContent = `Imported ${formatCount(result.imported)} shortcuts${result.skipped ? `, skipped ${formatCount(result.skipped)}` : ""}.`;
+  } catch (error) {
+    status.textContent = `Shortcut import failed: ${error.message}`;
+    document.body.dataset.shortcutImport = "error";
+  }
+  syncShortcutImportControls();
+}
+
+function parseShortcutImport(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("invalid JSON");
+  }
+  const source = parsed?.shortcuts && typeof parsed.shortcuts === "object" && !Array.isArray(parsed.shortcuts)
+    ? parsed.shortcuts
+    : parsed;
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("missing shortcuts object");
+  }
+  return Object.entries(source)
+    .filter(([commandID, shortcut]) => typeof commandID === "string" && typeof shortcut === "string")
+    .map(([commandID, shortcut]) => [commandID, normalizeShortcutText(shortcut)])
+    .filter(([, shortcut]) => shortcut);
+}
+
+function normalizeShortcutText(shortcut) {
+  return shortcut
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("+");
+}
+
+function mergeImportedShortcuts(imported) {
+  let importedCount = 0;
+  let skipped = 0;
+  const next = new Map(customShortcuts);
+  for (const [commandID, shortcut] of imported) {
+    const command = commandsById.get(commandID);
+    if (!command || command.implemented === false || !shortcutAllowed(shortcut)) {
+      skipped++;
+      continue;
+    }
+    const conflict = commandForShortcutWithMap(shortcut, commandID, next);
+    if (conflict) {
+      skipped++;
+      continue;
+    }
+    if (shortcut === command.shortcut) {
+      next.delete(commandID);
+    } else {
+      next.set(commandID, shortcut);
+    }
+    importedCount++;
+  }
+  customShortcuts = next;
+  return { imported: importedCount, skipped };
+}
+
+function commandForShortcutWithMap(shortcut, exceptID, customMap) {
+  for (const command of commandsById.values()) {
+    if (command.id === exceptID) continue;
+    const effective = customMap.get(command.id) || command.shortcut || "";
+    if (effective === shortcut) return command;
+  }
+  return null;
 }
 
 function resetCustomShortcut(commandID) {
@@ -2717,6 +2853,12 @@ async function executeCommand(commandID) {
       break;
     case "settings.keyboardShortcuts":
       openKeyboardShortcuts();
+      break;
+    case "settings.exportShortcuts":
+      exportShortcuts();
+      break;
+    case "settings.importShortcuts":
+      showShortcutImportPanel();
       break;
     case "workbench.toggleTheme":
       cycleTheme();
@@ -8103,6 +8245,11 @@ commandPalette.addEventListener("mousedown", (event) => {
 });
 shortcutsSearch.addEventListener("input", renderKeyboardShortcuts);
 closeShortcutsButton.addEventListener("click", closeKeyboardShortcuts);
+exportShortcutsButton.addEventListener("click", () => executeCommand("settings.exportShortcuts"));
+showImportShortcutsButton.addEventListener("click", () => executeCommand("settings.importShortcuts"));
+shortcutImportText.addEventListener("input", syncShortcutImportControls);
+applyShortcutImportButton.addEventListener("click", applyShortcutImport);
+cancelShortcutImportButton.addEventListener("click", cancelShortcutImport);
 shortcutsPanel.addEventListener("mousedown", (event) => {
   if (event.target === shortcutsPanel) {
     event.preventDefault();
