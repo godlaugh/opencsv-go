@@ -1671,6 +1671,93 @@ func (manager *Manager) FilterContains(id string, options FilterOptions) (int, e
 	return len(viewRows), nil
 }
 
+func naturalCompare(left string, right string) int {
+	leftRunes := []rune(strings.ToLower(width.Narrow.String(left)))
+	rightRunes := []rune(strings.ToLower(width.Narrow.String(right)))
+	leftIndex := 0
+	rightIndex := 0
+	for leftIndex < len(leftRunes) && rightIndex < len(rightRunes) {
+		leftRune := leftRunes[leftIndex]
+		rightRune := rightRunes[rightIndex]
+		if isASCIIDigit(leftRune) && isASCIIDigit(rightRune) {
+			compare, nextLeft, nextRight := compareNaturalNumberRun(leftRunes, leftIndex, rightRunes, rightIndex)
+			if compare != 0 {
+				return compare
+			}
+			leftIndex = nextLeft
+			rightIndex = nextRight
+			continue
+		}
+		if leftRune < rightRune {
+			return -1
+		}
+		if leftRune > rightRune {
+			return 1
+		}
+		leftIndex++
+		rightIndex++
+	}
+	if leftIndex < len(leftRunes) {
+		return 1
+	}
+	if rightIndex < len(rightRunes) {
+		return -1
+	}
+	return strings.Compare(left, right)
+}
+
+func compareNaturalNumberRun(left []rune, leftStart int, right []rune, rightStart int) (int, int, int) {
+	leftEnd := scanASCIIDigits(left, leftStart)
+	rightEnd := scanASCIIDigits(right, rightStart)
+	leftSignificant := trimLeadingZeroRun(left, leftStart, leftEnd)
+	rightSignificant := trimLeadingZeroRun(right, rightStart, rightEnd)
+	leftLength := leftEnd - leftSignificant
+	rightLength := rightEnd - rightSignificant
+	if leftLength != rightLength {
+		if leftLength < rightLength {
+			return -1, leftEnd, rightEnd
+		}
+		return 1, leftEnd, rightEnd
+	}
+	for offset := 0; offset < leftLength; offset++ {
+		leftDigit := left[leftSignificant+offset]
+		rightDigit := right[rightSignificant+offset]
+		if leftDigit < rightDigit {
+			return -1, leftEnd, rightEnd
+		}
+		if leftDigit > rightDigit {
+			return 1, leftEnd, rightEnd
+		}
+	}
+	if leftEnd-leftStart != rightEnd-rightStart {
+		if leftEnd-leftStart < rightEnd-rightStart {
+			return -1, leftEnd, rightEnd
+		}
+		return 1, leftEnd, rightEnd
+	}
+	return 0, leftEnd, rightEnd
+}
+
+func scanASCIIDigits(value []rune, start int) int {
+	index := start
+	for index < len(value) && isASCIIDigit(value[index]) {
+		index++
+	}
+	return index
+}
+
+func trimLeadingZeroRun(value []rune, start int, end int) int {
+	index := start
+	for index < end-1 && value[index] == '0' {
+		index++
+	}
+	return index
+}
+
+func isASCIIDigit(value rune) bool {
+	return value >= '0' && value <= '9'
+}
+
 func (manager *Manager) ColumnValues(id string, column int, limit int) ([]ColumnValue, int, error) {
 	if column < 0 {
 		return nil, 0, errors.New("column must be non-negative")
@@ -1701,13 +1788,10 @@ func (manager *Manager) ColumnValues(id string, column int, limit int) ([]Column
 		values = append(values, ColumnValue{Value: value, Count: count, Blank: value == ""})
 	}
 	sort.SliceStable(values, func(i, j int) bool {
-		if values[i].Count != values[j].Count {
-			return values[i].Count > values[j].Count
-		}
 		if values[i].Blank != values[j].Blank {
 			return !values[i].Blank
 		}
-		return values[i].Value < values[j].Value
+		return naturalCompare(values[i].Value, values[j].Value) < 0
 	})
 	totalDistinct := len(values)
 	if len(values) > limit {

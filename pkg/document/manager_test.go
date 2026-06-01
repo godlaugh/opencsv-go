@@ -161,6 +161,41 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 }
 
+func TestManagerColumnValuesNaturalSort(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "values.csv")
+	contents := []byte("id,label\n1,item10\n2,item2\n3,item1\n4,\n5,item02\n6,item１２\n7,Item3\n8,item10\n")
+	if err := os.WriteFile(path, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "values.csv", csvcore.OpenOptions{PreviewRows: 10, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, totalDistinct, err := manager.ColumnValues(session.ID, 1, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totalDistinct != 7 {
+		t.Fatalf("totalDistinct = %d, want 7", totalDistinct)
+	}
+	got := make([]string, 0, len(values))
+	counts := make(map[string]int, len(values))
+	for _, value := range values {
+		got = append(got, value.Value)
+		counts[value.Value] = value.Count
+	}
+	want := []string{"item1", "item2", "item02", "Item3", "item10", "item１２", ""}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("values = %#v, want %#v", got, want)
+	}
+	if counts["item10"] != 2 {
+		t.Fatalf("item10 count = %d, want 2", counts["item10"])
+	}
+}
+
 func TestManagerSetHeaderModeUpdatesStructureWithoutDirtying(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "header.csv")
