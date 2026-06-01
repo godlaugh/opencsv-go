@@ -78,6 +78,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"column.cut",
 		"column.paste",
 		"column.hide",
+		"column.showAll",
 		"column.moveLeft",
 		"column.moveRight",
 		"table.transpose",

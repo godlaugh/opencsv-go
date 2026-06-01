@@ -17,6 +17,8 @@ const applyFormatPresetButton = document.querySelector("#applyFormatPresetButton
 const formatRuleInput = document.querySelector("#formatRuleInput");
 const saveFormatRuleButton = document.querySelector("#saveFormatRuleButton");
 const columnName = document.querySelector("#columnName");
+const hiddenColumnSummary = document.querySelector("#hiddenColumnSummary");
+const showHiddenColumnsButton = document.querySelector("#showHiddenColumnsButton");
 const columnType = document.querySelector("#columnType");
 const columnNulls = document.querySelector("#columnNulls");
 const columnDistinct = document.querySelector("#columnDistinct");
@@ -204,6 +206,7 @@ const columnFilterFilled = document.querySelector("#columnFilterFilled");
 const columnMenuValues = document.querySelector("#columnMenuValues");
 const columnApplyValues = document.querySelector("#columnApplyValues");
 const columnHide = document.querySelector("#columnHide");
+const columnShowAll = document.querySelector("#columnShowAll");
 const columnClearView = document.querySelector("#columnClearView");
 
 const rowHeight = 28;
@@ -678,6 +681,18 @@ function columnNameForSource(sourceCol) {
   return allColumns.find((column) => column.sourceCol === sourceCol)?.name ?? `Column ${sourceCol + 1}`;
 }
 
+function syncHiddenColumnControls() {
+  const hidden = Array.from(hiddenSourceColumns).sort((a, b) => a - b);
+  const count = hidden.length;
+  const label = count === 1 ? "1 hidden" : `${count} hidden`;
+  hiddenColumnSummary.textContent = documentId ? label : "0 hidden";
+  hiddenColumnSummary.title = hidden.map(columnNameForSource).join(", ");
+  showHiddenColumnsButton.disabled = !documentId || count === 0;
+  columnShowAll.disabled = !documentId || count === 0;
+  document.body.dataset.hiddenColumns = hidden.join(",");
+  document.body.dataset.hiddenColumnCount = documentId ? String(count) : "0";
+}
+
 function setStructureClipboard(kind, sources, cut = false) {
   const normalizedSources = (Array.isArray(sources) ? sources : [sources])
     .filter((source) => Number.isInteger(source));
@@ -701,6 +716,7 @@ function structureClipboardFor(kind) {
 
 function applyHiddenColumns() {
   columns = allColumns.filter((column) => !hiddenSourceColumns.has(column.sourceCol));
+  syncHiddenColumnControls();
 }
 
 function draw() {
@@ -832,6 +848,8 @@ function applyCommandMetadata() {
       button.textContent = "Import Quotes";
     } else if (button.dataset.command === "format.toggleCellQuote") {
       button.textContent = "Toggle";
+    } else if (button.dataset.command === "column.showAll") {
+      button.textContent = "Show All";
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -896,6 +914,7 @@ function isCommandDisabled(command) {
   const needsColumn = command.id === "format.toggleColumnQuote";
   const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
   const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
+  const needsHiddenColumn = command.id === "column.showAll";
   const needsRowClipboard = command.id === "row.paste";
   const needsColumnClipboard = command.id === "column.paste";
   const writeBlocked =
@@ -966,6 +985,7 @@ function isCommandDisabled(command) {
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
     (needsVisibleColumn && columns.length === 0) ||
+    (needsHiddenColumn && hiddenSourceColumns.size === 0) ||
     (needsBodyRow && selected.row >= sourceRowCount) ||
     (needsRowClipboard && !structureClipboardFor("row")) ||
     (needsColumnClipboard && !structureClipboardFor("column")) ||
@@ -2661,6 +2681,7 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("column.cut");
     addCommand("column.paste");
     addCommand("column.hide");
+    addCommand("column.showAll");
   }
   addSeparator();
   addCommand("view.clear");
@@ -3930,6 +3951,9 @@ async function executeCommand(commandID) {
     case "column.hide":
       hideSelectedColumn();
       break;
+    case "column.showAll":
+      showAllHiddenColumns();
+      break;
     case "column.moveLeft":
       await moveSelectedColumn(-1);
       break;
@@ -4754,6 +4778,7 @@ function openColumnMenu(col, clientX, clientY) {
       ? "Filter by selected value"
       : `Filter: ${truncateMenuValue(selectedValue)}`;
   columnFilterValue.disabled = selectedValue === "";
+  columnShowAll.disabled = hiddenSourceColumns.size === 0;
   renderColumnValuesLoading();
   columnMenu.hidden = false;
 
@@ -7767,6 +7792,28 @@ function hideSelectedColumn() {
   status.textContent = `Column hidden: ${columnNameForSource(sourceCol)}`;
 }
 
+function showAllHiddenColumns() {
+  if (!documentId) return;
+  const count = hiddenSourceColumns.size;
+  if (count === 0) {
+    status.textContent = "No hidden columns";
+    return;
+  }
+  const sourceCol = sourceColFor(selected.col);
+  hiddenSourceColumns = new Set();
+  applyHiddenColumns();
+  const visibleCol = visibleColForSource(sourceCol);
+  selected = {
+    row: Math.max(0, Math.min(totalRows - 1, selected.row)),
+    col: visibleCol >= 0 ? visibleCol : Math.max(0, Math.min(columns.length - 1, selected.col)),
+  };
+  selectionAnchor = { ...selected };
+  closeColumnMenu();
+  draw();
+  updateInspector();
+  status.textContent = `Restored ${formatCount(count)} hidden ${count === 1 ? "column" : "columns"}`;
+}
+
 async function moveSelectedColumn(delta) {
   if (!documentId) return;
   if (!ensureEditable("Move Column")) return;
@@ -9604,6 +9651,7 @@ quoteRulesImportText.addEventListener("input", syncQuoteRulesImportControls);
 applyQuoteRulesImportButton.addEventListener("click", applyQuoteRulesImport);
 cancelQuoteRulesImportButton.addEventListener("click", cancelQuoteRulesImport);
 toggleCellQuoteButton.addEventListener("click", () => executeCommand("format.toggleCellQuote"));
+showHiddenColumnsButton.addEventListener("click", () => executeCommand("column.showAll"));
 quoteHeaderRuleToggle.addEventListener("change", () => toggleQuoteRule("header", quoteHeaderRuleToggle.checked));
 quoteBodyRuleToggle.addEventListener("change", () => toggleQuoteRule("body", quoteBodyRuleToggle.checked));
 quoteColumnRuleToggle.addEventListener("change", () => toggleQuoteRule("column", quoteColumnRuleToggle.checked));
@@ -9817,6 +9865,10 @@ columnHide.addEventListener("click", () => {
     selectionAnchor = { ...selected };
     hideSelectedColumn();
   }
+});
+columnShowAll.addEventListener("click", () => {
+  closeColumnMenu();
+  showAllHiddenColumns();
 });
 columnClearView.addEventListener("click", async () => {
   closeColumnMenu();
