@@ -393,6 +393,8 @@ button:disabled {
   left: 0;
   z-index: 2;
   height: var(--grid-header-height);
+  min-height: var(--grid-header-height);
+  max-height: var(--grid-header-height);
   pointer-events: none;
 }
 

@@ -418,7 +418,8 @@ function draw() {
   drawRows(width, height);
   drawBodySeparators(width, height);
   drawSelection();
-  drawHeaders(width);
+  drawHeaders(ctx, width);
+  drawHeaders(headerCtx, width);
 
   const selectedColumn = columns[selected.col]?.name ?? "";
   const path = metadata?.path ? ` - ${metadata.path}` : "";
@@ -2508,10 +2509,9 @@ async function executeCommand(commandID) {
   }
 }
 
-function drawHeaders(width) {
+function drawHeaders(target, width) {
   const headerNameY = Math.max(14, Math.round(headerHeight * 0.34));
   const headerTypeY = Math.min(headerHeight - 10, Math.round(headerHeight * 0.72));
-  const target = headerCtx;
   target.save();
   target.beginPath();
   target.rect(0, 0, width, headerHeight);
