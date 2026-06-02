@@ -39,6 +39,7 @@ func TestMatchCastTryCastAndNulls(t *testing.T) {
 		"CAST(amount AS number) >= 19.75",
 		"CAST(id AS bigint) = 7",
 		"TRY_CAST(bad AS number) IS NULL",
+		"TRY_CAST(bad AS bigint) IS NULL",
 		"CAST(created_at AS date) >= DATE '2026-01-01'",
 		"CAST(seen_at AS time) = TIME '15:30:00.123'",
 		"TIMESTAMP '2026-05-27 15:30:00.123' > TIMESTAMP '2026-05-27 15:29:59.999'",
@@ -54,6 +55,33 @@ func TestMatchCastTryCastAndNulls(t *testing.T) {
 		}
 		if !got {
 			t.Fatalf("Match(%q) = false, want true", source)
+		}
+	}
+}
+
+func TestMatchBigIntPrecision(t *testing.T) {
+	headers := []string{"id", "label"}
+	record := []string{"9007199254740993", "Grace"}
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "CAST(id AS bigint) = 9007199254740993", want: true},
+		{expr: "CAST(id AS bigint) = 9007199254740992", want: false},
+		{expr: "id > 9007199254740992", want: true},
+		{expr: "9007199254740993 = id", want: true},
+		{expr: "CAST(id AS bigint) + 1 = 9007199254740994", want: true},
+		{expr: "-9007199254740993 < 0", want: true},
+	}
+
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
 		}
 	}
 }

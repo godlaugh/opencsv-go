@@ -78,7 +78,7 @@ flowchart TD
   - SQL WHERE subset parser/evaluator.
   - Header names and `c1`, `c2`, ... column references.
   - Comparisons, boolean operators, `LIKE`, `IS NULL`, arithmetic.
-  - `CAST`/`TRY_CAST` and documented string/numeric/conditional function subset.
+  - `CAST`/`TRY_CAST`, exact bigint literals/casts/comparisons, temporal/interval literals, and documented string/numeric/conditional function subset.
 
 - `pkg/protocol`
   - `smoothcsv://file/...` deep-link parser.

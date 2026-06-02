@@ -1672,6 +1672,36 @@ func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	}
 }
 
+func TestServerSQLFilterBigIntPrecision(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bigint.csv")
+	if err := os.WriteFile(path, []byte("id,name\n9007199254740992,Ada\n9007199254740993,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "CAST(id AS bigint) = 9007199254740993 AND id > 9007199254740992",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL bigint filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "9007199254740993" || rows[0].([]any)[1] != "Grace" {
+		t.Fatalf("SQL bigint filtered window rows = %#v, want Grace row", rows)
+	}
+}
+
 func TestServerExportView(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "export.csv")

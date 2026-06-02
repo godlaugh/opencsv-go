@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ const (
 	valueNull valueKind = iota
 	valueString
 	valueNumber
+	valueBigInt
 	valueBool
 	valueInterval
 )
@@ -63,6 +65,7 @@ type value struct {
 	kind            valueKind
 	text            string
 	num             float64
+	bigint          *big.Int
 	bool            bool
 	intervalMonths  int64
 	intervalSeconds float64
@@ -78,6 +81,13 @@ func stringValue(text string) value {
 
 func numberValue(num float64) value {
 	return value{kind: valueNumber, num: num}
+}
+
+func bigIntValue(num *big.Int) value {
+	if num == nil {
+		return nullValue()
+	}
+	return value{kind: valueBigInt, bigint: new(big.Int).Set(num)}
 }
 
 func boolValue(b bool) value {
@@ -96,6 +106,11 @@ func (v value) string() string {
 		return v.text
 	case valueNumber:
 		return strconv.FormatFloat(v.num, 'f', -1, 64)
+	case valueBigInt:
+		if v.bigint == nil {
+			return ""
+		}
+		return v.bigint.String()
 	case valueBool:
 		if v.bool {
 			return "true"
@@ -112,6 +127,12 @@ func (v value) number() (float64, bool) {
 	switch v.kind {
 	case valueNumber:
 		return v.num, true
+	case valueBigInt:
+		if v.bigint == nil {
+			return 0, false
+		}
+		result, _ := new(big.Float).SetInt(v.bigint).Float64()
+		return result, true
 	case valueBool:
 		if v.bool {
 			return 1, true
@@ -136,6 +157,8 @@ func truthy(v value) bool {
 		return v.bool
 	case valueNumber:
 		return v.num != 0 && !math.IsNaN(v.num)
+	case valueBigInt:
+		return v.bigint != nil && v.bigint.Sign() != 0
 	case valueString:
 		if strings.TrimSpace(v.text) == "" {
 			return false
@@ -201,6 +224,9 @@ func (expr unaryExpr) eval(ctx evalContext) (value, error) {
 	case "not":
 		return boolValue(!truthy(right)), nil
 	case "-":
+		if right.kind == valueBigInt {
+			return bigIntValue(new(big.Int).Neg(right.bigint)), nil
+		}
 		num, ok := right.number()
 		if !ok {
 			return nullValue(), fmt.Errorf("cannot negate %q", right.string())
@@ -249,6 +275,9 @@ func (expr binaryExpr) eval(ctx evalContext) (value, error) {
 
 	switch expr.op {
 	case "+", "-", "*", "/":
+		if result, ok, err := bigIntArithmetic(left, right, expr.op); ok || err != nil {
+			return result, err
+		}
 		leftNum, leftOK := left.number()
 		rightNum, rightOK := right.number()
 		if !leftOK || !rightOK {
@@ -338,6 +367,8 @@ func compare(left value, right value, op string) bool {
 		result = compareIntervals(left, right)
 	} else if left.kind == valueNull || right.kind == valueNull {
 		result = strings.Compare(left.string(), right.string())
+	} else if bigintResult, ok := compareBigInts(left, right); ok {
+		result = bigintResult
 	} else if leftNum, leftOK := left.number(); leftOK {
 		if rightNum, rightOK := right.number(); rightOK {
 			switch {
@@ -371,6 +402,70 @@ func compare(left value, right value, op string) bool {
 	default:
 		return false
 	}
+}
+
+func bigIntArithmetic(left value, right value, op string) (value, bool, error) {
+	leftInt, leftOK := exactBigInt(left)
+	rightInt, rightOK := exactBigInt(right)
+	if !leftOK || !rightOK {
+		return nullValue(), false, nil
+	}
+	result := new(big.Int)
+	switch op {
+	case "+":
+		result.Add(leftInt, rightInt)
+	case "-":
+		result.Sub(leftInt, rightInt)
+	case "*":
+		result.Mul(leftInt, rightInt)
+	default:
+		return nullValue(), false, nil
+	}
+	return bigIntValue(result), true, nil
+}
+
+func compareBigInts(left value, right value) (int, bool) {
+	if left.kind != valueBigInt && right.kind != valueBigInt {
+		return 0, false
+	}
+	leftInt, leftOK := exactBigInt(left)
+	rightInt, rightOK := exactBigInt(right)
+	if !leftOK || !rightOK {
+		return 0, false
+	}
+	return leftInt.Cmp(rightInt), true
+}
+
+func exactBigInt(input value) (*big.Int, bool) {
+	switch input.kind {
+	case valueBigInt:
+		if input.bigint == nil {
+			return nil, false
+		}
+		return input.bigint, true
+	case valueString:
+		return parseBigIntText(input.string())
+	case valueNumber:
+		if math.IsNaN(input.num) || math.IsInf(input.num, 0) || math.Trunc(input.num) != input.num {
+			return nil, false
+		}
+		const maxSafeInteger = 9007199254740991
+		if input.num < -maxSafeInteger || input.num > maxSafeInteger {
+			return nil, false
+		}
+		return big.NewInt(int64(input.num)), true
+	default:
+		return nil, false
+	}
+}
+
+func parseBigIntText(raw string) (*big.Int, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, false
+	}
+	value, ok := new(big.Int).SetString(trimmed, 10)
+	return value, ok
 }
 
 func compareIntervals(left value, right value) int {
@@ -569,11 +664,11 @@ func castValue(input value, rawType string) (value, error) {
 		}
 		return numberValue(num), nil
 	case "bigint":
-		num, err := strconv.ParseInt(strings.TrimSpace(input.string()), 10, 64)
-		if err != nil {
+		num, ok := parseBigIntText(input.string())
+		if !ok {
 			return nullValue(), fmt.Errorf("cannot cast %q as bigint", input.string())
 		}
-		return numberValue(float64(num)), nil
+		return bigIntValue(num), nil
 	case "boolean":
 		raw := strings.ToLower(strings.TrimSpace(input.string()))
 		if raw == "true" || raw == "1" {
@@ -990,6 +1085,20 @@ func scanNumber(source string, index int) int {
 	return index
 }
 
+func parseNumberLiteral(raw string) (value, error) {
+	if !strings.ContainsAny(raw, ".eE") {
+		num, ok := parseBigIntText(raw)
+		if ok {
+			return bigIntValue(num), nil
+		}
+	}
+	num, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return nullValue(), fmt.Errorf("invalid number %q", raw)
+	}
+	return numberValue(num), nil
+}
+
 func readQuoted(source string, start int, quote byte) (string, int, error) {
 	var builder strings.Builder
 	for index := start + 1; index < len(source); index++ {
@@ -1166,11 +1275,11 @@ func (parser *parser) parsePrimary() (expr, error) {
 	case tokenString:
 		return literalExpr{value: stringValue(current.text)}, nil
 	case tokenNumber:
-		num, err := strconv.ParseFloat(current.text, 64)
+		value, err := parseNumberLiteral(current.text)
 		if err != nil {
-			return nil, fmt.Errorf("invalid number %q", current.text)
+			return nil, err
 		}
-		return literalExpr{value: numberValue(num)}, nil
+		return literalExpr{value: value}, nil
 	case tokenIdentifier:
 		lower := strings.ToLower(current.text)
 		if lower == "null" {
