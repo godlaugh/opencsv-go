@@ -1400,6 +1400,43 @@ func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 	}
 }
 
+func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "csvlint-schema.csv")
+	if err := os.WriteFile(path, []byte("id,status,score\n1,new,10\n1,bad,105\n,done,ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"fields": []map[string]any{
+				{"name": "id", "datatype": "integer", "constraints": map[string]any{"required": true, "unique": true}},
+				{"name": "status", "constraints": map[string]any{"enum": []string{"new", "done"}}},
+				{"name": "score", "datatype": map[string]any{"base": "number", "minimum": 0, "maximum": 100}},
+			},
+			"primaryKey": "id",
+		},
+	})
+	if profilePayload["schemaRules"].(float64) != 3 {
+		t.Fatalf("schemaRules = %#v, want 3", profilePayload["schemaRules"])
+	}
+	issues := profilePayload["issues"].([]any)
+	for _, typ := range []string{"schema-unique", "schema-required", "schema-enum", "schema-range", "schema-type"} {
+		if !jsonIssuesContainType(issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, issues)
+		}
+	}
+}
+
 func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "temporal.csv")

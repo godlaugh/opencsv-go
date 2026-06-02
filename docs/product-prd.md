@@ -568,6 +568,7 @@ The app shall validate:
 - Type-profile anomalies.
 - User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, and numeric ranges.
 - CSVLint/JSON Table Schema style field definitions with common `fields`, `constraints`, `datatype`, `tableSchema`, and `schema` shapes.
+- Validation schemas supplied through the Profile UI, URL boot parameters, saved-schema import, or profile API requests.
 - Saved schema/rule sets with JSON import and export.
 - Visual rule editing for common schema checks without hand-writing JSON.
 

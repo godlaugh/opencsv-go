@@ -116,8 +116,9 @@ flowchart TD
   - Column profile metrics: dominant type, nulls, distinct count, min/max, numeric sum/average, and top values.
   - Data quality issues: empty headers, duplicate headers, ragged rows, and type anomalies.
   - User-supplied schema rules for required values, primitive type checks, uniqueness, enum values, regular-expression patterns, and numeric ranges.
+  - Schema JSON normalization for `/api/profile`, accepting opencsv `columns` plus common CSVLint/JSON Table Schema `fields`, `constraints`, `datatype`, `schema`, `tableSchema`, and first-table schema shapes.
   - Issue metadata includes source location, rule name, actual/expected widths for ragged rows, and safe quick-fix descriptors where available.
-  - Shared result model for `/api/profile`, the Profile view, and future CSVLint-compatible validation.
+  - Shared result model for `/api/profile`, the Profile view, and future richer CSVLint-compatible validation.
 
 - `pkg/clipboard`
   - TSV, CSV, Markdown table, JSON, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization.
@@ -683,7 +684,7 @@ Output:
 - Diff endpoint.
 - SQL endpoint.
 - SQL aggregate query unit/API tests.
-- Profile endpoint.
+- Profile endpoint, including direct CSVLint/JSON Table Schema request decoding.
 
 ### Browser Tests
 

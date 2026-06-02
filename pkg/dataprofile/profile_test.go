@@ -1,6 +1,9 @@
 package dataprofile
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestAnalyzeProfilesColumnsAndIssues(t *testing.T) {
 	records := [][]string{
@@ -100,6 +103,63 @@ func TestAnalyzeWithSchemaRules(t *testing.T) {
 		if !hasIssue(result.Issues, typ) {
 			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
 		}
+	}
+}
+
+func TestSchemaUnmarshalAcceptsCSVLintFields(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"fields": [
+			{"name": "id", "type": "integer", "constraints": {"required": true, "unique": true}},
+			{"name": "status", "constraints": {"enum": ["new", "done"]}},
+			{"name": "score", "datatype": {"base": "number", "minimum": "0", "maximum": 100}}
+		],
+		"primaryKey": "id"
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 3 {
+		t.Fatalf("columns = %#v, want 3", schema.Columns)
+	}
+	id := schema.Columns[0]
+	if id.Name != "id" || id.Type != "integer" || !id.Required || !id.Unique {
+		t.Fatalf("id rule = %#v", id)
+	}
+	status := schema.Columns[1]
+	if len(status.Enum) != 2 || status.Enum[0] != "new" || status.Enum[1] != "done" {
+		t.Fatalf("status enum = %#v", status.Enum)
+	}
+	score := schema.Columns[2]
+	if score.Type != "number" || score.Min == nil || *score.Min != 0 || score.Max == nil || *score.Max != 100 {
+		t.Fatalf("score rule = %#v", score)
+	}
+}
+
+func TestSchemaUnmarshalAcceptsNestedTableSchema(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"tables": [{
+			"schema": {
+				"fields": [
+					{"title": "code", "datatype": "string", "constraints": {"pattern": "^A"}},
+					{"name": "amount", "dataType": "float", "constraints": {"minimum": 1}}
+				],
+				"required": ["amount"]
+			}
+		}]
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 2 {
+		t.Fatalf("columns = %#v, want 2", schema.Columns)
+	}
+	if schema.Columns[0].Name != "code" || schema.Columns[0].Type != "string" || schema.Columns[0].Pattern != "^A" {
+		t.Fatalf("code rule = %#v", schema.Columns[0])
+	}
+	if schema.Columns[1].Name != "amount" || schema.Columns[1].Type != "number" || !schema.Columns[1].Required || schema.Columns[1].Min == nil || *schema.Columns[1].Min != 1 {
+		t.Fatalf("amount rule = %#v", schema.Columns[1])
 	}
 }
 
