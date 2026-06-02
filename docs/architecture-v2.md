@@ -761,7 +761,7 @@ Output:
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.
 - Export View can download the current filtered/sorted/visible-column view as CSV, TSV, Markdown, JSON, HTML, SQL, LaTeX, raw text, or XLSX.
-- XLSX open can enumerate workbook sheets, select a worksheet by name or 1-based index through `/api/open`, URL boot parameters, and the status-bar worksheet selector, and save edits to the selected worksheet while preserving the other worksheet entries on normal save or Save As to a new workbook path.
+- XLSX open can enumerate workbook sheets, select a worksheet by name or 1-based index through `/api/open`, URL boot parameters, and the status-bar worksheet selector, and save edits to the selected worksheet while preserving the other worksheet entries on normal save or Save As to a new workbook path. Selected-sheet saves preserve existing row/cell attributes, formula nodes, and worksheet-level structures such as column metadata and merged cells where the original worksheet XML can be parsed.
 - XLSX import parses shared/inline strings, booleans, sparse references, cached formula values, and basic `styles.xml` date/time number formats into grid-friendly text.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.

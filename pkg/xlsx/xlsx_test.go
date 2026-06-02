@@ -194,6 +194,71 @@ func TestUpdateWorkbookSheetPreservesOtherSheets(t *testing.T) {
 	}
 }
 
+func TestUpdateWorkbookSheetPreservesWorksheetStructure(t *testing.T) {
+	data := zippedWorkbook(t, map[string]string{
+		"xl/workbook.xml":            `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+		"xl/_rels/workbook.xml.rels": `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+		"xl/worksheets/sheet1.xml":   `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="22" customWidth="1"/></cols><sheetData><row r="1" ht="33" customHeight="1"><c r="A1" s="7" t="inlineStr"><is><t>name</t></is></c><c r="B1"><f>1+1</f><v>2</v></c></row></sheetData><mergeCells count="1"><mergeCell ref="A3:B3"/></mergeCells></worksheet>`,
+	})
+	updated, err := UpdateWorkbookSheet(data, "xl/worksheets/sheet1.xml", [][]string{{"Grace", "4"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sheet := workbookEntry(t, updated, "xl/worksheets/sheet1.xml")
+	if strings.Count(sheet, "<?xml") != 1 {
+		t.Fatalf("updated sheet should contain one XML declaration, got %d in %s", strings.Count(sheet, "<?xml"), sheet)
+	}
+	if strings.Contains(sheet, `xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"`) {
+		t.Fatalf("updated sheet has duplicate worksheet namespace: %s", sheet)
+	}
+	for _, fragment := range []string{
+		`customWidth="1"`,
+		`ht="33"`,
+		`customHeight="1"`,
+		`s="7"`,
+		`>1+1</f>`,
+		`<v>4</v>`,
+		`mergeCell`,
+		`A3:B3`,
+	} {
+		if !strings.Contains(sheet, fragment) {
+			t.Fatalf("updated sheet missing %q in %s", fragment, sheet)
+		}
+	}
+	records, err := DecodeWorkbook(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(records[0], ","); got != "Grace,4" {
+		t.Fatalf("updated records = %#v", records)
+	}
+}
+
+func workbookEntry(t *testing.T, data []byte, name string) string {
+	t.Helper()
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range reader.File {
+		if file.Name != name {
+			continue
+		}
+		handle, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(handle)
+		_ = handle.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+	t.Fatalf("entry %s not found", name)
+	return ""
+}
+
 func zippedWorkbook(t *testing.T, entries map[string]string) []byte {
 	t.Helper()
 	var buffer bytes.Buffer

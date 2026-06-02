@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -80,7 +81,22 @@ func UpdateWorkbookSheet(data []byte, sheetPath string, records [][]string) ([]b
 			return nil, err
 		}
 		if file.Name == cleanSheetPath {
-			if _, err := entry.Write([]byte(sheetXML(records))); err != nil {
+			handle, err := file.Open()
+			if err != nil {
+				_ = writer.Close()
+				return nil, err
+			}
+			body, err := io.ReadAll(handle)
+			_ = handle.Close()
+			if err != nil {
+				_ = writer.Close()
+				return nil, err
+			}
+			updated, err := updateWorksheetXML(body, records)
+			if err != nil {
+				updated = []byte(sheetXML(records))
+			}
+			if _, err := entry.Write(updated); err != nil {
 				_ = writer.Close()
 				return nil, err
 			}
@@ -111,6 +127,299 @@ func UpdateWorkbookSheet(data []byte, sheetPath string, records [][]string) ([]b
 		return nil, err
 	}
 	return buffer.Bytes(), nil
+}
+
+type worksheetRowTemplate struct {
+	Start xml.StartElement
+	Cells map[int]worksheetCellTemplate
+}
+
+type worksheetCellTemplate struct {
+	Start        xml.StartElement
+	FormulaStart xml.StartElement
+	FormulaText  string
+	HasFormula   bool
+}
+
+func updateWorksheetXML(data []byte, records [][]string) ([]byte, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var buffer bytes.Buffer
+	buffer.WriteString(xml.Header)
+	encoder := xml.NewEncoder(&buffer)
+	replacedSheetData := false
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if instruction, ok := token.(xml.ProcInst); ok && strings.EqualFold(instruction.Target, "xml") {
+			continue
+		}
+		start, ok := token.(xml.StartElement)
+		if ok && start.Name.Local == "sheetData" {
+			start = cleanStartElement(start)
+			rows, err := parseWorksheetRows(decoder)
+			if err != nil {
+				return nil, err
+			}
+			if err := encoder.EncodeToken(start); err != nil {
+				return nil, err
+			}
+			if err := writeWorksheetRows(encoder, rows, records); err != nil {
+				return nil, err
+			}
+			if err := encoder.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
+				return nil, err
+			}
+			replacedSheetData = true
+			continue
+		}
+		if ok {
+			token = cleanStartElement(start)
+		}
+		if err := encoder.EncodeToken(token); err != nil {
+			return nil, err
+		}
+	}
+	if !replacedSheetData {
+		return nil, fmt.Errorf("worksheet sheetData not found")
+	}
+	if err := encoder.Flush(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func parseWorksheetRows(decoder *xml.Decoder) (map[int]worksheetRowTemplate, error) {
+	rows := map[int]worksheetRowTemplate{}
+	nextRow := 0
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return nil, err
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			if value.Name.Local == "row" {
+				rowIndex := rowIndexFromStart(value, nextRow)
+				row, err := parseWorksheetRow(decoder, value)
+				if err != nil {
+					return nil, err
+				}
+				rows[rowIndex] = row
+				nextRow = rowIndex + 1
+			}
+		case xml.EndElement:
+			if value.Name.Local == "sheetData" {
+				return rows, nil
+			}
+		}
+	}
+}
+
+func parseWorksheetRow(decoder *xml.Decoder, start xml.StartElement) (worksheetRowTemplate, error) {
+	row := worksheetRowTemplate{Start: cleanStartElement(start), Cells: map[int]worksheetCellTemplate{}}
+	nextCol := 0
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return row, err
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			if value.Name.Local == "c" {
+				col, ok := columnIndexFromCellRef(attrValue(value, "r"))
+				if !ok {
+					col = nextCol
+				}
+				cell, err := parseWorksheetCell(decoder, value)
+				if err != nil {
+					return row, err
+				}
+				row.Cells[col] = cell
+				nextCol = col + 1
+			}
+		case xml.EndElement:
+			if value.Name.Local == "row" {
+				return row, nil
+			}
+		}
+	}
+}
+
+func parseWorksheetCell(decoder *xml.Decoder, start xml.StartElement) (worksheetCellTemplate, error) {
+	cell := worksheetCellTemplate{Start: cleanStartElement(start)}
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return cell, err
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			if value.Name.Local == "f" {
+				text, err := readFormulaText(decoder)
+				if err != nil {
+					return cell, err
+				}
+				cell.FormulaStart = cleanStartElement(value)
+				cell.FormulaText = text
+				cell.HasFormula = true
+			}
+		case xml.EndElement:
+			if value.Name.Local == "c" {
+				return cell, nil
+			}
+		}
+	}
+}
+
+func readFormulaText(decoder *xml.Decoder) (string, error) {
+	var builder strings.Builder
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return "", err
+		}
+		switch value := token.(type) {
+		case xml.CharData:
+			builder.Write([]byte(value))
+		case xml.EndElement:
+			if value.Name.Local == "f" {
+				return builder.String(), nil
+			}
+		}
+	}
+}
+
+func writeWorksheetRows(encoder *xml.Encoder, templates map[int]worksheetRowTemplate, records [][]string) error {
+	for rowIndex, record := range records {
+		rowNumber := rowIndex + 1
+		template := templates[rowIndex]
+		start := template.Start
+		if start.Name.Local == "" {
+			start = xml.StartElement{Name: xml.Name{Local: "row"}}
+		}
+		start.Attr = setAttr(start.Attr, "", "r", strconv.Itoa(rowNumber))
+		if err := encoder.EncodeToken(start); err != nil {
+			return err
+		}
+		for columnIndex, value := range record {
+			cell := template.Cells[columnIndex]
+			if err := writeWorksheetCell(encoder, cell, rowNumber, columnIndex+1, value); err != nil {
+				return err
+			}
+		}
+		if err := encoder.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeWorksheetCell(encoder *xml.Encoder, template worksheetCellTemplate, rowNumber int, columnNumber int, value string) error {
+	start := template.Start
+	if start.Name.Local == "" {
+		start = xml.StartElement{Name: xml.Name{Local: "c"}}
+	}
+	start.Attr = setAttr(start.Attr, "", "r", cellRef(rowNumber, columnNumber))
+	if template.HasFormula {
+		start.Attr = removeAttr(start.Attr, "", "t")
+		if err := encoder.EncodeToken(start); err != nil {
+			return err
+		}
+		if err := encoder.EncodeToken(template.FormulaStart); err != nil {
+			return err
+		}
+		if err := encoder.EncodeToken(xml.CharData([]byte(template.FormulaText))); err != nil {
+			return err
+		}
+		if err := encoder.EncodeToken(xml.EndElement{Name: template.FormulaStart.Name}); err != nil {
+			return err
+		}
+		if err := writeTextElement(encoder, xml.Name{Local: "v"}, value, nil); err != nil {
+			return err
+		}
+		return encoder.EncodeToken(xml.EndElement{Name: start.Name})
+	}
+	start.Attr = setAttr(removeAttr(start.Attr, "", "t"), "", "t", "inlineStr")
+	if err := encoder.EncodeToken(start); err != nil {
+		return err
+	}
+	inlineStart := xml.StartElement{Name: xml.Name{Local: "is"}}
+	if err := encoder.EncodeToken(inlineStart); err != nil {
+		return err
+	}
+	textAttrs := []xml.Attr{{Name: xml.Name{Space: "http://www.w3.org/XML/1998/namespace", Local: "space"}, Value: "preserve"}}
+	if err := writeTextElement(encoder, xml.Name{Local: "t"}, value, textAttrs); err != nil {
+		return err
+	}
+	if err := encoder.EncodeToken(xml.EndElement{Name: inlineStart.Name}); err != nil {
+		return err
+	}
+	return encoder.EncodeToken(xml.EndElement{Name: start.Name})
+}
+
+func writeTextElement(encoder *xml.Encoder, name xml.Name, value string, attrs []xml.Attr) error {
+	start := xml.StartElement{Name: name, Attr: attrs}
+	if err := encoder.EncodeToken(start); err != nil {
+		return err
+	}
+	if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
+		return err
+	}
+	return encoder.EncodeToken(xml.EndElement{Name: name})
+}
+
+func cleanStartElement(start xml.StartElement) xml.StartElement {
+	if len(start.Attr) == 0 {
+		return start
+	}
+	attrs := make([]xml.Attr, 0, len(start.Attr))
+	for _, attr := range start.Attr {
+		if isNamespaceDeclaration(attr) {
+			continue
+		}
+		attrs = append(attrs, attr)
+	}
+	start.Attr = attrs
+	return start
+}
+
+func isNamespaceDeclaration(attr xml.Attr) bool {
+	return attr.Name.Space == "xmlns" || (attr.Name.Space == "" && attr.Name.Local == "xmlns")
+}
+
+func attrValue(start xml.StartElement, local string) string {
+	for _, attr := range start.Attr {
+		if attr.Name.Local == local {
+			return attr.Value
+		}
+	}
+	return ""
+}
+
+func setAttr(attrs []xml.Attr, space string, local string, value string) []xml.Attr {
+	for index, attr := range attrs {
+		if attr.Name.Space == space && attr.Name.Local == local {
+			attrs[index].Value = value
+			return attrs
+		}
+	}
+	return append(attrs, xml.Attr{Name: xml.Name{Space: space, Local: local}, Value: value})
+}
+
+func removeAttr(attrs []xml.Attr, space string, local string) []xml.Attr {
+	next := attrs[:0]
+	for _, attr := range attrs {
+		if attr.Name.Space == space && attr.Name.Local == local {
+			continue
+		}
+		next = append(next, attr)
+	}
+	return next
 }
 
 func writeEntry(writer *zip.Writer, name string, content string) error {
