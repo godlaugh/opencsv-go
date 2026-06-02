@@ -526,6 +526,7 @@ The app shall support:
 - Search commands by name.
 - Keyboard shortcuts.
 - Shortcut customization.
+- Optional shortcut context conditions such as document, grid, SQL, profile, settings, diff, and typing contexts.
 - Context-aware command enablement using declarative conditions.
 - Menus, toolbar buttons, context menus, and shortcuts all dispatch through the same command IDs.
 - Commands for open, save, find, filter, SQL console, format options, diff, sort.
@@ -534,7 +535,7 @@ Acceptance:
 
 - Every menu action has a command ID.
 - Commands can be invoked by palette or shortcut.
-- Customized shortcuts preserve command enablement conditions and update menus.
+- Customized shortcuts preserve command enablement/context conditions and update menus.
 
 ### FR-013 File Format Presets and Rules
 

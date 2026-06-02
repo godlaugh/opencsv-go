@@ -631,6 +631,17 @@ const localeCatalog = {
 };
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const shortcutExportKind = "opencsv-shortcuts";
+const shortcutContextOptions = [
+  { id: "", label: "Always" },
+  { id: "document", label: "Document" },
+  { id: "grid", label: "Grid" },
+  { id: "sql", label: "SQL" },
+  { id: "profile", label: "Profile" },
+  { id: "settings", label: "Settings" },
+  { id: "diff", label: "Diff" },
+  { id: "typing", label: "Typing" },
+];
+const shortcutViewContexts = new Set(["grid", "sql", "profile", "settings", "diff"]);
 const shortcutPresets = [
   { id: "default", name: "Default", shortcuts: {} },
   {
@@ -4322,10 +4333,24 @@ function renderKeyboardShortcuts() {
     description.textContent = command.description;
     meta.append(title, description);
 
+    const binding = effectiveShortcutBinding(command);
     const shortcut = document.createElement("kbd");
     shortcut.textContent = command.id === recordingShortcutID
       ? "Press shortcut"
-      : effectiveShortcut(command);
+      : binding.shortcut;
+    if (binding.when) shortcut.title = `When ${shortcutContextLabel(binding.when)}`;
+
+    const contextSelect = document.createElement("select");
+    contextSelect.className = "shortcut-context";
+    contextSelect.setAttribute("aria-label", `${command.title} shortcut context`);
+    for (const optionValue of shortcutContextOptions) {
+      const option = document.createElement("option");
+      option.value = optionValue.id;
+      option.textContent = optionValue.label;
+      contextSelect.append(option);
+    }
+    contextSelect.value = binding.when;
+    contextSelect.addEventListener("change", () => updateShortcutContext(command, contextSelect.value));
 
     const actions = document.createElement("div");
     actions.className = "shortcut-actions";
@@ -4358,14 +4383,28 @@ function renderKeyboardShortcuts() {
       actions.append(replaceButton);
     }
 
-    row.append(meta, shortcut, actions);
+    row.append(meta, shortcut, contextSelect, actions);
     fragment.append(row);
   }
   shortcutsList.replaceChildren(fragment);
 }
 
 function effectiveShortcut(command) {
-  return customShortcuts.has(command.id) ? customShortcuts.get(command.id) : command.shortcut || "";
+  return effectiveShortcutBinding(command).shortcut;
+}
+
+function effectiveShortcutBinding(command) {
+  if (customShortcuts.has(command.id)) {
+    return customShortcuts.get(command.id);
+  }
+  return { shortcut: command.shortcut || "", when: defaultShortcutWhen(command) };
+}
+
+function defaultShortcutWhen(command) {
+  if (!command?.scope || command.scope === "global") return "";
+  if (command.scope === "grid") return "grid";
+  if (command.scope === "view") return "document";
+  return "document";
 }
 
 function defaultShortcutActive(commandID) {
@@ -4376,18 +4415,19 @@ function loadCustomShortcuts() {
   try {
     const parsed = JSON.parse(localStorage.getItem(customShortcutsStorageKey) || "{}");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
-    return new Map(
-      Object.entries(parsed)
-        .filter(([id, shortcut]) => typeof id === "string" && typeof shortcut === "string")
-        .map(([id, shortcut]) => [id, normalizeShortcutText(shortcut)]),
-    );
+    const bindings = new Map();
+    for (const [id, value] of Object.entries(parsed)) {
+      const binding = normalizeShortcutBinding(value);
+      if (typeof id === "string" && binding) bindings.set(id, binding);
+    }
+    return bindings;
   } catch {
     return new Map();
   }
 }
 
 function saveCustomShortcuts() {
-  const value = Object.fromEntries(customShortcuts);
+  const value = serializedShortcutMap(customShortcuts);
   localStorage.setItem(customShortcutsStorageKey, JSON.stringify(value));
   document.body.dataset.shortcutCount = String(customShortcuts.size);
   document.body.dataset.shortcutPreview = JSON.stringify(value);
@@ -4410,20 +4450,20 @@ function shortcutMapFromEntries(entries) {
   const next = new Map();
   let applied = 0;
   let skipped = 0;
-  for (const [commandID, rawShortcut] of entries) {
+  for (const [commandID, rawBinding] of entries) {
     const command = commandsById.get(commandID);
-    const shortcut = normalizeShortcutText(rawShortcut);
-    if (!command || command.implemented === false || !shortcutAllowed(shortcut)) {
+    const binding = normalizeShortcutBinding(rawBinding);
+    if (!binding || !command || command.implemented === false || !shortcutAllowed(binding.shortcut)) {
       skipped++;
       continue;
     }
-    const conflict = commandForShortcutWithMap(shortcut, commandID, next);
+    const conflict = commandForShortcutWithMap(binding.shortcut, binding.when, commandID, next);
     if (conflict) {
       skipped++;
       continue;
     }
-    if (shortcut !== command.shortcut) {
-      next.set(commandID, shortcut);
+    if (binding.shortcut !== command.shortcut || binding.when !== defaultShortcutWhen(command)) {
+      next.set(commandID, binding);
     }
     applied++;
   }
@@ -4431,7 +4471,7 @@ function shortcutMapFromEntries(entries) {
 }
 
 function exportShortcuts() {
-  const shortcuts = Object.fromEntries(customShortcuts);
+  const shortcuts = serializedShortcutMap(customShortcuts);
   const payload = {
     kind: shortcutExportKind,
     version: 1,
@@ -4501,8 +4541,8 @@ function parseShortcutImport(text) {
     throw new Error("missing shortcuts object");
   }
   return Object.entries(source)
-    .filter(([commandID, shortcut]) => typeof commandID === "string" && typeof shortcut === "string")
-    .map(([commandID, shortcut]) => [commandID, normalizeShortcutText(shortcut)]);
+    .filter(([commandID, value]) => typeof commandID === "string" && normalizeShortcutBinding(value))
+    .map(([commandID, value]) => [commandID, normalizeShortcutBinding(value)]);
 }
 
 function normalizeShortcutText(shortcut) {
@@ -4513,34 +4553,93 @@ function normalizeShortcutText(shortcut) {
     .join("+");
 }
 
+function normalizeShortcutBinding(value) {
+  if (typeof value === "string") {
+    return { shortcut: normalizeShortcutText(value), when: "" };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value) || typeof value.shortcut !== "string") {
+    return null;
+  }
+  return {
+    shortcut: normalizeShortcutText(value.shortcut),
+    when: normalizeShortcutWhen(value.when),
+  };
+}
+
+function normalizeShortcutWhen(value) {
+  const when = String(value || "").trim().toLowerCase();
+  return shortcutContextOptions.some((option) => option.id === when) ? when : "";
+}
+
+function shortcutContextLabel(when) {
+  return shortcutContextOptions.find((option) => option.id === when)?.label ?? "Always";
+}
+
+function serializedShortcutMap(map) {
+  return Object.fromEntries(
+    Array.from(map.entries()).map(([commandID, binding]) => [commandID, serializedShortcutBinding(binding)]),
+  );
+}
+
+function serializedShortcutBinding(binding) {
+  if (!binding?.when) return binding?.shortcut ?? "";
+  return { shortcut: binding.shortcut, when: binding.when };
+}
+
+function updateShortcutContext(command, whenValue) {
+  const when = normalizeShortcutWhen(whenValue);
+  const binding = effectiveShortcutBinding(command);
+  const next = { shortcut: binding.shortcut, when };
+  if (!next.shortcut) {
+    customShortcuts.delete(command.id);
+    saveCustomShortcuts();
+    status.textContent = `Reset shortcut context for ${command.title}`;
+    return;
+  }
+  const conflict = commandForShortcutWithMap(next.shortcut, next.when, command.id, customShortcuts);
+  if (conflict) {
+    status.textContent = `${next.shortcut} already overlaps ${conflict.title} in ${shortcutContextLabel(next.when)}.`;
+    renderKeyboardShortcuts();
+    return;
+  }
+  if (next.shortcut === command.shortcut && next.when === defaultShortcutWhen(command)) {
+    customShortcuts.delete(command.id);
+  } else {
+    customShortcuts.set(command.id, next);
+  }
+  document.body.dataset.shortcutContext = `${command.id}:${next.when || "always"}`;
+  saveCustomShortcuts();
+  status.textContent = `${command.title} shortcut context: ${shortcutContextLabel(next.when)}.`;
+}
+
 function mergeImportedShortcuts(imported) {
   let importedCount = 0;
   let skipped = 0;
   const next = new Map(customShortcuts);
-  for (const [commandID, shortcut] of imported) {
+  for (const [commandID, binding] of imported) {
     const command = commandsById.get(commandID);
-    if (shortcut === "") {
+    if (binding.shortcut === "") {
       if (!command || command.implemented === false) {
         skipped++;
         continue;
       }
-      next.set(commandID, "");
+      next.set(commandID, binding);
       importedCount++;
       continue;
     }
-    if (!command || command.implemented === false || !shortcutAllowed(shortcut)) {
+    if (!command || command.implemented === false || !shortcutAllowed(binding.shortcut)) {
       skipped++;
       continue;
     }
-    const conflict = commandForShortcutWithMap(shortcut, commandID, next);
+    const conflict = commandForShortcutWithMap(binding.shortcut, binding.when, commandID, next);
     if (conflict) {
       skipped++;
       continue;
     }
-    if (shortcut === command.shortcut) {
+    if (binding.shortcut === command.shortcut && binding.when === defaultShortcutWhen(command)) {
       next.delete(commandID);
     } else {
-      next.set(commandID, shortcut);
+      next.set(commandID, binding);
     }
     importedCount++;
   }
@@ -4548,11 +4647,13 @@ function mergeImportedShortcuts(imported) {
   return { imported: importedCount, skipped };
 }
 
-function commandForShortcutWithMap(shortcut, exceptID, customMap) {
+function commandForShortcutWithMap(shortcut, when, exceptID, customMap) {
   for (const command of commandsById.values()) {
     if (command.id === exceptID) continue;
-    const effective = customMap.has(command.id) ? customMap.get(command.id) : command.shortcut || "";
-    if (effective === shortcut) return command;
+    const effective = customMap.has(command.id)
+      ? customMap.get(command.id)
+      : { shortcut: command.shortcut || "", when: defaultShortcutWhen(command) };
+    if (effective.shortcut === shortcut && shortcutContextsOverlap(when, effective.when)) return command;
   }
   return null;
 }
@@ -4590,15 +4691,16 @@ function handleShortcutEditorKeydown(event) {
   }
   const command = commandsById.get(recordingShortcutID);
   if (!command) return true;
-  const conflict = commandForShortcut(shortcut, command.id);
+  const when = effectiveShortcutBinding(command).when;
+  const conflict = commandForShortcut(shortcut, when, command.id);
   if (conflict) {
-    pendingShortcutConflict = { commandID: command.id, conflictID: conflict.id, shortcut };
-    document.body.dataset.shortcutConflict = `${command.id}:${conflict.id}:${shortcut}`;
+    pendingShortcutConflict = { commandID: command.id, conflictID: conflict.id, shortcut, when };
+    document.body.dataset.shortcutConflict = `${command.id}:${conflict.id}:${shortcut}:${when || "always"}`;
     renderKeyboardShortcuts();
     status.textContent = `${shortcut} is already assigned to ${conflict.title}`;
     return true;
   }
-  assignShortcut(command, shortcut, customShortcuts);
+  assignShortcut(command, { shortcut, when }, customShortcuts);
   recordingShortcutID = "";
   pendingShortcutConflict = null;
   saveCustomShortcuts();
@@ -4612,7 +4714,10 @@ function replaceShortcutConflict() {
   const conflict = commandsById.get(pendingShortcutConflict.conflictID);
   if (!target || !conflict) return;
   clearShortcut(conflict, pendingShortcutConflict.shortcut, customShortcuts);
-  assignShortcut(target, pendingShortcutConflict.shortcut, customShortcuts);
+  assignShortcut(target, {
+    shortcut: pendingShortcutConflict.shortcut,
+    when: pendingShortcutConflict.when,
+  }, customShortcuts);
   const message = `${pendingShortcutConflict.shortcut} moved from ${conflict.title} to ${target.title}`;
   recordingShortcutID = "";
   pendingShortcutConflict = null;
@@ -4621,18 +4726,18 @@ function replaceShortcutConflict() {
   status.textContent = message;
 }
 
-function assignShortcut(command, shortcut, customMap) {
-  if (shortcut === command.shortcut) {
+function assignShortcut(command, binding, customMap) {
+  if (binding.shortcut === command.shortcut && binding.when === defaultShortcutWhen(command)) {
     customMap.delete(command.id);
   } else {
-    customMap.set(command.id, shortcut);
+    customMap.set(command.id, binding);
   }
 }
 
 function clearShortcut(command, shortcut, customMap) {
   if ((command.shortcut || "") === shortcut) {
-    customMap.set(command.id, "");
-  } else if (customMap.has(command.id) && customMap.get(command.id) === shortcut) {
+    customMap.set(command.id, { shortcut: "", when: "" });
+  } else if (customMap.has(command.id) && customMap.get(command.id).shortcut === shortcut) {
     customMap.delete(command.id);
   }
 }
@@ -4641,17 +4746,52 @@ function shortcutAllowed(shortcut) {
   return shortcut.includes("Cmd+") || shortcut.includes("Alt+") || /^F\d+$/.test(shortcut);
 }
 
-function commandForShortcut(shortcut, exceptID = "") {
+function shortcutContextsOverlap(left, right) {
+  const normalizedLeft = normalizeShortcutWhen(left);
+  const normalizedRight = normalizeShortcutWhen(right);
+  if (!normalizedLeft || !normalizedRight) return true;
+  if (normalizedLeft === normalizedRight) return true;
+  if (normalizedLeft === "document" && shortcutViewContexts.has(normalizedRight)) return true;
+  if (normalizedRight === "document" && shortcutViewContexts.has(normalizedLeft)) return true;
+  if (normalizedLeft === "typing" || normalizedRight === "typing") return true;
+  return false;
+}
+
+function shortcutContextMatches(when, event) {
+  switch (normalizeShortcutWhen(when)) {
+    case "":
+      return true;
+    case "document":
+      return Boolean(documentId);
+    case "grid":
+      return viewMode === "grid" && !editing && !conditionBuilderOpen && !isTypingTarget(event.target);
+    case "sql":
+      return viewMode === "sql";
+    case "profile":
+      return viewMode === "profile";
+    case "settings":
+      return viewMode === "settings";
+    case "diff":
+      return viewMode === "diff";
+    case "typing":
+      return isTypingTarget(event.target);
+    default:
+      return true;
+  }
+}
+
+function commandForShortcut(shortcut, when = "", exceptID = "") {
   for (const command of commandsById.values()) {
     if (command.id === exceptID) continue;
-    if (effectiveShortcut(command) === shortcut) return command;
+    const binding = effectiveShortcutBinding(command);
+    if (binding.shortcut === shortcut && shortcutContextsOverlap(when, binding.when)) return command;
   }
   return null;
 }
 
-function customCommandForShortcut(shortcut) {
-  for (const [commandID, customShortcut] of customShortcuts.entries()) {
-    if (customShortcut === shortcut) return commandsById.get(commandID) ?? null;
+function customCommandForShortcut(shortcut, event) {
+  for (const [commandID, binding] of customShortcuts.entries()) {
+    if (binding.shortcut === shortcut && shortcutContextMatches(binding.when, event)) return commandsById.get(commandID) ?? null;
   }
   return null;
 }
@@ -4660,7 +4800,7 @@ function runCustomShortcut(event) {
   if (paletteOpen || shortcutEditorOpen) return false;
   const shortcut = shortcutFromEvent(event);
   if (!shortcut) return false;
-  const command = customCommandForShortcut(shortcut);
+  const command = customCommandForShortcut(shortcut, event);
   if (!command) return false;
   event.preventDefault();
   if (isCommandDisabled(command)) {

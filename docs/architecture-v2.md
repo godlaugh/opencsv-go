@@ -95,7 +95,7 @@ flowchart TD
 - `pkg/commands`
   - Command IDs and metadata.
   - Scope, shortcut, implementation status, and document requirements.
-  - Shared source for toolbar state and future command palette.
+  - Shared source for toolbar state, command palette availability, shortcut defaults, and context-aware shortcut conditions.
   - Includes global commands for command palette and theme toggling.
 
 - `pkg/csvdiff`
@@ -137,6 +137,7 @@ flowchart TD
   - Searchable command runner backed by `/api/commands`.
   - Fuzzy command scoring across command ID, title, description, and aliases.
   - Local recent command history shared by palette/toolbar/shortcut dispatch.
+  - Keyboard Shortcuts stores backward-compatible string bindings plus object bindings with optional `when` contexts; conflict detection allows the same shortcut in non-overlapping contexts and runtime dispatch checks the active Grid/SQL/Profile/Settings/Diff/typing state.
   - Honors implementation status and document requirements.
   - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 

@@ -1587,7 +1587,7 @@ button:disabled {
 .shortcut-row {
   display: grid;
   min-height: 58px;
-  grid-template-columns: minmax(0, 1fr) 132px 196px;
+  grid-template-columns: minmax(0, 1fr) 132px 128px 196px;
   gap: 8px 12px;
   align-items: center;
   border-radius: 6px;
@@ -1623,6 +1623,11 @@ button:disabled {
     monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shortcut-context {
+  width: 100%;
+  min-width: 0;
 }
 
 .shortcut-actions {
@@ -2218,6 +2223,15 @@ button:disabled {
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
+  }
+
+  .shortcut-row {
+    grid-template-columns: minmax(0, 1fr) 132px;
+  }
+
+  .shortcut-context,
+  .shortcut-actions {
+    grid-column: 1 / -1;
   }
 
   .condition-row,
