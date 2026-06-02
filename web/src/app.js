@@ -3601,7 +3601,7 @@ function updateConditionValueState() {
 }
 
 function updateConditionValueInput(operatorInput, valueInput) {
-  const noValue = operatorInput.value === "blank" || operatorInput.value === "notBlank";
+  const noValue = ["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operatorInput.value);
   valueInput.disabled = noValue;
   if (noValue) valueInput.value = "";
 }
@@ -3647,7 +3647,7 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
     return "";
   }
   const identifier = sqlColumnIdentifier(sourceCol);
-  const needsValue = !["blank", "notBlank"].includes(operator);
+  const needsValue = !["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operator);
   if (needsValue && value === "") {
     status.textContent = "Enter a filter value.";
     valueInput.focus();
@@ -3668,6 +3668,10 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
       return `${identifier} = ''`;
     case "notBlank":
       return `${identifier} <> ''`;
+    case "booleanTrue":
+      return booleanConditionExpression(identifier, true);
+    case "booleanFalse":
+      return booleanConditionExpression(identifier, false);
     case "gt":
       return `${identifier} > ${sqlComparisonLiteral(value)}`;
     case "gte":
@@ -3680,6 +3684,15 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
       status.textContent = "Choose a filter operator.";
       return "";
   }
+}
+
+function booleanConditionExpression(identifier, expected) {
+  const normalized = `LOWER(TRIM(${identifier}))`;
+  const trimmed = `TRIM(${identifier})`;
+  if (expected) {
+    return `(${normalized} = 'true' OR ${trimmed} = '1')`;
+  }
+  return `(${normalized} = 'false' OR ${trimmed} = '0' OR ${trimmed} = '')`;
 }
 
 function sqlColumnIdentifier(sourceCol) {
