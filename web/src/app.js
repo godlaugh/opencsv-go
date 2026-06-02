@@ -291,6 +291,7 @@ const windowSize = 160;
 const minColumnWidth = 92;
 const maxColumnWidth = 420;
 const columnReorderDragThreshold = 8;
+const rowReorderDragThreshold = 8;
 const autoFitColumnWidthOnEdit = true;
 const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
@@ -737,6 +738,7 @@ let dragSelectionMode = "cell";
 let smartSelectionGesture = "";
 let smartSelectionGestureBaseRanges = [];
 let pendingColumnReorder = null;
+let pendingRowReorder = null;
 let draggingFillHandle = false;
 let hoverFillHandle = false;
 let fillDragSourceRange = null;
@@ -1721,6 +1723,7 @@ function draw() {
   drawRows(width, height);
   drawBodySeparators(width, height);
   drawSelection();
+  drawRowReorderPreview(width, height);
   drawHeaders(headerCtx, width);
 
   const selectedColumn = columns[selected.col]?.name ?? "";
@@ -3868,6 +3871,11 @@ function clearFillHandleHover() {
 }
 
 function syncCanvasHoverChrome() {
+  if (pendingRowReorder?.active) {
+    canvas.style.cursor = "grabbing";
+    canvas.title = "Move row";
+    return;
+  }
   if (pendingColumnReorder?.active) {
     canvas.style.cursor = "grabbing";
     canvas.title = "Move column";
@@ -3892,6 +3900,11 @@ function syncCanvasHoverChrome() {
   if (pendingColumnReorder) {
     canvas.style.cursor = "grab";
     canvas.title = "Drag to move selected column";
+    return;
+  }
+  if (pendingRowReorder) {
+    canvas.style.cursor = "grab";
+    canvas.title = "Drag to move selected row";
     return;
   }
   canvas.style.cursor = "";
@@ -3919,7 +3932,7 @@ function updateURLHover(event) {
 }
 
 function updateCanvasHover(event) {
-  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || pendingColumnReorder?.active || editing || !documentId) {
+  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || pendingColumnReorder?.active || pendingRowReorder?.active || editing || !documentId) {
     clearURLHover();
     clearResizeHover();
     clearFillHandleHover();
@@ -6236,6 +6249,34 @@ function drawSelection() {
   ctx.restore();
 }
 
+function drawRowReorderPreview(width, height) {
+  const drag = pendingRowReorder;
+  if (!drag?.active || sourceRowCount <= 0) return;
+  const sourceTop = rowTop(drag.sourceDisplayRow);
+  const targetTop = rowTop(drag.targetDisplayRow);
+  const insertY = drag.targetDisplayRow > drag.sourceDisplayRow ? targetTop + rowHeight : targetTop;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, headerHeight, width, Math.max(0, height - headerHeight));
+  ctx.clip();
+  const sourceY = Math.max(headerHeight, sourceTop);
+  const sourceBottom = Math.min(height, sourceTop + rowHeight);
+  if (sourceBottom > sourceY) {
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = themeColors.accent;
+    ctx.fillRect(0, sourceY, width, sourceBottom - sourceY);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = themeColors.accent;
+  ctx.lineWidth = 3;
+  const y = Math.max(headerHeight, Math.min(height, insertY)) + 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(width, y);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawFillHandle(range) {
   const handle = fillHandleRect(range);
   if (!handle) return;
@@ -6306,6 +6347,10 @@ function cellRect(row, col) {
   return { x, y, width, height: rowHeight };
 }
 
+function rowTop(row) {
+  return headerHeight + row * rowHeight - scrollY;
+}
+
 function columnLeft(col) {
   let x = rowNumberWidth - scrollX;
   for (let index = 0; index < col; index++) x += columns[index]?.width ?? 0;
@@ -6328,6 +6373,12 @@ function rowAt(y) {
   return Math.max(0, Math.min(totalRows - 1, row));
 }
 
+function dataRowAtOrNearest(y) {
+  if (sourceRowCount <= 0) return -1;
+  const row = Math.floor((y - headerHeight + scrollY) / rowHeight);
+  return Math.max(0, Math.min(sourceRowCount - 1, row));
+}
+
 function clampColumn(col) {
   return Math.max(0, Math.min(columns.length - 1, col));
 }
@@ -6346,6 +6397,19 @@ function isWholeColumnSelected(col) {
     range.endRow === Math.max(0, sourceRowCount - 1) &&
     range.startCol === col &&
     range.endCol === col
+  );
+}
+
+function isWholeRowSelected(row) {
+  if (!documentId || columns.length === 0 || sourceRowCount <= 0 || row < 0 || row >= sourceRowCount || smartSelectionRanges.length > 0) {
+    return false;
+  }
+  const range = normalizedSelection();
+  return (
+    range.startRow === row &&
+    range.endRow === row &&
+    range.startCol === 0 &&
+    range.endCol === columns.length - 1
   );
 }
 
@@ -6431,6 +6495,65 @@ async function finishColumnReorder() {
     return;
   }
   await moveColumnToVisible(drag.sourceVisibleCol, targetVisibleCol, "drag");
+}
+
+function startRowReorder(row, event) {
+  if (row < 0 || row >= sourceRowCount) return false;
+  pendingRowReorder = {
+    sourceDisplayRow: row,
+    sourceRow: rowSource.get(row) ?? row + dataStartRow,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    targetDisplayRow: row,
+    active: false,
+  };
+  document.body.dataset.rowDragReorder = `pending:${row}`;
+  document.body.dataset.rowDragTarget = String(row);
+  clearURLHover();
+  clearResizeHover();
+  clearFillHandleHover();
+  syncCanvasHoverChrome();
+  return true;
+}
+
+function updateRowReorder(event) {
+  if (!pendingRowReorder) return;
+  const drag = pendingRowReorder;
+  const distance = Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
+  if (!drag.active && distance < rowReorderDragThreshold) return;
+  if (!drag.active) {
+    drag.active = true;
+    status.textContent = `Move row ${drag.sourceDisplayRow + 1}...`;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const y = event.clientY - rect.top;
+  drag.targetDisplayRow = dataRowAtOrNearest(y);
+  document.body.dataset.rowDragReorder = `${drag.sourceDisplayRow}->${drag.targetDisplayRow}:drag`;
+  document.body.dataset.rowDragTarget = String(drag.targetDisplayRow);
+  syncCanvasHoverChrome();
+  draw();
+}
+
+async function finishRowReorder() {
+  if (!pendingRowReorder) return;
+  const drag = pendingRowReorder;
+  pendingRowReorder = null;
+  syncCanvasHoverChrome();
+  if (!drag.active) {
+    document.body.dataset.rowDragReorder = "";
+    document.body.dataset.rowDragTarget = "";
+    draw();
+    return;
+  }
+  const targetDisplayRow = Math.max(0, Math.min(sourceRowCount - 1, drag.targetDisplayRow));
+  if (targetDisplayRow === drag.sourceDisplayRow) {
+    document.body.dataset.rowDragReorder = `${drag.sourceDisplayRow}->${targetDisplayRow}:cancel`;
+    document.body.dataset.rowDragTarget = String(targetDisplayRow);
+    status.textContent = "Row move canceled.";
+    draw();
+    return;
+  }
+  await moveRowToDisplay(drag.sourceDisplayRow, targetDisplayRow, "drag");
 }
 
 function selectRowRange(row, extend = false) {
@@ -9804,6 +9927,55 @@ async function moveSelectedRow(delta) {
   }
 }
 
+async function moveRowToDisplay(sourceDisplayRow, targetDisplayRow, source = "command") {
+  if (!documentId) return;
+  if (!ensureEditable("Move Row")) return;
+  if (viewMapped) {
+    document.body.dataset.rowDragReorder = `${sourceDisplayRow}->${targetDisplayRow}:blocked`;
+    status.textContent = "Clear filter or sort before dragging rows.";
+    draw();
+    return;
+  }
+  if (aggregateRowAt(sourceDisplayRow) || aggregateRowAt(targetDisplayRow)) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  const sourceRow = sourceRowForDisplayRow(sourceDisplayRow, "Move Row");
+  const targetRow = sourceRowForDisplayRow(targetDisplayRow, "Move Row");
+  if (sourceRow == null || targetRow == null) return;
+  const delta = targetRow - sourceRow;
+  const label = `Moved row ${sourceDisplayRow + 1} to ${targetDisplayRow + 1}`;
+  if (delta === 0) {
+    document.body.dataset.rowDragReorder = `${sourceDisplayRow}->${targetDisplayRow}:cancel`;
+    status.textContent = "Row is already at the target.";
+    draw();
+    return;
+  }
+  status.textContent = `${label}...`;
+  const response = await fetch("/api/row/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, row: sourceRow, delta }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  applyMutationPayload(payload, changed > 0 ? label : "Row is already at the edge");
+  if (changed > 0) {
+    const movedRow = Math.max(0, Math.min(sourceRowCount - 1, targetDisplayRow));
+    selected = { row: movedRow, col: 0 };
+    selectionAnchor = { row: movedRow, col: Math.max(0, columns.length - 1) };
+    document.body.dataset.rowDragReorder = `${sourceDisplayRow}->${movedRow}:moved`;
+    document.body.dataset.rowDragSource = source;
+    document.body.dataset.rowDragPhysical = `${sourceRow}->${targetRow}`;
+    draw();
+    status.textContent = label;
+  }
+}
+
 async function insertSelectedColumn() {
   await mutateStructure("/api/column/insert", { col: sourceColFor(selected.col) }, "Inserted column");
 }
@@ -12290,9 +12462,14 @@ canvas.addEventListener("mousedown", (event) => {
   if (x < rowNumberWidth) {
     event.preventDefault();
     if (editing) commitEditor();
+    const row = rowAt(y);
+    if (!readOnly && !event.shiftKey && !event.altKey && !smartGesture && isWholeRowSelected(row)) {
+      startRowReorder(row, event);
+      return;
+    }
     if (smartGesture) startSmartSelectionGesture(smartGesture);
     setHeaderInSelection(event.altKey);
-    selectRowRange(rowAt(y), smartGesture ? false : event.shiftKey);
+    selectRowRange(row, smartGesture ? false : event.shiftKey);
     draggingSelection = true;
     dragSelectionMode = "row";
     draw();
@@ -12330,6 +12507,11 @@ window.addEventListener("mousemove", (event) => {
     updateColumnReorder(event);
     return;
   }
+  if (pendingRowReorder) {
+    event.preventDefault();
+    updateRowReorder(event);
+    return;
+  }
   if (draggingSelection) {
     event.preventDefault();
     updateDragSelection(event);
@@ -12349,6 +12531,10 @@ window.addEventListener("mouseup", () => {
   }
   if (pendingColumnReorder) {
     void finishColumnReorder();
+    return;
+  }
+  if (pendingRowReorder) {
+    void finishRowReorder();
     return;
   }
   if (!draggingSelection) return;
