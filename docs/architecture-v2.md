@@ -780,6 +780,7 @@ Output:
 - Interspersed root flags and paths.
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
+- `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
 - Delimiter, encoding, line-ending, quote, and header overrides mapped into `csvcore.OpenOptions`.
 - `smoothcsv://file/...` URL parsing with format query parameters.
 

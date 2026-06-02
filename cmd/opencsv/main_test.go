@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -100,6 +103,83 @@ func TestRootOpenDiffComputesResult(t *testing.T) {
 	}
 	if err := rootOpen([]string{"--diff", left, right}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRootOpenDiffIncludesWebRoute(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n1,Ada\n2,Ken\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--diff", left, right})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if invocation.Mode != "diff" || invocation.Route == "" || invocation.WebURL == "" {
+		t.Fatalf("diff invocation route = %#v", invocation)
+	}
+	route, err := url.Parse(invocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := route.Query()
+	if query.Get("diffRun") != "1" {
+		t.Fatalf("diffRun = %q, want 1", query.Get("diffRun"))
+	}
+	if query.Get("diffLeft") != left || query.Get("diffRight") != right {
+		t.Fatalf("diff route paths = %#v", query)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webURL.Query().Get("diffLeft") != left || webURL.Query().Get("diffRight") != right {
+		t.Fatalf("web URL query = %#v", webURL.Query())
+	}
+}
+
+func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.tsv")
+	if err := os.WriteFile(path, []byte("id\tname\n1\tAda\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--goto", path + ":2:1", "--delimiter", "tab", "--encoding", "utf-8", path})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if invocation.Mode != "open" || invocation.Route == "" || invocation.WebURL == "" {
+		t.Fatalf("open invocation route = %#v", invocation)
+	}
+	route, err := url.Parse(invocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := route.Query()
+	if query.Get("open") != path || query.Get("goto") != "2:1" {
+		t.Fatalf("open route query = %#v", query)
+	}
+	if query.Get("delimiter") != "tab" || query.Get("encoding") != "utf-8" {
+		t.Fatalf("format route query = %#v", query)
 	}
 }
 
@@ -203,4 +283,25 @@ func TestGrepFileRegexAndErrors(t *testing.T) {
 	if _, err := grepFile(path, "[", grepOptions{Regex: true}); err == nil {
 		t.Fatal("expected invalid regex error")
 	}
+}
+
+func captureStdout(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	previousStdout := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = writer
+	runErr := fn()
+	closeErr := writer.Close()
+	os.Stdout = previousStdout
+	output, readErr := io.ReadAll(reader)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	return string(output), runErr
 }

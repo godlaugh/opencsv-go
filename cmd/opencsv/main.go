@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +21,7 @@ import (
 )
 
 const version = "0.2.0-dev"
+const defaultWebBaseURL = "http://127.0.0.1:43255/"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -85,16 +87,19 @@ type cliInvocation struct {
 	Diff        *csvdiff.Result       `json:"diff,omitempty"`
 	Goto        *protocol.Location    `json:"goto,omitempty"`
 	Format      protocol.FormatParams `json:"format,omitempty"`
+	Route       string                `json:"route,omitempty"`
+	WebURL      string                `json:"webUrl,omitempty"`
 	NewWindow   bool                  `json:"newWindow,omitempty"`
 	ReuseWindow bool                  `json:"reuseWindow,omitempty"`
 	Wait        bool                  `json:"wait,omitempty"`
 }
 
 type cliOpenedFile struct {
-	Path     string            `json:"path"`
-	Source   string            `json:"source"`
-	Location protocol.Location `json:"location,omitempty"`
-	Document csvcore.Document  `json:"document"`
+	Path     string                `json:"path"`
+	Source   string                `json:"source"`
+	Location protocol.Location     `json:"location,omitempty"`
+	Format   protocol.FormatParams `json:"format,omitempty"`
+	Document csvcore.Document      `json:"document"`
 }
 
 type rootOptions struct {
@@ -133,13 +138,6 @@ func rootOpen(args []string) error {
 		invocation.Mode = "diff"
 	}
 
-	openOptions, err := openOptionsFromFormat(options.format)
-	if err != nil {
-		return err
-	}
-	openOptions.PreviewRows = 50
-	openOptions.IndexRows = 0
-
 	var gotoTarget *protocol.LocationTarget
 	if options.gotoTarget != "" {
 		target, err := protocol.ParseGoto(options.gotoTarget)
@@ -166,46 +164,152 @@ func rootOpen(args []string) error {
 		}
 	}
 
+	resolvedPaths := make([]string, 0, len(options.paths))
 	for _, rawPath := range options.paths {
 		target := protocol.FileTarget{Path: rawPath, Format: options.format}
+		targetFormat := options.format
 		if strings.HasPrefix(strings.ToLower(rawPath), "smoothcsv://") {
 			parsed, err := protocol.ParseSmoothCSVURL(rawPath)
 			if err != nil {
 				return usageError(err.Error())
 			}
 			target = parsed
-			openOptions, err = openOptionsFromFormat(mergeFormat(options.format, target.Format))
-			if err != nil {
-				return err
-			}
-			openOptions.PreviewRows = 50
-			openOptions.IndexRows = 0
+			targetFormat = mergeFormat(options.format, target.Format)
 		}
 		if gotoTarget != nil && samePath(gotoTarget.Path, target.Path) {
 			target.Location = gotoTarget.Location
 		}
 
+		openOptions, err := openOptionsFromFormat(targetFormat)
+		if err != nil {
+			return err
+		}
+		openOptions.PreviewRows = 50
+		openOptions.IndexRows = 0
 		document, source, err := openCLITarget(target.Path, openOptions)
 		if err != nil {
 			return err
 		}
+		resolvedPaths = append(resolvedPaths, target.Path)
 		invocation.Files = append(invocation.Files, cliOpenedFile{
 			Path:     target.Path,
 			Source:   source,
 			Location: target.Location,
+			Format:   targetFormat,
 			Document: document,
 		})
 	}
 
 	if options.diff {
-		result, err := csvdiff.CompareFiles(options.paths[0], options.paths[1], csvdiff.Options{MaxRows: 500})
+		result, err := csvdiff.CompareFiles(resolvedPaths[0], resolvedPaths[1], csvdiff.Options{MaxRows: 500})
 		if err != nil {
 			return err
 		}
 		invocation.Diff = &result
+		route, err := diffRoute(resolvedPaths[0], resolvedPaths[1])
+		if err != nil {
+			return err
+		}
+		invocation.Route = route
+		invocation.WebURL = webURLForRoute(route)
+	} else if len(invocation.Files) == 1 && invocation.Files[0].Source == "file" {
+		route, err := openRoute(invocation.Files[0])
+		if err != nil {
+			return err
+		}
+		invocation.Route = route
+		invocation.WebURL = webURLForRoute(route)
 	}
 
 	return printJSON(invocation)
+}
+
+func diffRoute(leftPath string, rightPath string) (string, error) {
+	left, err := filepath.Abs(leftPath)
+	if err != nil {
+		return "", err
+	}
+	right, err := filepath.Abs(rightPath)
+	if err != nil {
+		return "", err
+	}
+	values := url.Values{}
+	values.Set("diffLeft", left)
+	values.Set("diffRight", right)
+	values.Set("diffRun", "1")
+	return "/?" + values.Encode(), nil
+}
+
+func openRoute(file cliOpenedFile) (string, error) {
+	path, err := filepath.Abs(file.Path)
+	if err != nil {
+		return "", err
+	}
+	values := url.Values{}
+	values.Set("open", path)
+	if location := locationParam(file.Location); location != "" {
+		values.Set("goto", location)
+	}
+	addFormatQuery(values, file.Format)
+	return "/?" + values.Encode(), nil
+}
+
+func webURLForRoute(route string) string {
+	base, err := url.Parse(defaultWebBaseURL)
+	if err != nil {
+		return defaultWebBaseURL
+	}
+	if strings.HasPrefix(route, "/?") {
+		base.RawQuery = strings.TrimPrefix(route, "/?")
+		return base.String()
+	}
+	return base.ResolveReference(&url.URL{Path: route}).String()
+}
+
+func locationParam(location protocol.Location) string {
+	if location.IsZero() {
+		return ""
+	}
+	if location.EndRow > 0 && location.EndCol > 0 {
+		return fmt.Sprintf("%d:%d-%d:%d", location.StartRow, max(1, location.StartCol), location.EndRow, location.EndCol)
+	}
+	if location.EndRow > 0 {
+		return fmt.Sprintf("%d-%d", location.StartRow, location.EndRow)
+	}
+	if location.StartCol > 0 {
+		return fmt.Sprintf("%d:%d", location.StartRow, location.StartCol)
+	}
+	return strconv.Itoa(location.StartRow)
+}
+
+func addFormatQuery(values url.Values, format protocol.FormatParams) {
+	if format.Delimiter != "" {
+		values.Set("delimiter", format.Delimiter)
+	}
+	if format.Quote != "" {
+		values.Set("quote", format.Quote)
+	}
+	if format.QuoteMode != "" {
+		values.Set("quote-mode", format.QuoteMode)
+	}
+	if format.Encoding != "" {
+		values.Set("encoding", format.Encoding)
+	}
+	if format.LineEnding != "" {
+		values.Set("line-ending", format.LineEnding)
+	}
+	if format.HeaderRows != nil {
+		values.Set("header-rows", strconv.Itoa(*format.HeaderRows))
+	}
+	if format.HeaderCols != nil {
+		values.Set("header-columns", strconv.Itoa(*format.HeaderCols))
+	}
+	if format.Header != nil {
+		values.Set("header", strconv.FormatBool(*format.Header))
+	}
+	if format.NoHeader != nil {
+		values.Set("no-header", strconv.FormatBool(*format.NoHeader))
+	}
 }
 
 func parseRootOptions(args []string) (rootOptions, error) {
