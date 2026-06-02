@@ -630,7 +630,7 @@ button:disabled {
 }
 
 .profile-panel {
-  grid-template-rows: auto auto auto minmax(0, 1fr) minmax(110px, 0.38fr);
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr) minmax(110px, 0.38fr);
 }
 
 .settings-panel {
@@ -1070,7 +1070,8 @@ button:disabled {
   background: var(--panel);
 }
 
-.profile-toolbar {
+.profile-toolbar,
+.profile-schema-manager {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1078,7 +1079,8 @@ button:disabled {
   min-height: 36px;
 }
 
-.profile-toolbar button {
+.profile-toolbar button,
+.profile-schema-manager button {
   min-height: 30px;
   border-radius: 6px;
 }
@@ -1086,6 +1088,56 @@ button:disabled {
 .profile-toolbar span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.profile-schema-manager input,
+.profile-schema-manager select {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.profile-schema-manager input {
+  width: min(220px, 100%);
+  padding: 0 8px;
+}
+
+.profile-schema-manager select {
+  min-width: 190px;
+}
+
+.profile-schema-import-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--panel-subtle);
+}
+
+.profile-schema-import-panel[hidden] {
+  display: none;
+}
+
+.profile-schema-import-panel textarea {
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.profile-schema-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .profile-schema-input {

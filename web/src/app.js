@@ -130,6 +130,16 @@ const toggleProfileSchemaButton = document.querySelector("#toggleProfileSchemaBu
 const saveProfileSchemaButton = document.querySelector("#saveProfileSchemaButton");
 const resetProfileSchemaButton = document.querySelector("#resetProfileSchemaButton");
 const profileSchemaStatus = document.querySelector("#profileSchemaStatus");
+const profileSchemaNameInput = document.querySelector("#profileSchemaNameInput");
+const savedProfileSchemaSelect = document.querySelector("#savedProfileSchemaSelect");
+const applyProfileSchemaButton = document.querySelector("#applyProfileSchemaButton");
+const deleteProfileSchemaButton = document.querySelector("#deleteProfileSchemaButton");
+const exportProfileSchemasButton = document.querySelector("#exportProfileSchemasButton");
+const showImportProfileSchemasButton = document.querySelector("#showImportProfileSchemasButton");
+const profileSchemaImportPanel = document.querySelector("#profileSchemaImportPanel");
+const profileSchemaImportText = document.querySelector("#profileSchemaImportText");
+const applyProfileSchemaImportButton = document.querySelector("#applyProfileSchemaImportButton");
+const cancelProfileSchemaImportButton = document.querySelector("#cancelProfileSchemaImportButton");
 const profileSchemaInput = document.querySelector("#profileSchemaInput");
 const profileSummary = document.querySelector("#profileSummary");
 const profileColumns = document.querySelector("#profileColumns");
@@ -274,6 +284,9 @@ const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const findPageSize = 100;
 const profileSchemaStorageKey = "opencsv-profile-schema";
+const profileSchemasStorageKey = "opencsv-profile-schemas";
+const profileSchemasExportKind = "opencsv-profile-schemas";
+const profileSchemasLimit = 24;
 const defaultProfileSchemaText = `{
   "columns": [
     { "name": "id", "required": true, "type": "integer", "unique": true }
@@ -731,6 +744,7 @@ let sqlResultSelectionRange = null;
 let profileLoading = false;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
+let savedProfileSchemasState = loadSavedProfileSchemas();
 let paletteOpen = false;
 let paletteItems = [];
 let paletteIndex = 0;
@@ -10397,6 +10411,7 @@ function syncProfileSchemaControls() {
     profileSchemaStatus.textContent = "Invalid schema JSON";
     document.body.dataset.profileSchemaRules = "invalid";
   }
+  syncSavedProfileSchemaControls();
 }
 
 function toggleProfileSchemaEditor() {
@@ -10411,18 +10426,25 @@ function updateProfileSchemaDraft() {
 }
 
 function saveProfileSchema() {
+  let schema;
   try {
-    parseProfileSchemaText(profileSchemaText);
+    schema = parseProfileSchemaText(profileSchemaText);
   } catch (error) {
     status.textContent = `Schema invalid: ${error.message}`;
     syncProfileSchemaControls();
     return;
   }
-  localStorage.setItem(profileSchemaStorageKey, profileSchemaText.trim());
-  profileSchemaText = profileSchemaText.trim();
+  profileSchemaText = JSON.stringify(schema, null, 2);
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  const name = profileSchemaNameInput.value.trim();
+  let message = "Validation schema saved.";
+  if (name) {
+    const saved = saveNamedProfileSchema(name, profileSchemaText);
+    message = `Validation schema saved as ${saved.name}.`;
+  }
   profileData = null;
   syncProfileSchemaControls();
-  status.textContent = "Validation schema saved.";
+  status.textContent = message;
   void loadProfile(true);
 }
 
@@ -10433,6 +10455,212 @@ function resetProfileSchema() {
   syncProfileSchemaControls();
   status.textContent = "Validation schema reset.";
   void loadProfile(true);
+}
+
+function loadSavedProfileSchemas() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(profileSchemasStorageKey) || "[]");
+    const rawSchemas = Array.isArray(parsed) ? parsed : parsed?.schemas;
+    if (!Array.isArray(rawSchemas)) return [];
+    return uniqueSavedProfileSchemas(rawSchemas.map(normalizeSavedProfileSchema).filter(Boolean));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeSavedProfileSchema(item) {
+  if (!item || typeof item !== "object") return null;
+  const schemaText = typeof item.schemaText === "string"
+    ? item.schemaText
+    : (item.schema ? JSON.stringify(item.schema, null, 2) : "");
+  if (!schemaText.trim()) return null;
+  let schema;
+  try {
+    schema = parseProfileSchemaText(schemaText);
+  } catch {
+    return null;
+  }
+  const name = normalizeProfileSchemaName(item.name || item.title || "Validation Schema");
+  return {
+    id: typeof item.id === "string" && item.id ? item.id : profileSchemaID(name),
+    name,
+    schemaText: JSON.stringify(schema, null, 2),
+    updatedAt: typeof item.updatedAt === "string" && item.updatedAt ? item.updatedAt : new Date().toISOString(),
+  };
+}
+
+function normalizeProfileSchemaName(name) {
+  return String(name || "").replace(/\s+/g, " ").trim().slice(0, 80) || "Validation Schema";
+}
+
+function profileSchemaID(name) {
+  const slug = normalizeProfileSchemaName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32) || "schema";
+  return `${slug}-${Date.now().toString(36)}`;
+}
+
+function uniqueSavedProfileSchemas(schemas) {
+  const unique = [];
+  const seen = new Set();
+  for (const schema of schemas) {
+    const key = schema.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(schema);
+  }
+  return unique.slice(0, profileSchemasLimit);
+}
+
+function persistSavedProfileSchemas() {
+  const payload = {
+    kind: profileSchemasExportKind,
+    version: 1,
+    schemas: savedProfileSchemasState,
+  };
+  localStorage.setItem(profileSchemasStorageKey, JSON.stringify(payload));
+  document.body.dataset.profileSavedSchemaCount = String(savedProfileSchemasState.length);
+}
+
+function saveNamedProfileSchema(name, schemaText) {
+  const schema = parseProfileSchemaText(schemaText);
+  const normalizedName = normalizeProfileSchemaName(name);
+  const existing = savedProfileSchemasState.find((item) => item.name.toLowerCase() === normalizedName.toLowerCase());
+  const saved = {
+    id: existing?.id || profileSchemaID(normalizedName),
+    name: normalizedName,
+    schemaText: JSON.stringify(schema, null, 2),
+    updatedAt: new Date().toISOString(),
+  };
+  savedProfileSchemasState = uniqueSavedProfileSchemas([
+    saved,
+    ...savedProfileSchemasState.filter((item) => item.id !== saved.id && item.name.toLowerCase() !== normalizedName.toLowerCase()),
+  ]);
+  persistSavedProfileSchemas();
+  savedProfileSchemaSelect.value = saved.id;
+  document.body.dataset.profileSchemaSaved = saved.name;
+  syncSavedProfileSchemaControls(saved.id);
+  return saved;
+}
+
+function syncSavedProfileSchemaControls(preferredID = "") {
+  if (!savedProfileSchemaSelect) return;
+  const selectedID = preferredID || savedProfileSchemaSelect.value;
+  savedProfileSchemaSelect.replaceChildren(profileSchemaOption("", "Saved schemas"));
+  for (const schema of savedProfileSchemasState) {
+    savedProfileSchemaSelect.append(profileSchemaOption(schema.id, schema.name));
+  }
+  if (savedProfileSchemasState.some((schema) => schema.id === selectedID)) {
+    savedProfileSchemaSelect.value = selectedID;
+  }
+  const hasSelection = savedProfileSchemasState.some((schema) => schema.id === savedProfileSchemaSelect.value);
+  applyProfileSchemaButton.disabled = !hasSelection;
+  deleteProfileSchemaButton.disabled = !hasSelection;
+  exportProfileSchemasButton.disabled = savedProfileSchemasState.length === 0;
+  applyProfileSchemaImportButton.disabled = profileSchemaImportText.value.trim() === "";
+  document.body.dataset.profileSavedSchemaCount = String(savedProfileSchemasState.length);
+}
+
+function profileSchemaOption(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+function applySavedProfileSchema() {
+  const schema = savedProfileSchemasState.find((item) => item.id === savedProfileSchemaSelect.value);
+  if (!schema) {
+    status.textContent = "Saved schema not found.";
+    syncSavedProfileSchemaControls();
+    return;
+  }
+  profileSchemaText = schema.schemaText;
+  profileSchemaVisible = true;
+  profileSchemaNameInput.value = schema.name;
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  profileData = null;
+  document.body.dataset.profileSchemaApplied = schema.name;
+  syncProfileSchemaControls();
+  status.textContent = `Applied schema ${schema.name}.`;
+  void loadProfile(true);
+}
+
+function deleteSavedProfileSchema() {
+  const selectedID = savedProfileSchemaSelect.value;
+  const before = savedProfileSchemasState.length;
+  savedProfileSchemasState = savedProfileSchemasState.filter((schema) => schema.id !== selectedID);
+  persistSavedProfileSchemas();
+  savedProfileSchemaSelect.value = "";
+  syncSavedProfileSchemaControls();
+  status.textContent = before === savedProfileSchemasState.length ? "Saved schema not found." : "Deleted saved schema.";
+}
+
+function exportProfileSchemas() {
+  const payload = {
+    kind: profileSchemasExportKind,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    schemas: savedProfileSchemasState,
+  };
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  window.__opencsvLastProfileSchemaExportText = text;
+  document.body.dataset.profileSchemaExport = String(savedProfileSchemasState.length);
+  document.body.dataset.profileSchemaExportPreview = text.slice(0, 500);
+  triggerDownload(text, "opencsv-profile-schemas.json", "application/json;charset=utf-8");
+  status.textContent = `Exported ${formatCount(savedProfileSchemasState.length)} profile schemas.`;
+}
+
+function showProfileSchemaImportPanel() {
+  profileSchemaImportPanel.hidden = false;
+  profileSchemaImportText.value = "";
+  document.body.dataset.profileSchemaImportPanel = "open";
+  syncSavedProfileSchemaControls();
+  profileSchemaImportText.focus();
+}
+
+function cancelProfileSchemaImport() {
+  profileSchemaImportPanel.hidden = true;
+  profileSchemaImportText.value = "";
+  document.body.dataset.profileSchemaImportPanel = "closed";
+  syncSavedProfileSchemaControls();
+}
+
+function applyProfileSchemaImport() {
+  try {
+    const imported = parseProfileSchemaImport(profileSchemaImportText.value);
+    savedProfileSchemasState = uniqueSavedProfileSchemas([...imported, ...savedProfileSchemasState]);
+    persistSavedProfileSchemas();
+    profileSchemaImportPanel.hidden = true;
+    profileSchemaImportText.value = "";
+    document.body.dataset.profileSchemaImport = String(imported.length);
+    document.body.dataset.profileSchemaImportPanel = "closed";
+    syncSavedProfileSchemaControls();
+    status.textContent = `Imported ${formatCount(imported.length)} profile schemas.`;
+  } catch (error) {
+    status.textContent = `Profile schema import failed: ${error.message}`;
+    document.body.dataset.profileSchemaImport = "error";
+  }
+}
+
+function parseProfileSchemaImport(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("invalid JSON");
+  }
+  const rawSchemas = Array.isArray(parsed) ? parsed : parsed?.schemas;
+  const directSchema = !Array.isArray(rawSchemas) && Array.isArray(parsed?.columns)
+    ? [{ name: parsed.name || "Imported Schema", schema: parsed }]
+    : [];
+  const schemas = Array.isArray(rawSchemas) ? rawSchemas : directSchema;
+  if (!Array.isArray(schemas)) throw new Error("missing schemas array");
+  const normalized = schemas.map(normalizeSavedProfileSchema).filter(Boolean);
+  if (normalized.length === 0) throw new Error("no valid schemas");
+  return normalized;
 }
 
 async function loadProfile(force = false) {
@@ -11549,6 +11777,14 @@ async function openInitialURLTarget() {
       if (profileSchemaParam != null) {
         profileSchemaText = profileSchemaParam;
         profileSchemaVisible = true;
+        const profileSchemaNameParam = params.get("profileSchemaName");
+        if (profileSchemaNameParam != null) profileSchemaNameInput.value = profileSchemaNameParam;
+        if (truthyParam(params.get("profileSchemaSave"))) {
+          const saved = saveNamedProfileSchema(profileSchemaNameParam || "URL Profile Schema", profileSchemaText);
+          localStorage.setItem(profileSchemaStorageKey, saved.schemaText);
+          profileSchemaText = saved.schemaText;
+          document.body.dataset.profileSchemaUrlSave = saved.name;
+        }
         syncProfileSchemaControls();
       }
       if (profileSchemaParam != null || truthyParam(params.get("profileRun"))) {
@@ -11713,6 +11949,14 @@ toggleProfileSchemaButton.addEventListener("click", toggleProfileSchemaEditor);
 profileSchemaInput.addEventListener("input", updateProfileSchemaDraft);
 saveProfileSchemaButton.addEventListener("click", saveProfileSchema);
 resetProfileSchemaButton.addEventListener("click", resetProfileSchema);
+savedProfileSchemaSelect.addEventListener("change", () => syncSavedProfileSchemaControls());
+applyProfileSchemaButton.addEventListener("click", applySavedProfileSchema);
+deleteProfileSchemaButton.addEventListener("click", deleteSavedProfileSchema);
+exportProfileSchemasButton.addEventListener("click", exportProfileSchemas);
+showImportProfileSchemasButton.addEventListener("click", showProfileSchemaImportPanel);
+profileSchemaImportText.addEventListener("input", () => syncSavedProfileSchemaControls());
+applyProfileSchemaImportButton.addEventListener("click", applyProfileSchemaImport);
+cancelProfileSchemaImportButton.addEventListener("click", cancelProfileSchemaImport);
 settingsTabButton.addEventListener("click", openSettingsPanel);
 paletteButton.addEventListener("click", openCommandPalette);
 copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));

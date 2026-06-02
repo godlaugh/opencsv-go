@@ -153,6 +153,23 @@
                   <button id="resetProfileSchemaButton" type="button">Reset Schema</button>
                   <span id="profileSchemaStatus">No schema</span>
                 </div>
+                <div class="profile-schema-manager" aria-label="Saved validation schemas">
+                  <input id="profileSchemaNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="Schema name" aria-label="Schema name" />
+                  <select id="savedProfileSchemaSelect" aria-label="Saved validation schemas">
+                    <option value="">Saved schemas</option>
+                  </select>
+                  <button id="applyProfileSchemaButton" type="button">Apply</button>
+                  <button id="deleteProfileSchemaButton" type="button">Delete</button>
+                  <button id="exportProfileSchemasButton" type="button">Export</button>
+                  <button id="showImportProfileSchemasButton" type="button">Import</button>
+                </div>
+                <div id="profileSchemaImportPanel" class="profile-schema-import-panel" hidden>
+                  <textarea id="profileSchemaImportText" spellcheck="false" aria-label="Profile schema import JSON" placeholder='{"kind":"opencsv-profile-schemas","schemas":[]}'></textarea>
+                  <div class="profile-schema-import-actions">
+                    <button id="applyProfileSchemaImportButton" type="button">Import</button>
+                    <button id="cancelProfileSchemaImportButton" type="button">Cancel</button>
+                  </div>
+                </div>
                 <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" hidden>{
   "columns": [
     { "name": "id", "required": true, "type": "integer", "unique": true }

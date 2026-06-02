@@ -567,6 +567,7 @@ The app shall validate:
 - Empty headers.
 - Type-profile anomalies.
 - User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, and numeric ranges.
+- Saved schema/rule sets with JSON import and export.
 
 Acceptance:
 
