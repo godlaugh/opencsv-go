@@ -485,6 +485,7 @@ The app shall provide an `opencsv` command:
 - `--wait`, `-w`.
 - `--version`, `-v`.
 - `--help`, `-h`.
+- `opencsv grep` for cell search from scripts.
 
 Acceptance:
 

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,8 @@ func main() {
 		err = generate(os.Args[2:])
 	case "save":
 		err = save(os.Args[2:])
+	case "grep":
+		err = grep(os.Args[2:])
 	case "serve":
 		err = serve(os.Args[2:])
 	case "bench":
@@ -72,6 +75,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  opencsv inspect [-rows 20] <file>")
 	fmt.Fprintln(os.Stderr, "  opencsv generate [-rows 1000] [-cols 12] <file>")
 	fmt.Fprintln(os.Stderr, "  opencsv save [-out copy.csv] [-backup=true] <file>")
+	fmt.Fprintln(os.Stderr, "  opencsv grep [-i] [-regex] [-col name|index] [-limit 100] <query> <file>")
 	fmt.Fprintln(os.Stderr, "  opencsv serve [-addr 127.0.0.1:43255] [-web web]")
 	fmt.Fprintln(os.Stderr, "  opencsv bench [-rows 100000] [-cols 16] [-out /tmp/opencsv-bench.csv]")
 }
@@ -528,6 +532,179 @@ func save(args []string) error {
 		return err
 	}
 	return printJSON(result)
+}
+
+type grepOptions struct {
+	IgnoreCase bool
+	Regex      bool
+	Column     string
+	Limit      int
+}
+
+type grepMatch struct {
+	RowNumber    int    `json:"rowNumber"`
+	ColumnNumber int    `json:"columnNumber"`
+	ColumnName   string `json:"columnName,omitempty"`
+	Value        string `json:"value"`
+}
+
+type grepResult struct {
+	Path       string      `json:"path"`
+	Query      string      `json:"query"`
+	Column     string      `json:"column,omitempty"`
+	IgnoreCase bool        `json:"ignoreCase"`
+	Regex      bool        `json:"regex"`
+	Total      int         `json:"total"`
+	Truncated  bool        `json:"truncated"`
+	Matches    []grepMatch `json:"matches"`
+}
+
+func grep(args []string) error {
+	flags := flag.NewFlagSet("grep", flag.ExitOnError)
+	ignoreCase := flags.Bool("i", false, "case-insensitive search")
+	ignoreCaseLong := flags.Bool("ignore-case", false, "case-insensitive search")
+	regex := flags.Bool("regex", false, "treat query as a regular expression")
+	column := flags.String("col", "", "column name or 1-based column number to search")
+	limit := flags.Int("limit", 100, "maximum matches to include; 0 means unlimited")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 2 {
+		return fmt.Errorf("grep expects a query and one file path")
+	}
+	result, err := grepFile(flags.Arg(1), flags.Arg(0), grepOptions{
+		IgnoreCase: *ignoreCase || *ignoreCaseLong,
+		Regex:      *regex,
+		Column:     *column,
+		Limit:      *limit,
+	})
+	if err != nil {
+		return err
+	}
+	return printJSON(result)
+}
+
+func grepFile(path string, query string, options grepOptions) (grepResult, error) {
+	if path == "-" {
+		return grepResult{}, usageError("grep expects a file path, not stdin")
+	}
+	if query == "" {
+		return grepResult{}, usageError("grep query must not be empty")
+	}
+	if options.Limit < 0 {
+		return grepResult{}, usageError("-limit must be non-negative")
+	}
+	document, err := csvcore.OpenDocument(path, csvcore.OpenOptions{PreviewRows: 1, IndexRows: -1})
+	if err != nil {
+		return grepResult{}, err
+	}
+	records, err := csvcore.ReadAllRecords(path, document.Metadata)
+	if err != nil {
+		return grepResult{}, err
+	}
+	columnIndex, err := resolveGrepColumn(options.Column, records, document.Metadata)
+	if err != nil {
+		return grepResult{}, err
+	}
+	matches, err := grepMatcher(query, options)
+	if err != nil {
+		return grepResult{}, err
+	}
+	result := grepResult{
+		Path:       path,
+		Query:      query,
+		Column:     options.Column,
+		IgnoreCase: options.IgnoreCase,
+		Regex:      options.Regex,
+		Matches:    []grepMatch{},
+	}
+	header := recordsHeader(records, document.Metadata)
+	for rowIndex, record := range records {
+		startCol := 0
+		endCol := len(record)
+		if columnIndex >= 0 {
+			startCol = columnIndex
+			endCol = columnIndex + 1
+		}
+		for colIndex := startCol; colIndex < endCol; colIndex++ {
+			value := ""
+			if colIndex < len(record) {
+				value = record[colIndex]
+			}
+			if !matches(value) {
+				continue
+			}
+			result.Total++
+			if options.Limit == 0 || len(result.Matches) < options.Limit {
+				result.Matches = append(result.Matches, grepMatch{
+					RowNumber:    rowIndex + 1,
+					ColumnNumber: colIndex + 1,
+					ColumnName:   headerName(header, colIndex),
+					Value:        value,
+				})
+			}
+		}
+	}
+	result.Truncated = result.Total > len(result.Matches)
+	return result, nil
+}
+
+func resolveGrepColumn(raw string, records [][]string, metadata csvcore.FileMetadata) (int, error) {
+	if raw == "" {
+		return -1, nil
+	}
+	if columnNumber, err := strconv.Atoi(raw); err == nil {
+		if columnNumber <= 0 {
+			return -1, usageError("-col index must be 1 or greater")
+		}
+		return columnNumber - 1, nil
+	}
+	header := recordsHeader(records, metadata)
+	for index, name := range header {
+		if name == raw || strings.EqualFold(name, raw) {
+			return index, nil
+		}
+	}
+	return -1, usageError(fmt.Sprintf("column %q not found", raw))
+}
+
+func grepMatcher(query string, options grepOptions) (func(string) bool, error) {
+	if options.Regex {
+		pattern := query
+		if options.IgnoreCase {
+			pattern = "(?i:" + query + ")"
+		}
+		expression, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+		return func(value string) bool {
+			return expression.MatchString(value)
+		}, nil
+	}
+	if options.IgnoreCase {
+		needle := strings.ToLower(query)
+		return func(value string) bool {
+			return strings.Contains(strings.ToLower(value), needle)
+		}, nil
+	}
+	return func(value string) bool {
+		return strings.Contains(value, query)
+	}, nil
+}
+
+func recordsHeader(records [][]string, metadata csvcore.FileMetadata) []string {
+	if !metadata.Dialect.HasHeader || len(records) == 0 {
+		return nil
+	}
+	return records[0]
+}
+
+func headerName(header []string, index int) string {
+	if index >= 0 && index < len(header) {
+		return header[index]
+	}
+	return ""
 }
 
 func serve(args []string) error {

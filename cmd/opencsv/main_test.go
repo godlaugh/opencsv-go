@@ -131,3 +131,71 @@ func TestOpenCLITargetReadsStdin(t *testing.T) {
 		t.Fatalf("preview = %#v", document.Preview)
 	}
 }
+
+func TestGrepFileFindsCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "grep.csv")
+	if err := os.WriteFile(path, []byte("id,name,note\n1,Ada,Lovelace\n2,Grace,Ada friend\n3,Linus,kernel\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := grepFile(path, "Ada", grepOptions{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 2 || result.Truncated {
+		t.Fatalf("grep result = %#v, want two untruncated matches", result)
+	}
+	if result.Matches[0].RowNumber != 2 || result.Matches[0].ColumnNumber != 2 || result.Matches[0].ColumnName != "name" {
+		t.Fatalf("first match = %#v", result.Matches[0])
+	}
+	if result.Matches[1].RowNumber != 3 || result.Matches[1].ColumnNumber != 3 || result.Matches[1].ColumnName != "note" {
+		t.Fatalf("second match = %#v", result.Matches[1])
+	}
+}
+
+func TestGrepFileColumnIgnoreCaseAndLimit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "grep-column.csv")
+	if err := os.WriteFile(path, []byte("id,name,note\n1,Ada,Lovelace\n2,Grace,Ada friend\n3,Linus,kernel\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := grepFile(path, "ada", grepOptions{IgnoreCase: true, Column: "name", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 1 || result.Matches[0].Value != "Ada" {
+		t.Fatalf("case-insensitive column grep = %#v", result)
+	}
+
+	limited, err := grepFile(path, "a", grepOptions{IgnoreCase: true, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if limited.Total <= len(limited.Matches) || !limited.Truncated || len(limited.Matches) != 1 {
+		t.Fatalf("limited grep = %#v, want one stored truncated match", limited)
+	}
+}
+
+func TestGrepFileRegexAndErrors(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "grep-regex.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := grepFile(path, "^A", grepOptions{Regex: true, Column: "2", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 1 || result.Matches[0].Value != "Ada" {
+		t.Fatalf("regex grep = %#v", result)
+	}
+	if _, err := grepFile(path, "Ada", grepOptions{Column: "missing"}); err == nil {
+		t.Fatal("expected missing column error")
+	}
+	if _, err := grepFile(path, "[", grepOptions{Regex: true}); err == nil {
+		t.Fatal("expected invalid regex error")
+	}
+}

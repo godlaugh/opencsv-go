@@ -89,6 +89,7 @@ flowchart TD
   - Developer subcommands for open/inspect/generate/save/serve/bench.
   - Product root syntax `opencsv [options] [path ...]`.
   - Root CLI opens file targets and stdin (`opencsv -`), parses official goto/diff/format/window flags, and emits an invocation document for the current local prototype.
+  - CLI grep scans cells with optional case-insensitive, regex, column-targeted, and limited JSON output.
 
 - `pkg/commands`
   - Command IDs and metadata.
@@ -631,6 +632,7 @@ Output:
 - URL parser.
 - CLI parser.
 - CLI stdin target.
+- CLI grep command.
 
 ### API Tests
 

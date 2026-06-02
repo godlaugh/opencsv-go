@@ -94,6 +94,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-008/015 | SQL Console result context menu and URL-run workflow | Started | Browser multi-source SQL/context-menu verification |
 | FR-014/016 | Column profile and CSVLint-style validation foundation | Started | `pkg/dataprofile` tests, `/api/profile`, Browser Profile View verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
+| FR-010 | CLI CSV grep foundation | Started | `cmd/opencsv` tests, CLI smoke |
 | FR-010/011 | URL format query overrides for browser open | Started | `/api/open` test, Browser URL/save verification |
 | FR-011 | Browser URL row/cell/range jump foundation | Started | Browser URL selection verification |
 | FR-010 | CLI stdin open foundation | Started | `cmd/opencsv` test, CLI smoke |
@@ -267,7 +268,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - `csvcore.RecordWindow` now includes `sourceRows` so UI edits can target the original source row even when a filtered/sorted view is active.
 - `pkg/sqlexpr` provides the first SQL WHERE expression engine for row filters: identifiers/header names, `c1` columns, comparisons, `AND`/`OR`/`NOT`, `LIKE`, `IS NULL`, arithmetic, `CAST`/`TRY_CAST`, core string/numeric/conditional functions, validated date/time/timestamp literals, and first-pass interval literals/casts.
 - `pkg/protocol` parses official-style goto locations and `smoothcsv://file/...` URLs, including row/cell/range locations and shared format query parameters.
-- Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands.
+- Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands. The `opencsv grep` subcommand emits JSON cell matches with case-insensitive, regex, column-targeted, and limited-result options.
 - CLI open applies delimiter, encoding, quote character, quote mode, and header-row overrides to `csvcore.OpenDocument`.
 - CLI/API/URL open now propagate `header-columns`/`headerColumns` into CSV dialect metadata. The frontend shows header-column count in the format status and preserves it in saved/imported/exported format presets.
 - Browser URL boot-open now applies `delimiter`, `quote`, `quote-mode`, `encoding`, and header query params to `/api/open`, with explicit URL params taking precedence over matched format rules.
