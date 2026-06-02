@@ -10391,14 +10391,113 @@ function parseProfileSchemaText(text) {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const parsed = JSON.parse(trimmed);
-  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.columns)) {
-    throw new Error("Schema must be an object with a columns array.");
-  }
-  return parsed;
+  return normalizeProfileSchemaObject(parsed);
 }
 
 function activeProfileSchema() {
   return parseProfileSchemaText(profileSchemaText);
+}
+
+function normalizeProfileSchemaObject(value) {
+  if (!value || typeof value !== "object") {
+    throw new Error("Schema must be an object.");
+  }
+  const source = profileSchemaSourceObject(value);
+  const columns = profileSchemaSourceColumns(source);
+  if (!columns.length) {
+    throw new Error("Schema must include columns or fields.");
+  }
+  const requiredNames = schemaNameSet(source.required);
+  const primaryKeyNames = schemaNameSet(source.primaryKey ?? source.primaryKeys);
+  const normalized = columns
+    .map((column) => normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames))
+    .filter(Boolean);
+  if (!normalized.length) {
+    throw new Error("Schema has no valid columns.");
+  }
+  return { columns: normalized };
+}
+
+function profileSchemaSourceObject(value) {
+  if (Array.isArray(value.fields) || Array.isArray(value.columns)) return value;
+  if (value.schema && typeof value.schema === "object") return profileSchemaSourceObject(value.schema);
+  if (value.tableSchema && typeof value.tableSchema === "object") return profileSchemaSourceObject(value.tableSchema);
+  if (Array.isArray(value.tables)) {
+    for (const table of value.tables) {
+      if (table?.schema || table?.tableSchema) return profileSchemaSourceObject(table.schema || table.tableSchema);
+    }
+  }
+  return value;
+}
+
+function profileSchemaSourceColumns(source) {
+  if (Array.isArray(source.columns)) return source.columns;
+  if (Array.isArray(source.fields)) return source.fields;
+  return [];
+}
+
+function schemaNameSet(value) {
+  if (typeof value === "string") return new Set([value]);
+  if (!Array.isArray(value)) return new Set();
+  return new Set(value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()));
+}
+
+function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
+  if (!column || typeof column !== "object") return null;
+  const constraints = column.constraints && typeof column.constraints === "object" ? column.constraints : {};
+  const datatype = column.datatype ?? column.dataType ?? column.type;
+  const datatypeObject = datatype && typeof datatype === "object" ? datatype : {};
+  const name = String(column.name ?? column.title ?? column.label ?? "").trim();
+  const columnNumber = schemaPositiveInteger(column.column ?? column.index ?? column.number);
+  const rule = {};
+  if (name) rule.name = name;
+  if (columnNumber) rule.column = columnNumber;
+  const type = normalizeProfileSchemaType(datatypeObject.base ?? datatypeObject.type ?? datatype);
+  if (type) rule.type = type;
+  if (Boolean(column.required ?? constraints.required) || requiredNames.has(name) || primaryKeyNames.has(name)) rule.required = true;
+  if (Boolean(column.unique ?? constraints.unique) || primaryKeyNames.has(name)) rule.unique = true;
+  const enumValues = schemaArrayValues(column.enum ?? constraints.enum ?? constraints.oneOf ?? constraints.values ?? constraints.in);
+  if (enumValues.length) rule.enum = enumValues;
+  const pattern = String(column.pattern ?? constraints.pattern ?? constraints.regex ?? "").trim();
+  if (pattern) rule.pattern = pattern;
+  const min = schemaNumber(column.min ?? column.minimum ?? constraints.min ?? constraints.minimum ?? datatypeObject.min ?? datatypeObject.minimum);
+  const max = schemaNumber(column.max ?? column.maximum ?? constraints.max ?? constraints.maximum ?? datatypeObject.max ?? datatypeObject.maximum);
+  if (min != null) rule.min = min;
+  if (max != null) rule.max = max;
+  return ruleHasValidation(rule) ? rule : null;
+}
+
+function schemaPositiveInteger(value) {
+  const number = Number.parseInt(value, 10);
+  return Number.isInteger(number) && number > 0 ? number : 0;
+}
+
+function schemaNumber(value) {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function schemaArrayValues(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeProfileSchemaType(value) {
+  const type = String(value ?? "").toLowerCase().trim();
+  if (!type) return "";
+  if (["integer", "int", "long"].includes(type)) return "integer";
+  if (["number", "numeric", "float", "double"].includes(type)) return "number";
+  if (["decimal"].includes(type)) return "decimal";
+  if (["boolean", "bool"].includes(type)) return "boolean";
+  if (["date", "datetime", "date-time", "timestamp"].includes(type)) return "date";
+  if (["string", "text", "uri", "url", "email"].includes(type)) return "string";
+  return type;
 }
 
 function syncProfileSchemaControls() {
@@ -10670,9 +10769,14 @@ function parseProfileSchemaImport(text) {
     throw new Error("invalid JSON");
   }
   const rawSchemas = Array.isArray(parsed) ? parsed : parsed?.schemas;
-  const directSchema = !Array.isArray(rawSchemas) && Array.isArray(parsed?.columns)
-    ? [{ name: parsed.name || "Imported Schema", schema: parsed }]
-    : [];
+  let directSchema = [];
+  if (!Array.isArray(rawSchemas)) {
+    try {
+      directSchema = [{ name: parsed.name || parsed.title || "Imported Schema", schema: normalizeProfileSchemaObject(parsed) }];
+    } catch {
+      directSchema = [];
+    }
+  }
   const schemas = Array.isArray(rawSchemas) ? rawSchemas : directSchema;
   if (!Array.isArray(schemas)) throw new Error("missing schemas array");
   const normalized = schemas.map(normalizeSavedProfileSchema).filter(Boolean);
