@@ -102,6 +102,73 @@ func TestDecodeWorkbookReadsSharedStringsBooleansAndGaps(t *testing.T) {
 	}
 }
 
+func TestDecodeWorkbookCanSelectWorksheet(t *testing.T) {
+	data, err := EncodeWorkbookSheets([]WorkbookSheet{
+		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
+		{Name: "Data", Records: [][]string{{"id", "name"}, {"1", "Ada"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sheets, err := WorkbookSheets(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sheets) != 2 || sheets[0].Name != "Summary" || sheets[1].Name != "Data" {
+		t.Fatalf("sheets = %#v", sheets)
+	}
+
+	records, sheets, selected, err := DecodeWorkbookWithOptions(data, DecodeOptions{SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.Index != 2 || selected.Name != "Data" || selected.Path != "xl/worksheets/sheet2.xml" {
+		t.Fatalf("selected = %#v", selected)
+	}
+	if len(sheets) != 2 {
+		t.Fatalf("sheet list = %#v", sheets)
+	}
+	if got := strings.Join(records[1], ","); got != "1,Ada" {
+		t.Fatalf("selected records = %#v", records)
+	}
+
+	records, _, selected, err = DecodeWorkbookWithOptions(data, DecodeOptions{SheetIndex: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.Name != "Summary" || strings.Join(records[1], ",") != "rows,2" {
+		t.Fatalf("index-selected records = %#v selected=%#v", records, selected)
+	}
+}
+
+func TestUpdateWorkbookSheetPreservesOtherSheets(t *testing.T) {
+	data, err := EncodeWorkbookSheets([]WorkbookSheet{
+		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
+		{Name: "Data", Records: [][]string{{"id", "name"}, {"1", "Ada"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := UpdateWorkbookSheet(data, "xl/worksheets/sheet2.xml", [][]string{{"id", "name"}, {"2", "Grace"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary, _, selected, err := DecodeWorkbookWithOptions(updated, DecodeOptions{SheetName: "Summary"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.Name != "Summary" || strings.Join(summary[1], ",") != "rows,2" {
+		t.Fatalf("summary changed: %#v selected=%#v", summary, selected)
+	}
+	dataRecords, _, selected, err := DecodeWorkbookWithOptions(updated, DecodeOptions{SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.Name != "Data" || strings.Join(dataRecords[1], ",") != "2,Grace" {
+		t.Fatalf("data sheet not updated: %#v selected=%#v", dataRecords, selected)
+	}
+}
+
 func zippedWorkbook(t *testing.T, entries map[string]string) []byte {
 	t.Helper()
 	var buffer bytes.Buffer

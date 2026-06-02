@@ -124,7 +124,10 @@ func openDocumentForPath(path string, options csvcore.OpenOptions) (csvcore.Docu
 }
 
 func openXLSXDocument(path string, options csvcore.OpenOptions) (csvcore.Document, string, error) {
-	records, err := xlsx.DecodeFile(path)
+	records, sheets, selected, err := xlsx.DecodeFileWithOptions(path, xlsx.DecodeOptions{
+		SheetName:  options.SheetName,
+		SheetIndex: options.SheetIndex,
+	})
 	if err != nil {
 		return csvcore.Document{}, "", err
 	}
@@ -141,7 +144,28 @@ func openXLSXDocument(path string, options csvcore.OpenOptions) (csvcore.Documen
 		document.Metadata.SizeBytes = info.Size()
 	}
 	document.Metadata.Path = path
+	document.Metadata.Workbook = workbookInfo(sheets, selected)
 	return document, workingPath, nil
+}
+
+func workbookInfo(sheets []xlsx.WorksheetInfo, selected xlsx.WorksheetInfo) *csvcore.WorkbookInfo {
+	if len(sheets) == 0 {
+		return nil
+	}
+	info := &csvcore.WorkbookInfo{
+		Sheets:             make([]csvcore.WorkbookSheetInfo, 0, len(sheets)),
+		SelectedSheetIndex: selected.Index,
+		SelectedSheetName:  selected.Name,
+		SelectedSheetPath:  selected.Path,
+	}
+	for _, sheet := range sheets {
+		info.Sheets = append(info.Sheets, csvcore.WorkbookSheetInfo{
+			Index: sheet.Index,
+			Name:  sheet.Name,
+			Path:  sheet.Path,
+		})
+	}
+	return info
 }
 
 func writeImportedXLSXWorkingCopy(sourcePath string, records [][]string) (string, error) {
@@ -1440,7 +1464,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	}
 	var result csvcore.SaveResult
 	if isXLSXPath(outputPath) {
-		result, err = saveXLSXRecords(outputPath, records, createBackup)
+		result, err = saveXLSXRecords(outputPath, records, createBackup, selectedWorkbookSheetPath(session.Document.Metadata))
 	} else {
 		result, err = csvcore.SaveRecords(outputPath, session.Document.Metadata, records, csvcore.SaveOptions{CreateBackup: createBackup})
 	}
@@ -1462,6 +1486,8 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		Encoding:      &session.Document.Metadata.Encoding,
 		QuoteChar:     &session.Document.Metadata.Dialect.QuoteChar,
 		QuoteMode:     session.Document.Metadata.Dialect.QuoteMode,
+		SheetName:     selectedWorkbookSheetName(session.Document.Metadata),
+		SheetIndex:    selectedWorkbookSheetIndex(session.Document.Metadata),
 	})
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -1481,7 +1507,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	return result, nil
 }
 
-func saveXLSXRecords(path string, records [][]string, createBackup bool) (csvcore.SaveResult, error) {
+func saveXLSXRecords(path string, records [][]string, createBackup bool, sheetPath string) (csvcore.SaveResult, error) {
 	var backupPath string
 	if createBackup {
 		var err error
@@ -1490,9 +1516,23 @@ func saveXLSXRecords(path string, records [][]string, createBackup bool) (csvcor
 			return csvcore.SaveResult{}, err
 		}
 	}
-	data, err := xlsx.EncodeWorkbook(records)
-	if err != nil {
-		return csvcore.SaveResult{}, err
+	var data []byte
+	var err error
+	if sheetPath != "" {
+		var existing []byte
+		existing, err = os.ReadFile(path)
+		if err == nil {
+			data, err = xlsx.UpdateWorkbookSheet(existing, sheetPath, records)
+			if err != nil {
+				return csvcore.SaveResult{}, err
+			}
+		}
+	}
+	if data == nil {
+		data, err = xlsx.EncodeWorkbook(records)
+		if err != nil {
+			return csvcore.SaveResult{}, err
+		}
 	}
 	tmpPath := path + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
@@ -1507,6 +1547,27 @@ func saveXLSXRecords(path string, records [][]string, createBackup bool) (csvcor
 		return csvcore.SaveResult{}, err
 	}
 	return csvcore.SaveResult{Path: path, BackupPath: backupPath, SizeBytes: info.Size()}, nil
+}
+
+func selectedWorkbookSheetPath(metadata csvcore.FileMetadata) string {
+	if metadata.Workbook == nil {
+		return ""
+	}
+	return metadata.Workbook.SelectedSheetPath
+}
+
+func selectedWorkbookSheetName(metadata csvcore.FileMetadata) string {
+	if metadata.Workbook == nil {
+		return ""
+	}
+	return metadata.Workbook.SelectedSheetName
+}
+
+func selectedWorkbookSheetIndex(metadata csvcore.FileMetadata) int {
+	if metadata.Workbook == nil {
+		return 0
+	}
+	return metadata.Workbook.SelectedSheetIndex
 }
 
 func (manager *Manager) ListBackups(id string) ([]BackupInfo, error) {
@@ -1585,7 +1646,10 @@ func (manager *Manager) RestoreBackup(id string, backupPath string) (MutationRes
 
 	var records [][]string
 	if isXLSXPath(session.trackedPath()) {
-		records, err = xlsx.DecodeFile(cleanBackupPath)
+		records, _, _, err = xlsx.DecodeFileWithOptions(cleanBackupPath, xlsx.DecodeOptions{
+			SheetName:  selectedWorkbookSheetName(session.Document.Metadata),
+			SheetIndex: selectedWorkbookSheetIndex(session.Document.Metadata),
+		})
 	} else {
 		records, err = csvcore.ReadAllRecords(cleanBackupPath, session.Document.Metadata)
 	}
@@ -2545,7 +2609,7 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 	delimiterName := session.Document.Metadata.Dialect.DelimiterName
 	hasHeader := session.Document.Metadata.Dialect.HasHeader
 	headerColumns := session.Document.Metadata.Dialect.HeaderColumns
-	refreshed, err := csvcore.OpenDocument(path, csvcore.OpenOptions{
+	refreshed, refreshedWorkingPath, err := openDocumentForPath(path, csvcore.OpenOptions{
 		PreviewRows:   max(160, len(session.Document.Preview)),
 		IndexRows:     -1,
 		Delimiter:     &delimiter,
@@ -2553,6 +2617,8 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 		HasHeader:     &hasHeader,
 		HeaderColumns: &headerColumns,
 		Encoding:      &session.Document.Metadata.Encoding,
+		SheetName:     selectedWorkbookSheetName(session.Document.Metadata),
+		SheetIndex:    selectedWorkbookSheetIndex(session.Document.Metadata),
 	})
 	if err != nil {
 		return nil, err
@@ -2564,7 +2630,7 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 	if !ok {
 		return nil, errors.New("document not found")
 	}
-	current.WorkingPath = path
+	current.WorkingPath = refreshedWorkingPath
 	current.Document = refreshed
 	current.Edits = make(map[Cell]string)
 	current.ViewRows = nil

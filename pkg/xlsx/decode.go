@@ -14,15 +14,69 @@ import (
 	"unicode"
 )
 
+type WorksheetInfo struct {
+	Index          int    `json:"index"`
+	Name           string `json:"name"`
+	Path           string `json:"path,omitempty"`
+	RelationshipID string `json:"-"`
+}
+
+type DecodeOptions struct {
+	SheetName  string
+	SheetIndex int
+}
+
 func DecodeFile(path string) ([][]string, error) {
+	records, _, _, err := DecodeFileWithOptions(path, DecodeOptions{})
+	return records, err
+}
+
+func DecodeFileWithOptions(path string, options DecodeOptions) ([][]string, []WorksheetInfo, WorksheetInfo, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, WorksheetInfo{}, err
 	}
-	return DecodeWorkbook(data)
+	return DecodeWorkbookWithOptions(data, options)
 }
 
 func DecodeWorkbook(data []byte) ([][]string, error) {
+	records, _, _, err := DecodeWorkbookWithOptions(data, DecodeOptions{})
+	return records, err
+}
+
+func DecodeWorkbookWithOptions(data []byte, options DecodeOptions) ([][]string, []WorksheetInfo, WorksheetInfo, error) {
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	entries, err := zipEntries(reader)
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	sheets, err := workbookSheets(entries)
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	selected, err := selectWorksheet(sheets, options)
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	sharedStrings, err := parseSharedStrings(entries["xl/sharedStrings.xml"])
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	sheet, ok := entries[selected.Path]
+	if !ok {
+		return nil, nil, WorksheetInfo{}, fmt.Errorf("worksheet %q not found", selected.Path)
+	}
+	records, err := parseSheet(sheet, sharedStrings)
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
+	return records, sheets, selected, nil
+}
+
+func WorkbookSheets(data []byte) ([]WorksheetInfo, error) {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, err
@@ -31,19 +85,7 @@ func DecodeWorkbook(data []byte) ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sheetPath, err := firstWorksheetPath(entries)
-	if err != nil {
-		return nil, err
-	}
-	sharedStrings, err := parseSharedStrings(entries["xl/sharedStrings.xml"])
-	if err != nil {
-		return nil, err
-	}
-	sheet, ok := entries[sheetPath]
-	if !ok {
-		return nil, fmt.Errorf("worksheet %q not found", sheetPath)
-	}
-	return parseSheet(sheet, sharedStrings)
+	return workbookSheets(entries)
 }
 
 func zipEntries(reader *zip.Reader) (map[string][]byte, error) {
@@ -64,29 +106,11 @@ func zipEntries(reader *zip.Reader) (map[string][]byte, error) {
 }
 
 func firstWorksheetPath(entries map[string][]byte) (string, error) {
-	workbook, ok := entries["xl/workbook.xml"]
-	if !ok {
-		if _, hasSheet := entries["xl/worksheets/sheet1.xml"]; hasSheet {
-			return "xl/worksheets/sheet1.xml", nil
-		}
-		return "", errors.New("xlsx workbook.xml not found")
-	}
-	firstRelID, err := firstSheetRelID(workbook)
+	sheets, err := workbookSheets(entries)
 	if err != nil {
 		return "", err
 	}
-	rels, err := workbookRelationships(entries["xl/_rels/workbook.xml.rels"])
-	if err != nil {
-		return "", err
-	}
-	target, ok := rels[firstRelID]
-	if !ok || target == "" {
-		return "", fmt.Errorf("worksheet relationship %q not found", firstRelID)
-	}
-	if strings.HasPrefix(target, "/") {
-		return strings.TrimPrefix(path.Clean(target), "/"), nil
-	}
-	return path.Clean(path.Join("xl", target)), nil
+	return sheets[0].Path, nil
 }
 
 func firstSheetRelID(workbook []byte) (string, error) {
@@ -111,6 +135,98 @@ func firstSheetRelID(workbook []byte) (string, error) {
 		return "", errors.New("first worksheet is missing relationship id")
 	}
 	return "", errors.New("xlsx workbook contains no worksheets")
+}
+
+func workbookSheets(entries map[string][]byte) ([]WorksheetInfo, error) {
+	workbook, ok := entries["xl/workbook.xml"]
+	if !ok {
+		if _, hasSheet := entries["xl/worksheets/sheet1.xml"]; hasSheet {
+			return []WorksheetInfo{{Index: 1, Name: "Sheet1", Path: "xl/worksheets/sheet1.xml"}}, nil
+		}
+		return nil, errors.New("xlsx workbook.xml not found")
+	}
+	rels, err := workbookRelationships(entries["xl/_rels/workbook.xml.rels"])
+	if err != nil {
+		return nil, err
+	}
+	sheets, err := parseWorkbookSheets(workbook, rels)
+	if err != nil {
+		return nil, err
+	}
+	return sheets, nil
+}
+
+func parseWorkbookSheets(workbook []byte, rels map[string]string) ([]WorksheetInfo, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(workbook))
+	var sheets []WorksheetInfo
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok || start.Name.Local != "sheet" {
+			continue
+		}
+		sheet := WorksheetInfo{Index: len(sheets) + 1}
+		for _, attr := range start.Attr {
+			switch attr.Name.Local {
+			case "name":
+				sheet.Name = attr.Value
+			case "id":
+				sheet.RelationshipID = attr.Value
+			}
+		}
+		if sheet.Name == "" {
+			sheet.Name = fmt.Sprintf("Sheet%d", sheet.Index)
+		}
+		target, ok := rels[sheet.RelationshipID]
+		if !ok || target == "" {
+			return nil, fmt.Errorf("worksheet relationship %q not found", sheet.RelationshipID)
+		}
+		sheet.Path = worksheetPath(target)
+		sheets = append(sheets, sheet)
+	}
+	if len(sheets) == 0 {
+		return nil, errors.New("xlsx workbook contains no worksheets")
+	}
+	return sheets, nil
+}
+
+func worksheetPath(target string) string {
+	if strings.HasPrefix(target, "/") {
+		return strings.TrimPrefix(path.Clean(target), "/")
+	}
+	return path.Clean(path.Join("xl", target))
+}
+
+func selectWorksheet(sheets []WorksheetInfo, options DecodeOptions) (WorksheetInfo, error) {
+	if strings.TrimSpace(options.SheetName) != "" {
+		name := strings.TrimSpace(options.SheetName)
+		for _, sheet := range sheets {
+			if sheet.Name == name {
+				return sheet, nil
+			}
+		}
+		for _, sheet := range sheets {
+			if strings.EqualFold(sheet.Name, name) {
+				return sheet, nil
+			}
+		}
+		return WorksheetInfo{}, fmt.Errorf("worksheet %q not found", options.SheetName)
+	}
+	if options.SheetIndex > 0 {
+		for _, sheet := range sheets {
+			if sheet.Index == options.SheetIndex {
+				return sheet, nil
+			}
+		}
+		return WorksheetInfo{}, fmt.Errorf("worksheet index %d not found", options.SheetIndex)
+	}
+	return sheets[0], nil
 }
 
 func workbookRelationships(data []byte) (map[string]string, error) {

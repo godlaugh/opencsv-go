@@ -15,6 +15,20 @@ type FileMetadata struct {
 	Encoding   EncodingInfo   `json:"encoding"`
 	LineEnding LineEndingInfo `json:"lineEnding"`
 	Dialect    Dialect        `json:"dialect"`
+	Workbook   *WorkbookInfo  `json:"workbook,omitempty"`
+}
+
+type WorkbookInfo struct {
+	Sheets             []WorkbookSheetInfo `json:"sheets"`
+	SelectedSheetIndex int                 `json:"selectedSheetIndex"`
+	SelectedSheetName  string              `json:"selectedSheetName"`
+	SelectedSheetPath  string              `json:"selectedSheetPath,omitempty"`
+}
+
+type WorkbookSheetInfo struct {
+	Index int    `json:"index"`
+	Name  string `json:"name"`
+	Path  string `json:"path,omitempty"`
 }
 
 type Document struct {
@@ -39,6 +53,8 @@ type OpenOptions struct {
 	HeaderColumns *int
 	Encoding      *EncodingInfo
 	LineEnding    *LineEndingInfo
+	SheetName     string
+	SheetIndex    int
 }
 
 func OpenDocument(path string, options OpenOptions) (Document, error) {

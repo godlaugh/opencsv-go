@@ -318,6 +318,54 @@ func TestManagerOpenEditAndSaveXLSX(t *testing.T) {
 	}
 }
 
+func TestManagerOpenSelectedXLSXSheetAndPreserveWorkbook(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi-sheet.xlsx")
+	data, err := xlsx.EncodeWorkbookSheets([]xlsx.WorkbookSheet{
+		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
+		{Name: "Data", Records: [][]string{{"id", "name"}, {"1", "Ada"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "multi-sheet.xlsx", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1, SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workbook := session.Document.Metadata.Workbook
+	if workbook == nil || workbook.SelectedSheetName != "Data" || workbook.SelectedSheetIndex != 2 || len(workbook.Sheets) != 2 {
+		t.Fatalf("workbook metadata = %#v", workbook)
+	}
+	if got := strings.Join(session.Document.Preview[1], ","); got != "1,Ada" {
+		t.Fatalf("preview row = %q", got)
+	}
+	if err := manager.Edit(session.ID, 1, 1, "Grace"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Save(session.ID, "", false); err != nil {
+		t.Fatal(err)
+	}
+	summary, _, _, err := xlsx.DecodeFileWithOptions(path, xlsx.DecodeOptions{SheetName: "Summary"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(summary[1], ","); got != "rows,2" {
+		t.Fatalf("summary sheet changed: %#v", summary)
+	}
+	records, _, _, err := xlsx.DecodeFileWithOptions(path, xlsx.DecodeOptions{SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := records[1][1]; got != "Grace" {
+		t.Fatalf("saved selected sheet cell = %q, want Grace", got)
+	}
+}
+
 func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "export.csv")

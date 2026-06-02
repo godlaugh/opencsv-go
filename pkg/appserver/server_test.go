@@ -224,6 +224,43 @@ func TestServerOpenXLSXPath(t *testing.T) {
 	}
 }
 
+func TestServerOpenXLSXSelectedSheet(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi-sheet.xlsx")
+	data, err := xlsx.EncodeWorkbookSheets([]xlsx.WorkbookSheet{
+		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
+		{Name: "Data", Records: [][]string{{"id", "name"}, {"1", "Ada"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+		"sheetName":   "Data",
+	})
+	document := openPayload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	workbook := metadata["workbook"].(map[string]any)
+	if workbook["selectedSheetName"] != "Data" || workbook["selectedSheetIndex"] != float64(2) {
+		t.Fatalf("workbook metadata = %#v", workbook)
+	}
+	sheets := workbook["sheets"].([]any)
+	if len(sheets) != 2 || sheets[1].(map[string]any)["name"] != "Data" {
+		t.Fatalf("sheets = %#v", sheets)
+	}
+	preview := document["preview"].([]any)
+	if got := preview[1].([]any)[1]; got != "Ada" {
+		t.Fatalf("selected sheet preview value = %#v, want Ada", got)
+	}
+}
+
 func TestServerOpenWithFormatOverrides(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "pipe.txt")

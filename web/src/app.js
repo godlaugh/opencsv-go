@@ -2362,6 +2362,8 @@ function updateFormatStatus() {
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
     document.body.dataset.headerColumns = "";
+    document.body.dataset.workbookSheet = "";
+    document.body.dataset.workbookSheetCount = "";
     readOnlyStatus.textContent = "Editable";
     syncExternalChangeControls(false);
     syncDelimiterControls();
@@ -2376,6 +2378,8 @@ function updateFormatStatus() {
   headerStatus.disabled = !documentId;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
+  document.body.dataset.workbookSheet = metadata.workbook?.selectedSheetName || "";
+  document.body.dataset.workbookSheetCount = String(metadata.workbook?.sheets?.length || "");
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   syncExternalChangeControls();
   syncDelimiterControls();
@@ -13162,6 +13166,13 @@ function formatOverrideFromParams(params) {
   if (header) override.hasHeader = truthyParam(header);
   const noHeader = firstParam("no-header", "noHeader");
   if (noHeader && truthyParam(noHeader)) override.hasHeader = false;
+  const sheetName = firstParam("sheet", "sheetName", "worksheet", "xlsx-sheet");
+  if (sheetName) override.sheetName = sheetName;
+  const sheetIndex = firstParam("sheet-index", "sheetIndex", "worksheetIndex", "xlsx-sheet-index");
+  if (sheetIndex) {
+    const index = Number.parseInt(sheetIndex, 10);
+    if (Number.isFinite(index) && index > 0) override.sheetIndex = index;
+  }
   return override;
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -15,17 +16,28 @@ func ContentType() string {
 	return contentType
 }
 
+type WorkbookSheet struct {
+	Name    string
+	Records [][]string
+}
+
 func EncodeWorkbook(records [][]string) ([]byte, error) {
+	return EncodeWorkbookSheets([]WorkbookSheet{{Name: "Sheet1", Records: records}})
+}
+
+func EncodeWorkbookSheets(sheets []WorkbookSheet) ([]byte, error) {
+	if len(sheets) == 0 {
+		sheets = []WorkbookSheet{{Name: "Sheet1"}}
+	}
 	var buffer bytes.Buffer
 	writer := zip.NewWriter(&buffer)
 	entries := map[string]string{
-		"[Content_Types].xml":        contentTypesXML,
+		"[Content_Types].xml":        contentTypesXMLForSheets(len(sheets)),
 		"_rels/.rels":                rootRelsXML,
 		"docProps/app.xml":           appXML,
 		"docProps/core.xml":          coreXML(time.Now().UTC()),
-		"xl/workbook.xml":            workbookXML,
-		"xl/_rels/workbook.xml.rels": workbookRelsXML,
-		"xl/worksheets/sheet1.xml":   sheetXML(records),
+		"xl/workbook.xml":            workbookXMLForSheets(sheets),
+		"xl/_rels/workbook.xml.rels": workbookRelsXMLForSheets(len(sheets)),
 	}
 	order := []string{
 		"[Content_Types].xml",
@@ -34,13 +46,66 @@ func EncodeWorkbook(records [][]string) ([]byte, error) {
 		"docProps/core.xml",
 		"xl/workbook.xml",
 		"xl/_rels/workbook.xml.rels",
-		"xl/worksheets/sheet1.xml",
+	}
+	for index, sheet := range sheets {
+		name := fmt.Sprintf("xl/worksheets/sheet%d.xml", index+1)
+		entries[name] = sheetXML(sheet.Records)
+		order = append(order, name)
 	}
 	for _, name := range order {
 		if err := writeEntry(writer, name, entries[name]); err != nil {
 			_ = writer.Close()
 			return nil, err
 		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func UpdateWorkbookSheet(data []byte, sheetPath string, records [][]string) ([]byte, error) {
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	cleanSheetPath := strings.TrimPrefix(sheetPath, "/")
+	replaced := false
+	for _, file := range reader.File {
+		entry, err := writer.Create(file.Name)
+		if err != nil {
+			_ = writer.Close()
+			return nil, err
+		}
+		if file.Name == cleanSheetPath {
+			if _, err := entry.Write([]byte(sheetXML(records))); err != nil {
+				_ = writer.Close()
+				return nil, err
+			}
+			replaced = true
+			continue
+		}
+		handle, err := file.Open()
+		if err != nil {
+			_ = writer.Close()
+			return nil, err
+		}
+		body, err := io.ReadAll(handle)
+		_ = handle.Close()
+		if err != nil {
+			_ = writer.Close()
+			return nil, err
+		}
+		if _, err := entry.Write(body); err != nil {
+			_ = writer.Close()
+			return nil, err
+		}
+	}
+	if !replaced {
+		_ = writer.Close()
+		return nil, fmt.Errorf("worksheet %q not found", sheetPath)
 	}
 	if err := writer.Close(); err != nil {
 		return nil, err
@@ -108,6 +173,54 @@ func coreXML(now time.Time) string {
 		`<dcterms:created xsi:type="dcterms:W3CDTF">` + timestamp + `</dcterms:created>` +
 		`<dcterms:modified xsi:type="dcterms:W3CDTF">` + timestamp + `</dcterms:modified>` +
 		`</cp:coreProperties>`
+}
+
+func contentTypesXMLForSheets(count int) string {
+	var builder strings.Builder
+	builder.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`)
+	builder.WriteString(`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`)
+	builder.WriteString(`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`)
+	builder.WriteString(`<Default Extension="xml" ContentType="application/xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>`)
+	builder.WriteString(`<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`)
+	for index := 1; index <= count; index++ {
+		builder.WriteString(fmt.Sprintf(`<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`, index))
+	}
+	builder.WriteString(`</Types>`)
+	return builder.String()
+}
+
+func workbookXMLForSheets(sheets []WorkbookSheet) string {
+	var builder strings.Builder
+	builder.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`)
+	builder.WriteString(`<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>`)
+	for index, sheet := range sheets {
+		name := strings.TrimSpace(sheet.Name)
+		if name == "" {
+			name = fmt.Sprintf("Sheet%d", index+1)
+		}
+		builder.WriteString(fmt.Sprintf(`<sheet name="%s" sheetId="%d" r:id="rId%d"/>`, escapeAttr(name), index+1, index+1))
+	}
+	builder.WriteString(`</sheets></workbook>`)
+	return builder.String()
+}
+
+func workbookRelsXMLForSheets(count int) string {
+	var builder strings.Builder
+	builder.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`)
+	builder.WriteString(`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`)
+	for index := 1; index <= count; index++ {
+		builder.WriteString(fmt.Sprintf(`<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>`, index, index))
+	}
+	builder.WriteString(`</Relationships>`)
+	return builder.String()
+}
+
+func escapeAttr(value string) string {
+	var escaped bytes.Buffer
+	_ = xml.EscapeText(&escaped, []byte(value))
+	return escaped.String()
 }
 
 const contentTypesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

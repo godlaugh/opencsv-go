@@ -132,6 +132,8 @@ type openRequest struct {
 	HasHeader     *bool  `json:"hasHeader,omitempty"`
 	HeaderColumns *int   `json:"headerColumns,omitempty"`
 	EncodingName  string `json:"encodingName,omitempty"`
+	SheetName     string `json:"sheetName,omitempty"`
+	SheetIndex    int    `json:"sheetIndex,omitempty"`
 }
 
 type openResponse struct {
@@ -220,6 +222,16 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		options.Encoding = &encoding
+	}
+	if strings.TrimSpace(request.SheetName) != "" {
+		options.SheetName = strings.TrimSpace(request.SheetName)
+	}
+	if request.SheetIndex < 0 {
+		writeError(w, http.StatusBadRequest, errors.New("sheetIndex must be positive"))
+		return
+	}
+	if request.SheetIndex > 0 {
+		options.SheetIndex = request.SheetIndex
 	}
 
 	session, err := server.documents.OpenPath(request.Path, docstore.SourceFile, filepath.Base(request.Path), options)
