@@ -532,7 +532,7 @@ Input:
 
 - document ID.
 - explicit source cells with zero-based row and column indexes.
-- separator text for join/split.
+- separator text for join/split, supplied from the Inspector cell-tool separator preference.
 
 Output:
 
@@ -543,8 +543,8 @@ Output:
 Rules:
 
 - Swap requires exactly two source cells and exchanges their values; the frontend can provide those cells either from an explicit two-cell selection or from active-cell neighbor swap commands.
-- Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell, and clears the remaining selected cells in that row.
-- Split writes separator-delimited parts horizontally starting at the selected source cell and can expand row width.
+- Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell using the configured separator, and clears the remaining selected cells in that row.
+- Split writes separator-delimited parts horizontally starting at the selected source cell using the configured separator and can expand row width.
 - Cell tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
 
 ### Diff

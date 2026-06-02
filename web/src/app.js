@@ -34,6 +34,7 @@ const openCellLink = document.querySelector("#openCellLink");
 const cellLinkAudit = document.querySelector("#cellLinkAudit");
 const cellLinkProtocol = document.querySelector("#cellLinkProtocol");
 const cellLinkTarget = document.querySelector("#cellLinkTarget");
+const cellSeparatorInput = document.querySelector("#cellSeparatorInput");
 const toggleCellQuoteButton = document.querySelector("#toggleCellQuoteButton");
 const fileList = document.querySelector("#fileList");
 const openForm = document.querySelector("#openForm");
@@ -687,6 +688,8 @@ const scrollPositionsStorageKey = "opencsv-scroll-positions";
 const scrollPositionsLimit = 32;
 const hiddenColumnsStorageKey = "opencsv-hidden-columns";
 const hiddenColumnsLimit = 64;
+const cellSeparatorStorageKey = "opencsv-cell-separator";
+const defaultCellSeparatorToken = "space";
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
 const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
@@ -792,6 +795,7 @@ let cellValueInputDirty = false;
 let cellValueInputKey = "";
 let cellValueExpanded = false;
 let cellValueDialogOpen = false;
+let cellSeparatorToken = normalizeCellSeparatorToken(localStorage.getItem(cellSeparatorStorageKey));
 let findCaseSensitive = false;
 let findWholeCell = false;
 let findRegex = false;
@@ -818,6 +822,7 @@ setLocalePreference(localePreference, false);
 setAutoRefreshMode(autoRefreshMode, false);
 setUpdateCheckMode(updateCheckMode, false);
 applyEditorAppearance(editorAppearance, false);
+setCellSeparatorToken(cellSeparatorToken, false);
 syncProfileSchemaControls();
 
 function resize() {
@@ -3491,6 +3496,55 @@ function quoteLabel(value, displayRow = selected.row, visibleCol = selected.col)
   if (suppressesQuote(displayRow, visibleCol)) return "manual no quote";
   if (!shouldQuote(value, displayRow, visibleCol)) return "no quote needed";
   return preservesQuote(displayRow, visibleCol) ? "will preserve quote on save" : "will quote on save";
+}
+
+function normalizeCellSeparatorToken(value) {
+  const token = String(value ?? "");
+  return token.length ? token : defaultCellSeparatorToken;
+}
+
+function setCellSeparatorToken(value, persist = true) {
+  cellSeparatorToken = normalizeCellSeparatorToken(value);
+  if (cellSeparatorInput) cellSeparatorInput.value = cellSeparatorToken;
+  if (persist) localStorage.setItem(cellSeparatorStorageKey, cellSeparatorToken);
+  syncCellSeparatorState();
+}
+
+function updateCellSeparatorFromInput() {
+  cellSeparatorToken = normalizeCellSeparatorToken(cellSeparatorInput.value);
+  localStorage.setItem(cellSeparatorStorageKey, cellSeparatorToken);
+  syncCellSeparatorState();
+}
+
+function selectedCellSeparator() {
+  if (cellSeparatorInput) {
+    cellSeparatorToken = normalizeCellSeparatorToken(cellSeparatorInput.value);
+  }
+  syncCellSeparatorState();
+  return parseCellSeparatorToken(cellSeparatorToken);
+}
+
+function parseCellSeparatorToken(token) {
+  const value = normalizeCellSeparatorToken(token);
+  const alias = value.trim().toLowerCase();
+  if (alias === "space" || value === "\\s") return " ";
+  if (alias === "tab" || value === "\\t") return "\t";
+  if (alias === "newline" || alias === "linefeed" || value === "\\n") return "\n";
+  return value;
+}
+
+function printableCellSeparator(separator) {
+  if (separator === " ") return "space";
+  if (separator === "\t") return "\\t";
+  if (separator === "\n") return "\\n";
+  return String(separator ?? "");
+}
+
+function syncCellSeparatorState() {
+  const separator = parseCellSeparatorToken(cellSeparatorToken);
+  document.body.dataset.cellSeparatorToken = cellSeparatorToken;
+  document.body.dataset.cellSeparator = printableCellSeparator(separator);
+  document.body.dataset.cellSeparatorLength = String(separator.length);
 }
 
 function syncCellValuePanel() {
@@ -10028,9 +10082,10 @@ async function joinSelectedCells(direction = "horizontal") {
   const cells = selectedCellsForTransform();
   if (!cells) return;
   const range = normalizedSelection();
+  const separator = selectedCellSeparator();
   await runCellTool("/api/cells/join", {
     cells,
-    separator: " ",
+    separator,
     direction,
     activeRow: vertical ? range.startRow : selected.row,
     activeCol: vertical ? selected.col : range.startCol,
@@ -10043,9 +10098,10 @@ async function splitActiveCell(direction = "horizontal") {
   const vertical = direction === "vertical";
   const title = vertical ? "Split Cell Vertically" : "Split Cell";
   if (!ensureEditable(title)) return;
+  const separator = selectedCellSeparator();
   await runCellTool("/api/cells/split", {
     cells: [{ row: selectedSourceRow(), col: sourceColFor(selected.col) }],
-    separator: " ",
+    separator,
     direction,
     activeRow: selected.row,
     activeCol: selected.col,
@@ -10263,6 +10319,11 @@ function numberedTextAutoFill(seed, length) {
 
 async function runCellTool(endpoint, options) {
   status.textContent = `${options.label}...`;
+  if (options.separator !== undefined) {
+    document.body.dataset.cellToolEndpoint = endpoint;
+    document.body.dataset.cellToolDirection = options.direction ?? "";
+    document.body.dataset.cellToolSeparator = printableCellSeparator(options.separator);
+  }
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -12964,6 +13025,8 @@ applyCellValueButton.addEventListener("click", applyCellValue);
 openCellValueDialogButton.addEventListener("click", openCellValueDialog);
 toggleCellValueLargeButton.addEventListener("click", toggleCellValueLarge);
 revertCellValueButton.addEventListener("click", revertCellValueInput);
+cellSeparatorInput.addEventListener("input", updateCellSeparatorFromInput);
+cellSeparatorInput.addEventListener("change", () => setCellSeparatorToken(cellSeparatorInput.value));
 cellValueDialogInput.addEventListener("input", () => {
   syncCellValueDraft(cellValueDialogInput.value, "dialog");
 });

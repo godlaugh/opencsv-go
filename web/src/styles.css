@@ -2160,6 +2160,30 @@ button:disabled {
   opacity: 0.45;
 }
 
+.cell-separator-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cell-separator-field span {
+  font-weight: 700;
+}
+
+#cellSeparatorInput {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+}
+
 .cell-link-audit {
   display: grid;
   gap: 3px;
