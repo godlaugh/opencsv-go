@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -65,11 +67,15 @@ func DecodeWorkbookWithOptions(data []byte, options DecodeOptions) ([][]string, 
 	if err != nil {
 		return nil, nil, WorksheetInfo{}, err
 	}
+	styles, err := parseStyles(entries["xl/styles.xml"])
+	if err != nil {
+		return nil, nil, WorksheetInfo{}, err
+	}
 	sheet, ok := entries[selected.Path]
 	if !ok {
 		return nil, nil, WorksheetInfo{}, fmt.Errorf("worksheet %q not found", selected.Path)
 	}
-	records, err := parseSheet(sheet, sharedStrings)
+	records, err := parseSheet(sheet, sharedStrings, styles)
 	if err != nil {
 		return nil, nil, WorksheetInfo{}, err
 	}
@@ -304,7 +310,69 @@ func parseSharedStrings(data []byte) ([]string, error) {
 	return values, nil
 }
 
-func parseSheet(data []byte, sharedStrings []string) ([][]string, error) {
+type cellStyle struct {
+	NumFmtID   int
+	FormatCode string
+}
+
+func parseStyles(data []byte) ([]cellStyle, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	customFormats := map[int]string{}
+	var styles []cellStyle
+	inCellXfs := false
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			switch value.Name.Local {
+			case "numFmt":
+				var id int
+				var code string
+				for _, attr := range value.Attr {
+					switch attr.Name.Local {
+					case "numFmtId":
+						id, _ = strconv.Atoi(attr.Value)
+					case "formatCode":
+						code = attr.Value
+					}
+				}
+				if id >= 0 && code != "" {
+					customFormats[id] = code
+				}
+			case "cellXfs":
+				inCellXfs = true
+			case "xf":
+				if !inCellXfs {
+					continue
+				}
+				var id int
+				for _, attr := range value.Attr {
+					if attr.Name.Local == "numFmtId" {
+						id, _ = strconv.Atoi(attr.Value)
+						break
+					}
+				}
+				styles = append(styles, cellStyle{NumFmtID: id, FormatCode: customFormats[id]})
+			}
+		case xml.EndElement:
+			if value.Name.Local == "cellXfs" {
+				inCellXfs = false
+			}
+		}
+	}
+	return styles, nil
+}
+
+func parseSheet(data []byte, sharedStrings []string, styles []cellStyle) ([][]string, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
 	var records [][]string
 	currentRow := -1
@@ -333,7 +401,7 @@ func parseSheet(data []byte, sharedStrings []string) ([][]string, error) {
 				nextRow = currentRow + 1
 			}
 			col := columnIndexFromStart(start, len(records[currentRow]))
-			value, err := parseCell(decoder, start, sharedStrings)
+			value, err := parseCell(decoder, start, sharedStrings, styles)
 			if err != nil {
 				return nil, err
 			}
@@ -389,12 +457,15 @@ func columnIndexFromCellRef(ref string) (int, bool) {
 	return col - 1, true
 }
 
-func parseCell(decoder *xml.Decoder, start xml.StartElement, sharedStrings []string) (string, error) {
+func parseCell(decoder *xml.Decoder, start xml.StartElement, sharedStrings []string, styles []cellStyle) (string, error) {
 	cellType := ""
+	styleIndex := -1
 	for _, attr := range start.Attr {
-		if attr.Name.Local == "t" {
+		switch attr.Name.Local {
+		case "t":
 			cellType = attr.Value
-			break
+		case "s":
+			styleIndex, _ = strconv.Atoi(attr.Value)
 		}
 	}
 	var raw strings.Builder
@@ -419,7 +490,7 @@ func parseCell(decoder *xml.Decoder, start xml.StartElement, sharedStrings []str
 			} else if value.Name.Local == "t" {
 				inInlineText = false
 			} else if value.Name.Local == "c" {
-				return cellValue(cellType, raw.String(), inline.String(), sharedStrings), nil
+				return cellValue(cellType, raw.String(), inline.String(), sharedStrings, styles, styleIndex), nil
 			}
 		case xml.CharData:
 			if inValue {
@@ -432,7 +503,7 @@ func parseCell(decoder *xml.Decoder, start xml.StartElement, sharedStrings []str
 	}
 }
 
-func cellValue(cellType string, raw string, inline string, sharedStrings []string) string {
+func cellValue(cellType string, raw string, inline string, sharedStrings []string, styles []cellStyle, styleIndex int) string {
 	switch cellType {
 	case "s":
 		index, err := strconv.Atoi(strings.TrimSpace(raw))
@@ -453,7 +524,106 @@ func cellValue(cellType string, raw string, inline string, sharedStrings []strin
 		}
 		return "FALSE"
 	default:
+		if dateLikeStyle(styles, styleIndex) && strings.TrimSpace(raw) != "" {
+			if formatted, ok := formatExcelDateSerial(strings.TrimSpace(raw), styles[styleIndex]); ok {
+				return formatted
+			}
+		}
 		return raw
+	}
+}
+
+func dateLikeStyle(styles []cellStyle, index int) bool {
+	return index >= 0 && index < len(styles) && dateStyleKind(styles[index]) != ""
+}
+
+func dateStyleKind(style cellStyle) string {
+	switch style.NumFmtID {
+	case 14, 15, 16, 17:
+		return "date"
+	case 18, 19, 20, 21, 45, 46, 47:
+		return "time"
+	case 22:
+		return "datetime"
+	}
+	code := normalizedFormatCode(style.FormatCode)
+	if code == "" {
+		return ""
+	}
+	hasDate := strings.ContainsAny(code, "yd")
+	hasTime := strings.ContainsAny(code, "hs")
+	if hasDate && hasTime {
+		return "datetime"
+	}
+	if hasDate {
+		return "date"
+	}
+	if hasTime {
+		return "time"
+	}
+	return ""
+}
+
+func normalizedFormatCode(code string) string {
+	var builder strings.Builder
+	inQuote := false
+	inBracket := false
+	escaped := false
+	for _, r := range strings.ToLower(code) {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+		if r == '"' {
+			inQuote = !inQuote
+			continue
+		}
+		if r == '[' {
+			inBracket = true
+			continue
+		}
+		if r == ']' {
+			inBracket = false
+			continue
+		}
+		if inQuote || inBracket {
+			continue
+		}
+		if strings.ContainsRune("ymdhs", r) {
+			builder.WriteRune(r)
+		}
+	}
+	return builder.String()
+}
+
+func formatExcelDateSerial(raw string, style cellStyle) (string, bool) {
+	serial, err := strconv.ParseFloat(raw, 64)
+	if err != nil || serial < 0 {
+		return "", false
+	}
+	wholeDays := int(math.Floor(serial))
+	fraction := serial - float64(wholeDays)
+	if wholeDays >= 60 {
+		wholeDays--
+	}
+	base := time.Date(1899, 12, 31, 0, 0, 0, 0, time.UTC)
+	seconds := int(math.Round(fraction * 86400))
+	if seconds >= 86400 {
+		wholeDays++
+		seconds -= 86400
+	}
+	value := base.AddDate(0, 0, wholeDays).Add(time.Duration(seconds) * time.Second)
+	switch dateStyleKind(style) {
+	case "time":
+		return value.Format("15:04:05"), true
+	case "datetime":
+		return value.Format("2006-01-02 15:04:05"), true
+	default:
+		return value.Format("2006-01-02"), true
 	}
 }
 

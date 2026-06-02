@@ -141,6 +141,31 @@ func TestDecodeWorkbookCanSelectWorksheet(t *testing.T) {
 	}
 }
 
+func TestDecodeWorkbookFormatsDatesAndFormulaCachedValues(t *testing.T) {
+	data := zippedWorkbook(t, map[string]string{
+		"xl/workbook.xml":            `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+		"xl/_rels/workbook.xml.rels": `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+		"xl/styles.xml":              `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="165" formatCode="yyyy-mm-dd hh:mm:ss"/></numFmts><cellXfs count="4"><xf numFmtId="0"/><xf numFmtId="14"/><xf numFmtId="22"/><xf numFmtId="165"/></cellXfs></styleSheet>`,
+		"xl/worksheets/sheet1.xml":   `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>date</t></is></c><c r="B1" t="inlineStr"><is><t>formula</t></is></c><c r="C1" t="inlineStr"><is><t>datetime</t></is></c><c r="D1" t="inlineStr"><is><t>custom</t></is></c></row><row r="2"><c r="A2" s="1"><v>45000</v></c><c r="B2"><f>2+3</f><v>5</v></c><c r="C2" s="2"><v>45000.5</v></c><c r="D2" s="3"><v>45000.75</v></c></row></sheetData></worksheet>`,
+	})
+	records, err := DecodeWorkbook(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"date", "formula", "datetime", "custom"},
+		{"2023-03-15", "5", "2023-03-15 12:00:00", "2023-03-15 18:00:00"},
+	}
+	if len(records) != len(want) {
+		t.Fatalf("rows = %#v, want %#v", records, want)
+	}
+	for row := range want {
+		if strings.Join(records[row], "\x00") != strings.Join(want[row], "\x00") {
+			t.Fatalf("row %d = %#v, want %#v", row, records[row], want[row])
+		}
+	}
+}
+
 func TestUpdateWorkbookSheetPreservesOtherSheets(t *testing.T) {
 	data, err := EncodeWorkbookSheets([]WorkbookSheet{
 		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
