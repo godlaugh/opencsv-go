@@ -148,7 +148,13 @@ flowchart TD
   - Section-level search over settings categories, controls, summaries, saved views, and format presets.
   - Empty-state feedback when no settings section matches.
   - Saved/recent filter controls share the saved-view settings section, including configurable recent-filter retention and clear-history action.
+  - Language preference controls with a reusable locale catalog and persisted locale selection for target SmoothCSV locales.
   - Update check mode controls for automatic, manual-only, and off states, with startup checks gated by the persisted mode.
+
+- `web Internationalization`
+  - Locale catalog with English fallback and target locale entries for Japanese, French, Spanish, Italian, Simplified Chinese, Portuguese, Russian, German, and Korean.
+  - App chrome labels, start/recent file actions, settings headings, placeholders, and idle status route through a translation helper instead of being fixed in rendering code.
+  - `document.documentElement.lang` and `body[data-locale]` mirror the active locale for accessibility and Browser verification.
 
 - `web Start / Recent Files`
   - Sidebar start surface with path-input focus and browser file-picker quick actions.

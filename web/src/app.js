@@ -132,6 +132,11 @@ const settingsPanel = document.querySelector("#settingsPanel");
 const settingsSearch = document.querySelector("#settingsSearch");
 const settingsEmpty = document.querySelector("#settingsEmpty");
 const settingsModifiedBadge = document.querySelector("#settingsModifiedBadge");
+const settingsLocaleTitle = document.querySelector("#settingsLocaleTitle");
+const settingsLocaleSummary = document.querySelector("#settingsLocaleSummary");
+const localeSelect = document.querySelector("#localeSelect");
+const localeSelectLabel = document.querySelector("#localeSelectLabel");
+const resetLocaleButton = document.querySelector("#resetLocaleButton");
 const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
@@ -262,6 +267,331 @@ const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const findPageSize = 100;
+const localeStorageKey = "opencsv-locale";
+const defaultLocale = "en";
+const supportedLocales = [
+  { code: "en", label: "English" },
+  { code: "ja", label: "Japanese - 日本語" },
+  { code: "fr", label: "French - Français" },
+  { code: "es", label: "Spanish - Español" },
+  { code: "it", label: "Italian - Italiano" },
+  { code: "zh-cn", label: "Simplified Chinese - 简体中文" },
+  { code: "pt", label: "Portuguese - Português" },
+  { code: "ru", label: "Russian - Русский" },
+  { code: "de", label: "German - Deutsch" },
+  { code: "ko", label: "Korean - 한국어" },
+];
+const localeCatalog = {
+  en: {
+    "nav.grid": "Grid",
+    "nav.sql": "SQL",
+    "nav.profile": "Profile",
+    "nav.settings": "Settings",
+    "nav.command": "Cmd",
+    "file.open": "Open",
+    "edit.copy": "Copy",
+    "edit.headers": "Headers",
+    "view.filter": "Filter",
+    "view.filters": "Filters",
+    "view.builder": "Builder",
+    "view.sort": "Sort",
+    "edit.find": "Find",
+    "edit.preview": "Preview",
+    "edit.replace": "Replace",
+    "edit.all": "All",
+    "diff.compare": "Compare",
+    "file.readOnly": "Read Only",
+    "file.export": "Export",
+    "file.save": "Save",
+    "file.saveAs": "Save As",
+    "file.restore": "Restore",
+    "workbench.split": "Split",
+    "workbench.orientation": "H/V",
+    "workbench.focus": "Focus",
+    "workbench.move": "Move",
+    "workbench.close": "Close",
+    "settings.title": "Settings",
+    "settings.modified": "Modified",
+    "settings.defaults": "Defaults",
+    "settings.language": "Language",
+    "settings.resetLanguage": "Reset Language",
+    "settings.searchPlaceholder": "Search settings",
+    "settings.savedViews": "Saved Filters, Recent & Sorts",
+    "settings.theme": "Theme",
+    "settings.externalChanges": "External Changes",
+    "settings.updates": "Updates",
+    "settings.linkProtocols": "Link Protocols",
+    "settings.editorAppearance": "Editor Appearance",
+    "settings.fileFormatPresets": "File Format Presets",
+    "start.openCsv": "Open CSV/TSV",
+    "start.openHelp": "Type a path in the toolbar",
+    "start.chooseFile": "Choose File",
+    "start.chooseHelp": "Open with browser picker",
+    "file.recent": "Recent",
+    "file.noOpen": "No file open",
+    "status.ready": "Ready",
+    "status.languageChanged": "Language updated.",
+    "status.languageReset": "Language reset.",
+  },
+  ja: {
+    "nav.grid": "グリッド",
+    "nav.profile": "プロファイル",
+    "nav.settings": "設定",
+    "file.open": "開く",
+    "edit.copy": "コピー",
+    "edit.headers": "ヘッダー",
+    "view.filter": "フィルター",
+    "view.filters": "フィルター",
+    "view.builder": "ビルダー",
+    "view.sort": "並べ替え",
+    "edit.find": "検索",
+    "edit.preview": "プレビュー",
+    "edit.replace": "置換",
+    "edit.all": "すべて",
+    "diff.compare": "比較",
+    "file.readOnly": "読み取り専用",
+    "file.export": "エクスポート",
+    "file.save": "保存",
+    "file.saveAs": "別名保存",
+    "file.restore": "復元",
+    "workbench.split": "分割",
+    "workbench.focus": "フォーカス",
+    "workbench.move": "移動",
+    "workbench.close": "閉じる",
+    "settings.title": "設定",
+    "settings.modified": "変更済み",
+    "settings.defaults": "既定",
+    "settings.language": "言語",
+    "settings.resetLanguage": "言語をリセット",
+    "settings.searchPlaceholder": "設定を検索",
+    "start.openCsv": "CSV/TSV を開く",
+    "start.openHelp": "ツールバーにパスを入力",
+    "start.chooseFile": "ファイルを選択",
+    "start.chooseHelp": "ブラウザーの選択画面で開く",
+    "file.recent": "最近",
+    "file.noOpen": "ファイル未選択",
+    "status.ready": "準備完了",
+    "status.languageChanged": "言語を更新しました。",
+    "status.languageReset": "言語をリセットしました。",
+  },
+  fr: {
+    "nav.grid": "Grille",
+    "nav.profile": "Profil",
+    "nav.settings": "Paramètres",
+    "file.open": "Ouvrir",
+    "edit.copy": "Copier",
+    "view.filter": "Filtrer",
+    "view.filters": "Filtres",
+    "view.builder": "Assistant",
+    "view.sort": "Trier",
+    "edit.find": "Rechercher",
+    "edit.preview": "Aperçu",
+    "edit.replace": "Remplacer",
+    "diff.compare": "Comparer",
+    "file.readOnly": "Lecture seule",
+    "file.export": "Exporter",
+    "file.save": "Enregistrer",
+    "file.saveAs": "Enregistrer sous",
+    "file.restore": "Restaurer",
+    "settings.title": "Paramètres",
+    "settings.modified": "Modifié",
+    "settings.defaults": "Par défaut",
+    "settings.language": "Langue",
+    "settings.resetLanguage": "Réinitialiser la langue",
+    "settings.searchPlaceholder": "Rechercher les paramètres",
+    "start.openCsv": "Ouvrir CSV/TSV",
+    "start.chooseFile": "Choisir un fichier",
+    "file.recent": "Récents",
+    "status.ready": "Prêt",
+  },
+  es: {
+    "nav.grid": "Cuadrícula",
+    "nav.profile": "Perfil",
+    "nav.settings": "Ajustes",
+    "file.open": "Abrir",
+    "edit.copy": "Copiar",
+    "view.filter": "Filtrar",
+    "view.filters": "Filtros",
+    "view.sort": "Ordenar",
+    "edit.find": "Buscar",
+    "edit.preview": "Vista previa",
+    "edit.replace": "Reemplazar",
+    "diff.compare": "Comparar",
+    "file.readOnly": "Solo lectura",
+    "file.export": "Exportar",
+    "file.save": "Guardar",
+    "file.saveAs": "Guardar como",
+    "settings.title": "Ajustes",
+    "settings.modified": "Modificado",
+    "settings.defaults": "Predeterminado",
+    "settings.language": "Idioma",
+    "settings.resetLanguage": "Restablecer idioma",
+    "settings.searchPlaceholder": "Buscar ajustes",
+    "start.openCsv": "Abrir CSV/TSV",
+    "start.chooseFile": "Elegir archivo",
+    "file.recent": "Recientes",
+    "status.ready": "Listo",
+  },
+  it: {
+    "nav.grid": "Griglia",
+    "nav.profile": "Profilo",
+    "nav.settings": "Impostazioni",
+    "file.open": "Apri",
+    "edit.copy": "Copia",
+    "view.filter": "Filtro",
+    "view.sort": "Ordina",
+    "edit.find": "Trova",
+    "edit.replace": "Sostituisci",
+    "diff.compare": "Confronta",
+    "file.export": "Esporta",
+    "file.save": "Salva",
+    "settings.title": "Impostazioni",
+    "settings.language": "Lingua",
+    "settings.resetLanguage": "Ripristina lingua",
+    "settings.searchPlaceholder": "Cerca impostazioni",
+    "start.openCsv": "Apri CSV/TSV",
+    "start.chooseFile": "Scegli file",
+    "file.recent": "Recenti",
+    "status.ready": "Pronto",
+  },
+  "zh-cn": {
+    "nav.grid": "网格",
+    "nav.profile": "概况",
+    "nav.settings": "设置",
+    "file.open": "打开",
+    "edit.copy": "复制",
+    "edit.headers": "表头",
+    "view.filter": "筛选",
+    "view.filters": "筛选",
+    "view.builder": "构建器",
+    "view.sort": "排序",
+    "edit.find": "查找",
+    "edit.preview": "预览",
+    "edit.replace": "替换",
+    "edit.all": "全部",
+    "diff.compare": "比较",
+    "file.readOnly": "只读",
+    "file.export": "导出",
+    "file.save": "保存",
+    "file.saveAs": "另存为",
+    "file.restore": "恢复",
+    "workbench.split": "拆分",
+    "workbench.orientation": "横/纵",
+    "workbench.focus": "聚焦",
+    "workbench.move": "移动",
+    "workbench.close": "关闭",
+    "settings.title": "设置",
+    "settings.modified": "已修改",
+    "settings.defaults": "默认",
+    "settings.language": "语言",
+    "settings.resetLanguage": "重置语言",
+    "settings.searchPlaceholder": "搜索设置",
+    "settings.savedViews": "保存的筛选、最近记录和排序",
+    "settings.theme": "主题",
+    "settings.externalChanges": "外部更改",
+    "settings.updates": "更新",
+    "settings.linkProtocols": "链接协议",
+    "settings.editorAppearance": "编辑器外观",
+    "settings.fileFormatPresets": "文件格式预设",
+    "start.openCsv": "打开 CSV/TSV",
+    "start.openHelp": "在工具栏中输入路径",
+    "start.chooseFile": "选择文件",
+    "start.chooseHelp": "使用浏览器选择器打开",
+    "file.recent": "最近",
+    "file.noOpen": "未打开文件",
+    "status.ready": "就绪",
+    "status.languageChanged": "语言已更新。",
+    "status.languageReset": "语言已重置。",
+  },
+  pt: {
+    "nav.grid": "Grade",
+    "nav.profile": "Perfil",
+    "nav.settings": "Configurações",
+    "file.open": "Abrir",
+    "edit.copy": "Copiar",
+    "view.filter": "Filtrar",
+    "view.sort": "Ordenar",
+    "edit.find": "Localizar",
+    "edit.replace": "Substituir",
+    "diff.compare": "Comparar",
+    "file.export": "Exportar",
+    "file.save": "Salvar",
+    "settings.title": "Configurações",
+    "settings.language": "Idioma",
+    "settings.resetLanguage": "Redefinir idioma",
+    "settings.searchPlaceholder": "Pesquisar configurações",
+    "start.openCsv": "Abrir CSV/TSV",
+    "start.chooseFile": "Escolher arquivo",
+    "file.recent": "Recentes",
+    "status.ready": "Pronto",
+  },
+  ru: {
+    "nav.grid": "Таблица",
+    "nav.profile": "Профиль",
+    "nav.settings": "Настройки",
+    "file.open": "Открыть",
+    "edit.copy": "Копировать",
+    "view.filter": "Фильтр",
+    "view.sort": "Сортировка",
+    "edit.find": "Найти",
+    "edit.replace": "Заменить",
+    "diff.compare": "Сравнить",
+    "file.export": "Экспорт",
+    "file.save": "Сохранить",
+    "settings.title": "Настройки",
+    "settings.language": "Язык",
+    "settings.resetLanguage": "Сбросить язык",
+    "settings.searchPlaceholder": "Поиск настроек",
+    "start.openCsv": "Открыть CSV/TSV",
+    "start.chooseFile": "Выбрать файл",
+    "file.recent": "Недавние",
+    "status.ready": "Готово",
+  },
+  de: {
+    "nav.grid": "Raster",
+    "nav.profile": "Profil",
+    "nav.settings": "Einstellungen",
+    "file.open": "Öffnen",
+    "edit.copy": "Kopieren",
+    "view.filter": "Filtern",
+    "view.sort": "Sortieren",
+    "edit.find": "Suchen",
+    "edit.replace": "Ersetzen",
+    "diff.compare": "Vergleichen",
+    "file.export": "Exportieren",
+    "file.save": "Speichern",
+    "settings.title": "Einstellungen",
+    "settings.language": "Sprache",
+    "settings.resetLanguage": "Sprache zurücksetzen",
+    "settings.searchPlaceholder": "Einstellungen suchen",
+    "start.openCsv": "CSV/TSV öffnen",
+    "start.chooseFile": "Datei wählen",
+    "file.recent": "Zuletzt",
+    "status.ready": "Bereit",
+  },
+  ko: {
+    "nav.grid": "그리드",
+    "nav.profile": "프로필",
+    "nav.settings": "설정",
+    "file.open": "열기",
+    "edit.copy": "복사",
+    "view.filter": "필터",
+    "view.sort": "정렬",
+    "edit.find": "찾기",
+    "edit.replace": "바꾸기",
+    "diff.compare": "비교",
+    "file.export": "내보내기",
+    "file.save": "저장",
+    "settings.title": "설정",
+    "settings.language": "언어",
+    "settings.resetLanguage": "언어 재설정",
+    "settings.searchPlaceholder": "설정 검색",
+    "start.openCsv": "CSV/TSV 열기",
+    "start.chooseFile": "파일 선택",
+    "file.recent": "최근",
+    "status.ready": "준비됨",
+  },
+};
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const shortcutExportKind = "opencsv-shortcuts";
 const shortcutPresets = [
@@ -418,6 +748,7 @@ let diffRows = [];
 let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+let localePreference = normalizeLocalePreference(localStorage.getItem(localeStorageKey));
 let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
 let autoRefreshMode = normalizeAutoRefreshMode(localStorage.getItem(autoRefreshStorageKey));
 let updateCheckMode = normalizeUpdateCheckMode(localStorage.getItem(updateCheckStorageKey));
@@ -427,6 +758,7 @@ let themeColors = {};
 let editorAppearance = loadEditorAppearance();
 
 initializeTheme();
+setLocalePreference(localePreference, false);
 setAutoRefreshMode(autoRefreshMode, false);
 setUpdateCheckMode(updateCheckMode, false);
 applyEditorAppearance(editorAppearance, false);
@@ -584,6 +916,110 @@ function initializeTheme() {
   themeMediaQuery.addEventListener("change", () => {
     if (themePreference === "system") applyTheme("system", false);
   });
+}
+
+function normalizeLocalePreference(value) {
+  return supportedLocales.some((locale) => locale.code === value) ? value : defaultLocale;
+}
+
+function localeLanguageTag(value = localePreference) {
+  return value === "zh-cn" ? "zh-CN" : value;
+}
+
+function localeLabel(value = localePreference) {
+  return supportedLocales.find((locale) => locale.code === value)?.label || supportedLocales[0].label;
+}
+
+function t(key) {
+  return localeCatalog[localePreference]?.[key] || localeCatalog[defaultLocale][key] || key;
+}
+
+function setLocalePreference(locale, persist = true) {
+  localePreference = normalizeLocalePreference(locale);
+  if (persist) {
+    localStorage.setItem(localeStorageKey, localePreference);
+  }
+  document.documentElement.lang = localeLanguageTag();
+  document.body.dataset.locale = localePreference;
+  syncLocaleControls();
+  applyLocaleStrings();
+  renderFileList();
+}
+
+function localePreferenceModified() {
+  return localePreference !== defaultLocale;
+}
+
+function syncLocaleControls() {
+  if (!localeSelect) return;
+  localeSelect.value = localePreference;
+  settingsLocaleSummary.textContent = localeLabel();
+  resetLocaleButton.disabled = !localePreferenceModified();
+}
+
+function updateLocaleFromSettings() {
+  setLocalePreference(localeSelect.value);
+  renderSettingsPanel();
+  status.textContent = t("status.languageChanged");
+}
+
+function resetLocalePreference() {
+  setLocalePreference(defaultLocale);
+  renderSettingsPanel();
+  status.textContent = t("status.languageReset");
+}
+
+function applyLocaleStrings() {
+  const textTargets = [
+    [gridTabButton, "nav.grid"],
+    [sqlTabButton, "nav.sql"],
+    [profileTabButton, "nav.profile"],
+    [settingsTabButton, "nav.settings"],
+    [paletteButton, "nav.command"],
+    [openButton, "file.open"],
+    [copyFormatButton, "edit.copy"],
+    [filterButton, "view.filter"],
+    [filterBuilderButton, "view.builder"],
+    [sortButton, "view.sort"],
+    [findButton, "edit.find"],
+    [replacePreviewButton, "edit.preview"],
+    [replaceButton, "edit.replace"],
+    [replaceAllButton, "edit.all"],
+    [diffButton, "diff.compare"],
+    [readOnlyButton, "file.readOnly"],
+    [exportButton, "file.export"],
+    [saveButton, "file.save"],
+    [saveAsButton, "file.saveAs"],
+    [restoreBackupButton, "file.restore"],
+    [splitEditorButton, "workbench.split"],
+    [splitOrientationButton, "workbench.orientation"],
+    [focusEditorGroupButton, "workbench.focus"],
+    [moveEditorTabButton, "workbench.move"],
+    [closeSplitEditorButton, "workbench.close"],
+    [settingsPanel?.querySelector(".settings-header strong"), "settings.title"],
+    [settingsLocaleTitle, "settings.language"],
+    [localeSelectLabel, "settings.language"],
+    [resetLocaleButton, "settings.resetLanguage"],
+    [settingsPanel?.querySelector('[aria-label="Saved filters and sorts"] header strong'), "settings.savedViews"],
+    [settingsPanel?.querySelector('[aria-label="Theme"] header strong'), "settings.theme"],
+    [settingsPanel?.querySelector('[aria-label="External changes"] header strong'), "settings.externalChanges"],
+    [settingsPanel?.querySelector('[aria-label="Updates"] header strong'), "settings.updates"],
+    [settingsPanel?.querySelector('[aria-label="Link protocols"] header strong'), "settings.linkProtocols"],
+    [settingsPanel?.querySelector('[aria-label="Editor appearance"] header strong'), "settings.editorAppearance"],
+    [settingsPanel?.querySelector('[aria-label="File format presets"] header strong'), "settings.fileFormatPresets"],
+  ];
+  for (const [element, key] of textTargets) {
+    if (element) element.textContent = t(key);
+  }
+  const copyHeaderLabel = copyHeadersToggle?.nextElementSibling;
+  if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
+  if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
+  if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
+  const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
+  if (!documentId && status && readyLabels.has(status.textContent)) {
+    status.textContent = t("status.ready");
+  }
+  document.body.dataset.localeLabel = localeLabel();
 }
 
 function normalizeThemePreference(preference) {
@@ -1597,6 +2033,7 @@ function applyCommandMetadata() {
       button.textContent = command.title.replace("Replace All", "All");
     }
   }
+  applyLocaleStrings();
 }
 
 function updateCommandState() {
@@ -2161,6 +2598,7 @@ function openSettingsPanel() {
 
 function renderSettingsPanel() {
   if (!settingsPresetList) return;
+  syncLocaleControls();
   syncThemeControls();
   syncAutoRefreshControls();
   syncUpdateCheckControls();
@@ -2176,7 +2614,7 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || updateCheckModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || localePreferenceModified() || themePreferenceModified() || autoRefreshModeModified() || updateCheckModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? t("settings.modified") : t("settings.defaults");
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
@@ -7090,7 +7528,7 @@ function renderFileList() {
   if (recent.length > 0) {
     const label = document.createElement("div");
     label.className = "file-section-label";
-    label.textContent = "Recent";
+    label.textContent = t("file.recent");
     fileList.append(label);
     for (const item of recent) {
       fileList.append(fileButton(item, { onClick: () => openRecentFile(item) }));
@@ -7102,7 +7540,7 @@ function renderStartActions() {
   const openPathButton = document.createElement("button");
   openPathButton.className = "file-button file-action";
   openPathButton.type = "button";
-  openPathButton.append(fileText("Open CSV/TSV", "Type a path in the toolbar"));
+  openPathButton.append(fileText(t("start.openCsv"), t("start.openHelp")));
   openPathButton.addEventListener("click", () => {
     pathInput.focus();
     pathInput.select();
@@ -7111,7 +7549,7 @@ function renderStartActions() {
   const chooseButton = document.createElement("button");
   chooseButton.className = "file-button file-action";
   chooseButton.type = "button";
-  chooseButton.append(fileText("Choose File", "Open with browser picker"));
+  chooseButton.append(fileText(t("start.chooseFile"), t("start.chooseHelp")));
   chooseButton.addEventListener("click", () => fileInput.click());
 
   fileList.append(openPathButton, chooseButton);
@@ -7879,7 +8317,7 @@ function recentFilterSignature(body, expression) {
 function refreshFilterDropdown(saved = savedFilters(), recent = recentFilters()) {
   if (!recentFilterSelect) return;
   recentFilterSelect.replaceChildren();
-  recentFilterSelect.append(filterDropdownOption("", "Filters"));
+  recentFilterSelect.append(filterDropdownOption("", t("view.filters")));
   if (recent.length) {
     const group = document.createElement("optgroup");
     group.label = "Recent";
@@ -11086,6 +11524,8 @@ formatRuleInput.addEventListener("keydown", (event) => {
 saveFormatRuleButton.addEventListener("click", () => executeCommand("format.saveRule"));
 settingsSearch.addEventListener("input", renderSettingsPanel);
 resetFormatPresetsButton.addEventListener("click", resetFormatPresets);
+localeSelect.addEventListener("change", updateLocaleFromSettings);
+resetLocaleButton.addEventListener("click", resetLocalePreference);
 exportSavedViewsButton.addEventListener("click", () => executeCommand("view.exportSavedSets"));
 showImportSavedViewsButton.addEventListener("click", () => executeCommand("view.importSavedSets"));
 savedViewImportText.addEventListener("input", syncSavedViewImportControls);

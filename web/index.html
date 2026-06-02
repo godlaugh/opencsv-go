@@ -159,6 +159,30 @@
               <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" />
               <button id="resetFormatPresetsButton" type="button">Reset Formats</button>
             </div>
+            <section class="settings-section settings-locale-section" aria-label="Language">
+              <header>
+                <strong id="settingsLocaleTitle">Language</strong>
+                <span id="settingsLocaleSummary">English</span>
+              </header>
+              <div class="settings-locale-grid">
+                <label>
+                  <span id="localeSelectLabel">Language</span>
+                  <select id="localeSelect" aria-label="Language">
+                    <option value="en">English</option>
+                    <option value="ja">Japanese - 日本語</option>
+                    <option value="fr">French - Français</option>
+                    <option value="es">Spanish - Español</option>
+                    <option value="it">Italian - Italiano</option>
+                    <option value="zh-cn">Simplified Chinese - 简体中文</option>
+                    <option value="pt">Portuguese - Português</option>
+                    <option value="ru">Russian - Русский</option>
+                    <option value="de">German - Deutsch</option>
+                    <option value="ko">Korean - 한국어</option>
+                  </select>
+                </label>
+                <button id="resetLocaleButton" type="button">Reset Language</button>
+              </div>
+            </section>
             <section class="settings-section" aria-label="Saved filters and sorts">
               <header>
                 <strong>Saved Filters, Recent & Sorts</strong>

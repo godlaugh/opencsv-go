@@ -712,6 +712,7 @@ button:disabled {
 }
 
 .settings-policy-grid,
+.settings-locale-grid,
 .settings-theme-grid,
 .settings-refresh-grid,
 .settings-update-grid,
@@ -726,6 +727,7 @@ button:disabled {
 }
 
 .settings-policy-grid label,
+.settings-locale-grid label,
 .settings-theme-grid label,
 .settings-refresh-grid label,
 .settings-update-grid label,
@@ -740,6 +742,7 @@ button:disabled {
 }
 
 .settings-policy-grid select,
+.settings-locale-grid select,
 .settings-theme-grid select,
 .settings-refresh-grid select,
 .settings-update-grid select,
@@ -757,6 +760,7 @@ button:disabled {
 }
 
 .settings-policy-grid button,
+.settings-locale-grid button,
 .settings-theme-grid button,
 .settings-refresh-grid button,
 .settings-update-grid button,
