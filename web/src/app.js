@@ -8,6 +8,7 @@ const encodingStatus = document.querySelector("#encodingStatus");
 const delimiterStatus = document.querySelector("#delimiterStatus");
 const quoteStatus = document.querySelector("#quoteStatus");
 const headerStatus = document.querySelector("#headerStatus");
+const workbookSheetSelect = document.querySelector("#workbookSheetSelect");
 const readOnlyStatus = document.querySelector("#readOnlyStatus");
 const externalStatus = document.querySelector("#externalStatus");
 const aggregateStatusButton = document.querySelector("#aggregateStatusButton");
@@ -2215,6 +2216,9 @@ function updateCommandState() {
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
   lineEndingSelect.disabled = !hasDocument || readOnly;
   applyLineEndingButton.disabled = !hasDocument || readOnly;
+  if (workbookSheetSelect) {
+    workbookSheetSelect.disabled = !canSwitchWorkbookSheet();
+  }
   quoteHeaderRuleToggle.disabled = !hasDocument || readOnly;
   quoteBodyRuleToggle.disabled = !hasDocument || readOnly;
   quoteColumnRuleToggle.disabled = !hasDocument || readOnly || columns.length === 0;
@@ -2236,6 +2240,7 @@ function isCommandDisabled(command) {
   const needsRowClipboard = command.id === "row.paste";
   const needsColumnClipboard = command.id === "column.paste";
   const needsUpdateChecksEnabled = command.id === "settings.checkForUpdates";
+  const needsWorkbookSheet = command.id === "format.switchWorksheet";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -2324,6 +2329,7 @@ function isCommandDisabled(command) {
     (needsColumnClipboard && !structureClipboardFor("column")) ||
     (needsSelectedCells && selectionCellCount() === 0) ||
     (needsUpdateChecksEnabled && updateCheckMode === "off") ||
+    (needsWorkbookSheet && !canSwitchWorkbookSheet()) ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -2365,6 +2371,7 @@ function updateFormatStatus() {
     document.body.dataset.workbookSheet = "";
     document.body.dataset.workbookSheetCount = "";
     readOnlyStatus.textContent = "Editable";
+    syncWorkbookSheetControls();
     syncExternalChangeControls(false);
     syncDelimiterControls();
     syncEncodingControls();
@@ -2381,6 +2388,7 @@ function updateFormatStatus() {
   document.body.dataset.workbookSheet = metadata.workbook?.selectedSheetName || "";
   document.body.dataset.workbookSheetCount = String(metadata.workbook?.sheets?.length || "");
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
+  syncWorkbookSheetControls();
   syncExternalChangeControls();
   syncDelimiterControls();
   syncEncodingControls();
@@ -2535,6 +2543,113 @@ function headerModeLabel(dialect = metadata?.dialect) {
   if (dialect?.hasHeader) return "Header row";
   if (headerColumns > 0) return columnLabel;
   return "No header";
+}
+
+function workbookSheetOptions() {
+  const sheets = metadata?.workbook?.sheets;
+  return Array.isArray(sheets) ? sheets : [];
+}
+
+function workbookSheetSignature(sheets = workbookSheetOptions()) {
+  return sheets.map((sheet) => `${sheet.index}:${sheet.name}`).join("|");
+}
+
+function syncWorkbookSheetControls() {
+  if (!workbookSheetSelect) return;
+  const sheets = workbookSheetOptions();
+  const signature = workbookSheetSignature(sheets);
+  if (workbookSheetSelect.dataset.signature !== signature) {
+    const fragment = document.createDocumentFragment();
+    if (!sheets.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Sheet";
+      fragment.append(option);
+    } else {
+      for (const sheet of sheets) {
+        const option = document.createElement("option");
+        option.value = String(sheet.index);
+        option.textContent = sheet.name || `Sheet ${sheet.index}`;
+        fragment.append(option);
+      }
+    }
+    workbookSheetSelect.replaceChildren(fragment);
+    workbookSheetSelect.dataset.signature = signature;
+  }
+  const selectedIndex = metadata?.workbook?.selectedSheetIndex;
+  const selectedValue = Number.isInteger(selectedIndex) && selectedIndex > 0 ? String(selectedIndex) : "";
+  if (selectedValue && [...workbookSheetSelect.options].some((option) => option.value === selectedValue)) {
+    workbookSheetSelect.value = selectedValue;
+  }
+  workbookSheetSelect.hidden = sheets.length <= 1;
+  workbookSheetSelect.disabled = !documentId || sheets.length <= 1 || dirty;
+  workbookSheetSelect.title = dirty
+    ? "Save or reload before switching worksheets"
+    : sheets.length > 1
+      ? "XLSX worksheet"
+      : "No alternate worksheet";
+  document.body.dataset.workbookSheetOptions = signature;
+  document.body.dataset.workbookSheetSwitchBlocked = dirty && sheets.length > 1 ? "dirty" : "";
+}
+
+function canSwitchWorkbookSheet() {
+  return Boolean(documentId && workbookSheetOptions().length > 1 && !dirty);
+}
+
+function focusWorkbookSheetSelector() {
+  const sheets = workbookSheetOptions();
+  if (!documentId || !sheets.length) {
+    status.textContent = "Open an XLSX workbook before switching worksheets.";
+    return;
+  }
+  if (sheets.length <= 1) {
+    status.textContent = "The current workbook has only one worksheet.";
+    return;
+  }
+  if (dirty) {
+    status.textContent = "Save or reload before switching worksheets.";
+    syncWorkbookSheetControls();
+    return;
+  }
+  syncWorkbookSheetControls();
+  workbookSheetSelect.hidden = false;
+  workbookSheetSelect.focus();
+  status.textContent = `Choose one of ${formatCount(sheets.length)} worksheets.`;
+}
+
+async function switchWorkbookSheet() {
+  const sheets = workbookSheetOptions();
+  const selectedIndex = Number.parseInt(workbookSheetSelect?.value || "", 10);
+  const sheet = sheets.find((item) => item.index === selectedIndex);
+  if (!sheet || !documentId) {
+    syncWorkbookSheetControls();
+    return;
+  }
+  if (sheet.index === metadata?.workbook?.selectedSheetIndex) return;
+  if (dirty) {
+    status.textContent = "Save or reload before switching worksheets.";
+    syncWorkbookSheetControls();
+    return;
+  }
+  const path = metadata?.path || activeFileEntry?.detail || pathInput.value.trim();
+  if (!path || path === "temporary upload") {
+    status.textContent = "Switch Worksheet needs a local workbook path.";
+    syncWorkbookSheetControls();
+    return;
+  }
+  const previousSheet = metadata?.workbook?.selectedSheetName || "";
+  status.textContent = `Opening worksheet ${sheet.name || sheet.index}...`;
+  document.body.dataset.workbookSheetSwitch = `${previousSheet}->${sheet.name || sheet.index}`;
+  try {
+    await openPath(path, {
+      applyRules: false,
+      formatOverride: { sheetIndex: sheet.index },
+    });
+    status.textContent = `Opened worksheet ${sheet.name || sheet.index}.`;
+  } catch (error) {
+    status.textContent = `Switch Worksheet failed: ${error.message}`;
+    syncWorkbookSheetControls();
+  }
 }
 
 function syncDelimiterControls() {
@@ -5801,6 +5916,9 @@ async function executeCommand(commandID) {
       break;
     case "format.applyPreset":
       await applySelectedFormatPreset();
+      break;
+    case "format.switchWorksheet":
+      focusWorkbookSheetSelector();
       break;
     case "format.saveRule":
       saveCurrentFormatRule();
@@ -13315,6 +13433,7 @@ aggregateStatusButton.addEventListener("click", async (event) => {
   cycleAggregateMetric();
 });
 headerStatus.addEventListener("click", () => executeCommand("table.toggleHeaderRow"));
+workbookSheetSelect?.addEventListener("change", () => switchWorkbookSheet());
 externalStatus.addEventListener("click", openExternalChangePanel);
 saveFormatPresetButton.addEventListener("click", () => executeCommand("format.savePreset"));
 applyFormatPresetButton.addEventListener("click", () => executeCommand("format.applyPreset"));

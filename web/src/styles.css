@@ -2008,6 +2008,10 @@ button:disabled {
   background: var(--panel);
 }
 
+.workbook-sheet-select {
+  max-width: 144px;
+}
+
 .status-input {
   width: 88px;
   border: 1px solid var(--border);

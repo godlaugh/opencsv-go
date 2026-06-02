@@ -43,6 +43,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"format.applyEncoding",
 		"format.applyLineEnding",
 		"format.applyQuotePolicy",
+		"format.switchWorksheet",
 		"format.exportQuoteRules",
 		"format.importQuoteRules",
 		"format.toggleHeaderQuote",
