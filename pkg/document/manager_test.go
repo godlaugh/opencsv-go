@@ -134,15 +134,33 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count != 3 {
-		t.Fatalf("sort count = %d, want 3", count)
+	if count != 2 {
+		t.Fatalf("filtered sort count = %d, want 2", count)
 	}
 	window, err = manager.Window(session.ID, 0, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if window.Rows[0][1] != "Grace" {
-		t.Fatalf("first sorted row = %#v, want Grace", window.Rows[0])
+	if window.TotalRows != 2 || window.Rows[0][1] != "Grace" || window.Rows[1][1] != "Ada Byron" {
+		t.Fatalf("filtered sorted window = %#v, want Grace then Ada Byron", window)
+	}
+
+	if _, err := manager.ClearView(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	count, err = manager.Sort(session.ID, SortOptions{Column: 2, Descending: true, Numeric: true, HasHeader: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Fatalf("full sort count = %d, want 3", count)
+	}
+	window, err = manager.Window(session.ID, 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if window.TotalRows != 3 || window.Rows[0][1] != "Grace" {
+		t.Fatalf("full sorted window = %#v, want Grace first", window)
 	}
 
 	result, err := manager.Save(session.ID, "", true)
@@ -346,6 +364,9 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 		t.Fatalf("empty export rows=%d data=%q, want header only", empty.Rows, string(empty.Data))
 	}
 
+	if _, err := manager.ClearView(session.ID); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := manager.Sort(session.ID, SortOptions{Column: 2, Descending: true, Numeric: true, HasHeader: true}); err != nil {
 		t.Fatal(err)
 	}

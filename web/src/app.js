@@ -7422,7 +7422,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   const payload = await response.json();
   if (!response.ok) {
     status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
-    return;
+    return false;
   }
   viewMapped = true;
   sortDescending = false;
@@ -7441,6 +7441,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   windowEnd = 0;
   await maybeLoadWindow(0);
   status.textContent = `${label} matched ${sourceRowCount.toLocaleString()} rows`;
+  return true;
 }
 
 function looksLikeSQLFilter(query) {
@@ -7468,7 +7469,7 @@ async function sortColumn(column, descending, append, modeOverride = "") {
 }
 
 async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
-  if (!documentId || columns.length === 0 || nextKeys.length === 0) return;
+  if (!documentId || columns.length === 0 || nextKeys.length === 0) return false;
   const primaryKey = nextKeys[0];
   const response = await fetch("/api/sort", {
     method: "POST",
@@ -7486,7 +7487,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
   const payload = await response.json();
   if (!response.ok) {
     status.textContent = `Sort failed: ${payload.error ?? "unknown error"}`;
-    return;
+    return false;
   }
   viewMapped = true;
   sortKeys = nextKeys;
@@ -7505,6 +7506,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
   await maybeLoadWindow(0);
   renderViewChips();
   status.textContent = successMessage || `Sorted ${formatSortKeys(sortKeys)}`;
+  return true;
 }
 
 function nextSortKeys(column, descending, append, modeOverride = "") {
@@ -8535,7 +8537,7 @@ async function checkFileStatus(autoRefresh = true) {
     if (!externalFileChanged) {
       externalChangePanelDismissed = false;
     }
-    if (externalFileChanged && autoRefresh && autoRefreshMode === "clean" && !dirty && !viewMapped) {
+    if (externalFileChanged && autoRefresh && autoRefreshMode === "clean" && !dirty && canAutoRefreshCleanExternalChange()) {
       await refreshCurrentDocument();
       return;
     }
@@ -8557,8 +8559,13 @@ async function checkFileStatus(autoRefresh = true) {
   }
 }
 
+function canAutoRefreshCleanExternalChange() {
+  return !viewMapped || Boolean(activeFilter?.expression) || sortKeys.length > 0;
+}
+
 async function refreshCurrentDocument(options = {}) {
   if (!documentId) return;
+  const viewSnapshot = options.discardDirty || options.preserveView === false ? null : captureViewSnapshot();
   const response = await fetch("/api/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -8581,12 +8588,67 @@ async function refreshCurrentDocument(options = {}) {
   externalChangePanelDismissed = false;
   loadDocument(session.document);
   updateFileList(session.displayName || fileNameFromPath(metadata.path), metadata.path, totalRows);
+  const restoredView = await restoreViewSnapshot(viewSnapshot);
   updateFormatStatus();
   updateInspector();
   updateCommandState();
   draw();
-  status.textContent = options.manual ? "Refreshed external changes" : "Auto-refreshed external changes";
+  const label = options.manual ? "Refreshed external changes" : "Auto-refreshed external changes";
+  status.textContent = restoredView.length
+    ? `${label}; restored ${restoredView.join(" and ")}`
+    : label;
   return true;
+}
+
+function captureViewSnapshot() {
+  if (!documentId) return null;
+  return {
+    filter: activeFilter ? { ...activeFilter } : null,
+    sortKeys: sortKeys.map((key) => ({ ...key })),
+    selectedSourceCol: columns[selected.col]?.sourceCol ?? selected.col,
+  };
+}
+
+async function restoreViewSnapshot(snapshot) {
+  if (!documentId || !snapshot) {
+    document.body.dataset.refreshViewRestored = "";
+    return [];
+  }
+  const restored = [];
+  const selectedSourceCol = Number.isInteger(snapshot.selectedSourceCol)
+    ? snapshot.selectedSourceCol
+    : selected.col;
+  if (snapshot.filter?.expression) {
+    const preserveCol = visibleColForSource(selectedSourceCol);
+    const filterRestored = await applyFilterRequest(
+      { documentId, mode: "sql", expression: snapshot.filter.expression },
+      "Restored filter",
+      preserveCol >= 0 ? preserveCol : selected.col,
+    );
+    if (filterRestored) {
+      setActiveFilter(snapshot.filter);
+      restored.push("filter");
+    }
+  }
+  const resolvedSortKeys = (snapshot.sortKeys ?? [])
+    .map((key) => ({
+      column: Number(key.column),
+      descending: Boolean(key.descending),
+      numeric: Boolean(key.numeric || key.mode === "number"),
+      mode: key.mode || (key.numeric ? "number" : "auto"),
+    }))
+    .filter((key) => Number.isInteger(key.column) && key.column >= 0 && key.column < allColumns.length);
+  if (resolvedSortKeys.length) {
+    const visibleCol = visibleColForSource(resolvedSortKeys[0].column);
+    const sortRestored = await applySortKeys(
+      resolvedSortKeys,
+      visibleCol >= 0 ? visibleCol : Math.max(0, Math.min(columns.length - 1, selected.col)),
+      "Restored sort",
+    );
+    if (sortRestored) restored.push("sort");
+  }
+  document.body.dataset.refreshViewRestored = restored.join(",");
+  return restored;
 }
 
 function startFileStatusChecks() {

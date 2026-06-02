@@ -1230,8 +1230,25 @@ func TestServerFindFilterSort(t *testing.T) {
 		"descending": true,
 		"hasHeader":  true,
 	})
+	if sortPayload["totalRows"].(float64) != 2 {
+		t.Fatalf("filtered sort totalRows = %#v, want 2", sortPayload["totalRows"])
+	}
+
+	clearPayload := postJSON(t, handler, "/api/view-clear", map[string]any{
+		"documentId": documentID,
+	})
+	if clearPayload["totalRows"].(float64) != 4 {
+		t.Fatalf("clear view totalRows = %#v, want 4", clearPayload["totalRows"])
+	}
+	sortPayload = postJSON(t, handler, "/api/sort", map[string]any{
+		"documentId": documentID,
+		"column":     2,
+		"numeric":    true,
+		"descending": true,
+		"hasHeader":  true,
+	})
 	if sortPayload["totalRows"].(float64) != 3 {
-		t.Fatalf("sort totalRows = %#v, want 3", sortPayload["totalRows"])
+		t.Fatalf("full sort totalRows = %#v, want 3", sortPayload["totalRows"])
 	}
 
 	sqlPayload := postJSON(t, handler, "/api/sql", map[string]any{

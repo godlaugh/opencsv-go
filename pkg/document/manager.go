@@ -1937,9 +1937,14 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 	if options.HasHeader || session.Document.Metadata.Dialect.HasHeader {
 		start = 1
 	}
-	viewRows := make([]int, 0, max(0, len(records)-start))
-	for row := start; row < len(records); row++ {
-		viewRows = append(viewRows, row)
+	var viewRows []int
+	if session.ViewActive {
+		viewRows = append([]int(nil), session.ViewRows...)
+	} else {
+		viewRows = make([]int, 0, max(0, len(records)-start))
+		for row := start; row < len(records); row++ {
+			viewRows = append(viewRows, row)
+		}
 	}
 	sort.SliceStable(viewRows, func(i, j int) bool {
 		return compareSortRecords(records[viewRows[i]], records[viewRows[j]], keys) < 0
