@@ -3672,6 +3672,16 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
       return booleanConditionExpression(identifier, true);
     case "booleanFalse":
       return booleanConditionExpression(identifier, false);
+    case "dateEquals":
+      return dateConditionExpression(identifier, "=", value, valueInput);
+    case "dateBefore":
+      return dateConditionExpression(identifier, "<", value, valueInput);
+    case "dateAfter":
+      return dateConditionExpression(identifier, ">", value, valueInput);
+    case "dateOnOrBefore":
+      return dateConditionExpression(identifier, "<=", value, valueInput);
+    case "dateOnOrAfter":
+      return dateConditionExpression(identifier, ">=", value, valueInput);
     case "gt":
       return `${identifier} > ${sqlComparisonLiteral(value)}`;
     case "gte":
@@ -3693,6 +3703,34 @@ function booleanConditionExpression(identifier, expected) {
     return `(${normalized} = 'true' OR ${trimmed} = '1')`;
   }
   return `(${normalized} = 'false' OR ${trimmed} = '0' OR ${trimmed} = '')`;
+}
+
+function dateConditionExpression(identifier, operator, value, valueInput) {
+  const date = normalizedDateLiteral(value);
+  if (!date) {
+    status.textContent = "Enter a date as YYYY-MM-DD.";
+    valueInput.focus();
+    return "";
+  }
+  return `CAST(${identifier} AS date) ${operator} DATE '${date}'`;
+}
+
+function normalizedDateLiteral(value) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return "";
+  }
+  return raw;
 }
 
 function sqlColumnIdentifier(sourceCol) {
