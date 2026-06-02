@@ -451,6 +451,40 @@ func (manager *Manager) SetLineEnding(id string, lineEnding string) (MutationRes
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetDelimiter(id string, delimiterValue string, delimiterName string) (MutationResult, error) {
+	delimiter, name, err := csvcore.NormalizeDelimiter(delimiterValue, delimiterName)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.Document.Metadata.Dialect.Delimiter == delimiter && session.Document.Metadata.Dialect.DelimiterName == name {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	metadata := session.Document.Metadata
+	metadata.Dialect.Delimiter = delimiter
+	metadata.Dialect.DelimiterName = name
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+}
+
 func (manager *Manager) SetCellQuote(id string, row int, col int, quoted bool) (MutationResult, error) {
 	if row < 0 || col < 0 {
 		return MutationResult{}, errors.New("cell coordinates must be non-negative")
@@ -1381,12 +1415,14 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	}
 
 	delimiter := session.Document.Metadata.Dialect.Delimiter
+	delimiterName := session.Document.Metadata.Dialect.DelimiterName
 	hasHeader := session.Document.Metadata.Dialect.HasHeader
 	headerColumns := session.Document.Metadata.Dialect.HeaderColumns
 	refreshed, refreshedWorkingPath, openErr := openDocumentForPath(outputPath, csvcore.OpenOptions{
 		PreviewRows:   max(1, len(session.Document.Preview)),
 		IndexRows:     max(1, len(session.Document.Preview)),
 		Delimiter:     &delimiter,
+		DelimiterName: delimiterName,
 		HasHeader:     &hasHeader,
 		HeaderColumns: &headerColumns,
 		Encoding:      &session.Document.Metadata.Encoding,
@@ -2472,12 +2508,14 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 		return nil, errors.New("document has no file path")
 	}
 	delimiter := session.Document.Metadata.Dialect.Delimiter
+	delimiterName := session.Document.Metadata.Dialect.DelimiterName
 	hasHeader := session.Document.Metadata.Dialect.HasHeader
 	headerColumns := session.Document.Metadata.Dialect.HeaderColumns
 	refreshed, err := csvcore.OpenDocument(path, csvcore.OpenOptions{
 		PreviewRows:   max(160, len(session.Document.Preview)),
 		IndexRows:     -1,
 		Delimiter:     &delimiter,
+		DelimiterName: delimiterName,
 		HasHeader:     &hasHeader,
 		HeaderColumns: &headerColumns,
 		Encoding:      &session.Document.Metadata.Encoding,
@@ -2606,12 +2644,14 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 		return nil, err
 	}
 	delimiter := metadata.Dialect.Delimiter
+	delimiterName := metadata.Dialect.DelimiterName
 	hasHeader := metadata.Dialect.HasHeader
 	headerColumns := metadata.Dialect.HeaderColumns
 	refreshed, err := csvcore.OpenDocument(tempPath, csvcore.OpenOptions{
 		PreviewRows:   max(160, min(len(records), 1000)),
 		IndexRows:     -1,
 		Delimiter:     &delimiter,
+		DelimiterName: delimiterName,
 		HasHeader:     &hasHeader,
 		HeaderColumns: &headerColumns,
 		Encoding:      &metadata.Encoding,

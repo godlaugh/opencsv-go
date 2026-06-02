@@ -304,6 +304,22 @@ Output:
 - preview.
 - row index summary.
 
+`POST /api/delimiter`
+
+Input:
+
+- `documentId`
+- `delimiter`
+- optional `delimiterName`
+
+Output:
+
+- mutation result with refreshed document metadata and dirty state.
+
+Notes:
+
+- The document manager reads existing records with the current dialect before materializing a new working copy with the requested delimiter, preventing delimiter policy changes from causing later saves to parse the old file with the new separator.
+
 ### Upload Open
 
 `POST /api/upload-open`

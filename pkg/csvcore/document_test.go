@@ -64,3 +64,40 @@ func TestNormalizeLineEndingName(t *testing.T) {
 		t.Fatal("expected unsupported line ending error")
 	}
 }
+
+func TestNormalizeDelimiter(t *testing.T) {
+	tests := []struct {
+		raw      string
+		name     string
+		wantRune rune
+		wantName string
+	}{
+		{raw: "comma", wantRune: ',', wantName: "comma"},
+		{raw: "tab", wantRune: '\t', wantName: "tab"},
+		{raw: "\\t", wantRune: '\t', wantName: "tab"},
+		{raw: "\t", wantRune: '\t', wantName: "tab"},
+		{raw: "semicolon", wantRune: ';', wantName: "semicolon"},
+		{raw: "pipe", wantRune: '|', wantName: "pipe"},
+		{raw: "space", wantRune: ' ', wantName: "space"},
+		{raw: " ", wantRune: ' ', wantName: "space"},
+		{raw: "^", wantRune: '^', wantName: "^"},
+		{raw: "^", name: "caret", wantRune: '^', wantName: "caret"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw+tt.name, func(t *testing.T) {
+			gotRune, gotName, err := NormalizeDelimiter(tt.raw, tt.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotRune != tt.wantRune || gotName != tt.wantName {
+				t.Fatalf("NormalizeDelimiter(%q, %q) = %q/%q, want %q/%q", tt.raw, tt.name, gotRune, gotName, tt.wantRune, tt.wantName)
+			}
+		})
+	}
+	if _, _, err := NormalizeDelimiter("\n", ""); err == nil {
+		t.Fatal("expected line-break delimiter error")
+	}
+	if _, _, err := NormalizeDelimiter("::", ""); err == nil {
+		t.Fatal("expected multi-character delimiter error")
+	}
+}

@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/opencsv/opencsv/pkg/appserver"
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -371,23 +370,7 @@ func openOptionsFromFormat(format protocol.FormatParams) (csvcore.OpenOptions, e
 }
 
 func parseDelimiter(raw string) (rune, string, error) {
-	switch strings.ToLower(raw) {
-	case "comma":
-		return ',', "comma", nil
-	case "tab", "\\t":
-		return '\t', "tab", nil
-	case "semicolon":
-		return ';', "semicolon", nil
-	case "pipe":
-		return '|', "pipe", nil
-	case "space":
-		return ' ', "space", nil
-	}
-	r, size := utf8.DecodeRuneInString(raw)
-	if r == utf8.RuneError || size != len(raw) {
-		return 0, "", fmt.Errorf("delimiter must be a known alias or single character")
-	}
-	return r, raw, nil
+	return csvcore.NormalizeDelimiter(raw, "")
 }
 
 func openCLITarget(path string, options csvcore.OpenOptions) (csvcore.Document, string, error) {

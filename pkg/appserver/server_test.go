@@ -473,6 +473,52 @@ func TestServerLineEndingPolicySave(t *testing.T) {
 	}
 }
 
+func TestServerDelimiterPolicySave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "delimiter-policy.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	delimiterPayload := postJSON(t, handler, "/api/delimiter", map[string]any{
+		"documentId":    documentID,
+		"delimiter":     "|",
+		"delimiterName": "pipe",
+	})
+	if delimiterPayload["dirty"] != true {
+		t.Fatalf("dirty after delimiter policy = %#v, want true", delimiterPayload["dirty"])
+	}
+	document := delimiterPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["delimiter"].(float64) != float64('|') || dialect["delimiterName"] != "pipe" {
+		t.Fatalf("delimiter dialect = %#v, want pipe", dialect)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" {
+		t.Fatalf("rows after delimiter materialize = %#v", rows)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved, []byte("id|name\n1|Ada\n2|Grace\n")) {
+		t.Fatalf("saved delimiter policy = %q", saved)
+	}
+}
+
 func TestServerManualCellQuoteSaveAndUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manual-quote.csv")

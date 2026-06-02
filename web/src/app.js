@@ -167,6 +167,9 @@ const localeSelect = document.querySelector("#localeSelect");
 const localeSelectLabel = document.querySelector("#localeSelectLabel");
 const resetLocaleButton = document.querySelector("#resetLocaleButton");
 const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
+const delimiterSelect = document.querySelector("#delimiterSelect");
+const delimiterCustomInput = document.querySelector("#delimiterCustomInput");
+const applyDelimiterButton = document.querySelector("#applyDelimiterButton");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
 const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
@@ -813,6 +816,7 @@ let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
+let delimiterDraftDirty = false;
 let lineEndingDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let localePreference = normalizeLocalePreference(localStorage.getItem(localeStorageKey));
@@ -2135,6 +2139,8 @@ function applyCommandMetadata() {
       button.textContent = "Apply";
     } else if (button.dataset.command === "format.saveRule") {
       button.textContent = "Save Rule";
+    } else if (button.dataset.command === "format.applyDelimiter") {
+      button.textContent = "Apply Delim";
     } else if (button.dataset.command === "format.applyLineEnding") {
       button.textContent = "Apply EOL";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
@@ -2194,6 +2200,9 @@ function updateCommandState() {
   applyFormatPresetButton.disabled = !hasDocument || !formatPresetSelect.value;
   formatRuleInput.disabled = !hasDocument;
   saveFormatRuleButton.disabled = !hasDocument;
+  delimiterSelect.disabled = !hasDocument || readOnly;
+  delimiterCustomInput.disabled = !hasDocument || readOnly || delimiterSelect.value !== "custom";
+  applyDelimiterButton.disabled = !hasDocument || readOnly;
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
@@ -2277,6 +2286,7 @@ function isCommandDisabled(command) {
       command.id === "cell.fillRight" ||
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
+      command.id === "format.applyDelimiter" ||
       command.id === "format.applyQuotePolicy" ||
       command.id === "format.applyLineEnding" ||
       command.id === "format.importQuoteRules" ||
@@ -2328,6 +2338,7 @@ function updateInspector() {
   columnDistinct.textContent = profile ? formatCount(profile.distinct) : "unknown";
   cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
   formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
+  syncDelimiterControls();
   syncQuotePolicyControls();
   syncLineEndingControls();
   syncCellValuePanel();
@@ -2344,6 +2355,7 @@ function updateFormatStatus() {
     document.body.dataset.headerColumns = "";
     readOnlyStatus.textContent = "Editable";
     syncExternalChangeControls(false);
+    syncDelimiterControls();
     syncLineEndingControls();
     return;
   }
@@ -2356,6 +2368,7 @@ function updateFormatStatus() {
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   syncExternalChangeControls();
+  syncDelimiterControls();
   syncQuotePolicyControls();
   syncLineEndingControls();
 }
@@ -2400,6 +2413,30 @@ function delimiterChar(dialect = metadata?.dialect) {
   }
   if (typeof raw === "string" && raw.length > 0) return raw;
   return ",";
+}
+
+function delimiterOptionValue(dialect = metadata?.dialect) {
+  const name = String(dialect?.delimiterName || "").trim().toLowerCase();
+  const char = delimiterChar(dialect);
+  if (name === "comma" || char === ",") return "comma";
+  if (name === "tab" || name === "tsv" || char === "\t") return "tab";
+  if (name === "semicolon" || char === ";") return "semicolon";
+  if (name === "pipe" || char === "|") return "pipe";
+  if (name === "space" || char === " ") return "space";
+  return "custom";
+}
+
+function delimiterCustomValue(dialect = metadata?.dialect) {
+  return delimiterOptionValue(dialect) === "custom" ? delimiterChar(dialect) : "";
+}
+
+function delimiterControlValue() {
+  const option = delimiterSelect?.value || "comma";
+  if (option === "custom") {
+    const custom = delimiterCustomInput.value || ",";
+    return { delimiter: Array.from(custom)[0] || ",", delimiterName: Array.from(custom)[0] || "," };
+  }
+  return normalizeDelimiterOverride(option);
 }
 
 function lineEndingLabel(info = metadata?.lineEnding) {
@@ -2467,6 +2504,22 @@ function headerModeLabel(dialect = metadata?.dialect) {
   if (dialect?.hasHeader) return "Header row";
   if (headerColumns > 0) return columnLabel;
   return "No header";
+}
+
+function syncDelimiterControls() {
+  if (!delimiterSelect || !delimiterCustomInput || !applyDelimiterButton) return;
+  if (!delimiterDraftDirty) {
+    delimiterSelect.value = delimiterOptionValue();
+    delimiterCustomInput.value = delimiterCustomValue();
+  }
+  const custom = delimiterSelect.value === "custom";
+  delimiterSelect.disabled = !documentId || readOnly;
+  delimiterCustomInput.disabled = !documentId || readOnly || !custom;
+  applyDelimiterButton.disabled = !documentId || readOnly;
+  document.body.dataset.delimiter = delimiterOptionValue();
+  document.body.dataset.delimiterDraft = delimiterDraftDirty
+    ? `${delimiterSelect.value}:${custom ? delimiterCustomInput.value : ""}`
+    : "";
 }
 
 function syncQuotePolicyControls() {
@@ -2779,6 +2832,7 @@ function renderSettingsPanel() {
   syncUpdateCheckControls();
   syncFilterHistoryControls();
   syncCustomLinkProtocolControls();
+  syncDelimiterControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
@@ -3046,6 +3100,35 @@ function resetFormatPresets() {
   renderSettingsPanel();
   updateCommandState();
   status.textContent = "Reset format presets.";
+}
+
+async function applyDelimiter() {
+  if (!documentId) {
+    status.textContent = "Open a file before changing delimiter.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Delimiter blocked: document is read-only";
+    return;
+  }
+  const { delimiter, delimiterName } = delimiterControlValue();
+  const response = await fetch("/api/delimiter", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, delimiter, delimiterName }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Delimiter failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  delimiterDraftDirty = false;
+  applyMutationPayload(payload, `Delimiter set to ${delimiterLabel({ delimiter, delimiterName })}.`);
+  syncDelimiterControls();
+  updateFormatStatus();
+  updateInspector();
+  status.textContent = `Delimiter set to ${delimiterLabel({ delimiter, delimiterName })}.`;
+  document.body.dataset.delimiterPolicy = delimiterName;
 }
 
 async function applyQuotePolicy() {
@@ -5654,6 +5737,9 @@ async function executeCommand(commandID) {
     case "format.importPresets":
       showFormatPresetImportPanel();
       break;
+    case "format.applyDelimiter":
+      await applyDelimiter();
+      break;
     case "format.applyLineEnding":
       await applyLineEnding();
       break;
@@ -7333,6 +7419,7 @@ function loadDocument(document) {
   restoreScrollPosition();
   setHeaderInSelection(false);
   clearURLHover();
+  delimiterDraftDirty = false;
   lineEndingDraftDirty = false;
   dirty = false;
 }
@@ -13183,6 +13270,17 @@ gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls)
 textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 resetEditorAppearanceButton.addEventListener("click", resetEditorAppearance);
+applyDelimiterButton.addEventListener("click", () => executeCommand("format.applyDelimiter"));
+delimiterSelect.addEventListener("change", () => {
+  delimiterDraftDirty = true;
+  if (delimiterSelect.value !== "custom") delimiterCustomInput.value = "";
+  syncDelimiterControls();
+});
+delimiterCustomInput.addEventListener("input", () => {
+  delimiterDraftDirty = true;
+  delimiterSelect.value = "custom";
+  syncDelimiterControls();
+});
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
 applyLineEndingButton.addEventListener("click", () => executeCommand("format.applyLineEnding"));
 lineEndingSelect.addEventListener("change", () => {

@@ -742,6 +742,7 @@ button:disabled {
 }
 
 .settings-policy-grid select,
+.settings-policy-grid input,
 .settings-locale-grid select,
 .settings-theme-grid select,
 .settings-refresh-grid select,

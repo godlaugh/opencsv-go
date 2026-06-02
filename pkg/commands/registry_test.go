@@ -39,6 +39,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"format.saveRule",
 		"format.exportPresets",
 		"format.importPresets",
+		"format.applyDelimiter",
 		"format.applyQuotePolicy",
 		"format.exportQuoteRules",
 		"format.importQuoteRules",

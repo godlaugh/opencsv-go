@@ -283,6 +283,7 @@ Acceptance:
 
 - Detection result is visible in status/format panel.
 - User can override detection.
+- User can change delimiter, quote policy, line ending, header interpretation, and other save-format policies without silent data loss.
 - Saving preserves detected values unless overridden.
 - Files with mixed quote patterns round-trip without silently normalizing quote state.
 - Per-cell quote toggling is visible and undoable.

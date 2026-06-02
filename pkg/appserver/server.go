@@ -53,6 +53,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/undo", server.handleUndo)
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
+	server.mux.HandleFunc("POST /api/delimiter", server.handleDelimiter)
 	server.mux.HandleFunc("POST /api/line-ending", server.handleLineEnding)
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/quote-rule", server.handleQuoteRule)
@@ -169,13 +170,13 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 		IndexRows:   indexRows,
 	}
 	if request.Delimiter != "" {
-		delimiter, err := delimiterRune(request.Delimiter)
+		delimiter, delimiterName, err := csvcore.NormalizeDelimiter(request.Delimiter, request.DelimiterName)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
 		options.Delimiter = &delimiter
-		options.DelimiterName = request.DelimiterName
+		options.DelimiterName = delimiterName
 	}
 	if request.HasHeader != nil {
 		options.HasHeader = request.HasHeader
@@ -227,17 +228,6 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
-}
-
-func delimiterRune(value string) (rune, error) {
-	if value == "\\t" || strings.EqualFold(value, "tab") {
-		return '\t', nil
-	}
-	runes := []rune(value)
-	if len(runes) != 1 {
-		return 0, fmt.Errorf("delimiter must be one character")
-	}
-	return runes[0], nil
 }
 
 func (server *Server) handleFileSample(w http.ResponseWriter, r *http.Request) {
@@ -482,6 +472,12 @@ type headerModeRequest struct {
 	HasHeader  bool   `json:"hasHeader"`
 }
 
+type delimiterRequest struct {
+	DocumentID    string `json:"documentId"`
+	Delimiter     string `json:"delimiter"`
+	DelimiterName string `json:"delimiterName,omitempty"`
+}
+
 type lineEndingRequest struct {
 	DocumentID string `json:"documentId"`
 	LineEnding string `json:"lineEnding"`
@@ -525,6 +521,20 @@ func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.SetHeaderMode(request.DocumentID, request.HasHeader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDelimiter(w http.ResponseWriter, r *http.Request) {
+	var request delimiterRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetDelimiter(request.DocumentID, request.Delimiter, request.DelimiterName)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
