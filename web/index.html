@@ -72,6 +72,7 @@
             <button id="exportXlsxButton" type="button" title="Export current view as XLSX" data-command="file.exportXlsx">XLSX</button>
             <button id="saveButton" type="button" title="Save" data-command="file.save">Save</button>
             <button id="saveAsButton" type="button" title="Save as" data-command="file.saveAs">Save As</button>
+            <button id="restoreBackupButton" type="button" title="Restore backup" data-command="file.restoreBackup">Restore</button>
             <div id="viewChips" class="view-chips" aria-label="Active view filters" hidden></div>
           </div>
         </header>
@@ -410,6 +411,20 @@
         <footer class="condition-actions">
           <button id="cancelSaveAsButton" type="button">Cancel</button>
           <button id="confirmSaveAsButton" type="button">Save</button>
+        </footer>
+      </section>
+    </div>
+
+    <div id="restoreBackupPanel" class="command-palette-backdrop" hidden>
+      <section class="save-as-panel restore-backup-panel" role="dialog" aria-modal="true" aria-label="Restore From Backup">
+        <header class="condition-panel-header">
+          <strong>Restore From Backup</strong>
+          <button id="closeRestoreBackupButton" type="button">Close</button>
+        </header>
+        <div id="restoreBackupList" class="restore-backup-list" role="list" aria-label="Backup files"></div>
+        <footer class="condition-actions">
+          <button id="refreshRestoreBackupsButton" type="button">Refresh</button>
+          <button id="cancelRestoreBackupButton" type="button">Cancel</button>
         </footer>
       </section>
     </div>

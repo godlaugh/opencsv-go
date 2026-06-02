@@ -157,6 +157,7 @@ Product claims to match:
 - Text transforms and join/split cell tools.
 - Cell value panel.
 - Auto-backup before overwrite.
+- Restore from timestamped backup history.
 - Quick filters and sorting from column menus.
 - Aggregation summaries and aggregate rows.
 - Smart sort by text, number, date, and length, including full-width numeral support.
@@ -223,6 +224,7 @@ SQL console:
 - URL/deep-link parser.
 - File format overrides.
 - Save with backup and fidelity preservation.
+- Restore from backup history.
 - Quote indicators.
 - Copy/export formats.
 - Read-only mode.
@@ -339,6 +341,7 @@ The app shall support:
 - Atomic save.
 - Save as.
 - Auto-backup before destructive in-place save.
+- Restore from backup history without overwriting the live file until the user saves.
 - Auto-fit column width on edit when enabled.
 - Insert line breaks inside cell editor with platform-consistent shortcut.
 
@@ -677,6 +680,7 @@ Targets:
 
 - Atomic save via temp file and rename.
 - Byte-for-byte backup before in-place save.
+- Timestamped backups can be listed and restored into an undoable dirty document state.
 - Crash recovery for dirty documents.
 - External file change detection.
 - Clear warning before overwriting changed external file.
@@ -798,7 +802,7 @@ The Go core owns:
 - Row indexing.
 - Windowed row reads.
 - Edit overlay.
-- Save/backup.
+- Save/backup/restore.
 - Search.
 - Filter.
 - Sort.
@@ -838,6 +842,7 @@ The desktop shell owns:
 | A-002 | Header remains fixed during scroll | Browser screenshot/video and pixel/assertion test |
 | A-003 | Save preserves UTF-8 BOM + CRLF | Unit/integration test |
 | A-004 | Save creates byte-for-byte backup | Unit/integration test |
+| A-004B | Restore From Backup lists timestamped backups and restores one into the session | API/UI test |
 | A-005 | Browser Open shows file picker | Browser test with file chooser |
 | A-006 | Direct path open works | API/CLI test |
 | A-007 | Windowed row loading works | Unit/API test |

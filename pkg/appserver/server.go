@@ -75,6 +75,8 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/cells/join", server.handleJoinCells)
 	server.mux.HandleFunc("POST /api/cells/split", server.handleSplitCells)
 	server.mux.HandleFunc("POST /api/save", server.handleSave)
+	server.mux.HandleFunc("GET /api/backups", server.handleBackups)
+	server.mux.HandleFunc("POST /api/restore-backup", server.handleRestoreBackup)
 	server.mux.HandleFunc("POST /api/export-view", server.handleExportView)
 	server.mux.HandleFunc("POST /api/find", server.handleFind)
 	server.mux.HandleFunc("POST /api/replace", server.handleReplace)
@@ -867,6 +869,11 @@ type saveRequest struct {
 	Backup     *bool  `json:"backup"`
 }
 
+type restoreBackupRequest struct {
+	DocumentID string `json:"documentId"`
+	Path       string `json:"path"`
+}
+
 func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	var request saveRequest
 	if err := readJSON(r, &request); err != nil {
@@ -881,6 +888,30 @@ func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleBackups(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	backups, err := server.documents.ListBackups(id)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"backups": backups})
+}
+
+func (server *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
+	var request restoreBackupRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.RestoreBackup(request.DocumentID, request.Path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, result)
 }
 

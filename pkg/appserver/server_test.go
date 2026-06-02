@@ -69,6 +69,81 @@ func TestServerOpenEditSave(t *testing.T) {
 	}
 }
 
+func TestServerListAndRestoreBackup(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	original := []byte("id,name\n1,Ada\n")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"value":      "Grace",
+	})
+	savePayload := postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     true,
+	})
+	backupPath := savePayload["backupPath"].(string)
+
+	listPayload := getJSON(t, handler, "/api/backups?id="+documentID)
+	backups := listPayload["backups"].([]any)
+	if len(backups) != 1 {
+		t.Fatalf("backups = %#v, want one", backups)
+	}
+	backup := backups[0].(map[string]any)
+	if backup["path"] != backupPath || backup["name"] == "" {
+		t.Fatalf("unexpected backup info: %#v", backup)
+	}
+
+	restorePayload := postJSON(t, handler, "/api/restore-backup", map[string]any{
+		"documentId": documentID,
+		"path":       backupPath,
+	})
+	if restorePayload["dirty"] != true {
+		t.Fatalf("restore should leave document dirty: %#v", restorePayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" {
+		t.Fatalf("restored rows = %#v", rows)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved, original) {
+		t.Fatalf("saved restore = %q, want %q", saved, original)
+	}
+
+	otherBackup := filepath.Join(dir, "other.20260602T000000Z.csv.bak")
+	if err := os.WriteFile(otherBackup, []byte("id,name\n9,Edsger\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	response := postJSONResponse(t, handler, "/api/restore-backup", map[string]any{
+		"documentId": documentID,
+		"path":       otherBackup,
+	})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("restore of unrelated backup status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
 func TestServerSaveAsWritesNewPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

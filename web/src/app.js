@@ -65,6 +65,7 @@ const exportButton = document.querySelector("#exportButton");
 const exportXlsxButton = document.querySelector("#exportXlsxButton");
 const saveButton = document.querySelector("#saveButton");
 const saveAsButton = document.querySelector("#saveAsButton");
+const restoreBackupButton = document.querySelector("#restoreBackupButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
 const commandButtons = Array.from(document.querySelectorAll("[data-command]"));
 const gridFrame = document.querySelector(".grid-frame");
@@ -166,6 +167,11 @@ const saveAsPath = document.querySelector("#saveAsPath");
 const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
 const cancelSaveAsButton = document.querySelector("#cancelSaveAsButton");
 const confirmSaveAsButton = document.querySelector("#confirmSaveAsButton");
+const restoreBackupPanel = document.querySelector("#restoreBackupPanel");
+const restoreBackupList = document.querySelector("#restoreBackupList");
+const closeRestoreBackupButton = document.querySelector("#closeRestoreBackupButton");
+const cancelRestoreBackupButton = document.querySelector("#cancelRestoreBackupButton");
+const refreshRestoreBackupsButton = document.querySelector("#refreshRestoreBackupsButton");
 const externalChangePanel = document.querySelector("#externalChangePanel");
 const externalChangeTitle = document.querySelector("#externalChangeTitle");
 const externalChangeMessage = document.querySelector("#externalChangeMessage");
@@ -920,6 +926,8 @@ function applyCommandMetadata() {
       button.textContent = "Export";
     } else if (button.dataset.command === "file.exportXlsx") {
       button.textContent = "XLSX";
+    } else if (button.dataset.command === "file.restoreBackup") {
+      button.textContent = "Restore";
     } else if (button.dataset.command === "edit.copySelectedFormat") {
       button.textContent = "Copy";
     } else if (button.dataset.command === "edit.replacePreview") {
@@ -1014,6 +1022,7 @@ function isCommandDisabled(command) {
     (
       command.id === "file.save" ||
       command.id === "file.saveAs" ||
+      command.id === "file.restoreBackup" ||
       command.id === "edit.undo" ||
       command.id === "edit.redo" ||
       command.id === "edit.paste" ||
@@ -4033,6 +4042,9 @@ async function executeCommand(commandID) {
       break;
     case "file.saveAs":
       openSaveAsDialog();
+      break;
+    case "file.restoreBackup":
+      await openRestoreBackupPanel();
       break;
     case "file.exportView":
       await exportCurrentView();
@@ -8616,6 +8628,86 @@ function closeSaveAsDialog() {
   canvas.focus();
 }
 
+async function openRestoreBackupPanel() {
+  if (!documentId) {
+    status.textContent = "Open a CSV before restoring from backup.";
+    return;
+  }
+  if (!ensureEditable("Restore From Backup")) return;
+  restoreBackupPanel.hidden = false;
+  renderRestoreBackupMessage("Loading backups...");
+  await loadRestoreBackups();
+}
+
+function closeRestoreBackupPanel() {
+  restoreBackupPanel.hidden = true;
+  canvas.focus();
+}
+
+function renderRestoreBackupMessage(message) {
+  restoreBackupList.replaceChildren(emptyPaletteNode(message));
+}
+
+async function loadRestoreBackups() {
+  if (!documentId) return;
+  const response = await fetch(`/api/backups?id=${encodeURIComponent(documentId)}`);
+  const payload = await response.json();
+  if (!response.ok) {
+    document.body.dataset.backupCount = "0";
+    renderRestoreBackupMessage(`Backups failed: ${payload.error ?? "unknown error"}`);
+    return;
+  }
+  const backups = Array.isArray(payload.backups) ? payload.backups : [];
+  document.body.dataset.backupCount = String(backups.length);
+  renderRestoreBackupList(backups);
+}
+
+function renderRestoreBackupList(backups) {
+  restoreBackupList.replaceChildren();
+  if (!backups.length) {
+    renderRestoreBackupMessage("No backups found for this file.");
+    return;
+  }
+  for (const backup of backups) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "restore-backup-item";
+    button.dataset.backupPath = backup.path ?? "";
+    const detail = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = backup.name || fileNameFromPath(backup.path || "backup");
+    const path = document.createElement("span");
+    path.textContent = backup.path ?? "";
+    detail.append(name, path);
+    const meta = document.createElement("span");
+    meta.className = "restore-backup-meta";
+    meta.textContent = `${formatBackupSize(backup.sizeBytes)} · ${formatBackupTime(backup.modTimeUnixNano)}`;
+    button.append(detail, meta);
+    button.addEventListener("click", () => restoreBackup(backup.path));
+    restoreBackupList.append(button);
+  }
+  restoreBackupList.querySelector(".restore-backup-item")?.focus();
+}
+
+async function restoreBackup(path) {
+  if (!documentId || !path) return;
+  if (!ensureEditable("Restore From Backup")) return;
+  status.textContent = `Restoring ${fileNameFromPath(path)}...`;
+  const response = await fetch("/api/restore-backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, path }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Restore From Backup failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  document.body.dataset.backupRestored = path;
+  applyMutationPayload(payload, `Restored ${fileNameFromPath(path)}: ${formatCount(payload.totalRows ?? 0)} rows`);
+  closeRestoreBackupPanel();
+}
+
 function updateExternalChangePanel() {
   const conflict = Boolean(dirty);
   externalChangeTitle.textContent = conflict ? "Unsaved Edits Conflict" : "File Changed on Disk";
@@ -9424,6 +9516,33 @@ function formatNumber(value) {
   return number.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
+function formatBackupSize(value) {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${formatCount(bytes)} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let scaled = bytes;
+  let unit = units[0];
+  for (const nextUnit of units) {
+    scaled /= 1024;
+    unit = nextUnit;
+    if (scaled < 1024) break;
+  }
+  return `${scaled.toLocaleString(undefined, { maximumFractionDigits: scaled >= 10 ? 1 : 2 })} ${unit}`;
+}
+
+function formatBackupTime(value) {
+  const milliseconds = Number(value || 0) / 1_000_000;
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return "unknown";
+  return new Date(milliseconds).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function renderSQLResult(result) {
   const resultColumns = sqlResultColumns(result);
   const resultRows = result.rows ?? [];
@@ -10045,6 +10164,7 @@ fileInput.addEventListener("change", async () => {
 
 saveButton.addEventListener("click", saveCurrentDocument);
 saveAsButton.addEventListener("click", openSaveAsDialog);
+restoreBackupButton.addEventListener("click", openRestoreBackupPanel);
 exportButton.addEventListener("click", exportCurrentView);
 exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);
@@ -10233,6 +10353,9 @@ shortcutsPanel.addEventListener("mousedown", (event) => {
 closeSaveAsButton.addEventListener("click", closeSaveAsDialog);
 cancelSaveAsButton.addEventListener("click", closeSaveAsDialog);
 confirmSaveAsButton.addEventListener("click", confirmSaveAs);
+closeRestoreBackupButton.addEventListener("click", closeRestoreBackupPanel);
+cancelRestoreBackupButton.addEventListener("click", closeRestoreBackupPanel);
+refreshRestoreBackupsButton.addEventListener("click", loadRestoreBackups);
 closeExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
@@ -10247,6 +10370,12 @@ saveAsPanel.addEventListener("mousedown", (event) => {
   if (event.target === saveAsPanel) {
     event.preventDefault();
     closeSaveAsDialog();
+  }
+});
+restoreBackupPanel.addEventListener("mousedown", (event) => {
+  if (event.target === restoreBackupPanel) {
+    event.preventDefault();
+    closeRestoreBackupPanel();
   }
 });
 externalChangePanel.addEventListener("mousedown", (event) => {

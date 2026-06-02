@@ -83,6 +83,13 @@ type FileStatus struct {
 	LastKnownModTimeNano int64      `json:"lastKnownModTimeNano"`
 }
 
+type BackupInfo struct {
+	Path            string `json:"path"`
+	Name            string `json:"name"`
+	SizeBytes       int64  `json:"sizeBytes"`
+	ModTimeUnixNano int64  `json:"modTimeUnixNano"`
+}
+
 type Manager struct {
 	mu       sync.Mutex
 	nextID   int
@@ -1403,6 +1410,101 @@ func saveXLSXRecords(path string, records [][]string, createBackup bool) (csvcor
 		return csvcore.SaveResult{}, err
 	}
 	return csvcore.SaveResult{Path: path, BackupPath: backupPath, SizeBytes: info.Size()}, nil
+}
+
+func (manager *Manager) ListBackups(id string) ([]BackupInfo, error) {
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return nil, errors.New("document not found")
+	}
+	path := session.trackedPath()
+	if path == "" {
+		return nil, errors.New("document has no file path")
+	}
+	dir := filepath.Dir(path)
+	pattern := backupNamePattern(path)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	backups := make([]BackupInfo, 0)
+	for _, entry := range entries {
+		if !pattern.MatchString(entry.Name()) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		backups = append(backups, BackupInfo{
+			Path:            filepath.Join(dir, entry.Name()),
+			Name:            entry.Name(),
+			SizeBytes:       info.Size(),
+			ModTimeUnixNano: info.ModTime().UnixNano(),
+		})
+	}
+	sort.Slice(backups, func(left, right int) bool {
+		if backups[left].ModTimeUnixNano == backups[right].ModTimeUnixNano {
+			return backups[left].Name > backups[right].Name
+		}
+		return backups[left].ModTimeUnixNano > backups[right].ModTimeUnixNano
+	})
+	return backups, nil
+}
+
+func backupNamePattern(path string) *regexp.Regexp {
+	ext := filepath.Ext(path)
+	stem := strings.TrimSuffix(filepath.Base(path), ext)
+	namePattern := fmt.Sprintf(`^%s\.\d{8}T\d{6}Z(?:\.\d+)?%s\.bak$`, regexp.QuoteMeta(stem), regexp.QuoteMeta(ext))
+	return regexp.MustCompile(namePattern)
+}
+
+func (manager *Manager) RestoreBackup(id string, backupPath string) (MutationResult, error) {
+	if strings.TrimSpace(backupPath) == "" {
+		return MutationResult{}, errors.New("backup path is required")
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	cleanBackupPath := filepath.Clean(backupPath)
+	backups, err := manager.ListBackups(id)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	allowed := false
+	for _, backup := range backups {
+		if filepath.Clean(backup.Path) == cleanBackupPath {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return MutationResult{}, errors.New("backup does not belong to this document")
+	}
+
+	var records [][]string
+	if isXLSXPath(session.trackedPath()) {
+		records, err = xlsx.DecodeFile(cleanBackupPath)
+	} else {
+		records, err = csvcore.ReadAllRecords(cleanBackupPath, session.Document.Metadata)
+	}
+	if err != nil {
+		return MutationResult{}, err
+	}
+	metadata := session.Document.Metadata
+	metadata.Dialect.EstimatedColumns = maxRecordWidth(records)
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: len(records)}, nil
 }
 
 type FindOptions struct {

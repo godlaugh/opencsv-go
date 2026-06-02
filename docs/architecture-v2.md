@@ -315,6 +315,27 @@ Output:
 - backup path.
 - size.
 
+### Backups
+
+`GET /api/backups?id=...`
+
+Output:
+
+- timestamped backup list for the current document path.
+- backup path, name, size, and modified time.
+
+`POST /api/restore-backup`
+
+Input:
+
+- document ID.
+- backup path from the current document backup list.
+
+Output:
+
+- updated mutation result.
+- refreshed session and row count.
+
 ### Commands
 
 `GET /api/commands`
@@ -606,6 +627,7 @@ Output:
 - Delimiter/header sniffing.
 - Row boundary scanner.
 - Save/backup.
+- Backup list/restore endpoints.
 - URL parser.
 - CLI parser.
 - CLI stdin target.
@@ -659,6 +681,7 @@ Output:
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.
 - Save clears dirty and creates backup.
+- Restore From Backup materializes a selected timestamped backup into the current session, marks it dirty, and keeps the backing file unchanged until Save.
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
 - Command Palette can search and execute an enabled command.

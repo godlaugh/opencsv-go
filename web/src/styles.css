@@ -1274,6 +1274,65 @@ button:disabled {
   box-shadow: 0 18px 48px var(--shadow);
 }
 
+.restore-backup-panel {
+  max-height: min(520px, calc(100vh - 120px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.restore-backup-list {
+  display: grid;
+  min-height: 120px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.restore-backup-item {
+  display: grid;
+  width: 100%;
+  min-height: 58px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.restore-backup-item:hover,
+.restore-backup-item:focus-visible {
+  background: var(--accent-quiet);
+  outline: none;
+}
+
+.restore-backup-item strong,
+.restore-backup-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.restore-backup-item > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.restore-backup-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.restore-backup-meta {
+  justify-self: end;
+  text-align: right;
+}
+
 .condition-panel-header,
 .condition-actions {
   display: flex;
