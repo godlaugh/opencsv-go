@@ -1464,7 +1464,11 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	}
 	var result csvcore.SaveResult
 	if isXLSXPath(outputPath) {
-		result, err = saveXLSXRecords(outputPath, records, createBackup, selectedWorkbookSheetPath(session.Document.Metadata))
+		sourceWorkbookPath := ""
+		if isXLSXPath(session.OriginalPath) {
+			sourceWorkbookPath = session.OriginalPath
+		}
+		result, err = saveXLSXRecords(outputPath, records, createBackup, selectedWorkbookSheetPath(session.Document.Metadata), sourceWorkbookPath)
 	} else {
 		result, err = csvcore.SaveRecords(outputPath, session.Document.Metadata, records, csvcore.SaveOptions{CreateBackup: createBackup})
 	}
@@ -1507,7 +1511,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	return result, nil
 }
 
-func saveXLSXRecords(path string, records [][]string, createBackup bool, sheetPath string) (csvcore.SaveResult, error) {
+func saveXLSXRecords(path string, records [][]string, createBackup bool, sheetPath string, sourceWorkbookPath string) (csvcore.SaveResult, error) {
 	var backupPath string
 	if createBackup {
 		var err error
@@ -1521,11 +1525,16 @@ func saveXLSXRecords(path string, records [][]string, createBackup bool, sheetPa
 	if sheetPath != "" {
 		var existing []byte
 		existing, err = os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) && sourceWorkbookPath != "" && sourceWorkbookPath != path {
+			existing, err = os.ReadFile(sourceWorkbookPath)
+		}
 		if err == nil {
 			data, err = xlsx.UpdateWorkbookSheet(existing, sheetPath, records)
 			if err != nil {
 				return csvcore.SaveResult{}, err
 			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return csvcore.SaveResult{}, err
 		}
 	}
 	if data == nil {

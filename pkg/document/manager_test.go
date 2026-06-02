@@ -366,6 +366,60 @@ func TestManagerOpenSelectedXLSXSheetAndPreserveWorkbook(t *testing.T) {
 	}
 }
 
+func TestManagerSaveAsSelectedXLSXSheetPreservesWorkbook(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "source.xlsx")
+	copyPath := filepath.Join(dir, "copy.xlsx")
+	data, err := xlsx.EncodeWorkbookSheets([]xlsx.WorkbookSheet{
+		{Name: "Summary", Records: [][]string{{"kind", "value"}, {"rows", "2"}}},
+		{Name: "Data", Records: [][]string{{"id", "name"}, {"1", "Ada"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sourcePath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(sourcePath, SourceFile, "source.xlsx", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1, SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Edit(session.ID, 1, 1, "Grace"); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.Save(session.ID, copyPath, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Path != copyPath || result.BackupPath != "" || result.SizeBytes == 0 {
+		t.Fatalf("save as result = %#v", result)
+	}
+
+	copySummary, _, _, err := xlsx.DecodeFileWithOptions(copyPath, xlsx.DecodeOptions{SheetName: "Summary"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(copySummary[1], ","); got != "rows,2" {
+		t.Fatalf("copy summary sheet changed: %#v", copySummary)
+	}
+	copyData, _, _, err := xlsx.DecodeFileWithOptions(copyPath, xlsx.DecodeOptions{SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := copyData[1][1]; got != "Grace" {
+		t.Fatalf("copy data sheet cell = %q, want Grace", got)
+	}
+	sourceData, _, _, err := xlsx.DecodeFileWithOptions(sourcePath, xlsx.DecodeOptions{SheetName: "Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sourceData[1][1]; got != "Ada" {
+		t.Fatalf("source data sheet changed: %#v", sourceData)
+	}
+}
+
 func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "export.csv")
