@@ -25,6 +25,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"workbench.splitEditor",
 		"workbench.toggleSplitOrientation",
 		"workbench.focusNextGroup",
+		"workbench.moveTabToOtherGroup",
 		"workbench.closeSplitEditor",
 		"file.save",
 		"file.saveAs",

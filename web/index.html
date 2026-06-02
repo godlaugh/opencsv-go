@@ -90,6 +90,7 @@
             <button id="splitEditorButton" type="button" data-command="workbench.splitEditor">Split</button>
             <button id="splitOrientationButton" type="button" data-command="workbench.toggleSplitOrientation">H/V</button>
             <button id="focusEditorGroupButton" type="button" data-command="workbench.focusNextGroup">Focus</button>
+            <button id="moveEditorTabButton" type="button" data-command="workbench.moveTabToOtherGroup">Move</button>
             <button id="closeSplitEditorButton" type="button" data-command="workbench.closeSplitEditor">Close</button>
             <div id="viewChips" class="view-chips" aria-label="Active view filters" hidden></div>
           </div>
@@ -100,8 +101,11 @@
             <header class="editor-group-header">
               <strong id="primaryEditorGroupTitle">Group 1</strong>
               <span id="primaryEditorGroupMeta">Ready</span>
+              <button id="primaryEditorTab" class="editor-tab" type="button" draggable="true" hidden>No file</button>
             </header>
-            <section class="grid-frame" aria-label="CSV grid prototype">
+            <div id="primaryEditorGroupBody" class="editor-group-body">
+              <div id="primaryEditorGroupEmpty" class="editor-group-empty" hidden>Empty group</div>
+              <section class="grid-frame" aria-label="CSV grid prototype">
               <canvas id="grid" width="1200" height="760"></canvas>
               <canvas id="gridHeader" aria-hidden="true"></canvas>
               <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
@@ -338,22 +342,27 @@
             </section>
             <div id="settingsEmpty" class="settings-empty" hidden>No matching settings</div>
           </section>
-        </section>
+              </section>
+            </div>
           </section>
 
           <section id="secondaryEditorGroup" class="editor-group editor-group-secondary" data-group-id="secondary" tabindex="0" aria-label="Editor group 2" hidden>
             <header class="editor-group-header">
               <strong id="secondaryEditorGroupTitle">Group 2</strong>
               <span id="secondaryEditorGroupMeta">Ready</span>
+              <button id="secondaryEditorTab" class="editor-tab" type="button" draggable="true" hidden>No file</button>
               <div class="editor-group-actions">
                 <button id="focusSecondaryGroupButton" type="button">Focus</button>
                 <button id="closeSecondaryGroupButton" type="button">Close</button>
               </div>
             </header>
-            <div class="editor-group-preview">
-              <strong id="secondaryEditorGroupFile">No file open</strong>
-              <span id="secondaryEditorGroupView">Grid</span>
-              <span id="secondaryEditorGroupSelection">Ready</span>
+            <div id="secondaryEditorGroupBody" class="editor-group-body">
+              <div id="secondaryEditorGroupEmpty" class="editor-group-empty" hidden>Empty group</div>
+              <div id="secondaryEditorGroupPreview" class="editor-group-preview">
+                <strong id="secondaryEditorGroupFile">No file open</strong>
+                <span id="secondaryEditorGroupView">Grid</span>
+                <span id="secondaryEditorGroupSelection">Ready</span>
+              </div>
             </div>
           </section>
         </section>

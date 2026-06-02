@@ -74,16 +74,24 @@ const gridFrame = document.querySelector(".grid-frame");
 const editorGroups = document.querySelector("#editorGroups");
 const primaryEditorGroup = document.querySelector("#primaryEditorGroup");
 const secondaryEditorGroup = document.querySelector("#secondaryEditorGroup");
+const primaryEditorGroupBody = document.querySelector("#primaryEditorGroupBody");
+const secondaryEditorGroupBody = document.querySelector("#secondaryEditorGroupBody");
 const primaryEditorGroupTitle = document.querySelector("#primaryEditorGroupTitle");
 const primaryEditorGroupMeta = document.querySelector("#primaryEditorGroupMeta");
 const secondaryEditorGroupTitle = document.querySelector("#secondaryEditorGroupTitle");
 const secondaryEditorGroupMeta = document.querySelector("#secondaryEditorGroupMeta");
+const primaryEditorTab = document.querySelector("#primaryEditorTab");
+const secondaryEditorTab = document.querySelector("#secondaryEditorTab");
+const primaryEditorGroupEmpty = document.querySelector("#primaryEditorGroupEmpty");
+const secondaryEditorGroupEmpty = document.querySelector("#secondaryEditorGroupEmpty");
+const secondaryEditorGroupPreview = document.querySelector("#secondaryEditorGroupPreview");
 const secondaryEditorGroupFile = document.querySelector("#secondaryEditorGroupFile");
 const secondaryEditorGroupView = document.querySelector("#secondaryEditorGroupView");
 const secondaryEditorGroupSelection = document.querySelector("#secondaryEditorGroupSelection");
 const splitEditorButton = document.querySelector("#splitEditorButton");
 const splitOrientationButton = document.querySelector("#splitOrientationButton");
 const focusEditorGroupButton = document.querySelector("#focusEditorGroupButton");
+const moveEditorTabButton = document.querySelector("#moveEditorTabButton");
 const closeSplitEditorButton = document.querySelector("#closeSplitEditorButton");
 const focusSecondaryGroupButton = document.querySelector("#focusSecondaryGroupButton");
 const closeSecondaryGroupButton = document.querySelector("#closeSecondaryGroupButton");
@@ -363,6 +371,8 @@ let viewMode = "grid";
 let editorGroupsSplit = false;
 let editorGroupOrientation = "horizontal";
 let activeEditorGroup = "primary";
+let currentEditorTabGroup = "primary";
+let pendingEditorTabDrag = null;
 let profileData = null;
 let lastSQLResult = null;
 let sqlResultSelectionAnchor = null;
@@ -1027,7 +1037,11 @@ function draw() {
 
 function renderEditorGroups() {
   if (!editorGroups) return;
-  if (!editorGroupsSplit) activeEditorGroup = "primary";
+  if (!editorGroupsSplit) {
+    activeEditorGroup = "primary";
+    currentEditorTabGroup = "primary";
+  }
+  mountCurrentEditorTab();
   editorGroups.classList.toggle("split", editorGroupsSplit);
   editorGroups.dataset.orientation = editorGroupOrientation;
   secondaryEditorGroup.hidden = !editorGroupsSplit;
@@ -1039,21 +1053,50 @@ function renderEditorGroups() {
   const selectionLabel = documentId
     ? `row ${selected.row + 1}, ${columns[selected.col]?.name || "Column"}`
     : "Ready";
-  primaryEditorGroupTitle.textContent = `Group 1 · ${viewLabel}`;
-  primaryEditorGroupMeta.textContent = documentId ? `${fileLabel} · ${selectionLabel}` : "Ready";
-  secondaryEditorGroupTitle.textContent = `Group 2 · ${viewLabel}`;
-  secondaryEditorGroupMeta.textContent = rowLabel;
-  secondaryEditorGroupFile.textContent = fileLabel;
-  secondaryEditorGroupView.textContent = `${viewLabel}${activeFilter ? ` · ${activeFilter.display}` : ""}`;
-  secondaryEditorGroupSelection.textContent = selectionLabel;
+  const tabLabel = `${fileLabel}${dirty ? " *" : ""}`;
+  const primaryHasTab = documentId && currentEditorTabGroup === "primary";
+  const secondaryHasTab = documentId && currentEditorTabGroup === "secondary";
+  primaryEditorGroup.classList.toggle("has-tab", primaryHasTab);
+  secondaryEditorGroup.classList.toggle("has-tab", secondaryHasTab);
+  primaryEditorGroupTitle.textContent = `Group 1${primaryHasTab ? ` · ${viewLabel}` : ""}`;
+  primaryEditorGroupMeta.textContent = primaryHasTab ? selectionLabel : editorGroupsSplit ? "Empty" : "Ready";
+  secondaryEditorGroupTitle.textContent = `Group 2${secondaryHasTab ? ` · ${viewLabel}` : ""}`;
+  secondaryEditorGroupMeta.textContent = secondaryHasTab ? selectionLabel : editorGroupsSplit ? "Empty" : rowLabel;
+  primaryEditorTab.hidden = !primaryHasTab;
+  secondaryEditorTab.hidden = !secondaryHasTab;
+  primaryEditorTab.textContent = tabLabel;
+  secondaryEditorTab.textContent = tabLabel;
+  primaryEditorTab.title = primaryHasTab ? `${fileLabel} · ${selectionLabel}` : "";
+  secondaryEditorTab.title = secondaryHasTab ? `${fileLabel} · ${selectionLabel}` : "";
+  primaryEditorGroupEmpty.hidden = !editorGroupsSplit || primaryHasTab || !documentId;
+  secondaryEditorGroupEmpty.hidden = !editorGroupsSplit || secondaryHasTab || !documentId;
+  secondaryEditorGroupPreview.hidden = !editorGroupsSplit || secondaryHasTab;
+  secondaryEditorGroupFile.textContent = secondaryHasTab || !editorGroupsSplit ? fileLabel : "Empty group";
+  secondaryEditorGroupView.textContent = secondaryHasTab ? `${viewLabel}${activeFilter ? ` · ${activeFilter.display}` : ""}` : "Ready";
+  secondaryEditorGroupSelection.textContent = secondaryHasTab ? selectionLabel : "Ready";
   document.body.dataset.editorGroupCount = editorGroupsSplit ? "2" : "1";
   document.body.dataset.editorGroupOrientation = editorGroupOrientation;
   document.body.dataset.activeEditorGroup = activeEditorGroup;
-  document.body.dataset.secondaryEditorGroup = editorGroupsSplit ? `${fileLabel}|${viewLabel}|${selectionLabel}` : "";
+  document.body.dataset.currentEditorTabGroup = currentEditorTabGroup;
+  document.body.dataset.editorTabLabel = documentId ? `${fileLabel}|${viewLabel}|${selectionLabel}` : "";
+  document.body.dataset.secondaryEditorGroup = editorGroupsSplit
+    ? `${secondaryHasTab ? fileLabel : "Empty"}|${secondaryHasTab ? viewLabel : "Ready"}|${secondaryHasTab ? selectionLabel : "Ready"}`
+    : "";
   splitEditorButton.disabled = editorGroupsSplit;
   splitOrientationButton.disabled = !editorGroupsSplit;
   focusEditorGroupButton.disabled = !editorGroupsSplit;
+  moveEditorTabButton.disabled = !editorGroupsSplit || !documentId;
   closeSplitEditorButton.disabled = !editorGroupsSplit;
+}
+
+function editorGroupBody(group) {
+  return group === "secondary" ? secondaryEditorGroupBody : primaryEditorGroupBody;
+}
+
+function mountCurrentEditorTab() {
+  const targetBody = editorGroupBody(currentEditorTabGroup);
+  if (!targetBody || gridFrame.parentElement === targetBody) return;
+  targetBody.appendChild(gridFrame);
 }
 
 function viewModeLabel(mode = viewMode) {
@@ -1074,15 +1117,17 @@ function viewModeLabel(mode = viewMode) {
 function splitEditorGroup() {
   if (editorGroupsSplit) return;
   editorGroupsSplit = true;
-  activeEditorGroup = "secondary";
+  if (documentId) currentEditorTabGroup = "secondary";
+  activeEditorGroup = documentId ? currentEditorTabGroup : "secondary";
   renderEditorGroups();
-  focusEditorGroup("secondary");
+  focusEditorGroup(activeEditorGroup);
   resize();
   status.textContent = "Split editor group opened";
 }
 
 function closeSplitEditorGroup() {
   if (!editorGroupsSplit) return;
+  currentEditorTabGroup = "primary";
   editorGroupsSplit = false;
   activeEditorGroup = "primary";
   renderEditorGroups();
@@ -1104,23 +1149,177 @@ function focusNextEditorGroup() {
   focusEditorGroup(activeEditorGroup === "primary" ? "secondary" : "primary");
 }
 
+function moveCurrentTabToOtherGroup() {
+  const targetGroup = currentEditorTabGroup === "primary" ? "secondary" : "primary";
+  moveCurrentTabToGroup(targetGroup, "command");
+}
+
+function moveCurrentTabToGroup(group, source = "command") {
+  if (!documentId) {
+    status.textContent = "No document tab to move.";
+    return;
+  }
+  if (group === "secondary" && !editorGroupsSplit) {
+    editorGroupsSplit = true;
+  }
+  if (group !== "secondary") group = "primary";
+  if (currentEditorTabGroup === group) {
+    focusEditorGroup(group);
+    status.textContent = `Tab already in group ${group === "secondary" ? "2" : "1"}`;
+    return;
+  }
+  const previousGroup = currentEditorTabGroup;
+  currentEditorTabGroup = group;
+  activeEditorGroup = group;
+  renderEditorGroups();
+  resize();
+  focusEditorGroup(group);
+  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Current tab";
+  document.body.dataset.editorTabMove = `${previousGroup}->${group}:${selectionSummary()}`;
+  document.body.dataset.editorTabMoveSource = source;
+  status.textContent = `Moved ${fileLabel} to group ${group === "secondary" ? "2" : "1"}`;
+}
+
 function focusEditorGroup(group) {
   activeEditorGroup = editorGroupsSplit && group === "secondary" ? "secondary" : "primary";
   renderEditorGroups();
-  if (activeEditorGroup === "secondary") {
-    secondaryEditorGroup.focus();
-  } else if (viewMode === "grid") {
+  const activeGroupHasTab = currentEditorTabGroup === activeEditorGroup;
+  if (activeGroupHasTab && viewMode === "grid") {
     canvas.focus();
-  } else if (viewMode === "sql") {
+  } else if (activeGroupHasTab && viewMode === "sql") {
     sqlInput.focus();
-  } else if (viewMode === "profile") {
+  } else if (activeGroupHasTab && viewMode === "profile") {
     profilePanel.focus();
-  } else if (viewMode === "settings") {
+  } else if (activeGroupHasTab && viewMode === "settings") {
     settingsSearch.focus();
+  } else if (activeEditorGroup === "secondary") {
+    secondaryEditorGroup.focus();
   } else {
     primaryEditorGroup.focus();
   }
   status.textContent = activeEditorGroup === "secondary" ? "Focused editor group 2" : "Focused editor group 1";
+}
+
+function editorTabDragStart(event) {
+  if (!documentId) {
+    event.preventDefault();
+    return;
+  }
+  closeGridContextMenu();
+  const dragGroup = event.currentTarget === secondaryEditorTab ? "secondary" : "primary";
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/opencsv-editor-tab", dragGroup);
+  event.dataTransfer.setData("text/plain", activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "opencsv tab");
+  document.body.dataset.editorTabDrag = dragGroup;
+}
+
+function editorGroupDragOver(event) {
+  if (!editorGroupsSplit || !documentId) return;
+  if (!Array.from(event.dataTransfer.types).includes("text/opencsv-editor-tab")) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  event.currentTarget.classList.add("drop-target");
+}
+
+function editorGroupDragLeave(event) {
+  event.currentTarget.classList.remove("drop-target");
+}
+
+function clearEditorTabDropTargets() {
+  primaryEditorGroup.classList.remove("drop-target");
+  secondaryEditorGroup.classList.remove("drop-target");
+}
+
+function editorGroupDrop(event) {
+  if (!editorGroupsSplit || !documentId) return;
+  const sourceGroup = event.dataTransfer.getData("text/opencsv-editor-tab");
+  if (!sourceGroup) return;
+  event.preventDefault();
+  const targetGroup = event.currentTarget.dataset.groupId === "secondary" ? "secondary" : "primary";
+  clearEditorTabDropTargets();
+  moveCurrentTabToGroup(targetGroup, "drop");
+}
+
+function editorTabDragEnd() {
+  clearEditorTabDropTargets();
+  document.body.dataset.editorTabDrag = "";
+}
+
+function editorTabPointerDown(event) {
+  if (event.button !== 0 || !documentId) return;
+  pendingEditorTabDrag = {
+    sourceGroup: event.currentTarget === secondaryEditorTab ? "secondary" : "primary",
+    startX: event.clientX,
+    startY: event.clientY,
+    dragging: false,
+  };
+}
+
+function editorGroupAtPoint(x, y) {
+  const group = document.elementFromPoint(x, y)?.closest(".editor-group")?.dataset.groupId;
+  if (group === "secondary") return "secondary";
+  if (group === "primary") return "primary";
+  return null;
+}
+
+function editorTabPointerMove(event) {
+  if (!pendingEditorTabDrag || !editorGroupsSplit) return;
+  const deltaX = event.clientX - pendingEditorTabDrag.startX;
+  const deltaY = event.clientY - pendingEditorTabDrag.startY;
+  if (!pendingEditorTabDrag.dragging && Math.hypot(deltaX, deltaY) < 8) return;
+  pendingEditorTabDrag.dragging = true;
+  document.body.dataset.editorTabDrag = pendingEditorTabDrag.sourceGroup;
+  clearEditorTabDropTargets();
+  const targetGroup = editorGroupAtPoint(event.clientX, event.clientY);
+  if (targetGroup) (targetGroup === "secondary" ? secondaryEditorGroup : primaryEditorGroup).classList.add("drop-target");
+  event.preventDefault();
+}
+
+function editorTabPointerUp(event) {
+  if (!pendingEditorTabDrag) return;
+  const dragState = pendingEditorTabDrag;
+  pendingEditorTabDrag = null;
+  clearEditorTabDropTargets();
+  document.body.dataset.editorTabDrag = "";
+  if (!dragState.dragging || !editorGroupsSplit || !documentId) return;
+  const targetGroup = editorGroupAtPoint(event.clientX, event.clientY);
+  if (!targetGroup) return;
+  moveCurrentTabToGroup(targetGroup, "drop");
+}
+
+function openEditorTabContextMenu(event) {
+  event.preventDefault();
+  if (!documentId) return;
+  closeColumnMenu();
+  const currentGroup = event.currentTarget === secondaryEditorTab ? "secondary" : "primary";
+  focusEditorGroup(currentGroup);
+  const targetGroup = currentGroup === "primary" ? "secondary" : "primary";
+  const heading = document.createElement("strong");
+  heading.textContent = "Editor Tab";
+  gridContextMenu.replaceChildren(heading);
+  const addItem = (label, action, options = {}) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.disabled = Boolean(options.disabled);
+    button.addEventListener("click", () => {
+      closeGridContextMenu();
+      action();
+    });
+    gridContextMenu.append(button);
+  };
+  addItem(`Move to Group ${targetGroup === "secondary" ? "2" : "1"}`, () => moveCurrentTabToGroup(targetGroup, "context"), {
+    disabled: !editorGroupsSplit,
+  });
+  addItem("Focus Next Group", () => focusNextEditorGroup(), { disabled: !editorGroupsSplit });
+  gridContextMenu.hidden = false;
+  const menuRect = gridContextMenu.getBoundingClientRect();
+  const left = Math.min(event.clientX, window.innerWidth - menuRect.width - 8);
+  const top = Math.min(event.clientY, window.innerHeight - menuRect.height - 8);
+  gridContextMenu.style.left = `${Math.max(8, left)}px`;
+  gridContextMenu.style.top = `${Math.max(8, top)}px`;
+  gridContextMenu.dataset.target = "editor-tab";
+  document.body.dataset.gridContextTarget = "editor-tab";
 }
 
 function setViewMode(mode) {
@@ -1191,6 +1390,8 @@ function applyCommandMetadata() {
       button.textContent = "H/V";
     } else if (button.dataset.command === "workbench.focusNextGroup") {
       button.textContent = "Focus";
+    } else if (button.dataset.command === "workbench.moveTabToOtherGroup") {
+      button.textContent = "Move";
     } else if (button.dataset.command === "workbench.closeSplitEditor") {
       button.textContent = "Close";
     } else if (button.dataset.command === "file.toggleReadOnly") {
@@ -1296,6 +1497,7 @@ function isCommandDisabled(command) {
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
     command.id === "workbench.focusNextGroup" ||
+    command.id === "workbench.moveTabToOtherGroup" ||
     command.id === "workbench.toggleSplitOrientation";
   const writeBlocked =
     readOnly &&
@@ -4350,6 +4552,9 @@ async function executeCommand(commandID) {
       break;
     case "workbench.focusNextGroup":
       focusNextEditorGroup();
+      break;
+    case "workbench.moveTabToOtherGroup":
+      moveCurrentTabToOtherGroup();
       break;
     case "workbench.toggleSplitOrientation":
       toggleSplitOrientation();
@@ -10657,6 +10862,7 @@ restoreBackupButton.addEventListener("click", openRestoreBackupPanel);
 splitEditorButton.addEventListener("click", () => executeCommand("workbench.splitEditor"));
 splitOrientationButton.addEventListener("click", () => executeCommand("workbench.toggleSplitOrientation"));
 focusEditorGroupButton.addEventListener("click", () => executeCommand("workbench.focusNextGroup"));
+moveEditorTabButton.addEventListener("click", () => executeCommand("workbench.moveTabToOtherGroup"));
 closeSplitEditorButton.addEventListener("click", () => executeCommand("workbench.closeSplitEditor"));
 primaryEditorGroup.addEventListener("focus", () => {
   activeEditorGroup = "primary";
@@ -10669,6 +10875,20 @@ secondaryEditorGroup.addEventListener("focus", () => {
 });
 focusSecondaryGroupButton.addEventListener("click", () => focusEditorGroup("secondary"));
 closeSecondaryGroupButton.addEventListener("click", closeSplitEditorGroup);
+for (const tab of [primaryEditorTab, secondaryEditorTab]) {
+  tab.addEventListener("click", () => focusEditorGroup(tab === secondaryEditorTab ? "secondary" : "primary"));
+  tab.addEventListener("mousedown", editorTabPointerDown);
+  tab.addEventListener("dragstart", editorTabDragStart);
+  tab.addEventListener("dragend", editorTabDragEnd);
+  tab.addEventListener("contextmenu", openEditorTabContextMenu);
+}
+document.addEventListener("mousemove", editorTabPointerMove);
+document.addEventListener("mouseup", editorTabPointerUp);
+for (const group of [primaryEditorGroup, secondaryEditorGroup]) {
+  group.addEventListener("dragover", editorGroupDragOver);
+  group.addEventListener("dragleave", editorGroupDragLeave);
+  group.addEventListener("drop", editorGroupDrop);
+}
 exportButton.addEventListener("click", () => exportCurrentView(exportFormatSelect?.value || "csv"));
 exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);
