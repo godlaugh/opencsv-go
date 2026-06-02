@@ -184,6 +184,7 @@ flowchart TD
 - `web Grid Selection`
   - Active cell plus anchor-based range selection.
   - Shift-arrow and Shift-click range expansion.
+  - Cmd/Ctrl mouse drag adds a range to Smart Selection; Cmd/Ctrl+Shift mouse drag subtracts the range from the current multi-range selection.
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.

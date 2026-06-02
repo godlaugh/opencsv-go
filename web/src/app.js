@@ -728,6 +728,8 @@ let selectionAnchor = { row: 0, col: 0 };
 let smartSelectionRanges = [];
 let draggingSelection = false;
 let dragSelectionMode = "cell";
+let smartSelectionGesture = "";
+let smartSelectionGestureBaseRanges = [];
 let draggingFillHandle = false;
 let hoverFillHandle = false;
 let fillDragSourceRange = null;
@@ -7002,6 +7004,46 @@ function setSmartSelectionRanges(ranges) {
   document.body.dataset.smartSelectionRanges = smartSelectionRanges.length ? smartSelectionRanges.map(rangeKey).join(";") : "";
 }
 
+function smartSelectionGestureForEvent(event) {
+  if (!(event.metaKey || event.ctrlKey)) return "";
+  return event.shiftKey ? "subtract" : "add";
+}
+
+function startSmartSelectionGesture(action) {
+  smartSelectionGesture = action;
+  smartSelectionGestureBaseRanges = activeSelectionRanges();
+  setSmartSelectionRanges(smartSelectionGestureBaseRanges);
+  document.body.dataset.smartSelectionGesture = `${action}:start`;
+}
+
+function finishSmartSelectionGesture() {
+  if (!smartSelectionGesture) return false;
+  const action = smartSelectionGesture;
+  const range = normalizedSelection();
+  const base = dedupeRanges(smartSelectionGestureBaseRanges);
+  smartSelectionGesture = "";
+  smartSelectionGestureBaseRanges = [];
+
+  if (action === "subtract") {
+    const next = [];
+    for (const baseRange of base) next.push(...subtractRange(baseRange, range));
+    setSmartSelectionRanges(next);
+    focusFirstSmartSelectionCell();
+    document.body.dataset.smartSelectionGesture = `subtract:${rangeKey(range)}`;
+    draw();
+    status.textContent = smartSelectionRanges.length
+      ? `Subtracted range by gesture: ${formatCount(selectionCellCount())} cells selected`
+      : "Selection range cleared by gesture";
+    return true;
+  }
+
+  setSmartSelectionRanges([...base, range]);
+  document.body.dataset.smartSelectionGesture = `add:${rangeKey(range)}`;
+  draw();
+  status.textContent = `Added range by gesture: ${formatCount(selectionCellCount())} cells selected`;
+  return true;
+}
+
 function addSmartSelectionRange() {
   if (!documentId || columns.length === 0 || totalRows === 0) return;
   setSmartSelectionRanges([...smartSelectionRanges, normalizedSelection()]);
@@ -11883,17 +11925,23 @@ canvas.addEventListener("mousedown", (event) => {
       return;
     }
   }
+  const smartGesture = smartSelectionGestureForEvent(event);
   if (y < headerHeight) {
     const col = columnAt(x);
     if (x < rowNumberWidth) {
       event.preventDefault();
       if (editing) commitEditor();
       closeColumnMenu();
-      clearSmartSelectionRanges();
+      if (smartGesture) startSmartSelectionGesture(smartGesture);
+      else clearSmartSelectionRanges();
       setHeaderInSelection(event.altKey);
       selectAllBodyCells();
       draggingSelection = false;
       dragSelectionMode = "cell";
+      if (smartGesture) {
+        finishSmartSelectionGesture();
+        return;
+      }
       draw();
       status.textContent = event.altKey
         ? "Selected all body cells with headers"
@@ -11907,8 +11955,9 @@ canvas.addEventListener("mousedown", (event) => {
         openColumnMenu(col, event.clientX, rect.top + headerHeight + 4);
       } else {
         closeColumnMenu();
+        if (smartGesture) startSmartSelectionGesture(smartGesture);
         setHeaderInSelection(event.altKey);
-        selectColumnRange(col, event.shiftKey);
+        selectColumnRange(col, smartGesture ? false : event.shiftKey);
         draggingSelection = true;
         dragSelectionMode = "column";
         draw();
@@ -11920,8 +11969,9 @@ canvas.addEventListener("mousedown", (event) => {
   if (x < rowNumberWidth) {
     event.preventDefault();
     if (editing) commitEditor();
+    if (smartGesture) startSmartSelectionGesture(smartGesture);
     setHeaderInSelection(event.altKey);
-    selectRowRange(rowAt(y), event.shiftKey);
+    selectRowRange(rowAt(y), smartGesture ? false : event.shiftKey);
     draggingSelection = true;
     dragSelectionMode = "row";
     draw();
@@ -11931,8 +11981,9 @@ canvas.addEventListener("mousedown", (event) => {
   const col = columnAt(x);
   if (row >= 0 && row < totalRows && col >= 0) {
     event.preventDefault();
+    if (smartGesture) startSmartSelectionGesture(smartGesture);
     selected = { row, col };
-    if (!event.shiftKey) {
+    if (!event.shiftKey || smartGesture) {
       selectionAnchor = { ...selected };
     }
     draggingSelection = true;
@@ -11973,6 +12024,7 @@ window.addEventListener("mouseup", () => {
   if (!draggingSelection) return;
   draggingSelection = false;
   dragSelectionMode = "cell";
+  finishSmartSelectionGesture();
 });
 
 canvas.addEventListener("mouseleave", () => {

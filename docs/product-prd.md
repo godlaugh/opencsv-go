@@ -298,7 +298,7 @@ The app shall render a spreadsheet-like grid with:
 - Cell selection.
 - Range selection.
 - Multi-cell selection.
-- Additive, subtractive, and inverted selection commands.
+- Additive, subtractive, and inverted selection through commands and native-feeling mouse gestures.
 - Body-first row/column/corner selection that initially excludes headers and can include/toggle headers via Alt/Option or command.
 - Stable sticky header behavior.
 - Short/ragged rows where missing cells are visually distinct from real empty cells.
