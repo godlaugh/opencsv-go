@@ -1,7 +1,11 @@
 package csvcore
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 	"unicode"
@@ -193,59 +197,114 @@ func SetQuoteColumn(dialect Dialect, col int, quoted bool) (Dialect, bool) {
 	return dialect, !sameInts(before, dialect.QuoteColumns)
 }
 
+const maxDetectedQuoteCells = 100_000
+
 func DetectQuoteRules(sample []byte, dialect Dialect) Dialect {
 	flags := quotedFieldFlags(sample, dialect, 80)
-	if len(flags) == 0 {
+	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect)
+}
+
+func DetectQuoteRulesForFile(path string, dialect Dialect, encoding EncodingInfo) (Dialect, error) {
+	if _, _, ok := rawQuoteScanBytes(dialect); !ok {
+		return dialect, nil
+	}
+	if encoding.Name == EncodingUTF16LE || encoding.Name == EncodingUTF16BE {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return Dialect{}, err
+		}
+		utf8Bytes, err := DecodeToUTF8(raw, encoding)
+		if err != nil {
+			return Dialect{}, err
+		}
+		return DetectQuoteRulesAll(utf8Bytes, dialect), nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return Dialect{}, err
+	}
+	defer file.Close()
+	stats, err := scanQuoteRuleStats(file, dialect, encoding.Name == EncodingUTF8BOM)
+	if err != nil {
+		return Dialect{}, err
+	}
+	return applyDetectedQuoteRules(stats, dialect), nil
+}
+
+func DetectQuoteRulesAll(input []byte, dialect Dialect) Dialect {
+	flags := quotedFieldFlags(input, dialect, 0)
+	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect)
+}
+
+type quoteRuleStats struct {
+	header      []bool
+	seen        map[int]int
+	quoted      map[int]int
+	quotedCells []Cell
+}
+
+func quoteRuleStatsFromFlags(flags [][]bool, dialect Dialect) quoteRuleStats {
+	stats := newQuoteRuleStats()
+	for row, record := range flags {
+		stats.addRecord(row, record, dialect)
+	}
+	return stats
+}
+
+func newQuoteRuleStats() quoteRuleStats {
+	return quoteRuleStats{
+		seen:   map[int]int{},
+		quoted: map[int]int{},
+	}
+}
+
+func (stats *quoteRuleStats) addRecord(row int, record []bool, dialect Dialect) {
+	if dialect.HasHeader && row == 0 {
+		stats.header = append([]bool(nil), record...)
+	} else {
+		for col, wasQuoted := range record {
+			stats.seen[col]++
+			if wasQuoted {
+				stats.quoted[col]++
+			}
+		}
+	}
+	for col, wasQuoted := range record {
+		if wasQuoted && len(stats.quotedCells) < maxDetectedQuoteCells {
+			stats.quotedCells = append(stats.quotedCells, Cell{Row: row, Col: col})
+		}
+	}
+}
+
+func applyDetectedQuoteRules(stats quoteRuleStats, dialect Dialect) Dialect {
+	if len(stats.header) == 0 && len(stats.seen) == 0 && len(stats.quotedCells) == 0 {
 		return dialect
 	}
-
 	coveredHeader := false
-	if dialect.HasHeader && len(flags[0]) > 0 && allTrue(flags[0]) {
+	if dialect.HasHeader && len(stats.header) > 0 && allTrue(stats.header) {
 		dialect.QuoteHeader = true
 		coveredHeader = true
 	}
 
-	startRow := 0
-	if dialect.HasHeader {
-		startRow = 1
-	}
-	seen := map[int]int{}
-	quoted := map[int]int{}
-	for row := startRow; row < len(flags); row++ {
-		for col, wasQuoted := range flags[row] {
-			seen[col]++
-			if wasQuoted {
-				quoted[col]++
-			}
-		}
-	}
 	quoteColumns := map[int]struct{}{}
-	for col, total := range seen {
-		if total > 0 && quoted[col] == total {
+	for col, total := range stats.seen {
+		if total > 0 && stats.quoted[col] == total {
 			dialect.QuoteColumns = append(dialect.QuoteColumns, col)
 			quoteColumns[col] = struct{}{}
 		}
 	}
 	sort.Ints(dialect.QuoteColumns)
 
-	const maxQuoteCells = 1000
-	for row, record := range flags {
-		for col, wasQuoted := range record {
-			if !wasQuoted {
-				continue
-			}
-			if coveredHeader && row == 0 {
-				continue
-			}
-			if _, ok := quoteColumns[col]; ok && (!dialect.HasHeader || row > 0) {
-				continue
-			}
-			dialect.QuoteCells = append(dialect.QuoteCells, Cell{Row: row, Col: col})
-			if len(dialect.QuoteCells) >= maxQuoteCells {
-				return dialect
-			}
+	for _, cell := range stats.quotedCells {
+		if coveredHeader && cell.Row == 0 {
+			continue
 		}
+		if _, ok := quoteColumns[cell.Col]; ok && (!dialect.HasHeader || cell.Row > 0) {
+			continue
+		}
+		dialect.QuoteCells = append(dialect.QuoteCells, cell)
 	}
+	sortCells(dialect.QuoteCells)
 	return dialect
 }
 
@@ -332,6 +391,92 @@ func allTrue(values []bool) bool {
 	return true
 }
 
+func rawQuoteScanBytes(dialect Dialect) (byte, byte, bool) {
+	delimiter := dialect.Delimiter
+	if delimiter == 0 {
+		delimiter = ','
+	}
+	if delimiter > 127 {
+		return 0, 0, false
+	}
+	quote := []byte(DialectQuoteChar(dialect))
+	if len(quote) != 1 || quote[0] > 127 {
+		return 0, 0, false
+	}
+	return byte(delimiter), quote[0], true
+}
+
+func scanQuoteRuleStats(reader io.Reader, dialect Dialect, trimUTF8BOM bool) (quoteRuleStats, error) {
+	delimiter, quote, ok := rawQuoteScanBytes(dialect)
+	if !ok {
+		return newQuoteRuleStats(), nil
+	}
+	buffered := bufio.NewReaderSize(reader, 64*1024)
+	if trimUTF8BOM {
+		if prefix, err := buffered.Peek(3); err == nil && bytes.Equal(prefix, []byte{0xEF, 0xBB, 0xBF}) {
+			_, _ = buffered.Discard(3)
+		}
+	}
+	stats := newQuoteRuleStats()
+	record := []bool{}
+	row := 0
+	quoted := false
+	atStart := true
+	inQuotes := false
+	for {
+		char, err := buffered.ReadByte()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return quoteRuleStats{}, err
+		}
+		if inQuotes {
+			if char == quote {
+				next, err := buffered.Peek(1)
+				if err == nil && len(next) == 1 && next[0] == quote {
+					_, _ = buffered.Discard(1)
+				} else {
+					inQuotes = false
+				}
+			}
+			continue
+		}
+		if atStart && char == quote {
+			quoted = true
+			atStart = false
+			inQuotes = true
+			continue
+		}
+		if char == delimiter {
+			record = append(record, quoted)
+			quoted = false
+			atStart = true
+			continue
+		}
+		if char == '\n' || char == '\r' {
+			record = append(record, quoted)
+			stats.addRecord(row, record, dialect)
+			row++
+			record = []bool{}
+			quoted = false
+			atStart = true
+			if char == '\r' {
+				if next, err := buffered.Peek(1); err == nil && len(next) == 1 && next[0] == '\n' {
+					_, _ = buffered.Discard(1)
+				}
+			}
+			continue
+		}
+		atStart = false
+	}
+	if len(record) > 0 || !atStart || quoted {
+		record = append(record, quoted)
+		stats.addRecord(row, record, dialect)
+	}
+	return stats, nil
+}
+
 func quotedFieldFlags(sample []byte, dialect Dialect, maxRows int) [][]bool {
 	delimiter := dialect.Delimiter
 	if delimiter == 0 {
@@ -347,7 +492,7 @@ func quotedFieldFlags(sample []byte, dialect Dialect, maxRows int) [][]bool {
 	quoted := false
 	atStart := true
 	inQuotes := false
-	for index := 0; index < len(input) && len(records) < maxRows; index++ {
+	for index := 0; index < len(input) && (maxRows <= 0 || len(records) < maxRows); index++ {
 		char := input[index]
 		if inQuotes {
 			if char == quote[0] {
@@ -384,7 +529,7 @@ func quotedFieldFlags(sample []byte, dialect Dialect, maxRows int) [][]bool {
 		}
 		atStart = false
 	}
-	if len(record) > 0 || !atStart || quoted {
+	if (maxRows <= 0 || len(records) < maxRows) && (len(record) > 0 || !atStart || quoted) {
 		record = append(record, quoted)
 		records = append(records, record)
 	}

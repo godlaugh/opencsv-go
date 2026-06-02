@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -193,6 +194,57 @@ func TestSaveRecordsPreservesDetectedQuoteRules(t *testing.T) {
 	want := "\"id\",name,note\n\"1\",Grace,\"plain\"\n\"2\",Linus,free\n"
 	if string(saved) != want {
 		t.Fatalf("saved quote preservation = %q, want %q", string(saved), want)
+	}
+}
+
+func TestSaveRecordsPreservesLateDetectedQuoteCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "late-quotes.csv")
+	var input bytes.Buffer
+	input.WriteString("id,note\n")
+	for row := 1; row <= 90; row++ {
+		input.WriteString("row")
+		input.WriteString(strconv.Itoa(row))
+		input.WriteString(",plain\n")
+	}
+	input.WriteString("row91,\"late quote\"\n")
+	if err := os.WriteFile(path, input.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sampledDocument, err := OpenDocument(path, OpenOptions{PreviewRows: 5, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if PreservesQuote(sampledDocument.Metadata.Dialect, 91, 1) {
+		t.Fatalf("sampled quote detection should not see the late cell: %+v", sampledDocument.Metadata.Dialect)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 5, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !PreservesQuote(document.Metadata.Dialect, 91, 1) {
+		t.Fatalf("late quote cell was not preserved: %+v", document.Metadata.Dialect)
+	}
+	records, err := ReadAllRecords(path, document.Metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records[1][1] = "edited"
+	if _, err := SaveRecords(path, document.Metadata, records, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(saved, []byte("row91,\"late quote\"\n")) {
+		t.Fatalf("late quote cell was not preserved on save: %q", saved)
+	}
+	if !bytes.Contains(saved, []byte("row1,edited\n")) {
+		t.Fatalf("unquoted sampled cell did not save edit unquoted: %q", saved)
+	}
+	if bytes.Contains(saved, []byte("row1,\"edited\"\n")) {
+		t.Fatalf("unquoted sampled cell should remain unquoted: %q", saved)
 	}
 }
 

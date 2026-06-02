@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/opencsv/opencsv/pkg/xlsx"
@@ -66,6 +67,58 @@ func TestServerOpenEditSave(t *testing.T) {
 	}
 	if !bytes.Contains(saved, []byte("1,Grace\r\n")) {
 		t.Fatalf("saved file did not include edit with CRLF: %q", saved)
+	}
+}
+
+func TestServerOpenEditSavePreservesLateDetectedQuoteCell(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "late-quotes.csv")
+	var input bytes.Buffer
+	input.WriteString("id,note\n")
+	for row := 1; row <= 90; row++ {
+		input.WriteString("row")
+		input.WriteString(strconv.Itoa(row))
+		input.WriteString(",plain\n")
+	}
+	input.WriteString("row91,\"late quote\"\n")
+	if err := os.WriteFile(path, input.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	document := openPayload["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	quoteCells := dialect["quoteCells"].([]any)
+	if len(quoteCells) != 1 {
+		t.Fatalf("quote cells = %#v, want late cell only", quoteCells)
+	}
+	lateCell := quoteCells[0].(map[string]any)
+	if lateCell["row"] != float64(91) || lateCell["col"] != float64(1) {
+		t.Fatalf("late quote cell = %#v, want row 91 col 1", lateCell)
+	}
+
+	documentID := openPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"value":      "edited",
+	})
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(saved, []byte("row1,edited\n")) || !bytes.Contains(saved, []byte("row91,\"late quote\"\n")) {
+		t.Fatalf("saved file did not preserve edit and late quote: %q", saved)
 	}
 }
 

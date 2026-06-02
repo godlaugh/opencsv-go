@@ -46,7 +46,7 @@ flowchart TD
   - Preview.
   - Windowed reads.
   - Save/backup.
-  - Minimal quote-policy detection aligned with the current Go CSV writer.
+  - Minimal quote-policy detection plus full-index source quote-map scanning aligned with the current Go CSV writer.
 
 - `pkg/appserver`
   - Local HTTP API for browser prototype.
