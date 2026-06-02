@@ -86,6 +86,35 @@ func TestMatchBigIntPrecision(t *testing.T) {
 	}
 }
 
+func TestMatchTemporalArithmetic(t *testing.T) {
+	headers := []string{"created_at", "seen_at", "stamp"}
+	record := []string{"2026-05-27", "15:30:00.123", "2026-05-27 14:30:00"}
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "CAST(created_at AS date) + INTERVAL '2' day = DATE '2026-05-29'", want: true},
+		{expr: "DATE '2026-05-29' - INTERVAL '2' day = CAST(created_at AS date)", want: true},
+		{expr: "DATE '2026-05-29' - CAST(created_at AS date) = INTERVAL '2' day", want: true},
+		{expr: "CAST(seen_at AS time) + INTERVAL '30' minute = TIME '16:00:00.123'", want: true},
+		{expr: "TIME '16:00:00.123' - CAST(seen_at AS time) = INTERVAL '30' minute", want: true},
+		{expr: "CAST(stamp AS timestamp) + INTERVAL '1:30' hour to minute = TIMESTAMP '2026-05-27 16:00:00'", want: true},
+		{expr: "TIMESTAMP '2026-05-27 16:00:00' - CAST(stamp AS timestamp) = INTERVAL '1:30' hour to minute", want: true},
+		{expr: "DATE '2026-05-27' = '2026-05-27'", want: false},
+	}
+
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
+		}
+	}
+}
+
 func TestMatchFunctionsAndArithmetic(t *testing.T) {
 	headers := []string{"name", "amount"}
 	record := []string{"  Alice  ", "9"}

@@ -58,6 +58,9 @@ const (
 	valueNumber
 	valueBigInt
 	valueBool
+	valueDate
+	valueTime
+	valueTimestamp
 	valueInterval
 )
 
@@ -94,6 +97,18 @@ func boolValue(b bool) value {
 	return value{kind: valueBool, bool: b}
 }
 
+func dateValue(text string) value {
+	return value{kind: valueDate, text: text}
+}
+
+func timeValue(text string) value {
+	return value{kind: valueTime, text: text}
+}
+
+func timestampValue(text string) value {
+	return value{kind: valueTimestamp, text: text}
+}
+
 func intervalValue(months int64, seconds float64) value {
 	return value{kind: valueInterval, intervalMonths: months, intervalSeconds: seconds}
 }
@@ -116,6 +131,8 @@ func (v value) string() string {
 			return "true"
 		}
 		return "false"
+	case valueDate, valueTime, valueTimestamp:
+		return v.text
 	case valueInterval:
 		return fmt.Sprintf("interval:%d:%g", v.intervalMonths, v.intervalSeconds)
 	default:
@@ -166,6 +183,8 @@ func truthy(v value) bool {
 		if num, ok := v.number(); ok {
 			return num != 0
 		}
+		return true
+	case valueDate, valueTime, valueTimestamp:
 		return true
 	default:
 		return false
@@ -275,6 +294,12 @@ func (expr binaryExpr) eval(ctx evalContext) (value, error) {
 
 	switch expr.op {
 	case "+", "-", "*", "/":
+		if result, ok, err := temporalArithmetic(left, right, expr.op); ok || err != nil {
+			return result, err
+		}
+		if result, ok, err := intervalArithmetic(left, right, expr.op); ok || err != nil {
+			return result, err
+		}
 		if result, ok, err := bigIntArithmetic(left, right, expr.op); ok || err != nil {
 			return result, err
 		}
@@ -365,6 +390,10 @@ func compare(left value, right value, op string) bool {
 	var result int
 	if left.kind == valueInterval || right.kind == valueInterval {
 		result = compareIntervals(left, right)
+	} else if temporalResult, ok := compareTemporals(left, right); ok {
+		result = temporalResult
+	} else if isTemporal(left) || isTemporal(right) {
+		result = 1
 	} else if left.kind == valueNull || right.kind == valueNull {
 		result = strings.Compare(left.string(), right.string())
 	} else if bigintResult, ok := compareBigInts(left, right); ok {
@@ -466,6 +495,127 @@ func parseBigIntText(raw string) (*big.Int, bool) {
 	}
 	value, ok := new(big.Int).SetString(trimmed, 10)
 	return value, ok
+}
+
+func isTemporal(input value) bool {
+	switch input.kind {
+	case valueDate, valueTime, valueTimestamp:
+		return true
+	default:
+		return false
+	}
+}
+
+func compareTemporals(left value, right value) (int, bool) {
+	if !isTemporal(left) || left.kind != right.kind {
+		return 0, false
+	}
+	return strings.Compare(left.string(), right.string()), true
+}
+
+func intervalArithmetic(left value, right value, op string) (value, bool, error) {
+	if left.kind != valueInterval || right.kind != valueInterval {
+		return nullValue(), false, nil
+	}
+	switch op {
+	case "+":
+		return intervalValue(left.intervalMonths+right.intervalMonths, left.intervalSeconds+right.intervalSeconds), true, nil
+	case "-":
+		return intervalValue(left.intervalMonths-right.intervalMonths, left.intervalSeconds-right.intervalSeconds), true, nil
+	default:
+		return nullValue(), false, nil
+	}
+}
+
+func temporalArithmetic(left value, right value, op string) (value, bool, error) {
+	if op == "+" && left.kind == valueInterval && isTemporal(right) {
+		return addIntervalToTemporal(right, left, 1)
+	}
+	if isTemporal(left) && right.kind == valueInterval {
+		switch op {
+		case "+":
+			return addIntervalToTemporal(left, right, 1)
+		case "-":
+			return addIntervalToTemporal(left, right, -1)
+		}
+	}
+	if op == "-" && isTemporal(left) && left.kind == right.kind {
+		return subtractTemporals(left, right)
+	}
+	return nullValue(), false, nil
+}
+
+func addIntervalToTemporal(temporal value, interval value, sign int) (value, bool, error) {
+	months := int(interval.intervalMonths) * sign
+	seconds := interval.intervalSeconds * float64(sign)
+	switch temporal.kind {
+	case valueDate:
+		parsed, err := parseDate(temporal.text)
+		if err != nil {
+			return nullValue(), true, err
+		}
+		parsed = parsed.AddDate(0, months, 0)
+		if whole, ok := wholeDays(seconds); ok {
+			return dateValue(parsed.AddDate(0, 0, whole).Format("2006-01-02")), true, nil
+		}
+		return timestampValue(parsed.Add(durationFromSeconds(seconds)).Format("2006-01-02 15:04:05.999999999")), true, nil
+	case valueTimestamp:
+		parsed, err := parseTimestamp(temporal.text)
+		if err != nil {
+			return nullValue(), true, err
+		}
+		parsed = parsed.AddDate(0, months, 0).Add(durationFromSeconds(seconds))
+		return timestampValue(parsed.Format("2006-01-02 15:04:05.999999999")), true, nil
+	case valueTime:
+		if months != 0 {
+			return nullValue(), true, errors.New("cannot add month interval to time")
+		}
+		parsed, err := parseClockTime(temporal.text)
+		if err != nil {
+			return nullValue(), true, err
+		}
+		return timeValue(parsed.Add(durationFromSeconds(seconds)).Format("15:04:05.999999999")), true, nil
+	default:
+		return nullValue(), false, nil
+	}
+}
+
+func subtractTemporals(left value, right value) (value, bool, error) {
+	leftTime, err := parseTemporalTime(left)
+	if err != nil {
+		return nullValue(), true, err
+	}
+	rightTime, err := parseTemporalTime(right)
+	if err != nil {
+		return nullValue(), true, err
+	}
+	return intervalValue(0, leftTime.Sub(rightTime).Seconds()), true, nil
+}
+
+func parseTemporalTime(input value) (time.Time, error) {
+	switch input.kind {
+	case valueDate:
+		return parseDate(input.text)
+	case valueTime:
+		return parseClockTime(input.text)
+	case valueTimestamp:
+		return parseTimestamp(input.text)
+	default:
+		return time.Time{}, fmt.Errorf("unsupported temporal value %s", input.string())
+	}
+}
+
+func wholeDays(seconds float64) (int, bool) {
+	days := seconds / 86400
+	rounded := math.Round(days)
+	if math.Abs(days-rounded) > 1e-9 {
+		return 0, false
+	}
+	return int(rounded), true
+}
+
+func durationFromSeconds(seconds float64) time.Duration {
+	return time.Duration(math.Round(seconds * float64(time.Second)))
 }
 
 func compareIntervals(left value, right value) int {
@@ -683,19 +833,19 @@ func castValue(input value, rawType string) (value, error) {
 		if err != nil {
 			return nullValue(), err
 		}
-		return stringValue(raw), nil
+		return dateValue(raw), nil
 	case "time":
 		raw, err := normalizeClockTime(input.string())
 		if err != nil {
 			return nullValue(), err
 		}
-		return stringValue(raw), nil
+		return timeValue(raw), nil
 	case "timestamp":
 		raw, err := normalizeTimestamp(input.string())
 		if err != nil {
 			return nullValue(), err
 		}
-		return stringValue(raw), nil
+		return timestampValue(raw), nil
 	case "interval":
 		return parseFlexibleInterval(input.string())
 	default:
@@ -704,8 +854,7 @@ func castValue(input value, rawType string) (value, error) {
 }
 
 func normalizeDate(raw string) (string, error) {
-	trimmed := strings.TrimSpace(raw)
-	parsed, err := time.Parse("2006-01-02", trimmed)
+	parsed, err := parseDate(raw)
 	if err != nil {
 		return "", err
 	}
@@ -714,24 +863,45 @@ func normalizeDate(raw string) (string, error) {
 
 func normalizeClockTime(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
-	for _, layout := range []string{"15:04:05.999999999", "15:04:05"} {
-		parsed, err := time.Parse(layout, trimmed)
-		if err == nil {
-			return parsed.Format("15:04:05.999999999"), nil
-		}
+	parsed, err := parseClockTime(trimmed)
+	if err == nil {
+		return parsed.Format("15:04:05.999999999"), nil
 	}
 	return "", fmt.Errorf("cannot parse %q as time", raw)
 }
 
 func normalizeTimestamp(raw string) (string, error) {
+	parsed, err := parseTimestamp(raw)
+	if err != nil {
+		return "", err
+	}
+	return parsed.Format("2006-01-02 15:04:05.999999999"), nil
+}
+
+func parseDate(raw string) (time.Time, error) {
+	return time.Parse("2006-01-02", strings.TrimSpace(raw))
+}
+
+func parseClockTime(raw string) (time.Time, error) {
+	trimmed := strings.TrimSpace(raw)
+	for _, layout := range []string{"15:04:05.999999999", "15:04:05"} {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("cannot parse %q as time", raw)
+}
+
+func parseTimestamp(raw string) (time.Time, error) {
 	trimmed := strings.TrimSpace(raw)
 	for _, layout := range []string{"2006-01-02 15:04:05.999999999", "2006-01-02 15:04:05"} {
 		parsed, err := time.Parse(layout, trimmed)
 		if err == nil {
-			return parsed.Format("2006-01-02 15:04:05.999999999"), nil
+			return parsed, nil
 		}
 	}
-	return "", fmt.Errorf("cannot parse %q as timestamp", raw)
+	return time.Time{}, fmt.Errorf("cannot parse %q as timestamp", raw)
 }
 
 func normalizeTemporalLiteral(kind string, raw string) (string, error) {
@@ -1297,7 +1467,14 @@ func (parser *parser) parsePrimary() (expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			return literalExpr{value: stringValue(normalized)}, nil
+			switch lower {
+			case "date":
+				return literalExpr{value: dateValue(normalized)}, nil
+			case "time":
+				return literalExpr{value: timeValue(normalized)}, nil
+			case "timestamp":
+				return literalExpr{value: timestampValue(normalized)}, nil
+			}
 		}
 		if lower == "interval" {
 			if parser.peek().kind != tokenString {

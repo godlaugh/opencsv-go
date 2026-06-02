@@ -1672,6 +1672,36 @@ func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	}
 }
 
+func TestServerSQLFilterTemporalArithmetic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "temporal-arithmetic.csv")
+	if err := os.WriteFile(path, []byte("id,created_at,seen_at,stamp\n1,2026-05-27,15:30:00.123,2026-05-27 14:30:00\n2,2026-05-28,15:29:00,2026-05-27 13:00:00\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "CAST(created_at AS date) + INTERVAL '2' day = DATE '2026-05-29' AND CAST(seen_at AS time) + INTERVAL '30' minute = TIME '16:00:00.123' AND CAST(stamp AS timestamp) + INTERVAL '1:30' hour to minute = TIMESTAMP '2026-05-27 16:00:00'",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL temporal arithmetic filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
+		t.Fatalf("SQL temporal arithmetic filtered window rows = %#v, want row 1", rows)
+	}
+}
+
 func TestServerSQLFilterBigIntPrecision(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bigint.csv")
