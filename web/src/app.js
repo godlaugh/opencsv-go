@@ -183,13 +183,9 @@ const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
-const conditionSecondEnabled = document.querySelector("#conditionSecondEnabled");
-const conditionJoin = document.querySelector("#conditionJoin");
-const conditionSecondRow = document.querySelector("#conditionSecondRow");
-const conditionColumn2 = document.querySelector("#conditionColumn2");
-const conditionOperator2 = document.querySelector("#conditionOperator2");
-const conditionValue2 = document.querySelector("#conditionValue2");
+const conditionRows = document.querySelector("#conditionRows");
 const closeConditionButton = document.querySelector("#closeConditionButton");
+const addConditionButton = document.querySelector("#addConditionButton");
 const applyConditionButton = document.querySelector("#applyConditionButton");
 const clearConditionButton = document.querySelector("#clearConditionButton");
 const columnMenu = document.querySelector("#columnMenu");
@@ -339,6 +335,7 @@ let shortcutEditorOpen = false;
 let recordingShortcutID = "";
 let pendingShortcutConflict = null;
 let conditionBuilderOpen = false;
+let conditionExtraRows = [];
 let columnMenuColumn = -1;
 let readOnly = false;
 let externalFileChanged = false;
@@ -3553,10 +3550,6 @@ function openConditionBuilder() {
     conditionColumn.selectedIndex = 0;
   }
   conditionOperator.value = conditionOperator.value || "contains";
-  if (!conditionColumn2.value && conditionColumn2.options.length > 0) {
-    conditionColumn2.value = conditionColumn.value;
-  }
-  conditionOperator2.value = conditionOperator2.value || "contains";
   updateConditionValueState();
   conditionPanel.hidden = false;
   conditionValue.focus();
@@ -3571,66 +3564,164 @@ function closeConditionBuilder() {
 
 function renderConditionColumns() {
   const previous = conditionColumn.value;
-  const previousSecond = conditionColumn2.value;
+  populateConditionColumnSelect(conditionColumn, previous);
+  renderConditionExtraRows();
+}
+
+function populateConditionColumnSelect(select, previous = "") {
   const fragment = document.createDocumentFragment();
-  const secondFragment = document.createDocumentFragment();
   for (const column of columns) {
     const option = document.createElement("option");
     option.value = String(column.sourceCol);
     option.textContent = column.name;
     fragment.append(option);
-    secondFragment.append(option.cloneNode(true));
   }
-  conditionColumn.replaceChildren(fragment);
-  conditionColumn2.replaceChildren(secondFragment);
-  if ([...conditionColumn.options].some((option) => option.value === previous)) {
-    conditionColumn.value = previous;
+  select.replaceChildren(fragment);
+  if ([...select.options].some((option) => option.value === previous)) {
+    select.value = previous;
   }
-  if ([...conditionColumn2.options].some((option) => option.value === previousSecond)) {
-    conditionColumn2.value = previousSecond;
+}
+
+function conditionOperatorOptionsFragment() {
+  const fragment = document.createDocumentFragment();
+  for (const option of conditionOperator.options) {
+    fragment.append(option.cloneNode(true));
   }
+  return fragment;
+}
+
+function renderConditionExtraRows() {
+  conditionRows.replaceChildren(...conditionExtraRows.map((row, index) => conditionExtraRowElement(row, index)));
+  updateConditionValueState();
+}
+
+function conditionExtraRowElement(row, index) {
+  const number = index + 2;
+  const fieldset = document.createElement("fieldset");
+  fieldset.className = "condition-row condition-row-extra";
+  fieldset.dataset.conditionIndex = String(index);
+
+  const legend = document.createElement("legend");
+  legend.textContent = `Condition ${number}`;
+  fieldset.append(legend);
+
+  const joinLabel = document.createElement("label");
+  joinLabel.className = "condition-join-control";
+  joinLabel.append(conditionLabelText("Join"));
+  const joinSelect = document.createElement("select");
+  joinSelect.className = "condition-join-select";
+  joinSelect.dataset.conditionField = "join";
+  joinSelect.setAttribute("aria-label", `Condition ${number} join`);
+  for (const value of ["AND", "OR"]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    joinSelect.append(option);
+  }
+  joinSelect.value = row.join === "OR" ? "OR" : "AND";
+  joinLabel.append(joinSelect);
+  fieldset.append(joinLabel);
+
+  const columnLabel = document.createElement("label");
+  columnLabel.append(conditionLabelText("Column"));
+  const columnSelect = document.createElement("select");
+  columnSelect.className = "condition-column";
+  columnSelect.dataset.conditionField = "column";
+  columnSelect.setAttribute("aria-label", `Condition ${number} column`);
+  populateConditionColumnSelect(columnSelect, row.column || conditionColumn.value || String(sourceColFor(selected.col)));
+  columnLabel.append(columnSelect);
+  fieldset.append(columnLabel);
+
+  const operatorLabel = document.createElement("label");
+  operatorLabel.append(conditionLabelText("Operator"));
+  const operatorSelect = document.createElement("select");
+  operatorSelect.className = "condition-operator";
+  operatorSelect.dataset.conditionField = "operator";
+  operatorSelect.setAttribute("aria-label", `Condition ${number} operator`);
+  operatorSelect.append(conditionOperatorOptionsFragment());
+  operatorSelect.value = row.operator || "contains";
+  operatorLabel.append(operatorSelect);
+  fieldset.append(operatorLabel);
+
+  const valueLabel = document.createElement("label");
+  valueLabel.append(conditionLabelText("Value"));
+  const valueInput = document.createElement("input");
+  valueInput.className = "condition-value";
+  valueInput.dataset.conditionField = "value";
+  valueInput.type = "text";
+  valueInput.autocomplete = "off";
+  valueInput.spellcheck = false;
+  valueInput.setAttribute("aria-label", `Condition ${number} value`);
+  valueInput.value = row.value || "";
+  valueLabel.append(valueInput);
+  fieldset.append(valueLabel);
+
+  const removeButton = document.createElement("button");
+  removeButton.className = "condition-remove-button";
+  removeButton.type = "button";
+  removeButton.dataset.conditionAction = "remove";
+  removeButton.textContent = "Remove";
+  removeButton.title = `Remove condition ${number}`;
+  fieldset.append(removeButton);
+  return fieldset;
+}
+
+function conditionLabelText(text) {
+  const span = document.createElement("span");
+  span.textContent = text;
+  return span;
 }
 
 function updateConditionValueState() {
   updateConditionValueInput(conditionOperator, conditionValue);
-  updateConditionValueInput(conditionOperator2, conditionValue2);
-  const enabled = conditionSecondEnabled.checked;
-  conditionSecondRow.disabled = !enabled;
-  conditionJoin.disabled = !enabled;
-  document.body.dataset.conditionGrouped = enabled ? conditionJoin.value : "";
+  for (const row of conditionRows.querySelectorAll(".condition-row-extra")) {
+    updateConditionValueInput(
+      row.querySelector(".condition-operator"),
+      row.querySelector(".condition-value"),
+    );
+  }
+  const joins = Array.from(conditionRows.querySelectorAll(".condition-join-select")).map((select) => select.value);
+  document.body.dataset.conditionGrouped = joins.join(",");
+  document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
 }
 
 function updateConditionValueInput(operatorInput, valueInput) {
-  const noValue = ["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operatorInput.value);
+  if (!operatorInput || !valueInput) return;
+  const noValue = !conditionOperatorNeedsValue(operatorInput.value);
   valueInput.disabled = noValue;
   if (noValue) valueInput.value = "";
 }
 
+function conditionOperatorNeedsValue(operator) {
+  return !["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operator);
+}
+
 async function applyConditionBuilder() {
   if (!documentId) return;
-  const first = conditionExpression(
-    Number(conditionColumn.value),
-    conditionOperator.value,
-    conditionValue.value,
-    conditionValue,
-  );
-  if (!first) return;
-  const expressions = [first];
-  if (conditionSecondEnabled.checked) {
-    const second = conditionExpression(
-      Number(conditionColumn2.value),
-      conditionOperator2.value,
-      conditionValue2.value,
-      conditionValue2,
-    );
-    if (!second) return;
-    expressions.push(second);
+  readConditionExtraRowsFromDOM();
+  const builders = [
+    {
+      sourceCol: Number(conditionColumn.value),
+      operator: conditionOperator.value,
+      value: conditionValue.value,
+      valueInput: conditionValue,
+    },
+    ...Array.from(conditionRows.querySelectorAll(".condition-row-extra")).map((row) => ({
+      join: row.querySelector(".condition-join-select")?.value === "OR" ? "OR" : "AND",
+      sourceCol: Number(row.querySelector(".condition-column")?.value),
+      operator: row.querySelector(".condition-operator")?.value,
+      value: row.querySelector(".condition-value")?.value ?? "",
+      valueInput: row.querySelector(".condition-value"),
+    })),
+  ];
+  let expression = "";
+  for (const [index, builder] of builders.entries()) {
+    const next = conditionExpression(builder.sourceCol, builder.operator, builder.value, builder.valueInput);
+    if (!next) return;
+    expression = index === 0 ? next : `(${expression}) ${builder.join} (${next})`;
   }
-  const join = conditionJoin.value === "OR" ? "OR" : "AND";
-  const expression = expressions.length > 1
-    ? `(${expressions[0]}) ${join} (${expressions[1]})`
-    : expressions[0];
   document.body.dataset.conditionPreview = expression;
+  document.body.dataset.conditionRowCount = String(builders.length);
   commandInput.value = `where ${expression}`;
   closeConditionBuilder();
   const visibleCol = visibleColForSource(Number(conditionColumn.value));
@@ -3641,13 +3732,43 @@ async function applyConditionBuilder() {
   );
 }
 
+function addConditionRow() {
+  readConditionExtraRowsFromDOM();
+  conditionExtraRows.push({
+    join: "AND",
+    column: conditionColumn.value || String(sourceColFor(selected.col)),
+    operator: "contains",
+    value: "",
+  });
+  renderConditionExtraRows();
+  const valueInput = conditionRows.querySelector(".condition-row-extra:last-child .condition-value");
+  valueInput?.focus();
+}
+
+function removeConditionRow(index) {
+  if (!Number.isInteger(index) || index < 0) return;
+  readConditionExtraRowsFromDOM();
+  conditionExtraRows.splice(index, 1);
+  renderConditionExtraRows();
+  conditionValue.focus();
+}
+
+function readConditionExtraRowsFromDOM() {
+  conditionExtraRows = Array.from(conditionRows.querySelectorAll(".condition-row-extra")).map((row) => ({
+    join: row.querySelector(".condition-join-select")?.value === "OR" ? "OR" : "AND",
+    column: row.querySelector(".condition-column")?.value || "",
+    operator: row.querySelector(".condition-operator")?.value || "contains",
+    value: row.querySelector(".condition-value")?.value || "",
+  }));
+}
+
 function conditionExpression(sourceCol, operator, value, valueInput = conditionValue) {
   if (!Number.isInteger(sourceCol) || sourceCol < 0) {
     status.textContent = "Choose a column to filter.";
     return "";
   }
   const identifier = sqlColumnIdentifier(sourceCol);
-  const needsValue = !["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operator);
+  const needsValue = conditionOperatorNeedsValue(operator);
   if (needsValue && value === "") {
     status.textContent = "Enter a filter value.";
     valueInput.focus();
@@ -10150,15 +10271,17 @@ filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
 conditionOperator.addEventListener("change", updateConditionValueState);
-conditionOperator2.addEventListener("change", updateConditionValueState);
-conditionSecondEnabled.addEventListener("change", () => {
-  updateConditionValueState();
-  if (conditionSecondEnabled.checked) {
-    conditionValue2.focus();
-    conditionValue2.select();
-  }
+addConditionButton.addEventListener("click", addConditionRow);
+conditionRows.addEventListener("change", updateConditionValueState);
+conditionRows.addEventListener("input", () => {
+  document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
 });
-conditionJoin.addEventListener("change", updateConditionValueState);
+conditionRows.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-condition-action='remove']");
+  if (!button) return;
+  const row = button.closest(".condition-row-extra");
+  removeConditionRow(Number(row?.dataset.conditionIndex ?? -1));
+});
 applyConditionButton.addEventListener("click", applyConditionBuilder);
 clearConditionButton.addEventListener("click", async () => {
   closeConditionBuilder();
@@ -10174,11 +10297,6 @@ for (const input of [
   conditionColumn,
   conditionOperator,
   conditionValue,
-  conditionSecondEnabled,
-  conditionJoin,
-  conditionColumn2,
-  conditionOperator2,
-  conditionValue2,
 ]) {
   input.addEventListener("keydown", async (event) => {
     if (event.key !== "Enter") return;
@@ -10186,6 +10304,11 @@ for (const input of [
     await applyConditionBuilder();
   });
 }
+conditionRows.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  await applyConditionBuilder();
+});
 commandInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();

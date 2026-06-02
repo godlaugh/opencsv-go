@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-refresh-view-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-condition-multi-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -488,52 +488,10 @@
               <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" />
             </label>
           </fieldset>
-          <div class="condition-join-row">
-            <label>
-              <input id="conditionSecondEnabled" type="checkbox" />
-              <span>Second condition</span>
-            </label>
-            <select id="conditionJoin" aria-label="Condition join">
-              <option value="AND">AND</option>
-              <option value="OR">OR</option>
-            </select>
-          </div>
-          <fieldset class="condition-row" id="conditionSecondRow" data-condition-row="secondary" disabled>
-            <legend>Condition 2</legend>
-            <label>
-              <span>Column</span>
-              <select id="conditionColumn2" aria-label="Second filter column"></select>
-            </label>
-            <label>
-              <span>Operator</span>
-              <select id="conditionOperator2" aria-label="Second filter operator">
-                <option value="contains">contains</option>
-                <option value="equals">equals</option>
-                <option value="notEquals">not equals</option>
-                <option value="startsWith">starts with</option>
-                <option value="endsWith">ends with</option>
-                <option value="blank">is blank</option>
-                <option value="notBlank">is not blank</option>
-                <option value="booleanTrue">is true</option>
-                <option value="booleanFalse">is false</option>
-                <option value="dateEquals">date equals</option>
-                <option value="dateBefore">date before</option>
-                <option value="dateAfter">date after</option>
-                <option value="dateOnOrBefore">date on/before</option>
-                <option value="dateOnOrAfter">date on/after</option>
-                <option value="gt">greater than</option>
-                <option value="gte">greater or equal</option>
-                <option value="lt">less than</option>
-                <option value="lte">less or equal</option>
-              </select>
-            </label>
-            <label>
-              <span>Value</span>
-              <input id="conditionValue2" type="text" autocomplete="off" spellcheck="false" aria-label="Second filter value" />
-            </label>
-          </fieldset>
+          <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
         </div>
         <footer class="condition-actions">
+          <button id="addConditionButton" type="button">Add Condition</button>
           <button id="applyConditionButton" type="button">Apply</button>
           <button id="clearConditionButton" type="button">Clear View</button>
         </footer>
@@ -560,6 +518,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-refresh-view-1"></script>
+    <script type="module" src="./src/app.js?v=m2-condition-multi-1"></script>
   </body>
 </html>

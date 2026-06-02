@@ -1280,6 +1280,11 @@ button:disabled {
   padding: 12px;
 }
 
+.condition-extra-rows {
+  display: grid;
+  gap: 10px;
+}
+
 .condition-row {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
@@ -1298,25 +1303,29 @@ button:disabled {
   font-weight: 700;
 }
 
-.condition-join-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.condition-row-extra {
+  grid-template-columns: 90px minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(0, 1.25fr) auto;
 }
 
-.condition-join-row label {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+.condition-row-extra legend {
+  grid-column: 1 / -1;
 }
 
-.condition-join-row input {
-  width: 15px;
-  height: 15px;
+.condition-row-extra .condition-join-control {
+  align-self: end;
 }
 
-.condition-join-row select {
-  width: 96px;
+.condition-row-extra .condition-remove-button {
+  align-self: end;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .condition-grid label {
@@ -1360,13 +1369,6 @@ button:disabled {
   font: inherit;
   font-size: 13px;
   outline: none;
-}
-
-.condition-grid .condition-join-row input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
-  padding: 0;
 }
 
 .condition-panel-header button,
@@ -1760,7 +1762,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .condition-row {
+  .condition-row,
+  .condition-row-extra {
     grid-template-columns: 1fr;
   }
 
