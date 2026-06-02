@@ -290,6 +290,7 @@ const rowNumberWidth = 58;
 const windowSize = 160;
 const minColumnWidth = 92;
 const maxColumnWidth = 420;
+const columnReorderDragThreshold = 8;
 const autoFitColumnWidthOnEdit = true;
 const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
@@ -735,6 +736,7 @@ let draggingSelection = false;
 let dragSelectionMode = "cell";
 let smartSelectionGesture = "";
 let smartSelectionGestureBaseRanges = [];
+let pendingColumnReorder = null;
 let draggingFillHandle = false;
 let hoverFillHandle = false;
 let fillDragSourceRange = null;
@@ -3866,6 +3868,11 @@ function clearFillHandleHover() {
 }
 
 function syncCanvasHoverChrome() {
+  if (pendingColumnReorder?.active) {
+    canvas.style.cursor = "grabbing";
+    canvas.title = "Move column";
+    return;
+  }
   if (draggingFillHandle || hoverFillHandle) {
     canvas.style.cursor = "crosshair";
     canvas.title = "Fill selection";
@@ -3880,6 +3887,11 @@ function syncCanvasHoverChrome() {
   if (hoverURL) {
     canvas.style.cursor = "pointer";
     canvas.title = hoverURL;
+    return;
+  }
+  if (pendingColumnReorder) {
+    canvas.style.cursor = "grab";
+    canvas.title = "Drag to move selected column";
     return;
   }
   canvas.style.cursor = "";
@@ -3907,7 +3919,7 @@ function updateURLHover(event) {
 }
 
 function updateCanvasHover(event) {
-  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || editing || !documentId) {
+  if (draggingFillHandle || draggingSelection || resizingColumn >= 0 || pendingColumnReorder?.active || editing || !documentId) {
     clearURLHover();
     clearResizeHover();
     clearFillHandleHover();
@@ -3933,11 +3945,18 @@ function updateCanvasHover(event) {
   clearFillHandleHover();
   const col = headerResizeColumnAt(x, y);
   if (col < 0) {
+    if (pendingColumnReorder && !pendingColumnReorder.active) {
+      pendingColumnReorder = null;
+      syncCanvasHoverChrome();
+    }
     clearResizeHover();
     return;
   }
   hoverResizeColumn = col;
   document.body.dataset.resizeColumn = String(col);
+  if (pendingColumnReorder && !pendingColumnReorder.active) {
+    pendingColumnReorder = null;
+  }
   syncCanvasHoverChrome();
 }
 
@@ -5874,6 +5893,33 @@ function drawHeaders(target, width) {
     }
     x += column.width;
   }
+  drawColumnReorderPreview(target, width);
+  target.restore();
+}
+
+function drawColumnReorderPreview(target, canvasWidth) {
+  const drag = pendingColumnReorder;
+  if (!drag?.active || !columns[drag.sourceVisibleCol] || !columns[drag.targetVisibleCol]) return;
+  const sourceLeft = columnLeft(drag.sourceVisibleCol);
+  const sourceWidth = columns[drag.sourceVisibleCol].width;
+  const targetLeft = columnLeft(drag.targetVisibleCol);
+  const targetWidth = columns[drag.targetVisibleCol].width;
+  const insertX = drag.targetVisibleCol > drag.sourceVisibleCol ? targetLeft + targetWidth : targetLeft;
+  target.save();
+  const sourceX = Math.max(rowNumberWidth, sourceLeft);
+  const sourceRight = Math.min(canvasWidth, sourceLeft + sourceWidth);
+  if (sourceRight > sourceX) {
+    target.globalAlpha = 0.18;
+    target.fillStyle = themeColors.accent;
+    target.fillRect(sourceX, 0, sourceRight - sourceX, headerHeight);
+  }
+  target.globalAlpha = 1;
+  target.strokeStyle = themeColors.accent;
+  target.lineWidth = 3;
+  target.beginPath();
+  target.moveTo(Math.max(rowNumberWidth, Math.min(canvasWidth, insertX)) + 0.5, 0);
+  target.lineTo(Math.max(rowNumberWidth, Math.min(canvasWidth, insertX)) + 0.5, headerHeight);
+  target.stroke();
   target.restore();
 }
 
@@ -6292,6 +6338,17 @@ function isHeaderMenuTarget(x, col) {
   return x >= left + columns[col].width - 28;
 }
 
+function isWholeColumnSelected(col) {
+  if (!documentId || columns.length === 0 || sourceRowCount <= 0 || smartSelectionRanges.length > 0) return false;
+  const range = normalizedSelection();
+  return (
+    range.startRow === 0 &&
+    range.endRow === Math.max(0, sourceRowCount - 1) &&
+    range.startCol === col &&
+    range.endCol === col
+  );
+}
+
 function headerResizeColumnAt(x, y) {
   if (y < 0 || y >= headerHeight || x < rowNumberWidth) return -1;
   let left = rowNumberWidth - scrollX;
@@ -6315,6 +6372,65 @@ function columnAtOrNearest(x) {
   const col = columnAt(x);
   if (col >= 0) return col;
   return x < rowNumberWidth ? 0 : columns.length - 1;
+}
+
+function startColumnReorder(col, event) {
+  if (!columns[col]) return false;
+  pendingColumnReorder = {
+    sourceVisibleCol: col,
+    sourceCol: sourceColFor(col),
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    targetVisibleCol: col,
+    active: false,
+  };
+  document.body.dataset.columnDragReorder = `pending:${col}`;
+  document.body.dataset.columnDragTarget = String(col);
+  clearURLHover();
+  clearResizeHover();
+  clearFillHandleHover();
+  syncCanvasHoverChrome();
+  return true;
+}
+
+function updateColumnReorder(event) {
+  if (!pendingColumnReorder) return;
+  const drag = pendingColumnReorder;
+  const distance = Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
+  if (!drag.active && distance < columnReorderDragThreshold) return;
+  if (!drag.active) {
+    drag.active = true;
+    status.textContent = `Move ${columns[drag.sourceVisibleCol]?.name || `Column ${drag.sourceVisibleCol + 1}`}...`;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  drag.targetVisibleCol = columnAtOrNearest(x);
+  document.body.dataset.columnDragReorder = `${drag.sourceVisibleCol}->${drag.targetVisibleCol}:drag`;
+  document.body.dataset.columnDragTarget = String(drag.targetVisibleCol);
+  syncCanvasHoverChrome();
+  draw();
+}
+
+async function finishColumnReorder() {
+  if (!pendingColumnReorder) return;
+  const drag = pendingColumnReorder;
+  pendingColumnReorder = null;
+  syncCanvasHoverChrome();
+  if (!drag.active) {
+    document.body.dataset.columnDragReorder = "";
+    document.body.dataset.columnDragTarget = "";
+    draw();
+    return;
+  }
+  const targetVisibleCol = Math.max(0, Math.min(columns.length - 1, drag.targetVisibleCol));
+  if (targetVisibleCol === drag.sourceVisibleCol) {
+    document.body.dataset.columnDragReorder = `${drag.sourceVisibleCol}->${targetVisibleCol}:cancel`;
+    document.body.dataset.columnDragTarget = String(targetVisibleCol);
+    status.textContent = "Column move canceled.";
+    draw();
+    return;
+  }
+  await moveColumnToVisible(drag.sourceVisibleCol, targetVisibleCol, "drag");
 }
 
 function selectRowRange(row, extend = false) {
@@ -9796,14 +9912,33 @@ function showAllHiddenColumns() {
 
 async function moveSelectedColumn(delta) {
   if (!documentId) return;
-  if (!ensureEditable("Move Column")) return;
   const previousCol = selected.col;
   const label = delta < 0 ? "Moved column left" : "Moved column right";
+  await moveColumnToVisible(previousCol, Math.max(0, Math.min(columns.length - 1, previousCol + delta)), "command", label);
+}
+
+async function moveColumnToVisible(sourceVisibleCol, targetVisibleCol, source = "command", labelOverride = "") {
+  if (!documentId) return;
+  if (!ensureEditable("Move Column")) return;
+  if (!columns[sourceVisibleCol] || !columns[targetVisibleCol]) {
+    status.textContent = "Select a column first.";
+    return;
+  }
+  const sourceCol = sourceColFor(sourceVisibleCol);
+  const targetCol = sourceColFor(targetVisibleCol);
+  const delta = targetCol - sourceCol;
+  const label = labelOverride || `Moved column ${sourceVisibleCol + 1} to ${targetVisibleCol + 1}`;
+  if (delta === 0) {
+    document.body.dataset.columnDragReorder = `${sourceVisibleCol}->${targetVisibleCol}:cancel`;
+    status.textContent = "Column is already at the target.";
+    draw();
+    return;
+  }
   status.textContent = `${label}...`;
   const response = await fetch("/api/column/move", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, col: sourceColFor(selected.col), delta }),
+    body: JSON.stringify({ documentId, col: sourceCol, delta }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -9813,8 +9948,12 @@ async function moveSelectedColumn(delta) {
   const changed = payload.changed ?? 0;
   applyMutationPayload(payload, changed > 0 ? label : "Column is already at the edge");
   if (changed > 0) {
-    selected = { row: selected.row, col: Math.max(0, Math.min(columns.length - 1, previousCol + delta)) };
-    selectionAnchor = { ...selected };
+    const movedCol = Math.max(0, Math.min(columns.length - 1, targetVisibleCol));
+    selected = { row: 0, col: movedCol };
+    selectionAnchor = { row: Math.max(0, sourceRowCount - 1), col: movedCol };
+    document.body.dataset.columnDragReorder = `${sourceVisibleCol}->${movedCol}:moved`;
+    document.body.dataset.columnDragSource = source;
+    document.body.dataset.columnDragPhysical = `${sourceCol}->${targetCol}`;
     draw();
     status.textContent = label;
   }
@@ -12133,6 +12272,10 @@ canvas.addEventListener("mousedown", (event) => {
         openColumnMenu(col, event.clientX, rect.top + headerHeight + 4);
       } else {
         closeColumnMenu();
+        if (!readOnly && !event.shiftKey && !event.altKey && !smartGesture && isWholeColumnSelected(col)) {
+          startColumnReorder(col, event);
+          return;
+        }
         if (smartGesture) startSmartSelectionGesture(smartGesture);
         setHeaderInSelection(event.altKey);
         selectColumnRange(col, smartGesture ? false : event.shiftKey);
@@ -12182,6 +12325,11 @@ window.addEventListener("mousemove", (event) => {
     updateColumnResize(event.clientX);
     return;
   }
+  if (pendingColumnReorder) {
+    event.preventDefault();
+    updateColumnReorder(event);
+    return;
+  }
   if (draggingSelection) {
     event.preventDefault();
     updateDragSelection(event);
@@ -12197,6 +12345,10 @@ window.addEventListener("mouseup", () => {
   }
   if (resizingColumn >= 0) {
     finishColumnResize();
+    return;
+  }
+  if (pendingColumnReorder) {
+    void finishColumnReorder();
     return;
   }
   if (!draggingSelection) return;

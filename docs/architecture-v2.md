@@ -190,6 +190,7 @@ flowchart TD
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
   - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
   - Grid context menu dispatches rich copy, text transform, quote, fill, swap, join/split, transpose, dedupe, row, column, filter, and sort commands through shared command IDs, and preserves an existing selected range when right-clicking inside it.
+  - Selected column headers can be dragged to reorder visible columns through the existing `/api/column/move` mutation path.
   - Swap Cells for exactly two selected cells, plus active-cell neighbor swap commands for up/down/left/right.
   - Horizontal Join Cells and Split Cell commands backed by document mutations.
   - Active-cell value panel in the Inspector.

@@ -335,7 +335,7 @@ The app shall support:
 - Multi-cell edit.
 - Insert/delete rows.
 - Insert/delete columns.
-- Move rows/columns.
+- Move rows/columns through commands and native-feeling drag reordering where available.
 - Swap selected cells with adjacent cells in any direction.
 - Copy/cut/paste rows and columns.
 - Remove duplicate rows and columns.
