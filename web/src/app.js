@@ -71,6 +71,22 @@ const restoreBackupButton = document.querySelector("#restoreBackupButton");
 const readOnlyButton = document.querySelector("#readOnlyButton");
 const commandButtons = Array.from(document.querySelectorAll("[data-command]"));
 const gridFrame = document.querySelector(".grid-frame");
+const editorGroups = document.querySelector("#editorGroups");
+const primaryEditorGroup = document.querySelector("#primaryEditorGroup");
+const secondaryEditorGroup = document.querySelector("#secondaryEditorGroup");
+const primaryEditorGroupTitle = document.querySelector("#primaryEditorGroupTitle");
+const primaryEditorGroupMeta = document.querySelector("#primaryEditorGroupMeta");
+const secondaryEditorGroupTitle = document.querySelector("#secondaryEditorGroupTitle");
+const secondaryEditorGroupMeta = document.querySelector("#secondaryEditorGroupMeta");
+const secondaryEditorGroupFile = document.querySelector("#secondaryEditorGroupFile");
+const secondaryEditorGroupView = document.querySelector("#secondaryEditorGroupView");
+const secondaryEditorGroupSelection = document.querySelector("#secondaryEditorGroupSelection");
+const splitEditorButton = document.querySelector("#splitEditorButton");
+const splitOrientationButton = document.querySelector("#splitOrientationButton");
+const focusEditorGroupButton = document.querySelector("#focusEditorGroupButton");
+const closeSplitEditorButton = document.querySelector("#closeSplitEditorButton");
+const focusSecondaryGroupButton = document.querySelector("#focusSecondaryGroupButton");
+const closeSecondaryGroupButton = document.querySelector("#closeSecondaryGroupButton");
 const gridTabButton = document.querySelector("#gridTabButton");
 const sqlTabButton = document.querySelector("#sqlTabButton");
 const profileTabButton = document.querySelector("#profileTabButton");
@@ -344,6 +360,9 @@ let sortDescending = false;
 let sortKeys = [];
 let commandsById = new Map();
 let viewMode = "grid";
+let editorGroupsSplit = false;
+let editorGroupOrientation = "horizontal";
+let activeEditorGroup = "primary";
 let profileData = null;
 let lastSQLResult = null;
 let sqlResultSelectionAnchor = null;
@@ -1000,9 +1019,108 @@ function draw() {
     documentId
       ? `${sourceRowCount.toLocaleString()} rows${aggregateLabel}, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
       : "Ready";
+  renderEditorGroups();
   updateFormatStatus();
   updateInspector();
   updateCommandState();
+}
+
+function renderEditorGroups() {
+  if (!editorGroups) return;
+  if (!editorGroupsSplit) activeEditorGroup = "primary";
+  editorGroups.classList.toggle("split", editorGroupsSplit);
+  editorGroups.dataset.orientation = editorGroupOrientation;
+  secondaryEditorGroup.hidden = !editorGroupsSplit;
+  primaryEditorGroup.classList.toggle("active", activeEditorGroup === "primary");
+  secondaryEditorGroup.classList.toggle("active", editorGroupsSplit && activeEditorGroup === "secondary");
+  const viewLabel = viewModeLabel();
+  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "No file open";
+  const rowLabel = documentId ? `${sourceRowCount.toLocaleString()} rows, ${columns.length} columns` : "Ready";
+  const selectionLabel = documentId
+    ? `row ${selected.row + 1}, ${columns[selected.col]?.name || "Column"}`
+    : "Ready";
+  primaryEditorGroupTitle.textContent = `Group 1 · ${viewLabel}`;
+  primaryEditorGroupMeta.textContent = documentId ? `${fileLabel} · ${selectionLabel}` : "Ready";
+  secondaryEditorGroupTitle.textContent = `Group 2 · ${viewLabel}`;
+  secondaryEditorGroupMeta.textContent = rowLabel;
+  secondaryEditorGroupFile.textContent = fileLabel;
+  secondaryEditorGroupView.textContent = `${viewLabel}${activeFilter ? ` · ${activeFilter.display}` : ""}`;
+  secondaryEditorGroupSelection.textContent = selectionLabel;
+  document.body.dataset.editorGroupCount = editorGroupsSplit ? "2" : "1";
+  document.body.dataset.editorGroupOrientation = editorGroupOrientation;
+  document.body.dataset.activeEditorGroup = activeEditorGroup;
+  document.body.dataset.secondaryEditorGroup = editorGroupsSplit ? `${fileLabel}|${viewLabel}|${selectionLabel}` : "";
+  splitEditorButton.disabled = editorGroupsSplit;
+  splitOrientationButton.disabled = !editorGroupsSplit;
+  focusEditorGroupButton.disabled = !editorGroupsSplit;
+  closeSplitEditorButton.disabled = !editorGroupsSplit;
+}
+
+function viewModeLabel(mode = viewMode) {
+  switch (mode) {
+    case "sql":
+      return "SQL";
+    case "diff":
+      return "Compare";
+    case "profile":
+      return "Profile";
+    case "settings":
+      return "Settings";
+    default:
+      return "Grid";
+  }
+}
+
+function splitEditorGroup() {
+  if (editorGroupsSplit) return;
+  editorGroupsSplit = true;
+  activeEditorGroup = "secondary";
+  renderEditorGroups();
+  focusEditorGroup("secondary");
+  resize();
+  status.textContent = "Split editor group opened";
+}
+
+function closeSplitEditorGroup() {
+  if (!editorGroupsSplit) return;
+  editorGroupsSplit = false;
+  activeEditorGroup = "primary";
+  renderEditorGroups();
+  focusEditorGroup("primary");
+  resize();
+  status.textContent = "Split editor group closed";
+}
+
+function toggleSplitOrientation() {
+  if (!editorGroupsSplit) return;
+  editorGroupOrientation = editorGroupOrientation === "horizontal" ? "vertical" : "horizontal";
+  renderEditorGroups();
+  resize();
+  status.textContent = `Split layout ${editorGroupOrientation}`;
+}
+
+function focusNextEditorGroup() {
+  if (!editorGroupsSplit) return;
+  focusEditorGroup(activeEditorGroup === "primary" ? "secondary" : "primary");
+}
+
+function focusEditorGroup(group) {
+  activeEditorGroup = editorGroupsSplit && group === "secondary" ? "secondary" : "primary";
+  renderEditorGroups();
+  if (activeEditorGroup === "secondary") {
+    secondaryEditorGroup.focus();
+  } else if (viewMode === "grid") {
+    canvas.focus();
+  } else if (viewMode === "sql") {
+    sqlInput.focus();
+  } else if (viewMode === "profile") {
+    profilePanel.focus();
+  } else if (viewMode === "settings") {
+    settingsSearch.focus();
+  } else {
+    primaryEditorGroup.focus();
+  }
+  status.textContent = activeEditorGroup === "secondary" ? "Focused editor group 2" : "Focused editor group 1";
 }
 
 function setViewMode(mode) {
@@ -1021,6 +1139,7 @@ function setViewMode(mode) {
   sqlTabButton.classList.toggle("active", mode === "sql");
   profileTabButton.classList.toggle("active", mode === "profile");
   settingsTabButton.classList.toggle("active", mode === "settings");
+  renderEditorGroups();
   if (mode === "grid") {
     resize();
     canvas.focus();
@@ -1066,6 +1185,14 @@ function applyCommandMetadata() {
       button.textContent = "All";
     } else if (button.dataset.command === "command.palette") {
       button.textContent = "Cmd";
+    } else if (button.dataset.command === "workbench.splitEditor") {
+      button.textContent = "Split";
+    } else if (button.dataset.command === "workbench.toggleSplitOrientation") {
+      button.textContent = "H/V";
+    } else if (button.dataset.command === "workbench.focusNextGroup") {
+      button.textContent = "Focus";
+    } else if (button.dataset.command === "workbench.closeSplitEditor") {
+      button.textContent = "Close";
     } else if (button.dataset.command === "file.toggleReadOnly") {
       button.textContent = "Read Only";
     } else if (button.dataset.command === "diff.open") {
@@ -1165,6 +1292,11 @@ function isCommandDisabled(command) {
   const needsHiddenColumn = command.id === "column.showAll";
   const needsRowClipboard = command.id === "row.paste";
   const needsColumnClipboard = command.id === "column.paste";
+  const createsSplitGroup = command.id === "workbench.splitEditor";
+  const needsSplitGroup =
+    command.id === "workbench.closeSplitEditor" ||
+    command.id === "workbench.focusNextGroup" ||
+    command.id === "workbench.toggleSplitOrientation";
   const writeBlocked =
     readOnly &&
     (
@@ -1239,6 +1371,8 @@ function isCommandDisabled(command) {
     (needsRowClipboard && !structureClipboardFor("row")) ||
     (needsColumnClipboard && !structureClipboardFor("column")) ||
     (needsSelectedCells && selectionCellCount() === 0) ||
+    (createsSplitGroup && editorGroupsSplit) ||
+    (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
   );
 }
@@ -4207,6 +4341,18 @@ async function executeCommand(commandID) {
       break;
     case "workbench.toggleTheme":
       cycleTheme();
+      break;
+    case "workbench.splitEditor":
+      splitEditorGroup();
+      break;
+    case "workbench.closeSplitEditor":
+      closeSplitEditorGroup();
+      break;
+    case "workbench.focusNextGroup":
+      focusNextEditorGroup();
+      break;
+    case "workbench.toggleSplitOrientation":
+      toggleSplitOrientation();
       break;
     case "file.open":
       await openPathInputOrPicker();
@@ -10508,6 +10654,21 @@ fileInput.addEventListener("change", async () => {
 saveButton.addEventListener("click", saveCurrentDocument);
 saveAsButton.addEventListener("click", openSaveAsDialog);
 restoreBackupButton.addEventListener("click", openRestoreBackupPanel);
+splitEditorButton.addEventListener("click", () => executeCommand("workbench.splitEditor"));
+splitOrientationButton.addEventListener("click", () => executeCommand("workbench.toggleSplitOrientation"));
+focusEditorGroupButton.addEventListener("click", () => executeCommand("workbench.focusNextGroup"));
+closeSplitEditorButton.addEventListener("click", () => executeCommand("workbench.closeSplitEditor"));
+primaryEditorGroup.addEventListener("focus", () => {
+  activeEditorGroup = "primary";
+  renderEditorGroups();
+});
+secondaryEditorGroup.addEventListener("focus", () => {
+  if (!editorGroupsSplit) return;
+  activeEditorGroup = "secondary";
+  renderEditorGroups();
+});
+focusSecondaryGroupButton.addEventListener("click", () => focusEditorGroup("secondary"));
+closeSecondaryGroupButton.addEventListener("click", closeSplitEditorGroup);
 exportButton.addEventListener("click", () => exportCurrentView(exportFormatSelect?.value || "csv"));
 exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);

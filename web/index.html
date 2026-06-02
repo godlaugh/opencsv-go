@@ -87,56 +87,66 @@
             <button id="saveButton" type="button" title="Save" data-command="file.save">Save</button>
             <button id="saveAsButton" type="button" title="Save as" data-command="file.saveAs">Save As</button>
             <button id="restoreBackupButton" type="button" title="Restore backup" data-command="file.restoreBackup">Restore</button>
+            <button id="splitEditorButton" type="button" data-command="workbench.splitEditor">Split</button>
+            <button id="splitOrientationButton" type="button" data-command="workbench.toggleSplitOrientation">H/V</button>
+            <button id="focusEditorGroupButton" type="button" data-command="workbench.focusNextGroup">Focus</button>
+            <button id="closeSplitEditorButton" type="button" data-command="workbench.closeSplitEditor">Close</button>
             <div id="viewChips" class="view-chips" aria-label="Active view filters" hidden></div>
           </div>
         </header>
 
-        <section class="grid-frame" aria-label="CSV grid prototype">
-          <canvas id="grid" width="1200" height="760"></canvas>
-          <canvas id="gridHeader" aria-hidden="true"></canvas>
-          <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
-          <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console">
-            <div class="sql-editor-row">
-              <textarea id="sqlInput" spellcheck="false" aria-label="SQL query">SELECT * FROM current LIMIT 25</textarea>
-              <button id="runSqlButton" type="button">Run</button>
-              <button id="copySqlResultButton" type="button" data-command="sql.copyResultCsv" disabled>Copy CSV</button>
-              <button id="exportSqlResultButton" type="button" data-command="sql.exportResultCsv" disabled>Export CSV</button>
-            </div>
-            <div class="sql-history-row" aria-label="SQL query history">
-              <div id="sqlHistoryList" class="sql-history-list"></div>
-              <button id="clearSqlHistoryButton" type="button">Clear</button>
-            </div>
-            <div id="sqlResult" class="sql-result" aria-live="polite"></div>
-          </section>
-          <section id="diffPanel" class="diff-panel" hidden aria-label="CSV diff">
-            <div class="diff-editor-row">
-              <input id="leftDiffPath" type="text" placeholder="/tmp/old.csv" aria-label="Left CSV path" />
-              <input id="rightDiffPath" type="text" placeholder="/tmp/new.csv" aria-label="Right CSV path" />
-              <button id="runDiffButton" type="button">Run</button>
-            </div>
-            <div class="diff-options" aria-label="Compare options">
-              <label><input id="diffIgnoreCase" type="checkbox" /> Ignore case</label>
-              <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
-              <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
-              <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" />
-              <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3,5" aria-label="Ignored diff columns" />
-              <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
-              <button id="diffNextButton" type="button" title="Next difference">↓</button>
-            </div>
-            <div class="diff-text-controls">
-              <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
-              <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
-            </div>
-            <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" hidden></textarea>
-            <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
-            <div id="diffResult" class="diff-result"></div>
-          </section>
-          <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile">
-            <div id="profileSummary" class="profile-summary" aria-live="polite"></div>
-            <div id="profileColumns" class="profile-columns"></div>
-            <div id="profileIssues" class="profile-issues"></div>
-          </section>
-          <section id="settingsPanel" class="settings-panel" hidden aria-label="Settings">
+        <section id="editorGroups" class="editor-groups" aria-label="Editor groups" data-orientation="horizontal">
+          <section id="primaryEditorGroup" class="editor-group active" data-group-id="primary" tabindex="0" aria-label="Editor group 1">
+            <header class="editor-group-header">
+              <strong id="primaryEditorGroupTitle">Group 1</strong>
+              <span id="primaryEditorGroupMeta">Ready</span>
+            </header>
+            <section class="grid-frame" aria-label="CSV grid prototype">
+              <canvas id="grid" width="1200" height="760"></canvas>
+              <canvas id="gridHeader" aria-hidden="true"></canvas>
+              <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
+              <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console">
+                <div class="sql-editor-row">
+                  <textarea id="sqlInput" spellcheck="false" aria-label="SQL query">SELECT * FROM current LIMIT 25</textarea>
+                  <button id="runSqlButton" type="button">Run</button>
+                  <button id="copySqlResultButton" type="button" data-command="sql.copyResultCsv" disabled>Copy CSV</button>
+                  <button id="exportSqlResultButton" type="button" data-command="sql.exportResultCsv" disabled>Export CSV</button>
+                </div>
+                <div class="sql-history-row" aria-label="SQL query history">
+                  <div id="sqlHistoryList" class="sql-history-list"></div>
+                  <button id="clearSqlHistoryButton" type="button">Clear</button>
+                </div>
+                <div id="sqlResult" class="sql-result" aria-live="polite"></div>
+              </section>
+              <section id="diffPanel" class="diff-panel" hidden aria-label="CSV diff">
+                <div class="diff-editor-row">
+                  <input id="leftDiffPath" type="text" placeholder="/tmp/old.csv" aria-label="Left CSV path" />
+                  <input id="rightDiffPath" type="text" placeholder="/tmp/new.csv" aria-label="Right CSV path" />
+                  <button id="runDiffButton" type="button">Run</button>
+                </div>
+                <div class="diff-options" aria-label="Compare options">
+                  <label><input id="diffIgnoreCase" type="checkbox" /> Ignore case</label>
+                  <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
+                  <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
+                  <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" />
+                  <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3,5" aria-label="Ignored diff columns" />
+                  <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
+                  <button id="diffNextButton" type="button" title="Next difference">↓</button>
+                </div>
+                <div class="diff-text-controls">
+                  <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
+                  <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
+                </div>
+                <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" hidden></textarea>
+                <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
+                <div id="diffResult" class="diff-result"></div>
+              </section>
+              <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile">
+                <div id="profileSummary" class="profile-summary" aria-live="polite"></div>
+                <div id="profileColumns" class="profile-columns"></div>
+                <div id="profileIssues" class="profile-issues"></div>
+              </section>
+              <section id="settingsPanel" class="settings-panel" hidden aria-label="Settings">
             <header class="settings-header">
               <strong>Settings</strong>
               <span id="settingsModifiedBadge">Defaults</span>
@@ -327,6 +337,24 @@
               <div id="settingsPresetList" class="settings-preset-list"></div>
             </section>
             <div id="settingsEmpty" class="settings-empty" hidden>No matching settings</div>
+          </section>
+        </section>
+          </section>
+
+          <section id="secondaryEditorGroup" class="editor-group editor-group-secondary" data-group-id="secondary" tabindex="0" aria-label="Editor group 2" hidden>
+            <header class="editor-group-header">
+              <strong id="secondaryEditorGroupTitle">Group 2</strong>
+              <span id="secondaryEditorGroupMeta">Ready</span>
+              <div class="editor-group-actions">
+                <button id="focusSecondaryGroupButton" type="button">Focus</button>
+                <button id="closeSecondaryGroupButton" type="button">Close</button>
+              </div>
+            </header>
+            <div class="editor-group-preview">
+              <strong id="secondaryEditorGroupFile">No file open</strong>
+              <span id="secondaryEditorGroupView">Grid</span>
+              <span id="secondaryEditorGroupSelection">Ready</span>
+            </div>
           </section>
         </section>
 

@@ -153,6 +153,12 @@ flowchart TD
   - Local recent file persistence for path-opened files.
   - Recent entry reopen flow and missing-file cleanup on failed reopen.
 
+- `web Editor Groups`
+  - First split-editor group state for primary and secondary editor groups.
+  - Horizontal/vertical group layout toggling with active-group focus tracking.
+  - Secondary group summary mirrors the current document, view mode, and selection while independent tab stacks remain planned.
+  - Workbench commands dispatch split, orientation, focus, and close actions.
+
 - `web SQL Console`
   - SQL editor, run button, query history row, and result table.
   - Newest-first local history for successful queries.
