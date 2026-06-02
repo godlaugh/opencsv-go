@@ -568,6 +568,7 @@ The app shall validate:
 - Type-profile anomalies.
 - User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, and numeric ranges.
 - Saved schema/rule sets with JSON import and export.
+- Visual rule editing for common schema checks without hand-writing JSON.
 
 Acceptance:
 

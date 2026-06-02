@@ -141,6 +141,18 @@ const profileSchemaImportText = document.querySelector("#profileSchemaImportText
 const applyProfileSchemaImportButton = document.querySelector("#applyProfileSchemaImportButton");
 const cancelProfileSchemaImportButton = document.querySelector("#cancelProfileSchemaImportButton");
 const profileSchemaInput = document.querySelector("#profileSchemaInput");
+const profileRuleNameInput = document.querySelector("#profileRuleNameInput");
+const profileRuleColumnInput = document.querySelector("#profileRuleColumnInput");
+const profileRuleTypeSelect = document.querySelector("#profileRuleTypeSelect");
+const profileRuleRequiredToggle = document.querySelector("#profileRuleRequiredToggle");
+const profileRuleUniqueToggle = document.querySelector("#profileRuleUniqueToggle");
+const profileRuleEnumInput = document.querySelector("#profileRuleEnumInput");
+const profileRulePatternInput = document.querySelector("#profileRulePatternInput");
+const profileRuleMinInput = document.querySelector("#profileRuleMinInput");
+const profileRuleMaxInput = document.querySelector("#profileRuleMaxInput");
+const saveProfileRuleButton = document.querySelector("#saveProfileRuleButton");
+const clearProfileRuleButton = document.querySelector("#clearProfileRuleButton");
+const profileRuleList = document.querySelector("#profileRuleList");
 const profileSummary = document.querySelector("#profileSummary");
 const profileColumns = document.querySelector("#profileColumns");
 const profileIssues = document.querySelector("#profileIssues");
@@ -745,6 +757,7 @@ let profileLoading = false;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let savedProfileSchemasState = loadSavedProfileSchemas();
+let editingProfileRuleIndex = -1;
 let paletteOpen = false;
 let paletteItems = [];
 let paletteIndex = 0;
@@ -10400,6 +10413,8 @@ function syncProfileSchemaControls() {
   if (!text) {
     profileSchemaStatus.textContent = "No schema";
     document.body.dataset.profileSchemaRules = "0";
+    renderProfileRuleList([]);
+    syncSavedProfileSchemaControls();
     return;
   }
   try {
@@ -10407,9 +10422,11 @@ function syncProfileSchemaControls() {
     const rules = schema.columns.length;
     profileSchemaStatus.textContent = `${formatCount(rules)} schema rules`;
     document.body.dataset.profileSchemaRules = String(rules);
+    renderProfileRuleList(schema.columns);
   } catch (error) {
     profileSchemaStatus.textContent = "Invalid schema JSON";
     document.body.dataset.profileSchemaRules = "invalid";
+    renderProfileRuleList([]);
   }
   syncSavedProfileSchemaControls();
 }
@@ -10661,6 +10678,191 @@ function parseProfileSchemaImport(text) {
   const normalized = schemas.map(normalizeSavedProfileSchema).filter(Boolean);
   if (normalized.length === 0) throw new Error("no valid schemas");
   return normalized;
+}
+
+function schemaDraftFromText() {
+  try {
+    return parseProfileSchemaText(profileSchemaText) || { columns: [] };
+  } catch {
+    return { columns: [] };
+  }
+}
+
+function profileRuleFromBuilder() {
+  const rule = {};
+  const name = profileRuleNameInput.value.trim();
+  const column = Number.parseInt(profileRuleColumnInput.value, 10);
+  if (name) rule.name = name;
+  if (Number.isInteger(column) && column > 0) rule.column = column;
+  if (profileRuleRequiredToggle.checked) rule.required = true;
+  if (profileRuleUniqueToggle.checked) rule.unique = true;
+  if (profileRuleTypeSelect.value) rule.type = profileRuleTypeSelect.value;
+  const enumValues = profileRuleEnumInput.value
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (enumValues.length) rule.enum = enumValues;
+  const pattern = profileRulePatternInput.value.trim();
+  if (pattern) rule.pattern = pattern;
+  const minValue = Number.parseFloat(profileRuleMinInput.value);
+  const maxValue = Number.parseFloat(profileRuleMaxInput.value);
+  if (profileRuleMinInput.value.trim() !== "" && Number.isFinite(minValue)) rule.min = minValue;
+  if (profileRuleMaxInput.value.trim() !== "" && Number.isFinite(maxValue)) rule.max = maxValue;
+  if (!rule.name && !rule.column) {
+    throw new Error("Choose a column name or number.");
+  }
+  return rule;
+}
+
+function ruleHasValidation(rule) {
+  return Boolean(
+    rule.name ||
+      rule.column ||
+      rule.required ||
+      rule.unique ||
+      rule.type ||
+      rule.pattern ||
+      rule.min != null ||
+      rule.max != null ||
+      (Array.isArray(rule.enum) && rule.enum.length),
+  );
+}
+
+function saveProfileRuleFromBuilder() {
+  let rule;
+  try {
+    rule = profileRuleFromBuilder();
+  } catch (error) {
+    status.textContent = `Rule invalid: ${error.message}`;
+    return;
+  }
+  const schema = schemaDraftFromText();
+  const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
+  if (editingProfileRuleIndex >= 0 && editingProfileRuleIndex < rules.length) {
+    rules[editingProfileRuleIndex] = rule;
+  } else {
+    rules.push(rule);
+  }
+  schema.columns = rules.filter(ruleHasValidation);
+  profileSchemaText = JSON.stringify(schema, null, 2);
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  profileData = null;
+  document.body.dataset.profileRuleBuilder = `${editingProfileRuleIndex >= 0 ? "update" : "add"}:${schema.columns.length}`;
+  const message = editingProfileRuleIndex >= 0 ? "Updated schema rule." : "Added schema rule.";
+  clearProfileRuleBuilder(false);
+  syncProfileSchemaControls();
+  status.textContent = message;
+  void loadProfile(true);
+}
+
+function clearProfileRuleBuilder(resetStatus = true) {
+  editingProfileRuleIndex = -1;
+  profileRuleNameInput.value = "";
+  profileRuleColumnInput.value = "";
+  profileRuleTypeSelect.value = "";
+  profileRuleRequiredToggle.checked = false;
+  profileRuleUniqueToggle.checked = false;
+  profileRuleEnumInput.value = "";
+  profileRulePatternInput.value = "";
+  profileRuleMinInput.value = "";
+  profileRuleMaxInput.value = "";
+  saveProfileRuleButton.textContent = "Save Rule";
+  if (resetStatus) status.textContent = "Cleared schema rule editor.";
+}
+
+function editProfileRule(index) {
+  const schema = schemaDraftFromText();
+  const rule = schema.columns?.[index];
+  if (!rule) {
+    status.textContent = "Schema rule not found.";
+    return;
+  }
+  editingProfileRuleIndex = index;
+  profileRuleNameInput.value = rule.name || "";
+  profileRuleColumnInput.value = rule.column || "";
+  profileRuleTypeSelect.value = rule.type || "";
+  profileRuleRequiredToggle.checked = Boolean(rule.required);
+  profileRuleUniqueToggle.checked = Boolean(rule.unique);
+  profileRuleEnumInput.value = Array.isArray(rule.enum) ? rule.enum.join(", ") : "";
+  profileRulePatternInput.value = rule.pattern || "";
+  profileRuleMinInput.value = rule.min ?? "";
+  profileRuleMaxInput.value = rule.max ?? "";
+  saveProfileRuleButton.textContent = "Update Rule";
+  document.body.dataset.profileRuleBuilder = `edit:${index}`;
+  status.textContent = `Editing schema rule ${index + 1}.`;
+}
+
+function removeProfileRule(index) {
+  const schema = schemaDraftFromText();
+  const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
+  if (index < 0 || index >= rules.length) {
+    status.textContent = "Schema rule not found.";
+    return;
+  }
+  rules.splice(index, 1);
+  schema.columns = rules;
+  profileSchemaText = JSON.stringify(schema, null, 2);
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  profileData = null;
+  clearProfileRuleBuilder(false);
+  document.body.dataset.profileRuleBuilder = `remove:${rules.length}`;
+  syncProfileSchemaControls();
+  status.textContent = "Removed schema rule.";
+  void loadProfile(true);
+}
+
+function renderProfileRuleList(rules) {
+  if (!profileRuleList) return;
+  profileRuleList.replaceChildren();
+  if (!rules.length) {
+    const empty = document.createElement("div");
+    empty.className = "profile-rule-empty";
+    empty.textContent = "No schema rules.";
+    profileRuleList.append(empty);
+    document.body.dataset.profileRuleListCount = "0";
+    return;
+  }
+  for (const [index, rule] of rules.entries()) {
+    const item = document.createElement("div");
+    item.className = "profile-rule-item";
+    item.dataset.ruleIndex = String(index);
+    const label = document.createElement("strong");
+    label.textContent = profileRuleTitle(rule, index);
+    const detail = document.createElement("span");
+    detail.textContent = profileRuleSummary(rule);
+    const actions = document.createElement("div");
+    actions.className = "profile-rule-item-actions";
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => editProfileRule(index));
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => removeProfileRule(index));
+    actions.append(editButton, removeButton);
+    item.append(label, detail, actions);
+    profileRuleList.append(item);
+  }
+  document.body.dataset.profileRuleListCount = String(rules.length);
+}
+
+function profileRuleTitle(rule, index) {
+  if (rule.name) return rule.name;
+  if (rule.column) return `Column ${rule.column}`;
+  return `Rule ${index + 1}`;
+}
+
+function profileRuleSummary(rule) {
+  const parts = [];
+  if (rule.required) parts.push("required");
+  if (rule.unique) parts.push("unique");
+  if (rule.type) parts.push(`type ${rule.type}`);
+  if (Array.isArray(rule.enum) && rule.enum.length) parts.push(`enum ${rule.enum.join("|")}`);
+  if (rule.pattern) parts.push(`pattern ${rule.pattern}`);
+  if (rule.min != null) parts.push(`min ${rule.min}`);
+  if (rule.max != null) parts.push(`max ${rule.max}`);
+  return parts.length ? parts.join(", ") : "location only";
 }
 
 async function loadProfile(force = false) {
@@ -11957,6 +12159,8 @@ showImportProfileSchemasButton.addEventListener("click", showProfileSchemaImport
 profileSchemaImportText.addEventListener("input", () => syncSavedProfileSchemaControls());
 applyProfileSchemaImportButton.addEventListener("click", applyProfileSchemaImport);
 cancelProfileSchemaImportButton.addEventListener("click", cancelProfileSchemaImport);
+saveProfileRuleButton.addEventListener("click", saveProfileRuleFromBuilder);
+clearProfileRuleButton.addEventListener("click", () => clearProfileRuleBuilder());
 settingsTabButton.addEventListener("click", openSettingsPanel);
 paletteButton.addEventListener("click", openCommandPalette);
 copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));

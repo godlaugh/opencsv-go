@@ -175,6 +175,51 @@
     { "name": "id", "required": true, "type": "integer", "unique": true }
   ]
 }</textarea>
+                <div id="profileRuleBuilder" class="profile-rule-builder" aria-label="Schema rule builder">
+                  <label>
+                    <span>Column name</span>
+                    <input id="profileRuleNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="id" />
+                  </label>
+                  <label>
+                    <span>Column #</span>
+                    <input id="profileRuleColumnInput" type="number" min="1" step="1" placeholder="1" />
+                  </label>
+                  <label>
+                    <span>Type</span>
+                    <select id="profileRuleTypeSelect">
+                      <option value="">Any</option>
+                      <option value="string">String</option>
+                      <option value="number">Number</option>
+                      <option value="integer">Integer</option>
+                      <option value="decimal">Decimal</option>
+                      <option value="boolean">Boolean</option>
+                      <option value="date">Date</option>
+                    </select>
+                  </label>
+                  <label class="profile-rule-toggle"><input id="profileRuleRequiredToggle" type="checkbox" /> Required</label>
+                  <label class="profile-rule-toggle"><input id="profileRuleUniqueToggle" type="checkbox" /> Unique</label>
+                  <label>
+                    <span>Enum</span>
+                    <input id="profileRuleEnumInput" type="text" autocomplete="off" spellcheck="false" placeholder="new, done" />
+                  </label>
+                  <label>
+                    <span>Pattern</span>
+                    <input id="profileRulePatternInput" type="text" autocomplete="off" spellcheck="false" placeholder="^[A-Z0-9]+$" />
+                  </label>
+                  <label>
+                    <span>Min</span>
+                    <input id="profileRuleMinInput" type="number" step="any" />
+                  </label>
+                  <label>
+                    <span>Max</span>
+                    <input id="profileRuleMaxInput" type="number" step="any" />
+                  </label>
+                  <div class="profile-rule-actions">
+                    <button id="saveProfileRuleButton" type="button">Save Rule</button>
+                    <button id="clearProfileRuleButton" type="button">Clear Rule</button>
+                  </div>
+                </div>
+                <div id="profileRuleList" class="profile-rule-list" aria-label="Schema rules"></div>
                 <div id="profileSummary" class="profile-summary" aria-live="polite"></div>
                 <div id="profileColumns" class="profile-columns"></div>
                 <div id="profileIssues" class="profile-issues"></div>
