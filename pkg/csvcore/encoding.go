@@ -5,9 +5,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 type EncodingName string
@@ -17,6 +24,9 @@ const (
 	EncodingUTF8BOM          EncodingName = "utf-8-bom"
 	EncodingUTF16LE          EncodingName = "utf-16le"
 	EncodingUTF16BE          EncodingName = "utf-16be"
+	EncodingShiftJIS         EncodingName = "shift-jis"
+	EncodingGBK              EncodingName = "gbk"
+	EncodingWindows1252      EncodingName = "windows-1252"
 	EncodingLegacySingleByte EncodingName = "legacy-single-byte"
 )
 
@@ -36,9 +46,21 @@ func ParseEncodingName(raw string) (EncodingInfo, error) {
 		return EncodingInfo{Name: EncodingUTF8BOM, HasBOM: true, Confidence: 1}, nil
 	case "utf16le", "utf-16le", "utf-16-le":
 		return EncodingInfo{Name: EncodingUTF16LE, Confidence: 1}, nil
+	case "utf16lebom", "utf-16le-bom", "utf-16-le-bom":
+		return EncodingInfo{Name: EncodingUTF16LE, HasBOM: true, Confidence: 1}, nil
 	case "utf16be", "utf-16be", "utf-16-be":
 		return EncodingInfo{Name: EncodingUTF16BE, Confidence: 1}, nil
-	case "latin1", "latin-1", "iso-8859-1", "windows-1252", "cp1252":
+	case "utf16bebom", "utf-16be-bom", "utf-16-be-bom":
+		return EncodingInfo{Name: EncodingUTF16BE, HasBOM: true, Confidence: 1}, nil
+	case "shiftjis", "shift-jis", "shift-jisx0213", "shift-jisx-0213", "sjis", "cp932", "ms932":
+		return EncodingInfo{Name: EncodingShiftJIS, Confidence: 1}, nil
+	case "gbk", "gb2312", "cp936":
+		return EncodingInfo{Name: EncodingGBK, Confidence: 1}, nil
+	case "windows-1252", "windows1252", "cp1252":
+		return EncodingInfo{Name: EncodingWindows1252, Confidence: 1}, nil
+	case "latin1", "latin-1", "iso-8859-1":
+		return EncodingInfo{Name: EncodingLegacySingleByte, Confidence: 1}, nil
+	case "legacy-single-byte", "legacy", "single-byte":
 		return EncodingInfo{Name: EncodingLegacySingleByte, Confidence: 1}, nil
 	default:
 		return EncodingInfo{}, fmt.Errorf("unsupported encoding %q", raw)
@@ -97,6 +119,12 @@ func DecodeToUTF8(input []byte, encoding EncodingInfo) ([]byte, error) {
 		return decodeUTF16(input, binary.LittleEndian, encoding.HasBOM)
 	case EncodingUTF16BE:
 		return decodeUTF16(input, binary.BigEndian, encoding.HasBOM)
+	case EncodingShiftJIS, EncodingGBK, EncodingWindows1252:
+		codec, ok := textEncoding(encoding.Name)
+		if !ok {
+			return nil, errors.New("unsupported encoding")
+		}
+		return transformBytes(input, codec.NewDecoder())
 	case EncodingLegacySingleByte:
 		runes := make([]rune, len(input))
 		for i, b := range input {
@@ -118,6 +146,12 @@ func EncodeFromUTF8(input []byte, encoding EncodingInfo) ([]byte, error) {
 		return encodeUTF16(string(input), binary.LittleEndian, encoding.HasBOM), nil
 	case EncodingUTF16BE:
 		return encodeUTF16(string(input), binary.BigEndian, encoding.HasBOM), nil
+	case EncodingShiftJIS, EncodingGBK, EncodingWindows1252:
+		codec, ok := textEncoding(encoding.Name)
+		if !ok {
+			return nil, errors.New("unsupported encoding")
+		}
+		return transformBytes(input, codec.NewEncoder())
 	case EncodingLegacySingleByte:
 		output := make([]byte, 0, len(input))
 		for _, r := range string(input) {
@@ -163,4 +197,21 @@ func encodeUTF16(input string, order binary.ByteOrder, hasBOM bool) []byte {
 		output = append(output, buf[:]...)
 	}
 	return output
+}
+
+func textEncoding(name EncodingName) (encoding.Encoding, bool) {
+	switch name {
+	case EncodingShiftJIS:
+		return japanese.ShiftJIS, true
+	case EncodingGBK:
+		return simplifiedchinese.GBK, true
+	case EncodingWindows1252:
+		return charmap.Windows1252, true
+	default:
+		return nil, false
+	}
+}
+
+func transformBytes(input []byte, transformer transform.Transformer) ([]byte, error) {
+	return io.ReadAll(transform.NewReader(bytes.NewReader(input), transformer))
 }

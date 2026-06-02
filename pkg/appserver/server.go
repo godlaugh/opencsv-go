@@ -54,6 +54,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
 	server.mux.HandleFunc("POST /api/delimiter", server.handleDelimiter)
+	server.mux.HandleFunc("POST /api/encoding", server.handleEncoding)
 	server.mux.HandleFunc("POST /api/line-ending", server.handleLineEnding)
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/quote-rule", server.handleQuoteRule)
@@ -483,6 +484,11 @@ type lineEndingRequest struct {
 	LineEnding string `json:"lineEnding"`
 }
 
+type encodingRequest struct {
+	DocumentID   string `json:"documentId"`
+	EncodingName string `json:"encodingName"`
+}
+
 type quotePolicyRequest struct {
 	DocumentID string `json:"documentId"`
 	QuoteChar  string `json:"quoteChar"`
@@ -549,6 +555,20 @@ func (server *Server) handleLineEnding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.SetLineEnding(request.DocumentID, request.LineEnding)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleEncoding(w http.ResponseWriter, r *http.Request) {
+	var request encodingRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetEncoding(request.DocumentID, request.EncodingName)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

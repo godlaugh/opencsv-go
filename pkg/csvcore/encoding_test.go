@@ -1,6 +1,9 @@
 package csvcore
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestDetectEncoding(t *testing.T) {
 	tests := []struct {
@@ -56,5 +59,55 @@ func TestLegacySingleByteRoundTripPreservesBytes(t *testing.T) {
 	}
 	if string(encoded) != string(input) {
 		t.Fatalf("encoded = %v, want %v", encoded, input)
+	}
+}
+
+func TestNamedEncodingRoundTrip(t *testing.T) {
+	cases := []struct {
+		name      string
+		encoding  string
+		input     string
+		wantBytes []byte
+	}{
+		{
+			name:      "shift jis",
+			encoding:  "shift-jis",
+			input:     "名前\n太郎\n",
+			wantBytes: []byte{0x96, 0xbc, 0x91, 0x4f, '\n', 0x91, 0xbe, 0x98, 0x59, '\n'},
+		},
+		{
+			name:      "gbk",
+			encoding:  "gbk",
+			input:     "姓名\n张三\n",
+			wantBytes: []byte{0xd0, 0xd5, 0xc3, 0xfb, '\n', 0xd5, 0xc5, 0xc8, 0xfd, '\n'},
+		},
+		{
+			name:      "windows 1252",
+			encoding:  "windows-1252",
+			input:     "name\ncafe \u20ac\n",
+			wantBytes: []byte{'n', 'a', 'm', 'e', '\n', 'c', 'a', 'f', 'e', ' ', 0x80, '\n'},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			encoding, err := ParseEncodingName(tt.encoding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := EncodeFromUTF8([]byte(tt.input), encoding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(encoded, tt.wantBytes) {
+				t.Fatalf("encoded = % x, want % x", encoded, tt.wantBytes)
+			}
+			decoded, err := DecodeToUTF8(encoded, encoding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(decoded) != tt.input {
+				t.Fatalf("decoded = %q, want %q", decoded, tt.input)
+			}
+		})
 	}
 }

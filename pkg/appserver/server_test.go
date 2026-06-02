@@ -519,6 +519,54 @@ func TestServerDelimiterPolicySave(t *testing.T) {
 	}
 }
 
+func TestServerEncodingPolicySave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "encoding-policy.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	encodingPayload := postJSON(t, handler, "/api/encoding", map[string]any{
+		"documentId":   documentID,
+		"encodingName": "utf-8-bom",
+	})
+	if encodingPayload["dirty"] != true {
+		t.Fatalf("dirty after encoding policy = %#v, want true", encodingPayload["dirty"])
+	}
+	document := encodingPayload["session"].(map[string]any)["document"].(map[string]any)
+	encoding := document["metadata"].(map[string]any)["encoding"].(map[string]any)
+	if encoding["name"] != "utf-8-bom" || encoding["hasBom"] != true {
+		t.Fatalf("encoding metadata = %#v, want utf-8-bom with BOM", encoding)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[2].([]any)[1] != "Grace" {
+		t.Fatalf("rows after encoding materialize = %#v", rows)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(saved, []byte{0xEF, 0xBB, 0xBF}) {
+		t.Fatalf("saved encoding policy missing UTF-8 BOM: % x", saved[:min(len(saved), 8)])
+	}
+	if !bytes.Equal(saved[3:], []byte("id,name\n1,Ada\n2,Grace\n")) {
+		t.Fatalf("saved encoding payload = %q", saved)
+	}
+}
+
 func TestServerManualCellQuoteSaveAndUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manual-quote.csv")

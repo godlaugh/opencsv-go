@@ -170,6 +170,8 @@ const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
 const delimiterSelect = document.querySelector("#delimiterSelect");
 const delimiterCustomInput = document.querySelector("#delimiterCustomInput");
 const applyDelimiterButton = document.querySelector("#applyDelimiterButton");
+const encodingSelect = document.querySelector("#encodingSelect");
+const applyEncodingButton = document.querySelector("#applyEncodingButton");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
 const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
@@ -817,6 +819,7 @@ let diffRows = [];
 let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
 let delimiterDraftDirty = false;
+let encodingDraftDirty = false;
 let lineEndingDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let localePreference = normalizeLocalePreference(localStorage.getItem(localeStorageKey));
@@ -2141,6 +2144,8 @@ function applyCommandMetadata() {
       button.textContent = "Save Rule";
     } else if (button.dataset.command === "format.applyDelimiter") {
       button.textContent = "Apply Delim";
+    } else if (button.dataset.command === "format.applyEncoding") {
+      button.textContent = "Apply Enc";
     } else if (button.dataset.command === "format.applyLineEnding") {
       button.textContent = "Apply EOL";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
@@ -2203,6 +2208,8 @@ function updateCommandState() {
   delimiterSelect.disabled = !hasDocument || readOnly;
   delimiterCustomInput.disabled = !hasDocument || readOnly || delimiterSelect.value !== "custom";
   applyDelimiterButton.disabled = !hasDocument || readOnly;
+  encodingSelect.disabled = !hasDocument || readOnly;
+  applyEncodingButton.disabled = !hasDocument || readOnly;
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
@@ -2287,6 +2294,7 @@ function isCommandDisabled(command) {
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
       command.id === "format.applyDelimiter" ||
+      command.id === "format.applyEncoding" ||
       command.id === "format.applyQuotePolicy" ||
       command.id === "format.applyLineEnding" ||
       command.id === "format.importQuoteRules" ||
@@ -2339,6 +2347,7 @@ function updateInspector() {
   cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
   formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
   syncDelimiterControls();
+  syncEncodingControls();
   syncQuotePolicyControls();
   syncLineEndingControls();
   syncCellValuePanel();
@@ -2356,6 +2365,7 @@ function updateFormatStatus() {
     readOnlyStatus.textContent = "Editable";
     syncExternalChangeControls(false);
     syncDelimiterControls();
+    syncEncodingControls();
     syncLineEndingControls();
     return;
   }
@@ -2369,6 +2379,7 @@ function updateFormatStatus() {
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   syncExternalChangeControls();
   syncDelimiterControls();
+  syncEncodingControls();
   syncQuotePolicyControls();
   syncLineEndingControls();
 }
@@ -2392,10 +2403,26 @@ function syncExternalChangeControls(hasDocument = Boolean(metadata)) {
   }
 }
 
+function encodingValue(info = metadata?.encoding) {
+  const name = String(info?.name || "utf-8").toLowerCase();
+  if (name === "utf8") return "utf-8";
+  if (name === "utf8bom") return "utf-8-bom";
+  if (name === "utf-16le" && info?.hasBom) return "utf-16le-bom";
+  if (name === "utf-16be" && info?.hasBom) return "utf-16be-bom";
+  return name;
+}
+
 function encodingLabel(info = metadata?.encoding) {
-  const name = info?.name ?? "UTF-8";
-  if (name.toLowerCase() === "utf-8-bom") return "UTF-8 BOM";
-  if (name.toLowerCase() === "utf-8") return "UTF-8";
+  const name = encodingValue(info);
+  if (name === "utf-8-bom") return "UTF-8 BOM";
+  if (name === "utf-8") return "UTF-8";
+  if (name === "utf-16le-bom") return "UTF-16 LE BOM";
+  if (name === "utf-16le") return info?.hasBom ? "UTF-16 LE BOM" : "UTF-16 LE";
+  if (name === "utf-16be-bom") return "UTF-16 BE BOM";
+  if (name === "utf-16be") return info?.hasBom ? "UTF-16 BE BOM" : "UTF-16 BE";
+  if (name === "shift-jis") return "Shift-JIS";
+  if (name === "windows-1252") return "Windows-1252";
+  if (name === "legacy-single-byte") return "Legacy byte";
   return name.toUpperCase();
 }
 
@@ -2520,6 +2547,19 @@ function syncDelimiterControls() {
   document.body.dataset.delimiterDraft = delimiterDraftDirty
     ? `${delimiterSelect.value}:${custom ? delimiterCustomInput.value : ""}`
     : "";
+}
+
+function syncEncodingControls() {
+  if (!encodingSelect || !applyEncodingButton) return;
+  const value = encodingValue();
+  if (!encodingDraftDirty) {
+    const hasOption = Array.from(encodingSelect.options).some((option) => option.value === value);
+    encodingSelect.value = hasOption ? value : "utf-8";
+  }
+  encodingSelect.disabled = !documentId || readOnly;
+  applyEncodingButton.disabled = !documentId || readOnly;
+  document.body.dataset.encoding = value;
+  document.body.dataset.encodingDraft = encodingDraftDirty ? encodingSelect.value : "";
 }
 
 function syncQuotePolicyControls() {
@@ -2833,6 +2873,7 @@ function renderSettingsPanel() {
   syncFilterHistoryControls();
   syncCustomLinkProtocolControls();
   syncDelimiterControls();
+  syncEncodingControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
@@ -3129,6 +3170,35 @@ async function applyDelimiter() {
   updateInspector();
   status.textContent = `Delimiter set to ${delimiterLabel({ delimiter, delimiterName })}.`;
   document.body.dataset.delimiterPolicy = delimiterName;
+}
+
+async function applyEncoding() {
+  if (!documentId) {
+    status.textContent = "Open a file before changing encoding.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Encoding blocked: document is read-only";
+    return;
+  }
+  const encodingName = encodingValue({ name: encodingSelect.value });
+  const response = await fetch("/api/encoding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, encodingName }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Encoding failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  encodingDraftDirty = false;
+  applyMutationPayload(payload, `Encoding set to ${encodingLabel({ name: encodingName })}.`);
+  syncEncodingControls();
+  updateFormatStatus();
+  updateInspector();
+  status.textContent = `Encoding set to ${encodingLabel(metadata?.encoding)}.`;
+  document.body.dataset.encodingPolicy = encodingValue(metadata?.encoding);
 }
 
 async function applyQuotePolicy() {
@@ -5740,6 +5810,9 @@ async function executeCommand(commandID) {
     case "format.applyDelimiter":
       await applyDelimiter();
       break;
+    case "format.applyEncoding":
+      await applyEncoding();
+      break;
     case "format.applyLineEnding":
       await applyLineEnding();
       break;
@@ -7420,6 +7493,7 @@ function loadDocument(document) {
   setHeaderInSelection(false);
   clearURLHover();
   delimiterDraftDirty = false;
+  encodingDraftDirty = false;
   lineEndingDraftDirty = false;
   dirty = false;
 }
@@ -13280,6 +13354,11 @@ delimiterCustomInput.addEventListener("input", () => {
   delimiterDraftDirty = true;
   delimiterSelect.value = "custom";
   syncDelimiterControls();
+});
+applyEncodingButton.addEventListener("click", () => executeCommand("format.applyEncoding"));
+encodingSelect.addEventListener("change", () => {
+  encodingDraftDirty = true;
+  document.body.dataset.encodingDraft = encodingSelect.value;
 });
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
 applyLineEndingButton.addEventListener("click", () => executeCommand("format.applyLineEnding"));

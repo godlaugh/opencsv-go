@@ -451,6 +451,40 @@ func (manager *Manager) SetLineEnding(id string, lineEnding string) (MutationRes
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetEncoding(id string, encodingName string) (MutationResult, error) {
+	encoding, err := csvcore.ParseEncodingName(encodingName)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	current := session.Document.Metadata.Encoding
+	if current.Name == encoding.Name && current.HasBOM == encoding.HasBOM {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	applyEdits(records, 0, session.Edits)
+	metadata := session.Document.Metadata
+	metadata.Encoding = encoding
+	metadata.Dialect.UTF8BOM = encoding.Name == csvcore.EncodingUTF8BOM
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: 1}, nil
+}
+
 func (manager *Manager) SetDelimiter(id string, delimiterValue string, delimiterName string) (MutationResult, error) {
 	delimiter, name, err := csvcore.NormalizeDelimiter(delimiterValue, delimiterName)
 	if err != nil {

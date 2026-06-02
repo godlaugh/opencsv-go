@@ -382,6 +382,22 @@
                 </label>
                 <button id="applyDelimiterButton" type="button" data-command="format.applyDelimiter">Apply Delim</button>
                 <label>
+                  <span>Encoding</span>
+                  <select id="encodingSelect" aria-label="Encoding">
+                    <option value="utf-8">UTF-8</option>
+                    <option value="utf-8-bom">UTF-8 BOM</option>
+                    <option value="utf-16le">UTF-16 LE</option>
+                    <option value="utf-16le-bom">UTF-16 LE BOM</option>
+                    <option value="utf-16be">UTF-16 BE</option>
+                    <option value="utf-16be-bom">UTF-16 BE BOM</option>
+                    <option value="shift-jis">Shift-JIS</option>
+                    <option value="gbk">GBK</option>
+                    <option value="windows-1252">Windows-1252</option>
+                    <option value="legacy-single-byte">Legacy byte</option>
+                  </select>
+                </label>
+                <button id="applyEncodingButton" type="button" data-command="format.applyEncoding">Apply Enc</button>
+                <label>
                   <span>Mode</span>
                   <select id="quoteModeSelect" aria-label="Quote mode">
                     <option value="minimal">Minimal</option>
