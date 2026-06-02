@@ -1,6 +1,10 @@
 package csvcore
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+	"strings"
+)
 
 type LineEndingName string
 
@@ -34,4 +38,17 @@ func DetectLineEnding(sample []byte) LineEndingInfo {
 		return LineEndingInfo{Name: LineEndingCR, Sequence: "\r", Confidence: float64(cr) / float64(total)}
 	}
 	return LineEndingInfo{Name: LineEndingLF, Sequence: "\n", Confidence: float64(lf) / float64(total)}
+}
+
+func NormalizeLineEndingName(value string) (LineEndingInfo, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "lf", "unix", "\\n", "\n":
+		return LineEndingInfo{Name: LineEndingLF, Sequence: "\n", Confidence: 1}, nil
+	case "crlf", "windows", "\\r\\n", "\r\n":
+		return LineEndingInfo{Name: LineEndingCRLF, Sequence: "\r\n", Confidence: 1}, nil
+	case "cr", "classic-mac", "classic mac", "\\r", "\r":
+		return LineEndingInfo{Name: LineEndingCR, Sequence: "\r", Confidence: 1}, nil
+	default:
+		return LineEndingInfo{}, fmt.Errorf("unsupported line ending %q", value)
+	}
 }

@@ -269,6 +269,12 @@ func parseRootOptions(args []string) (rootOptions, error) {
 				return rootOptions{}, err
 			}
 			options.format.Encoding = value
+		case "--line-ending", "--eol":
+			value, err := takeValue()
+			if err != nil {
+				return rootOptions{}, err
+			}
+			options.format.LineEnding = value
 		case "--header-rows":
 			raw, err := takeValue()
 			if err != nil {
@@ -324,6 +330,13 @@ func openOptionsFromFormat(format protocol.FormatParams) (csvcore.OpenOptions, e
 			return csvcore.OpenOptions{}, err
 		}
 		options.Encoding = &encoding
+	}
+	if format.LineEnding != "" {
+		lineEnding, err := csvcore.NormalizeLineEndingName(format.LineEnding)
+		if err != nil {
+			return csvcore.OpenOptions{}, err
+		}
+		options.LineEnding = &lineEnding
 	}
 	if format.Quote != "" {
 		quoteChar, err := csvcore.NormalizeQuoteChar(format.Quote)
@@ -410,6 +423,9 @@ func mergeFormat(base protocol.FormatParams, override protocol.FormatParams) pro
 	}
 	if override.Encoding != "" {
 		result.Encoding = override.Encoding
+	}
+	if override.LineEnding != "" {
+		result.LineEnding = override.LineEnding
 	}
 	if override.HeaderRows != nil {
 		result.HeaderRows = override.HeaderRows

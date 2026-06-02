@@ -295,6 +295,7 @@ Input:
 - `path`
 - `previewRows`
 - `indexRows`
+- optional format overrides: delimiter, quote character/mode, encoding, line ending, header rows, header columns.
 
 Output:
 
@@ -752,7 +753,7 @@ Output:
 - Interspersed root flags and paths.
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
-- Delimiter, encoding, and header overrides mapped into `csvcore.OpenOptions`.
+- Delimiter, encoding, line-ending, quote, and header overrides mapped into `csvcore.OpenOptions`.
 - `smoothcsv://file/...` URL parsing with format query parameters.
 
 ## 8. Immediate Refactor Sequence

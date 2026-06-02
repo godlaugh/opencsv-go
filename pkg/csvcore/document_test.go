@@ -33,3 +33,34 @@ func TestOpenDocumentDetectsMetadata(t *testing.T) {
 		t.Fatalf("rows scanned = %d, want 2", document.RowsScanned)
 	}
 }
+
+func TestNormalizeLineEndingName(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want LineEndingName
+	}{
+		{raw: "lf", want: LineEndingLF},
+		{raw: "unix", want: LineEndingLF},
+		{raw: "\\n", want: LineEndingLF},
+		{raw: "crlf", want: LineEndingCRLF},
+		{raw: "windows", want: LineEndingCRLF},
+		{raw: "\\r\\n", want: LineEndingCRLF},
+		{raw: "cr", want: LineEndingCR},
+		{raw: "classic-mac", want: LineEndingCR},
+		{raw: "\\r", want: LineEndingCR},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			got, err := NormalizeLineEndingName(tt.raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Name != tt.want || got.Sequence == "" {
+				t.Fatalf("NormalizeLineEndingName(%q) = %#v, want %s", tt.raw, got, tt.want)
+			}
+		})
+	}
+	if _, err := NormalizeLineEndingName("vertical-tab"); err == nil {
+		t.Fatal("expected unsupported line ending error")
+	}
+}

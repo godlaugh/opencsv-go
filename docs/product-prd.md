@@ -183,7 +183,7 @@ CLI:
 - CLI `--diff old.csv new.csv` launches Compare view.
 - `--goto` row/cell/range selection.
 - `--diff` side-by-side compare.
-- Delimiter, quote, quote mode, encoding, header rows, header columns overrides.
+- Delimiter, quote, quote mode, encoding, line ending, header rows, header columns overrides.
 - New window/reuse window.
 - Wait for close.
 - Version/help.
@@ -193,7 +193,7 @@ URL:
 
 - `smoothcsv://file/path/to/file.csv[:location][?params]`
 - Row/cell/range locations.
-- Delimiter, quote, quote mode, encoding query params.
+- Delimiter, quote, quote mode, encoding, line ending query params.
 
 SQL row filter:
 
@@ -485,6 +485,7 @@ The app shall provide an `opencsv` command:
 - `--quote`, `-q`.
 - `--quote-mode`, `--qm`.
 - `--encoding`, `-e`.
+- `--line-ending`, `--eol`.
 - `--header-rows`.
 - `--header-columns`.
 - `--header`, `--no-header`.
@@ -510,7 +511,7 @@ The app shall parse and handle:
 - `opencsv://file/path/to/file.csv:1:2`
 - `opencsv://file/path/to/file.csv:1-5`
 - `opencsv://file/path/to/file.csv:1:2-10:20`
-- Query params for delimiter, quote, quote mode, encoding.
+- Query params for delimiter, quote, quote mode, encoding, line ending.
 
 Acceptance:
 

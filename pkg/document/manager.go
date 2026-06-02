@@ -429,6 +429,28 @@ func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode st
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) SetLineEnding(id string, lineEnding string) (MutationResult, error) {
+	normalized, err := csvcore.NormalizeLineEndingName(lineEnding)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	session, ok := manager.sessions[id]
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return MutationResult{}, errors.New("document is read-only")
+	}
+	if session.Document.Metadata.LineEnding.Name == normalized.Name {
+		return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	session.Document.Metadata.LineEnding = normalized
+	session.Dirty = true
+	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
+}
+
 func (manager *Manager) SetCellQuote(id string, row int, col int, quoted bool) (MutationResult, error) {
 	if row < 0 || col < 0 {
 		return MutationResult{}, errors.New("cell coordinates must be non-negative")

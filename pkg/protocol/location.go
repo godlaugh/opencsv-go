@@ -25,6 +25,7 @@ type FormatParams struct {
 	Quote        string     `json:"quote,omitempty"`
 	QuoteMode    string     `json:"quoteMode,omitempty"`
 	Encoding     string     `json:"encoding,omitempty"`
+	LineEnding   string     `json:"lineEnding,omitempty"`
 	HeaderRows   *int       `json:"headerRows,omitempty"`
 	HeaderCols   *int       `json:"headerColumns,omitempty"`
 	Header       *bool      `json:"header,omitempty"`
@@ -161,6 +162,7 @@ func parseFormatParams(values url.Values) (FormatParams, error) {
 	params.Quote = first(values, "quote", "q")
 	params.QuoteMode = first(values, "quote-mode", "quoteMode", "quote_mode", "qm")
 	params.Encoding = first(values, "encoding", "e")
+	params.LineEnding = first(values, "line-ending", "lineEnding", "line_ending", "newline", "eol", "le")
 	if raw := first(values, "header-rows", "headerRows"); raw != "" {
 		value, err := nonNegativeInt(raw, "header rows")
 		if err != nil {

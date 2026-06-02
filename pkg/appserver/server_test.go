@@ -399,6 +399,80 @@ func TestServerQuotePolicySave(t *testing.T) {
 	}
 }
 
+func TestServerOpenLineEndingOverrideSave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "line-ending-open.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+		"lineEnding":  "crlf",
+	})
+	documentID := openPayload["documentId"].(string)
+	metadata := openPayload["document"].(map[string]any)["metadata"].(map[string]any)
+	lineEnding := metadata["lineEnding"].(map[string]any)
+	if lineEnding["name"] != "crlf" {
+		t.Fatalf("line ending = %#v, want crlf", lineEnding)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved, []byte("id,name\r\n1,Ada\r\n")) {
+		t.Fatalf("saved line ending override = %q", saved)
+	}
+}
+
+func TestServerLineEndingPolicySave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "line-ending-policy.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	policyPayload := postJSON(t, handler, "/api/line-ending", map[string]any{
+		"documentId": documentID,
+		"lineEnding": "crlf",
+	})
+	if policyPayload["dirty"] != true {
+		t.Fatalf("dirty after line ending policy = %#v, want true", policyPayload["dirty"])
+	}
+	document := policyPayload["session"].(map[string]any)["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	lineEnding := metadata["lineEnding"].(map[string]any)
+	if lineEnding["name"] != "crlf" {
+		t.Fatalf("line ending = %#v, want crlf", lineEnding)
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved, []byte("id,name\r\n1,Ada\r\n")) {
+		t.Fatalf("saved line ending policy = %q", saved)
+	}
+}
+
 func TestServerManualCellQuoteSaveAndUndo(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manual-quote.csv")

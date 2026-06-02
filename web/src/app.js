@@ -170,6 +170,8 @@ const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
 const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
+const lineEndingSelect = document.querySelector("#lineEndingSelect");
+const applyLineEndingButton = document.querySelector("#applyLineEndingButton");
 const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
 const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
@@ -811,6 +813,7 @@ let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
 let quotePolicyDraftDirty = false;
+let lineEndingDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let localePreference = normalizeLocalePreference(localStorage.getItem(localeStorageKey));
 let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
@@ -2132,6 +2135,8 @@ function applyCommandMetadata() {
       button.textContent = "Apply";
     } else if (button.dataset.command === "format.saveRule") {
       button.textContent = "Save Rule";
+    } else if (button.dataset.command === "format.applyLineEnding") {
+      button.textContent = "Apply EOL";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
       button.textContent = "Apply Quote";
     } else if (button.dataset.command === "format.exportQuoteRules") {
@@ -2192,6 +2197,8 @@ function updateCommandState() {
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
+  lineEndingSelect.disabled = !hasDocument || readOnly;
+  applyLineEndingButton.disabled = !hasDocument || readOnly;
   quoteHeaderRuleToggle.disabled = !hasDocument || readOnly;
   quoteBodyRuleToggle.disabled = !hasDocument || readOnly;
   quoteColumnRuleToggle.disabled = !hasDocument || readOnly || columns.length === 0;
@@ -2271,6 +2278,7 @@ function isCommandDisabled(command) {
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
       command.id === "format.applyQuotePolicy" ||
+      command.id === "format.applyLineEnding" ||
       command.id === "format.importQuoteRules" ||
       command.id === "format.toggleHeaderQuote" ||
       command.id === "format.toggleBodyQuote" ||
@@ -2321,6 +2329,7 @@ function updateInspector() {
   cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
   formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
   syncQuotePolicyControls();
+  syncLineEndingControls();
   syncCellValuePanel();
 }
 
@@ -2335,6 +2344,7 @@ function updateFormatStatus() {
     document.body.dataset.headerColumns = "";
     readOnlyStatus.textContent = "Editable";
     syncExternalChangeControls(false);
+    syncLineEndingControls();
     return;
   }
   encodingStatus.textContent = encodingLabel();
@@ -2347,6 +2357,7 @@ function updateFormatStatus() {
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   syncExternalChangeControls();
   syncQuotePolicyControls();
+  syncLineEndingControls();
 }
 
 function syncExternalChangeControls(hasDocument = Boolean(metadata)) {
@@ -2393,6 +2404,24 @@ function delimiterChar(dialect = metadata?.dialect) {
 
 function lineEndingLabel(info = metadata?.lineEnding) {
   return (info?.name ?? "LF").toUpperCase();
+}
+
+function normalizeLineEndingName(value) {
+  const raw = String(value || "lf").trim().toLowerCase();
+  if (raw === "crlf" || raw === "windows" || raw === "\\r\\n" || raw === "\r\n") return "crlf";
+  if (raw === "cr" || raw === "classic-mac" || raw === "classic mac" || raw === "\\r" || raw === "\r") return "cr";
+  return "lf";
+}
+
+function lineEndingValue(info = metadata?.lineEnding) {
+  return normalizeLineEndingName(info?.name);
+}
+
+function lineEndingSequence(value) {
+  const normalized = normalizeLineEndingName(value);
+  if (normalized === "crlf") return "\r\n";
+  if (normalized === "cr") return "\r";
+  return "\n";
 }
 
 function quoteModeValue(dialect = metadata?.dialect) {
@@ -2458,6 +2487,18 @@ function syncQuotePolicyControls() {
   quoteColumnRuleToggle.disabled = !documentId || readOnly || columns.length === 0;
 }
 
+function syncLineEndingControls() {
+  if (!lineEndingSelect || !applyLineEndingButton) return;
+  const value = lineEndingValue();
+  if (!lineEndingDraftDirty) {
+    lineEndingSelect.value = value;
+  }
+  lineEndingSelect.disabled = !documentId || readOnly;
+  applyLineEndingButton.disabled = !documentId || readOnly;
+  document.body.dataset.lineEnding = value;
+  document.body.dataset.lineEndingDraft = lineEndingDraftDirty ? normalizeLineEndingName(lineEndingSelect.value) : "";
+}
+
 function documentFormatSummary() {
   return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)} · ${headerModeLabel(metadata.dialect)}`;
 }
@@ -2472,7 +2513,7 @@ function currentFormatPreset() {
     hasHeader: Boolean(metadata.dialect.hasHeader),
     headerColumns: headerColumnsValue(metadata.dialect),
     encodingName: metadata.encoding?.name ?? "utf-8",
-    lineEndingName: metadata.lineEnding?.name ?? "LF",
+    lineEndingName: lineEndingValue(metadata.lineEnding),
     quoteChar: quoteCharValue(metadata.dialect),
     quoteMode: quoteModeValue(metadata.dialect),
     rules: [],
@@ -2490,6 +2531,7 @@ function formatPresets() {
         headerColumns: normalizeHeaderColumns(preset.headerColumns),
         quoteChar: preset.quoteChar || "double",
         quoteMode: preset.quoteMode || "minimal",
+        lineEndingName: normalizeLineEndingName(preset.lineEndingName),
         rules: normalizeFormatRules(preset.rules),
       }))
       .slice(0, formatPresetsLimit);
@@ -2599,7 +2641,7 @@ function exportFormatPresets() {
       hasHeader: Boolean(preset.hasHeader),
       headerColumns: normalizeHeaderColumns(preset.headerColumns),
       encodingName: preset.encodingName || "utf-8",
-      lineEndingName: preset.lineEndingName || "LF",
+      lineEndingName: normalizeLineEndingName(preset.lineEndingName),
       quoteChar: preset.quoteChar || "double",
       quoteMode: preset.quoteMode || "minimal",
       rules: normalizeFormatRules(preset.rules),
@@ -2686,7 +2728,7 @@ function normalizeImportedFormatPreset(raw) {
     hasHeader: Boolean(raw.hasHeader),
     headerColumns: normalizeHeaderColumns(raw.headerColumns),
     encodingName: typeof raw.encodingName === "string" && raw.encodingName.trim() ? raw.encodingName.trim() : "utf-8",
-    lineEndingName: typeof raw.lineEndingName === "string" && raw.lineEndingName.trim() ? raw.lineEndingName.trim() : "LF",
+    lineEndingName: normalizeLineEndingName(raw.lineEndingName),
     quoteChar,
     quoteMode,
     rules: normalizeFormatRules(raw.rules),
@@ -2859,6 +2901,7 @@ function formatPresetSearchText(preset) {
     preset.id,
     preset.delimiterName,
     preset.encodingName,
+    preset.lineEndingName,
     preset.quoteMode,
     preset.quoteChar,
     ...(preset.rules ?? []).map((rule) => rule.pattern),
@@ -3037,6 +3080,38 @@ async function applyQuotePolicy() {
   updateInspector();
   status.textContent = `Quote policy set to ${quoteMode} ${quoteChar}.`;
   document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}`;
+}
+
+async function applyLineEnding() {
+  if (!documentId) {
+    status.textContent = "Open a file before changing line ending.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Line ending blocked: document is read-only";
+    return;
+  }
+  const lineEnding = normalizeLineEndingName(lineEndingSelect.value);
+  const response = await fetch("/api/line-ending", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, lineEnding }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Line ending failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  lineEndingDraftDirty = false;
+  applyMutationPayload(payload, `Line ending set to ${lineEnding.toUpperCase()}.`);
+  if (metadata) {
+    metadata.lineEnding = { name: lineEnding, sequence: lineEndingSequence(lineEnding), confidence: 1 };
+  }
+  syncLineEndingControls();
+  updateFormatStatus();
+  updateInspector();
+  status.textContent = `Line ending set to ${lineEnding.toUpperCase()}.`;
+  document.body.dataset.lineEndingPolicy = lineEnding;
 }
 
 async function toggleCellQuote() {
@@ -3471,6 +3546,7 @@ function formatPresetID(preset) {
     preset.delimiter === "\t" ? "tab" : preset.delimiter,
     preset.hasHeader ? "header" : "no-header",
     (preset.encodingName || "utf-8").toLowerCase(),
+    normalizeLineEndingName(preset.lineEndingName),
     preset.quoteChar || "double",
     preset.quoteMode || "minimal",
   ];
@@ -3481,11 +3557,12 @@ function formatPresetID(preset) {
 
 function formatPresetName(preset) {
   const delimiter = preset.delimiterName || (preset.delimiter === "\t" ? "tab" : preset.delimiter);
-  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${formatPresetHeaderLabel(preset)} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
+  const lineEnding = normalizeLineEndingName(preset.lineEndingName).toUpperCase();
+  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${formatPresetHeaderLabel(preset)} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${lineEnding} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
 }
 
 function formatPresetPreview(preset) {
-  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${normalizeLineEndingName(preset.lineEndingName)}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
 }
 
 function formatPresetHeaderLabel(preset) {
@@ -5577,6 +5654,9 @@ async function executeCommand(commandID) {
     case "format.importPresets":
       showFormatPresetImportPanel();
       break;
+    case "format.applyLineEnding":
+      await applyLineEnding();
+      break;
     case "format.applyQuotePolicy":
       await applyQuotePolicy();
       break;
@@ -7093,6 +7173,7 @@ async function openPath(path, options = {}) {
     body.hasHeader = Boolean(preset.hasHeader);
     body.headerColumns = normalizeHeaderColumns(preset.headerColumns);
     body.encodingName = preset.encodingName;
+    body.lineEnding = normalizeLineEndingName(preset.lineEndingName);
     body.quoteChar = preset.quoteChar || "double";
     body.quoteMode = preset.quoteMode || "minimal";
   }
@@ -7252,6 +7333,7 @@ function loadDocument(document) {
   restoreScrollPosition();
   setHeaderInSelection(false);
   clearURLHover();
+  lineEndingDraftDirty = false;
   dirty = false;
 }
 
@@ -12903,6 +12985,8 @@ function formatOverrideFromParams(params) {
   if (quoteMode) override.quoteMode = quoteMode;
   const encodingName = firstParam("encoding", "e");
   if (encodingName) override.encodingName = encodingName;
+  const lineEnding = firstParam("line-ending", "lineEnding", "line_ending", "newline", "eol", "le");
+  if (lineEnding) override.lineEnding = normalizeLineEndingName(lineEnding);
   const headerRows = firstParam("header-rows", "headerRows");
   if (headerRows) {
     const rows = Number.parseInt(headerRows, 10);
@@ -13100,6 +13184,11 @@ textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromContro
 textEditorFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 resetEditorAppearanceButton.addEventListener("click", resetEditorAppearance);
 applyQuotePolicyButton.addEventListener("click", () => executeCommand("format.applyQuotePolicy"));
+applyLineEndingButton.addEventListener("click", () => executeCommand("format.applyLineEnding"));
+lineEndingSelect.addEventListener("change", () => {
+  lineEndingDraftDirty = true;
+  document.body.dataset.lineEndingDraft = normalizeLineEndingName(lineEndingSelect.value);
+});
 exportQuoteRulesButton.addEventListener("click", () => executeCommand("format.exportQuoteRules"));
 showImportQuoteRulesButton.addEventListener("click", () => executeCommand("format.importQuoteRules"));
 quoteRulesImportText.addEventListener("input", syncQuoteRulesImportControls);

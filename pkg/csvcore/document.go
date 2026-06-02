@@ -38,6 +38,7 @@ type OpenOptions struct {
 	HasHeader     *bool
 	HeaderColumns *int
 	Encoding      *EncodingInfo
+	LineEnding    *LineEndingInfo
 }
 
 func OpenDocument(path string, options OpenOptions) (Document, error) {
@@ -110,6 +111,9 @@ func OpenDocument(path string, options OpenOptions) (Document, error) {
 		Encoding:   encoding,
 		LineEnding: DetectLineEnding(utf8Sample),
 		Dialect:    dialect,
+	}
+	if options.LineEnding != nil {
+		metadata.LineEnding = *options.LineEnding
 	}
 	metadata.Dialect.UTF8BOM = encoding.Name == EncodingUTF8BOM
 

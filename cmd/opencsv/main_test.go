@@ -17,6 +17,8 @@ func TestParseRootOptionsInterspersedFlags(t *testing.T) {
 		"-d",
 		"tab",
 		"--encoding=utf-8",
+		"--line-ending",
+		"crlf",
 		"--goto",
 		"new.tsv:10:3",
 		"--wait",
@@ -27,7 +29,7 @@ func TestParseRootOptionsInterspersedFlags(t *testing.T) {
 	if !options.diff || !options.wait {
 		t.Fatalf("diff/wait not parsed: %#v", options)
 	}
-	if options.format.Delimiter != "tab" || options.format.Encoding != "utf-8" {
+	if options.format.Delimiter != "tab" || options.format.Encoding != "utf-8" || options.format.LineEnding != "crlf" {
 		t.Fatalf("format not parsed: %#v", options.format)
 	}
 	if options.gotoTarget != "new.tsv:10:3" {
@@ -41,7 +43,7 @@ func TestParseRootOptionsInterspersedFlags(t *testing.T) {
 func TestOpenOptionsFromFormat(t *testing.T) {
 	headerRows := 1
 	headerColumns := 2
-	format := protocol.FormatParams{Delimiter: "tab", Encoding: "utf8", Quote: "single", QuoteMode: "always", HeaderRows: &headerRows, HeaderCols: &headerColumns}
+	format := protocol.FormatParams{Delimiter: "tab", Encoding: "utf8", LineEnding: "crlf", Quote: "single", QuoteMode: "always", HeaderRows: &headerRows, HeaderCols: &headerColumns}
 	options, err := openOptionsFromFormat(format)
 	if err != nil {
 		t.Fatal(err)
@@ -51,6 +53,9 @@ func TestOpenOptionsFromFormat(t *testing.T) {
 	}
 	if options.Encoding == nil || options.Encoding.Name != "utf-8" {
 		t.Fatalf("encoding override = %#v", options.Encoding)
+	}
+	if options.LineEnding == nil || options.LineEnding.Name != "crlf" {
+		t.Fatalf("line ending override = %#v", options.LineEnding)
 	}
 	if options.QuoteChar == nil || *options.QuoteChar != "'" || options.QuoteMode != "always" {
 		t.Fatalf("quote override = %#v %q", options.QuoteChar, options.QuoteMode)

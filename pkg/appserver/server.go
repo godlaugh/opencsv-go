@@ -53,6 +53,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/undo", server.handleUndo)
 	server.mux.HandleFunc("POST /api/redo", server.handleRedo)
 	server.mux.HandleFunc("POST /api/header-mode", server.handleHeaderMode)
+	server.mux.HandleFunc("POST /api/line-ending", server.handleLineEnding)
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/quote-rule", server.handleQuoteRule)
 	server.mux.HandleFunc("POST /api/quote-settings", server.handleQuoteSettings)
@@ -125,6 +126,7 @@ type openRequest struct {
 	DelimiterName string `json:"delimiterName,omitempty"`
 	QuoteChar     string `json:"quoteChar,omitempty"`
 	QuoteMode     string `json:"quoteMode,omitempty"`
+	LineEnding    string `json:"lineEnding,omitempty"`
 	HasHeader     *bool  `json:"hasHeader,omitempty"`
 	HeaderColumns *int   `json:"headerColumns,omitempty"`
 	EncodingName  string `json:"encodingName,omitempty"`
@@ -200,6 +202,14 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		options.QuoteMode = quoteMode
+	}
+	if strings.TrimSpace(request.LineEnding) != "" {
+		lineEnding, err := csvcore.NormalizeLineEndingName(request.LineEnding)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.LineEnding = &lineEnding
 	}
 	if strings.TrimSpace(request.EncodingName) != "" {
 		encoding, err := csvcore.ParseEncodingName(request.EncodingName)
@@ -472,6 +482,11 @@ type headerModeRequest struct {
 	HasHeader  bool   `json:"hasHeader"`
 }
 
+type lineEndingRequest struct {
+	DocumentID string `json:"documentId"`
+	LineEnding string `json:"lineEnding"`
+}
+
 type quotePolicyRequest struct {
 	DocumentID string `json:"documentId"`
 	QuoteChar  string `json:"quoteChar"`
@@ -510,6 +525,20 @@ func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := server.documents.SetHeaderMode(request.DocumentID, request.HasHeader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleLineEnding(w http.ResponseWriter, r *http.Request) {
+	var request lineEndingRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.SetLineEnding(request.DocumentID, request.LineEnding)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
