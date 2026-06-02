@@ -57,6 +57,9 @@
               <span>Headers</span>
             </label>
             <button id="filterButton" type="button" title="Filter" data-command="view.filter">Filter</button>
+            <select id="recentFilterSelect" class="recent-filter-select" aria-label="Recent and saved filters" title="Recent and saved filters" disabled>
+              <option value="">Filters</option>
+            </select>
             <button id="filterBuilderButton" type="button" title="Filter Builder" data-command="view.filterBuilder">Builder</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>
             <button id="findButton" type="button" title="Find" data-command="edit.find">Find</button>
@@ -144,13 +147,26 @@
             </div>
             <section class="settings-section" aria-label="Saved filters and sorts">
               <header>
-                <strong>Saved Filters & Sorts</strong>
+                <strong>Saved Filters, Recent & Sorts</strong>
                 <span id="settingsViewsSummary">0 filters, 0 sorts</span>
                 <div class="settings-section-actions">
                   <button id="exportSavedViewsButton" type="button" data-command="view.exportSavedSets">Export Views</button>
                   <button id="showImportSavedViewsButton" type="button" data-command="view.importSavedSets">Import Views</button>
                 </div>
               </header>
+              <div class="settings-filter-history-grid">
+                <label>
+                  <span>Recent filter history</span>
+                  <select id="filterHistoryLimitSelect" aria-label="Recent filter history retention">
+                    <option value="0">Off</option>
+                    <option value="5">Keep 5</option>
+                    <option value="8">Keep 8</option>
+                    <option value="12">Keep 12</option>
+                    <option value="20">Keep 20</option>
+                  </select>
+                </label>
+                <button id="clearRecentFiltersButton" type="button">Clear Recent</button>
+              </div>
               <div id="savedViewImportPanel" class="settings-import-panel" hidden>
                 <textarea id="savedViewImportText" spellcheck="false" aria-label="Saved filters and sorts import JSON" placeholder='{"kind":"opencsv-saved-views","filters":[],"sorts":[]}'></textarea>
                 <div class="settings-import-actions">

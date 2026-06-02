@@ -146,6 +146,7 @@ flowchart TD
 - `web Settings`
   - Section-level search over settings categories, controls, summaries, saved views, and format presets.
   - Empty-state feedback when no settings section matches.
+  - Saved/recent filter controls share the saved-view settings section, including configurable recent-filter retention and clear-history action.
 
 - `web Start / Recent Files`
   - Sidebar start surface with path-input focus and browser file-picker quick actions.
@@ -174,6 +175,7 @@ flowchart TD
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
+  - Recent and saved filter dropdown for replaying toolbar, SQL, value-checklist, and saved filter expressions without retyping.
   - Length-based column sort entry point and frontend sort-mode inference for numeric/date-looking columns.
   - Column value checklist inside the header quick menu.
   - View-only hidden columns through visible-column to source-column mapping.

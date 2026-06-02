@@ -286,6 +286,21 @@ button:disabled {
   font: inherit;
 }
 
+.recent-filter-select {
+  width: 118px;
+  height: 30px;
+  min-width: 96px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.recent-filter-select:disabled {
+  color: var(--muted);
+}
+
 .copy-header-toggle {
   display: inline-flex;
   height: 30px;
@@ -558,6 +573,7 @@ button:disabled {
 .settings-refresh-grid,
 .settings-link-grid,
 .settings-appearance-grid,
+.settings-filter-history-grid,
 .quote-rule-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -569,7 +585,8 @@ button:disabled {
 .settings-theme-grid label,
 .settings-refresh-grid label,
 .settings-link-grid label,
-.settings-appearance-grid label {
+.settings-appearance-grid label,
+.settings-filter-history-grid label {
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -582,7 +599,8 @@ button:disabled {
 .settings-refresh-grid select,
 .settings-link-grid input,
 .settings-appearance-grid select,
-.settings-appearance-grid input {
+.settings-appearance-grid input,
+.settings-filter-history-grid select {
   height: 30px;
   min-width: 0;
   border: 1px solid var(--border);
@@ -596,7 +614,8 @@ button:disabled {
 .settings-theme-grid button,
 .settings-refresh-grid button,
 .settings-link-grid button,
-.settings-appearance-grid button {
+.settings-appearance-grid button,
+.settings-filter-history-grid button {
   align-self: end;
   min-height: 30px;
   border: 1px solid var(--border);

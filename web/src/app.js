@@ -46,6 +46,7 @@ const copyFormatSelect = document.querySelector("#copyFormatSelect");
 const copyFormatButton = document.querySelector("#copyFormatButton");
 const copyHeadersToggle = document.querySelector("#copyHeadersToggle");
 const filterButton = document.querySelector("#filterButton");
+const recentFilterSelect = document.querySelector("#recentFilterSelect");
 const filterBuilderButton = document.querySelector("#filterBuilderButton");
 const sortButton = document.querySelector("#sortButton");
 const findButton = document.querySelector("#findButton");
@@ -140,6 +141,8 @@ const settingsFormatSummary = document.querySelector("#settingsFormatSummary");
 const settingsPresetList = document.querySelector("#settingsPresetList");
 const settingsViewsSummary = document.querySelector("#settingsViewsSummary");
 const settingsSavedViewList = document.querySelector("#settingsSavedViewList");
+const filterHistoryLimitSelect = document.querySelector("#filterHistoryLimitSelect");
+const clearRecentFiltersButton = document.querySelector("#clearRecentFiltersButton");
 const exportSavedViewsButton = document.querySelector("#exportSavedViewsButton");
 const showImportSavedViewsButton = document.querySelector("#showImportSavedViewsButton");
 const savedViewImportPanel = document.querySelector("#savedViewImportPanel");
@@ -261,6 +264,10 @@ const sqlHistoryStorageKey = "opencsv-sql-history";
 const sqlHistoryLimit = 8;
 const savedFiltersStorageKey = "opencsv-saved-filters";
 const savedFiltersLimit = 12;
+const recentFiltersStorageKey = "opencsv-recent-filters";
+const filterHistoryLimitStorageKey = "opencsv-filter-history-limit";
+const defaultFilterHistoryLimit = 8;
+const filterHistoryLimitOptions = [0, 5, 8, 12, 20];
 const savedSortsStorageKey = "opencsv-saved-sorts";
 const savedSortsLimit = 12;
 const savedViewsExportKind = "opencsv-saved-views";
@@ -375,6 +382,7 @@ let quotePolicyDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
 let autoRefreshMode = normalizeAutoRefreshMode(localStorage.getItem(autoRefreshStorageKey));
+let filterHistoryLimit = normalizeFilterHistoryLimit(localStorage.getItem(filterHistoryLimitStorageKey));
 let themeColors = {};
 let editorAppearance = loadEditorAppearance();
 
@@ -638,6 +646,56 @@ function resetAutoRefreshMode() {
   setAutoRefreshMode(defaultAutoRefreshMode);
   renderSettingsPanel();
   status.textContent = "External change refresh reset.";
+}
+
+function normalizeFilterHistoryLimit(value) {
+  const number = Number(value);
+  return filterHistoryLimitOptions.includes(number) ? number : defaultFilterHistoryLimit;
+}
+
+function filterHistoryLimitLabel(limit = filterHistoryLimit) {
+  if (limit === 0) return "Off";
+  return `Keep ${limit}`;
+}
+
+function setFilterHistoryLimit(limit, persist = true) {
+  filterHistoryLimit = normalizeFilterHistoryLimit(limit);
+  if (persist) {
+    localStorage.setItem(filterHistoryLimitStorageKey, String(filterHistoryLimit));
+  }
+  if (filterHistoryLimit === 0) {
+    saveRecentFilters([]);
+  } else {
+    saveRecentFilters(recentFilters());
+  }
+  syncFilterHistoryControls();
+  refreshFilterDropdown();
+}
+
+function syncFilterHistoryControls() {
+  if (!filterHistoryLimitSelect) return;
+  filterHistoryLimitSelect.value = String(filterHistoryLimit);
+  clearRecentFiltersButton.disabled = recentFilters().length === 0;
+  document.body.dataset.filterHistoryLimit = String(filterHistoryLimit);
+}
+
+function filterHistoryLimitModified() {
+  return filterHistoryLimit !== defaultFilterHistoryLimit;
+}
+
+function updateFilterHistoryLimitFromSettings() {
+  setFilterHistoryLimit(filterHistoryLimitSelect.value);
+  renderSettingsPanel();
+  status.textContent = filterHistoryLimit === 0
+    ? "Recent filter history is off."
+    : `Recent filter history will keep ${filterHistoryLimit} queries.`;
+}
+
+function clearRecentFilters() {
+  saveRecentFilters([]);
+  refreshFilterDropdown();
+  renderSettingsPanel();
+  status.textContent = "Cleared recent filter history.";
 }
 
 function loadCustomLinkProtocols() {
@@ -1614,19 +1672,21 @@ function renderSettingsPanel() {
   if (!settingsPresetList) return;
   syncThemeControls();
   syncAutoRefreshControls();
+  syncFilterHistoryControls();
   syncCustomLinkProtocolControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
   const filters = savedFilters();
+  const recent = recentFilters();
   const sorts = savedSorts();
   const query = settingsSearch.value.trim().toLowerCase();
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
-  settingsViewsSummary.textContent = `${filters.length} filters, ${sorts.length} sorts`;
+  settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
   renderSavedViewSettingsList(filters, sorts, query);
   settingsPresetList.replaceChildren();
@@ -7084,14 +7144,17 @@ function clearActiveFilter() {
 
 function renderViewChips() {
   const saved = savedFilters();
+  const recent = recentFilters();
   const savedSortsList = savedSorts();
   const activeSort = sortKeys.length ? `Sort: ${formatSortKeys(sortKeys)}` : "";
+  refreshFilterDropdown(saved, recent);
   viewChips.replaceChildren();
   if (!activeFilter && !activeSort && saved.length === 0 && savedSortsList.length === 0) {
     viewChips.hidden = true;
     document.body.dataset.activeFilter = "";
     document.body.dataset.activeSort = "";
     document.body.dataset.savedFilterCount = "0";
+    document.body.dataset.recentFilterCount = String(recent.length);
     document.body.dataset.savedSortCount = "0";
     return;
   }
@@ -7099,6 +7162,7 @@ function renderViewChips() {
   document.body.dataset.activeFilter = activeFilter?.display ?? "";
   document.body.dataset.activeSort = activeSort;
   document.body.dataset.savedFilterCount = String(saved.length);
+  document.body.dataset.recentFilterCount = String(recent.length);
   document.body.dataset.savedSortCount = String(savedSortsList.length);
 
   if (activeFilter) {
@@ -7206,6 +7270,164 @@ function renderViewChips() {
   }
 }
 
+function recentFilters() {
+  if (filterHistoryLimit === 0) return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(recentFiltersStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeRecentFilter)
+      .filter(Boolean)
+      .slice(0, filterHistoryLimit);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeRecentFilter(filter) {
+  if (!filter || typeof filter !== "object") return null;
+  const body = normalizeRecentFilterBody(filter.body);
+  const expression = typeof filter.expression === "string" && filter.expression.trim()
+    ? filter.expression.trim()
+    : (body?.expression || "");
+  if (!body || !expression) return null;
+  const display = typeof filter.display === "string" && filter.display.trim()
+    ? filter.display.trim()
+    : `Filter: where ${expression}`;
+  return {
+    id: typeof filter.id === "string" && filter.id ? filter.id : recentFilterID(body, expression),
+    input: typeof filter.input === "string" && filter.input.trim() ? filter.input.trim() : recentFilterInput(body, expression),
+    display,
+    expression,
+    body,
+    createdAt: typeof filter.createdAt === "string" && filter.createdAt ? filter.createdAt : new Date().toISOString(),
+  };
+}
+
+function normalizeRecentFilterBody(body) {
+  if (!body || typeof body !== "object") return null;
+  if (body.mode === "sql" && typeof body.expression === "string" && body.expression.trim()) {
+    return { mode: "sql", expression: stripWherePrefix(body.expression) };
+  }
+  if (typeof body.query === "string" && body.query.trim()) {
+    const normalized = { query: body.query.trim() };
+    if (Number.isInteger(body.column) && body.column >= 0) normalized.column = body.column;
+    return normalized;
+  }
+  return null;
+}
+
+function recentFilterInput(body, expression) {
+  if (body?.mode === "sql") return `where ${expression}`;
+  return body?.query || `where ${expression}`;
+}
+
+function saveRecentFilters(filters) {
+  const unique = [];
+  const seen = new Set();
+  for (const filter of filters) {
+    const normalized = normalizeRecentFilter(filter);
+    if (!normalized) continue;
+    const signature = recentFilterSignature(normalized.body, normalized.expression);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    unique.push(normalized);
+  }
+  const next = filterHistoryLimit === 0 ? [] : unique.slice(0, filterHistoryLimit);
+  localStorage.setItem(recentFiltersStorageKey, JSON.stringify(next));
+  document.body.dataset.recentFilterCount = String(next.length);
+  syncFilterHistoryControls();
+  refreshFilterDropdown(savedFilters(), next);
+  if (viewMode === "settings") renderSettingsPanel();
+}
+
+function rememberRecentFilter(body, descriptor) {
+  if (filterHistoryLimit === 0 || !descriptor?.expression) return;
+  const normalizedBody = normalizeRecentFilterBody(body);
+  if (!normalizedBody) return;
+  const expression = descriptor.expression;
+  const saved = {
+    id: recentFilterID(normalizedBody, expression),
+    input: recentFilterInput(normalizedBody, expression),
+    display: descriptor.display,
+    expression,
+    body: normalizedBody,
+    createdAt: new Date().toISOString(),
+  };
+  saveRecentFilters([saved, ...recentFilters()]);
+  document.body.dataset.recentFilterPreview = `${saved.input}|${saved.expression}`;
+}
+
+function recentFilterID(body, expression) {
+  return `recent-filter-${hashText(recentFilterSignature(body, expression))}`;
+}
+
+function recentFilterSignature(body, expression) {
+  return `${body?.mode || "text"}:${body?.column ?? ""}:${body?.query || ""}:${expression}`;
+}
+
+function refreshFilterDropdown(saved = savedFilters(), recent = recentFilters()) {
+  if (!recentFilterSelect) return;
+  recentFilterSelect.replaceChildren();
+  recentFilterSelect.append(filterDropdownOption("", "Filters"));
+  if (recent.length) {
+    const group = document.createElement("optgroup");
+    group.label = "Recent";
+    for (const filter of recent) {
+      group.append(filterDropdownOption(`recent:${filter.id}`, filter.input || filter.display));
+    }
+    recentFilterSelect.append(group);
+  }
+  if (saved.length) {
+    const group = document.createElement("optgroup");
+    group.label = "Saved";
+    for (const filter of saved) {
+      group.append(filterDropdownOption(`saved:${filter.id}`, filter.name));
+    }
+    recentFilterSelect.append(group);
+  }
+  recentFilterSelect.value = "";
+  recentFilterSelect.disabled = recent.length === 0 && saved.length === 0;
+  document.body.dataset.filterDropdownRecentCount = String(recent.length);
+  document.body.dataset.filterDropdownSavedCount = String(saved.length);
+  document.body.dataset.filterDropdownOptions = [
+    ...recent.map((filter) => `recent:${filter.input}`),
+    ...saved.map((filter) => `saved:${filter.name}`),
+  ].join("|");
+}
+
+function filterDropdownOption(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+async function applyFilterDropdownSelection() {
+  const value = recentFilterSelect.value;
+  recentFilterSelect.value = "";
+  if (!value) return;
+  const [kind, id] = value.split(":");
+  if (kind === "saved") {
+    await applySavedFilter(id);
+    return;
+  }
+  if (kind !== "recent" || !documentId) return;
+  const filter = recentFilters().find((item) => item.id === id);
+  if (!filter) {
+    status.textContent = "Recent filter not found.";
+    refreshFilterDropdown();
+    return;
+  }
+  commandInput.value = filter.input;
+  document.body.dataset.recentFilterApplied = filter.input;
+  await applyFilterRequest(
+    { documentId, ...filter.body },
+    `Recent filter ${savedFilterName(filter.display)}`,
+    selected.col,
+  );
+}
+
 function savedFilters() {
   try {
     const parsed = JSON.parse(localStorage.getItem(savedFiltersStorageKey) || "[]");
@@ -7236,6 +7458,7 @@ function saveSavedFilters(filters) {
   const next = unique.slice(0, savedFiltersLimit);
   localStorage.setItem(savedFiltersStorageKey, JSON.stringify(next));
   document.body.dataset.savedFilterCount = String(next.length);
+  refreshFilterDropdown(next, recentFilters());
   if (viewMode === "settings") renderSettingsPanel();
 }
 
@@ -7677,7 +7900,9 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   viewMapped = true;
   sortDescending = false;
   sortKeys = [];
-  setActiveFilter(filterDescriptorFromRequest(body, label));
+  const descriptor = filterDescriptorFromRequest(body, label);
+  setActiveFilter(descriptor);
+  rememberRecentFilter(body, descriptor);
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: Math.max(0, Math.min(columns.length - 1, preserveCol)) };
@@ -7901,7 +8126,9 @@ async function applyColumnValueChecklist() {
   viewMapped = true;
   sortDescending = false;
   sortKeys = [];
-  setActiveFilter(valueFilterDescriptor(sourceCol, values, includeBlank));
+  const descriptor = valueFilterDescriptor(sourceCol, values, includeBlank);
+  setActiveFilter(descriptor);
+  rememberRecentFilter({ mode: "sql", expression: descriptor.expression }, descriptor);
   rows = new Map();
   rowSource = new Map();
   selected = { row: 0, col: column };
@@ -10333,6 +10560,8 @@ themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
 resetThemePreferenceButton.addEventListener("click", resetThemePreference);
 autoRefreshModeSelect.addEventListener("change", updateAutoRefreshModeFromSettings);
 resetAutoRefreshButton.addEventListener("click", resetAutoRefreshMode);
+filterHistoryLimitSelect.addEventListener("change", updateFilterHistoryLimitFromSettings);
+clearRecentFiltersButton.addEventListener("click", clearRecentFilters);
 applyCustomLinkProtocolsButton.addEventListener("click", updateCustomLinkProtocolsFromSettings);
 resetCustomLinkProtocolsButton.addEventListener("click", resetCustomLinkProtocols);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
@@ -10648,6 +10877,7 @@ findWholeButton.addEventListener("click", () => toggleFindOption("whole"));
 findRegexButton.addEventListener("click", () => toggleFindOption("regex"));
 findSelectionButton.addEventListener("click", () => toggleFindOption("selection"));
 filterButton.addEventListener("click", filterCurrentQuery);
+recentFilterSelect.addEventListener("change", applyFilterDropdownSelection);
 filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
@@ -10709,5 +10939,6 @@ resize();
 renderFileList();
 renderSQLHistory();
 renderFormatPresetSelect();
+refreshFilterDropdown();
 renderSettingsPanel();
 openInitialURLTarget();
