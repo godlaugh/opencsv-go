@@ -529,6 +529,7 @@ The app shall support:
 - Optional shortcut context conditions such as document, grid, SQL, profile, settings, diff, and typing contexts.
 - Context-aware command enablement using declarative conditions.
 - Menus, toolbar buttons, context menus, and shortcuts all dispatch through the same command IDs.
+- Grid context menus expose common copy, text transform, quote, cell operation, table, row, column, filter, and sort commands without requiring the command palette.
 - Commands for open, save, find, filter, SQL console, format options, diff, sort.
 
 Acceptance:

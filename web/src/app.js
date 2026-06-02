@@ -2248,6 +2248,10 @@ function isCommandDisabled(command) {
       command.id === "text.fullWidth" ||
       command.id === "text.halfWidth" ||
       command.id === "cell.swap" ||
+      command.id === "cell.swapUp" ||
+      command.id === "cell.swapDown" ||
+      command.id === "cell.swapLeft" ||
+      command.id === "cell.swapRight" ||
       command.id === "cell.joinHorizontal" ||
       command.id === "cell.splitHorizontal" ||
       command.id === "cell.joinVertical" ||
@@ -3924,6 +3928,9 @@ function selectGridContextTarget(target) {
     selectRowRange(target.row);
     return;
   }
+  if (selectionCellCount() > 1 && activeSelectionRanges().some((range) => rangeContainsCell(range, target.row, target.col))) {
+    return;
+  }
   selected = { row: target.row, col: target.col };
   selectionAnchor = { ...selected };
 }
@@ -3932,6 +3939,7 @@ function renderGridContextMenu(target, clientX, clientY) {
   const heading = document.createElement("strong");
   heading.textContent = gridContextHeading(target);
   gridContextMenu.replaceChildren(heading);
+  const contextCommandIDs = [];
 
   const addSeparator = () => gridContextMenu.append(document.createElement("hr"));
   const addItem = (label, action, options = {}) => {
@@ -3950,6 +3958,7 @@ function renderGridContextMenu(target, clientX, clientY) {
   };
   const addCommand = (commandID, label = "") => {
     const command = commandsById.get(commandID);
+    contextCommandIDs.push(commandID);
     addItem(label || commandTitle(command || { id: commandID }), () => executeCommand(commandID), {
       commandID,
       disabled: !command || isCommandDisabled(command),
@@ -3959,6 +3968,12 @@ function renderGridContextMenu(target, clientX, clientY) {
   addCommand("edit.copy", "Copy");
   addCommand("edit.copyWithHeaders", "Copy with Headers");
   addCommand("edit.copyCsv", "Copy as CSV");
+  addCommand("edit.copyMarkdown", "Copy as Markdown");
+  addCommand("edit.copyJson", "Copy as JSON");
+  addCommand("edit.copyHtml", "Copy as HTML");
+  addCommand("edit.copySql", "Copy as SQL");
+  addCommand("edit.copyLatex", "Copy as LaTeX");
+  addCommand("edit.copyRaw", "Copy Raw");
   if (target.kind !== "column") {
     addCommand("edit.copyRow", "Copy Row");
     addCommand("edit.copyRowWithHeaders", "Copy Row with Headers");
@@ -3979,6 +3994,34 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("format.quoteSelection", "Quote Selection");
     addCommand("format.noQuoteSelection", "No Quote Selection");
     addCommand("format.clearSelectionQuote", "Clear Selection Quote");
+    addSeparator();
+    addCommand("text.trim", "Trim");
+    addCommand("text.uppercase", "Uppercase");
+    addCommand("text.lowercase", "Lowercase");
+    addCommand("text.snakeCase", "Snake Case");
+    addCommand("text.kebabCase", "Kebab Case");
+    addCommand("text.camelCase", "Camel Case");
+    addCommand("text.pascalCase", "Pascal Case");
+    addCommand("text.titleCase", "Title Case");
+    addCommand("text.fullWidth", "Full Width");
+    addCommand("text.halfWidth", "Half Width");
+    addSeparator();
+    addCommand("cell.fillDown", "Fill Down");
+    addCommand("cell.fillRight", "Fill Right");
+    addCommand("cell.fillUp", "Fill Up");
+    addCommand("cell.fillLeft", "Fill Left");
+    addCommand("cell.swapUp", "Swap Up");
+    addCommand("cell.swapDown", "Swap Down");
+    addCommand("cell.swapLeft", "Swap Left");
+    addCommand("cell.swapRight", "Swap Right");
+    addCommand("cell.joinHorizontal", "Join Cells");
+    addCommand("cell.splitHorizontal", "Split Cell");
+    addCommand("cell.joinVertical", "Join Cells Vertically");
+    addCommand("cell.splitVertical", "Split Cell Vertically");
+    addSeparator();
+    addCommand("table.transpose", "Transpose");
+    addCommand("table.dedupeRows", "Remove Duplicate Rows");
+    addCommand("table.dedupeColumns", "Remove Duplicate Columns");
     addItem("Filter by Cell", () => filterSelectedCellValue());
     addItem("Sort Column Ascending", () => sortColumn(selected.col, false, false));
     addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
@@ -4018,6 +4061,7 @@ function renderGridContextMenu(target, clientX, clientY) {
   gridContextMenu.style.top = `${top}px`;
   gridContextMenu.dataset.target = target.kind;
   document.body.dataset.gridContextTarget = target.kind;
+  document.body.dataset.gridContextCommands = contextCommandIDs.join(",");
 }
 
 function gridContextHeading(target) {
@@ -4033,6 +4077,7 @@ function closeGridContextMenu() {
   gridContextMenu.replaceChildren();
   gridContextMenu.dataset.target = "";
   document.body.dataset.gridContextTarget = "";
+  document.body.dataset.gridContextCommands = "";
   document.body.dataset.sqlResultContext = "";
 }
 
@@ -7188,6 +7233,10 @@ function rangeContainsRange(container, candidate) {
     container.startCol <= candidate.startCol &&
     container.endCol >= candidate.endCol
   );
+}
+
+function rangeContainsCell(range, row, col) {
+  return Boolean(range && row >= range.startRow && row <= range.endRow && col >= range.startCol && col <= range.endCol);
 }
 
 async function copyUsingSelectedFormat() {
@@ -11964,6 +12013,7 @@ canvas.addEventListener("contextmenu", openGridContextMenu);
 
 canvas.addEventListener("mousedown", (event) => {
   canvas.focus();
+  if (event.button !== 0) return;
   closeGridContextMenu();
   if (!documentId || columns.length === 0 || totalRows === 0) return;
   const rect = canvas.getBoundingClientRect();

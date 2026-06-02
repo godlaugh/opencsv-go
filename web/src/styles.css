@@ -1859,7 +1859,10 @@ button:disabled {
 }
 
 .grid-context-menu {
+  max-height: calc(100vh - 16px);
   width: 230px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .column-menu[hidden],
