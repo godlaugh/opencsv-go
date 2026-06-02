@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>opencsv</title>
-    <link rel="stylesheet" href="./src/styles.css?v=m2-condition-multi-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=m2-diff-clipboard-1" />
   </head>
   <body>
     <main class="app-shell">
@@ -108,7 +108,10 @@
               <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
               <button id="diffNextButton" type="button" title="Next difference">↓</button>
             </div>
-            <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
+            <div class="diff-text-controls">
+              <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
+              <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
+            </div>
             <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" hidden></textarea>
             <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
             <div id="diffResult" class="diff-result"></div>
@@ -518,6 +521,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=m2-condition-multi-1"></script>
+    <script type="module" src="./src/app.js?v=m2-diff-clipboard-1"></script>
   </body>
 </html>

@@ -94,6 +94,7 @@ const diffPrevButton = document.querySelector("#diffPrevButton");
 const diffNextButton = document.querySelector("#diffNextButton");
 const diffRightTextMode = document.querySelector("#diffRightTextMode");
 const diffRightText = document.querySelector("#diffRightText");
+const diffPasteClipboardButton = document.querySelector("#diffPasteClipboardButton");
 const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
@@ -9030,7 +9031,7 @@ async function runDiffCompare() {
       leftPath,
       rightPath: diffRightTextMode.checked ? "" : rightPath,
       rightText,
-      rightLabel: diffRightTextMode.checked ? "text" : "",
+      rightLabel: diffRightTextMode.checked ? diffRightTextLabel() : "",
       maxRows: 1000,
       ...currentDiffOptions(),
     }),
@@ -9057,6 +9058,52 @@ function currentDiffOptions() {
     matchColumnsByName: diffMatchHeaders.checked,
     keyColumn: diffKeyColumn.value.trim(),
   };
+}
+
+function diffRightTextLabel() {
+  return diffRightText.dataset.source === "clipboard" ? "clipboard" : "text";
+}
+
+function setDiffRightTextMode(enabled) {
+  diffRightTextMode.checked = enabled;
+  diffRightText.hidden = !enabled;
+  if (!enabled) {
+    diffRightText.dataset.source = "";
+    document.body.dataset.diffTextSource = "";
+  } else {
+    document.body.dataset.diffTextSource = diffRightText.dataset.source === "clipboard" ? "clipboard" : "text";
+  }
+}
+
+async function pasteDiffClipboardText() {
+  if (!navigator.clipboard?.readText) {
+    status.textContent = "Clipboard read is unavailable; paste CSV text into the right side.";
+    setDiffRightTextMode(true);
+    diffRightText.focus();
+    document.body.dataset.diffClipboard = "unavailable";
+    return;
+  }
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      status.textContent = "Clipboard is empty.";
+      document.body.dataset.diffClipboard = "empty";
+      return;
+    }
+    setDiffRightTextMode(true);
+    diffRightText.value = text;
+    diffRightText.dataset.source = "clipboard";
+    document.body.dataset.diffTextSource = "clipboard";
+    document.body.dataset.diffClipboard = String(text.length);
+    rightDiffPath.value = "";
+    diffRightText.focus();
+    status.textContent = `Loaded ${text.length.toLocaleString()} clipboard characters for compare.`;
+  } catch (error) {
+    status.textContent = `Clipboard read failed: ${error.message}`;
+    setDiffRightTextMode(true);
+    diffRightText.focus();
+    document.body.dataset.diffClipboard = "failed";
+  }
 }
 
 function parseColumnList(value) {
@@ -9211,7 +9258,7 @@ async function mergeDiffChange(resultIndex, mode, col, direction = "right-to-lef
       leftPath,
       rightPath: diffRightTextMode.checked ? "" : rightPath,
       rightText,
-      rightLabel: diffRightTextMode.checked ? "text" : "",
+      rightLabel: diffRightTextMode.checked ? diffRightTextLabel() : "",
       resultIndex,
       mode,
       col,
@@ -9772,9 +9819,9 @@ async function openInitialURLTarget() {
   if (diffLeft || diffRight || diffText) {
     leftDiffPath.value = diffLeft ?? "";
     rightDiffPath.value = diffRight ?? "";
-    diffRightTextMode.checked = diffText != null;
-    diffRightText.hidden = !diffRightTextMode.checked;
+    setDiffRightTextMode(diffText != null);
     diffRightText.value = diffText ?? "";
+    diffRightText.dataset.source = "";
     diffIgnoreCase.checked = truthyParam(params.get("diffIgnoreCase"));
     diffIgnoreWhitespace.checked = truthyParam(params.get("diffIgnoreWhitespace"));
     diffMatchHeaders.checked = truthyParam(params.get("diffMatchHeaders"));
@@ -10031,8 +10078,13 @@ runDiffButton.addEventListener("click", runDiffCompare);
 diffPrevButton.addEventListener("click", () => navigateDiff(-1));
 diffNextButton.addEventListener("click", () => navigateDiff(1));
 diffRightTextMode.addEventListener("change", () => {
-  diffRightText.hidden = !diffRightTextMode.checked;
+  setDiffRightTextMode(diffRightTextMode.checked);
   if (diffRightTextMode.checked) diffRightText.focus();
+});
+diffPasteClipboardButton.addEventListener("click", pasteDiffClipboardText);
+diffRightText.addEventListener("input", () => {
+  diffRightText.dataset.source = "";
+  document.body.dataset.diffTextSource = diffRightTextMode.checked ? "text" : "";
 });
 for (const input of [leftDiffPath, rightDiffPath]) {
   input.addEventListener("keydown", async (event) => {

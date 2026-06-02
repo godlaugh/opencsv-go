@@ -819,12 +819,31 @@ button:disabled {
   border-radius: 6px;
 }
 
+.diff-text-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .diff-text-toggle {
   display: inline-flex;
   gap: 5px;
   align-items: center;
   color: var(--muted);
   font-size: 12px;
+}
+
+.diff-text-controls button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .diff-text-source {
