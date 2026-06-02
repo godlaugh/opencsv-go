@@ -61,6 +61,7 @@ const findWholeButton = document.querySelector("#findWholeButton");
 const findRegexButton = document.querySelector("#findRegexButton");
 const findSelectionButton = document.querySelector("#findSelectionButton");
 const diffButton = document.querySelector("#diffButton");
+const exportFormatSelect = document.querySelector("#exportFormatSelect");
 const exportButton = document.querySelector("#exportButton");
 const exportXlsxButton = document.querySelector("#exportXlsxButton");
 const saveButton = document.querySelector("#saveButton");
@@ -5989,8 +5990,10 @@ async function copyExportViewSlice({ label, body, cellCount }) {
   return true;
 }
 
-async function exportCurrentView(format = "csv") {
+async function exportCurrentView(format = "") {
   if (!documentId) return;
+  format = format || exportFormatSelect?.value || "csv";
+  document.body.dataset.exportFormat = format;
   const visibleColumns = columns.map((column) => column.sourceCol);
   const response = await fetch("/api/export-view", {
     method: "POST",
@@ -10278,7 +10281,7 @@ fileInput.addEventListener("change", async () => {
 saveButton.addEventListener("click", saveCurrentDocument);
 saveAsButton.addEventListener("click", openSaveAsDialog);
 restoreBackupButton.addEventListener("click", openRestoreBackupPanel);
-exportButton.addEventListener("click", exportCurrentView);
+exportButton.addEventListener("click", () => exportCurrentView(exportFormatSelect?.value || "csv"));
 exportXlsxButton.addEventListener("click", () => exportCurrentView("xlsx"));
 readOnlyButton.addEventListener("click", toggleReadOnly);
 gridTabButton.addEventListener("click", () => setViewMode("grid"));

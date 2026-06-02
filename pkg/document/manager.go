@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/opencsv/opencsv/pkg/clipboard"
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/sqlexpr"
 	"github.com/opencsv/opencsv/pkg/xlsx"
@@ -305,7 +306,7 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 		exportedRows++
 	}
 
-	format := strings.ToLower(strings.TrimSpace(options.Format))
+	format := normalizeExportViewFormat(options.Format)
 	metadata := session.Document.Metadata
 	if format == "tsv" {
 		metadata.Dialect.Delimiter = '\t'
@@ -318,6 +319,10 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 		data, err = xlsx.EncodeWorkbook(exportRecords)
 		contentType = xlsx.ContentType()
 		filename = exportViewXLSXFilename(session.DisplayName)
+	} else if isRichExportViewFormat(format) {
+		data, err = encodeRichExportView(exportRecords, format)
+		contentType = exportViewRichContentType(format)
+		filename = exportViewFilenameWithExtension(session.DisplayName, exportViewRichExtension(format))
 	} else {
 		data, err = csvcore.EncodeRecords(exportRecords, metadata)
 	}
@@ -3123,6 +3128,86 @@ func exportColumnCount(records [][]string, columns []int) int {
 		return len(columns)
 	}
 	return maxRecordWidth(records)
+}
+
+func normalizeExportViewFormat(format string) string {
+	format = strings.ToLower(strings.TrimSpace(format))
+	switch format {
+	case "", "csv":
+		return "csv"
+	case "md":
+		return "markdown"
+	case "tex":
+		return "latex"
+	default:
+		return format
+	}
+}
+
+func isRichExportViewFormat(format string) bool {
+	switch format {
+	case "markdown", "json", "html", "sql", "latex", "raw":
+		return true
+	default:
+		return false
+	}
+}
+
+func encodeRichExportView(records [][]string, format string) ([]byte, error) {
+	switch format {
+	case "markdown":
+		return []byte(clipboard.ToMarkdown(records)), nil
+	case "json":
+		text, err := clipboard.ToJSON(records)
+		if err != nil {
+			return nil, err
+		}
+		return []byte(text), nil
+	case "html":
+		return []byte(clipboard.ToHTML(records)), nil
+	case "sql":
+		return []byte(clipboard.ToSQLValues(records)), nil
+	case "latex":
+		return []byte(clipboard.ToLaTeX(records)), nil
+	case "raw":
+		return []byte(clipboard.ToRaw(records)), nil
+	default:
+		return nil, fmt.Errorf("unsupported export format %q", format)
+	}
+}
+
+func exportViewRichExtension(format string) string {
+	switch format {
+	case "markdown":
+		return ".md"
+	case "json":
+		return ".json"
+	case "html":
+		return ".html"
+	case "sql":
+		return ".sql"
+	case "latex":
+		return ".tex"
+	default:
+		return ".txt"
+	}
+}
+
+func exportViewRichContentType(format string) string {
+	switch format {
+	case "markdown":
+		return "text/markdown; charset=utf-8"
+	case "json":
+		return "application/json; charset=utf-8"
+	case "html":
+		return "text/html; charset=utf-8"
+	case "sql":
+		return "application/sql; charset=utf-8"
+	case "latex":
+		return "application/x-latex; charset=utf-8"
+	default:
+		return "text/plain; charset=utf-8"
+	}
 }
 
 func exportViewFilename(displayName string, delimiter rune) string {

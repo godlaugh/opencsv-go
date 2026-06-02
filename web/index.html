@@ -68,6 +68,17 @@
             <button id="replaceAllButton" type="button" title="Replace all matches" data-command="edit.replaceAll">All</button>
             <button id="diffButton" type="button" title="Compare files" data-command="diff.open">Compare</button>
             <button id="readOnlyButton" type="button" title="Toggle read-only mode" data-command="file.toggleReadOnly">Read Only</button>
+            <select id="exportFormatSelect" class="copy-format-select" aria-label="Export format">
+              <option value="csv">CSV</option>
+              <option value="tsv">TSV</option>
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
+              <option value="html">HTML</option>
+              <option value="sql">SQL</option>
+              <option value="latex">LaTeX</option>
+              <option value="raw">Raw</option>
+              <option value="xlsx">XLSX</option>
+            </select>
             <button id="exportButton" type="button" title="Export current view" data-command="file.exportView">Export</button>
             <button id="exportXlsxButton" type="button" title="Export current view as XLSX" data-command="file.exportXlsx">XLSX</button>
             <button id="saveButton" type="button" title="Save" data-command="file.save">Save</button>

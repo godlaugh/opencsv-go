@@ -18,7 +18,7 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-06-01. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The current feature catalog adds more explicit product-surface requirements: smart selection, auto-fill, swap cells, aggregate rows, quick value filters, multi-column sort with type/direction per column, CSV compare against files or clipboard, quoting control including manual cell-level preservation, file format presets/rules, copy/export formats, CLI/deep links, Windows portable and AUR distribution, auto-backup, and auto-refresh. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The GitHub release API currently shows v3.20.2 as latest, published 2026-05-22, with recent release notes adding selected-cell visibility fixes in dark mode, short-row drawing fixes, URL-cell tooltip/cursor fixes, CLI stdin, compare merge/actions, inline character-level diff, compare ignore options, header-name column alignment, redesigned dark mode, CLI diff launch, header-in-selection controls, and faster Canvas grid editor work. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, and v3.20.2 shipped 2026-05-22.
+Latest public source check: 2026-06-02. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The current feature catalog adds more explicit product-surface requirements: smart selection, auto-fill, swap cells, aggregate rows, quick value filters, multi-column sort with type/direction per column, CSV compare against files or clipboard, quoting control including manual cell-level preservation, file format presets/rules, copy/export formats, CLI/deep links, Windows portable and AUR distribution, auto-backup, and auto-refresh. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The GitHub release API currently shows v3.21.0 as latest, published 2026-06-02, with recent release notes adding split editor groups, drag/drop tab movement between groups, group focus/move commands, saved and recent filter query history, macOS stay-open behavior after closing all windows, active-tab visibility fixes, URL-cell selection behavior, Windows preset rule matching fixes, and tab overflow behavior. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, v3.20.2 shipped 2026-05-22, and v3.21.0 shipped 2026-06-02.
 
 Additional official source details captured from the current public pages:
 
@@ -123,8 +123,11 @@ Product claims to match:
 - View and edit large files.
 - Add, delete, move, copy, paste rows and columns.
 - Hide rows/columns and dedupe rows/columns.
+- Split the editor into multiple tab groups arranged side-by-side, stacked, or nested.
+- Move tabs between editor groups by drag/drop and command palette actions.
 - Sort rows.
 - Filter rows.
+- Recent filter query history with configurable retention and a shared dropdown.
 - Visual condition-builder filtering.
 - Search and replace.
 - Multi-cell selection/editing.
@@ -387,6 +390,8 @@ The app shall support:
 - Empty/non-empty filters.
 - Numeric, text, date, boolean filters.
 - Filter chips.
+- Recent filter query dropdown with configurable retention or disabled history.
+- Saved filter dropdown shared across open editors.
 - Clear all filters.
 - Open current filter in SQL console.
 - Preserve filters across clean external reloads.
@@ -397,6 +402,7 @@ Acceptance:
 - `c1`, `c2`, ... work when no header row exists.
 - `CAST` and `TRY_CAST` work for numeric, date, time, timestamp, and interval cases.
 - Filtered row count is visible.
+- Reapplying a recent or saved filter restores the query without retyping.
 
 ### FR-007 Sort
 
@@ -605,6 +611,9 @@ The app shall support:
 - Start page with New File, Open, Settings, and recent files.
 - Recent files display with file name as primary label and path as secondary label.
 - Missing recent files are cleaned up automatically.
+- Split editor area into multiple tab groups arranged horizontally, vertically, or nested.
+- Move tabs between groups by drag/drop, tab context menu, and command palette actions.
+- Switch focus between editor groups by command.
 - Persistent window size, position, and maximized state.
 - Title/menu entry points for Settings and Keyboard Shortcuts.
 - Settings search, modified indicators, and reset-to-default controls.
@@ -614,6 +623,7 @@ The app shall support:
 Acceptance:
 
 - Relaunch restores window geometry and recent file list.
+- Splitting, moving tabs, and switching editor groups preserves open documents and selections.
 - Settings changed from defaults are visibly marked and can be reset.
 - Disabling automatic update checks prevents startup update network calls.
 

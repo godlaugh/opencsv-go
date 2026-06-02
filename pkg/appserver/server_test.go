@@ -1451,6 +1451,24 @@ func TestServerExportView(t *testing.T) {
 		t.Fatalf("row export body = %q", got)
 	}
 
+	markdownResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId": documentID,
+		"columns":    []int{0, 1},
+		"format":     "markdown",
+	})
+	if markdownResponse.Code != http.StatusOK {
+		t.Fatalf("markdown export status = %d body=%s", markdownResponse.Code, markdownResponse.Body.String())
+	}
+	if got := markdownResponse.Header().Get("Content-Type"); got != "text/markdown; charset=utf-8" {
+		t.Fatalf("markdown export content type = %q", got)
+	}
+	if got := markdownResponse.Header().Get("X-Opencsv-Filename"); got != "export.view.md" {
+		t.Fatalf("markdown export filename = %q, want export.view.md", got)
+	}
+	if got := markdownResponse.Body.String(); got != "| id | name |\n| --- | --- |\n| 1 | Ada |" {
+		t.Fatalf("markdown export body = %q", got)
+	}
+
 	xlsxResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
 		"documentId": documentID,
 		"columns":    []int{0, 2},

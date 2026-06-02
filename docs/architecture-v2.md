@@ -120,6 +120,7 @@ flowchart TD
   - TSV, CSV, Markdown table, JSON, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization.
   - Header-row prepending for selected-column copy workflows.
   - TSV matrix parsing for spreadsheet-style paste.
+  - Shared formatter contracts used by selection copy and rich current-view export downloads.
 
 - `web Profile View`
   - Summary, column profile table, issue table, and inspector integration.
@@ -701,6 +702,7 @@ Output:
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.
+- Export View can download the current filtered/sorted/visible-column view as CSV, TSV, Markdown, JSON, HTML, SQL, LaTeX, raw text, or XLSX.
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.

@@ -399,6 +399,33 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	if rowSlice.Rows != 1 || rowSlice.Columns != 2 || string(rowSlice.Data) != "Ada\t9\n" {
 		t.Fatalf("row slice rows=%d cols=%d data=%q", rowSlice.Rows, rowSlice.Columns, string(rowSlice.Data))
 	}
+	markdownExport, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{0, 1}, Format: "markdown"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if markdownExport.Filename != "export.view.md" {
+		t.Fatalf("markdown filename = %q, want export.view.md", markdownExport.Filename)
+	}
+	if markdownExport.ContentType != "text/markdown; charset=utf-8" {
+		t.Fatalf("markdown content type = %q", markdownExport.ContentType)
+	}
+	wantMarkdown := "| id | name |\n| --- | --- |\n| 3 | Grace |\n| 1 | Ada |\n| 2 | Linux |"
+	if string(markdownExport.Data) != wantMarkdown {
+		t.Fatalf("markdown export = %q", string(markdownExport.Data))
+	}
+	rawExport, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{0, 1}, Format: "raw"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rawExport.Filename != "export.view.txt" {
+		t.Fatalf("raw filename = %q, want export.view.txt", rawExport.Filename)
+	}
+	if rawExport.ContentType != "text/plain; charset=utf-8" {
+		t.Fatalf("raw content type = %q", rawExport.ContentType)
+	}
+	if string(rawExport.Data) != "id\tname\n3\tGrace\n1\tAda\n2\tLinux" {
+		t.Fatalf("raw export = %q", string(rawExport.Data))
+	}
 	xlsxExport, err := manager.ExportView(session.ID, ExportViewOptions{Columns: []int{1}, Format: "xlsx"})
 	if err != nil {
 		t.Fatal(err)
