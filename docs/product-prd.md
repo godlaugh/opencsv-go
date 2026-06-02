@@ -2,7 +2,7 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## 1. Source Baseline
 
@@ -618,6 +618,7 @@ The app shall support transposing rows and columns.
 Acceptance:
 
 - Transpose works on small and medium files.
+- Transpose can apply to the full table or to one rectangular selected range when the transposed target fits in the current grid.
 - The operation is undoable and warns when the result would be too large for memory.
 
 ### FR-018 Auto-Refresh and External Changes

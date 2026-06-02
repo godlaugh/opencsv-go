@@ -8112,7 +8112,89 @@ async function moveSelectedColumn(delta) {
 }
 
 async function transposeCurrentDocument() {
+  const ranges = activeSelectionRanges();
+  if (ranges.length > 1) {
+    status.textContent = "Select one rectangular range to transpose.";
+    return;
+  }
+  if (ranges.length === 1 && rangeCellCount(ranges[0]) > 1) {
+    if (transposeSelectedRange(ranges[0])) return;
+    return;
+  }
   await mutateStructure("/api/transpose", { maxCells: 1_000_000 }, "Transposed table");
+}
+
+function transposeSelectedRange(range, maxCells = 100_000) {
+  if (!documentId || !range) return false;
+  if (!ensureEditable("Transpose Selection")) return true;
+  if (range.endRow >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return true;
+  }
+  const rowCount = range.endRow - range.startRow + 1;
+  const colCount = range.endCol - range.startCol + 1;
+  const cellCount = rowCount * colCount;
+  if (cellCount > maxCells) {
+    status.textContent = `Selection has ${formatCount(cellCount)} cells; transpose limit is ${formatCount(maxCells)}.`;
+    return true;
+  }
+  const targetEndRow = range.startRow + colCount - 1;
+  const targetEndCol = range.startCol + rowCount - 1;
+  if (targetEndRow >= sourceRowCount || targetEndCol >= columns.length) {
+    status.textContent = "Selection transpose target must fit inside the current grid.";
+    return true;
+  }
+  const sourceMatrix = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    if (sourceRowForDisplayRow(row, "Transpose Selection") == null) return true;
+    const values = [];
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      values.push(valueAt(row, col));
+    }
+    sourceMatrix.push(values);
+  }
+  const edits = [];
+  const unionEndRow = Math.max(range.endRow, targetEndRow);
+  const unionEndCol = Math.max(range.endCol, targetEndCol);
+  for (let row = range.startRow; row <= unionEndRow; row++) {
+    const sourceRow = sourceRowForDisplayRow(row, "Transpose Selection");
+    if (sourceRow == null) return true;
+    for (let col = range.startCol; col <= unionEndCol; col++) {
+      const inSource = row <= range.endRow && col <= range.endCol;
+      const inTarget = row <= targetEndRow && col <= targetEndCol;
+      if (!inSource && !inTarget) continue;
+      const nextValue = inTarget
+        ? sourceMatrix[col - range.startCol]?.[row - range.startRow] ?? ""
+        : "";
+      if (valueAt(row, col) === nextValue) continue;
+      edits.push({ row: sourceRow, col: sourceColFor(col), value: nextValue });
+    }
+  }
+  if (!edits.length) {
+    status.textContent = "Transpose Selection: no cells changed.";
+    document.body.dataset.transposeSelection = `${rowCount}x${colCount}->${colCount}x${rowCount}:0`;
+    return true;
+  }
+  selected = { row: range.startRow, col: range.startCol };
+  selectionAnchor = { row: targetEndRow, col: targetEndCol };
+  autoFitColumnsForEdits(edits);
+  syncCellValueAfterEdit();
+  document.body.dataset.transposeSelection = `${rowCount}x${colCount}->${colCount}x${rowCount}:${edits.length}`;
+  submitCellEdits(
+    edits,
+    range.startRow,
+    `Transposed ${rowCount}x${colCount} selection`,
+  );
+  return true;
+}
+
+function sourceRowForDisplayRow(row, action) {
+  const sourceRow = rowSource.get(row);
+  if (viewMapped && sourceRow == null) {
+    status.textContent = `Load the selected filtered rows before using ${action}.`;
+    return null;
+  }
+  return sourceRow ?? row + dataStartRow;
 }
 
 async function toggleHeaderRow() {
