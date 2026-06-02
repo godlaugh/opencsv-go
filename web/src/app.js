@@ -5588,6 +5588,18 @@ async function executeCommand(commandID) {
     case "cell.swap":
       await swapSelectedCells();
       break;
+    case "cell.swapUp":
+      await swapCellWithNeighbor("up");
+      break;
+    case "cell.swapDown":
+      await swapCellWithNeighbor("down");
+      break;
+    case "cell.swapLeft":
+      await swapCellWithNeighbor("left");
+      break;
+    case "cell.swapRight":
+      await swapCellWithNeighbor("right");
+      break;
     case "cell.joinHorizontal":
       await joinSelectedCells("horizontal");
       break;
@@ -9788,6 +9800,62 @@ async function swapSelectedCells() {
     activeCol: range.startCol,
     label: "Swapped cells",
   });
+}
+
+async function swapCellWithNeighbor(direction) {
+  if (!documentId) return;
+  const label = swapNeighborLabel(direction);
+  if (!ensureEditable(label)) return;
+  const origin = { row: selected.row, col: selected.col };
+  if (selected.row >= sourceRowCount) {
+    status.textContent = "Aggregate rows are view-only.";
+    return;
+  }
+  const target = swapNeighborTarget(direction);
+  if (!target) {
+    status.textContent = `${label}: no adjacent cell.`;
+    return;
+  }
+  const activeSourceRow = sourceRowForDisplayRow(selected.row, label);
+  if (activeSourceRow == null) return;
+  const targetSourceRow = sourceRowForDisplayRow(target.row, label);
+  if (targetSourceRow == null) return;
+  const activeSourceCol = sourceColFor(selected.col);
+  const targetSourceCol = sourceColFor(target.col);
+  await runCellTool("/api/cells/swap", {
+    cells: [
+      { row: activeSourceRow, col: activeSourceCol },
+      { row: targetSourceRow, col: targetSourceCol },
+    ],
+    activeRow: target.row,
+    activeCol: target.col,
+    label,
+  });
+  document.body.dataset.cellSwapNeighbor = `${direction}:${origin.row}:${origin.col}->${target.row}:${target.col}`;
+}
+
+function swapNeighborTarget(direction) {
+  switch (direction) {
+    case "up":
+      return selected.row > 0 ? { row: selected.row - 1, col: selected.col } : null;
+    case "down":
+      return selected.row + 1 < sourceRowCount ? { row: selected.row + 1, col: selected.col } : null;
+    case "left":
+      return selected.col > 0 ? { row: selected.row, col: selected.col - 1 } : null;
+    case "right":
+      return selected.col + 1 < columns.length ? { row: selected.row, col: selected.col + 1 } : null;
+    default:
+      return null;
+  }
+}
+
+function swapNeighborLabel(direction) {
+  return {
+    up: "Swapped cell up",
+    down: "Swapped cell down",
+    left: "Swapped cell left",
+    right: "Swapped cell right",
+  }[direction] ?? "Swapped cell";
 }
 
 async function joinSelectedCells(direction = "horizontal") {

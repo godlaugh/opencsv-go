@@ -133,7 +133,7 @@ Product claims to match:
 - Multi-cell selection/editing.
 - Undo/redo.
 - Body-first selection where row/column label selection initially excludes headers and can toggle/include headers.
-- Swap selected cells with adjacent cells.
+- Swap selected cells with adjacent cells in up/down/left/right directions.
 - Command palette.
 - Keyboard shortcuts.
 - Keyboard shortcut customization.
@@ -954,7 +954,7 @@ The desktop shell owns:
 ### M9 Fidelity and Advanced Grid Parity
 
 - Manual quote mode and per-cell quote map.
-- Auto-fill and swap cells.
+- Auto-fill and up/down/left/right swap cells.
 - Aggregate rows.
 - Smart sort by date/length and full-width numerals.
 - Compare key-column row alignment and bidirectional merge.

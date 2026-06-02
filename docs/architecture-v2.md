@@ -188,7 +188,7 @@ flowchart TD
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
   - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
-  - Swap Cells for exactly two selected cells.
+  - Swap Cells for exactly two selected cells, plus active-cell neighbor swap commands for up/down/left/right.
   - Horizontal Join Cells and Split Cell commands backed by document mutations.
   - Active-cell value panel in the Inspector.
   - URL-like cell detection with an Open Link surface.
@@ -539,7 +539,7 @@ Output:
 
 Rules:
 
-- Swap requires exactly two selected cells and exchanges their values.
+- Swap requires exactly two source cells and exchanges their values; the frontend can provide those cells either from an explicit two-cell selection or from active-cell neighbor swap commands.
 - Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell, and clears the remaining selected cells in that row.
 - Split writes separator-delimited parts horizontally starting at the selected source cell and can expand row width.
 - Cell tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
