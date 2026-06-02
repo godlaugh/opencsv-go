@@ -1294,7 +1294,8 @@ func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 }
 
 type profileRequest struct {
-	DocumentID string `json:"documentId"`
+	DocumentID string             `json:"documentId"`
+	Schema     dataprofile.Schema `json:"schema"`
 }
 
 func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
@@ -1308,7 +1309,7 @@ func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result := dataprofile.Analyze(records, session.Document.Metadata.Dialect.HasHeader)
+	result := dataprofile.AnalyzeWithSchema(records, session.Document.Metadata.Dialect.HasHeader, request.Schema)
 	writeJSON(w, http.StatusOK, result)
 }
 

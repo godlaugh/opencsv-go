@@ -146,6 +146,18 @@
                 <div id="diffResult" class="diff-result"></div>
               </section>
               <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile">
+                <div class="profile-toolbar" aria-label="Validation schema">
+                  <button id="runProfileButton" type="button">Run Profile</button>
+                  <button id="toggleProfileSchemaButton" type="button" aria-expanded="false">Schema</button>
+                  <button id="saveProfileSchemaButton" type="button">Save Schema</button>
+                  <button id="resetProfileSchemaButton" type="button">Reset Schema</button>
+                  <span id="profileSchemaStatus">No schema</span>
+                </div>
+                <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" hidden>{
+  "columns": [
+    { "name": "id", "required": true, "type": "integer", "unique": true }
+  ]
+}</textarea>
                 <div id="profileSummary" class="profile-summary" aria-live="polite"></div>
                 <div id="profileColumns" class="profile-columns"></div>
                 <div id="profileIssues" class="profile-issues"></div>

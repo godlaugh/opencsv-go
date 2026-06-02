@@ -630,7 +630,7 @@ button:disabled {
 }
 
 .profile-panel {
-  grid-template-rows: auto minmax(0, 1fr) minmax(110px, 0.38fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) minmax(110px, 0.38fr);
 }
 
 .settings-panel {
@@ -1070,6 +1070,41 @@ button:disabled {
   background: var(--panel);
 }
 
+.profile-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+}
+
+.profile-toolbar button {
+  min-height: 30px;
+  border-radius: 6px;
+}
+
+.profile-toolbar span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-schema-input {
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font:
+    12px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.profile-schema-input[hidden] {
+  display: none;
+}
+
 .sql-result table,
 .diff-result table,
 .profile-columns table,
@@ -1143,6 +1178,16 @@ button:disabled {
 
 .profile-columns tr.selected-profile-column {
   background: var(--accent-quiet);
+}
+
+.profile-issues tbody tr {
+  cursor: pointer;
+}
+
+.profile-issues button {
+  min-height: 24px;
+  border-radius: 5px;
+  font-size: 12px;
 }
 
 .diff-cells {

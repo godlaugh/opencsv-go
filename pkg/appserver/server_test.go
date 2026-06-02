@@ -1364,6 +1364,42 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerProfileAcceptsSchemaRules(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "schema.csv")
+	if err := os.WriteFile(path, []byte("id,status,score\n1,new,10\n1,bad,105\n,done,ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"columns": []map[string]any{
+				{"name": "id", "required": true, "type": "integer", "unique": true},
+				{"name": "status", "enum": []string{"new", "done"}},
+				{"name": "score", "type": "number", "min": 0, "max": 100},
+			},
+		},
+	})
+	if profilePayload["schemaRules"].(float64) != 3 {
+		t.Fatalf("schemaRules = %#v, want 3", profilePayload["schemaRules"])
+	}
+	issues := profilePayload["issues"].([]any)
+	for _, typ := range []string{"schema-unique", "schema-required", "schema-enum", "schema-range", "schema-type"} {
+		if !jsonIssuesContainType(issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, issues)
+		}
+	}
+}
+
 func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "temporal.csv")
@@ -1916,4 +1952,14 @@ func getJSON(t *testing.T, handler http.Handler, path string) map[string]any {
 		t.Fatalf("GET %s failed: status=%d payload=%#v", path, response.Code, payload)
 	}
 	return payload
+}
+
+func jsonIssuesContainType(issues []any, typ string) bool {
+	for _, raw := range issues {
+		issue, ok := raw.(map[string]any)
+		if ok && issue["type"] == typ {
+			return true
+		}
+	}
+	return false
 }

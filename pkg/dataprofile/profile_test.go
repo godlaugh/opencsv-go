@@ -60,6 +60,62 @@ func TestAnalyzeNumericSummary(t *testing.T) {
 	}
 }
 
+func TestAnalyzeAddsQuickFixesForSafeStructureIssues(t *testing.T) {
+	result := Analyze([][]string{
+		{"id", ""},
+		{"1"},
+		{"2", "Ada"},
+	}, true)
+	emptyHeader := issueByType(result.Issues, "empty-header")
+	if emptyHeader == nil || len(emptyHeader.QuickFixes) != 1 || emptyHeader.QuickFixes[0].ID != "header.fill" {
+		t.Fatalf("empty header quick fix = %#v", emptyHeader)
+	}
+	ragged := issueByType(result.Issues, "ragged-row")
+	if ragged == nil || ragged.Actual != 1 || ragged.Expected != 2 {
+		t.Fatalf("ragged issue = %#v, want actual/expected", ragged)
+	}
+	if len(ragged.QuickFixes) != 1 || ragged.QuickFixes[0].ID != "row.pad" {
+		t.Fatalf("ragged quick fix = %#v", ragged.QuickFixes)
+	}
+}
+
+func TestAnalyzeWithSchemaRules(t *testing.T) {
+	minScore := 0.0
+	maxScore := 100.0
+	result := AnalyzeWithSchema([][]string{
+		{"id", "status", "score"},
+		{"1", "new", "10"},
+		{"1", "bad", "105"},
+		{"", "done", "ok"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "id", Required: true, Type: "integer", Unique: true},
+		{Name: "status", Enum: []string{"new", "done"}, Pattern: "^[a-z]+$"},
+		{Name: "score", Type: "number", Min: &minScore, Max: &maxScore},
+		{Name: "missing", Required: true},
+	}})
+	if result.SchemaRules != 4 {
+		t.Fatalf("schema rules = %d, want 4", result.SchemaRules)
+	}
+	for _, typ := range []string{"schema-unique", "schema-required", "schema-enum", "schema-range", "schema-type", "schema-missing-column"} {
+		if !hasIssue(result.Issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
+		}
+	}
+}
+
+func TestAnalyzeWithSchemaInvalidPattern(t *testing.T) {
+	result := AnalyzeWithSchema([][]string{
+		{"code"},
+		{"A1"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "code", Pattern: "["},
+	}})
+	issue := issueByType(result.Issues, "schema-pattern")
+	if issue == nil || issue.Row != 1 || issue.Col != 1 {
+		t.Fatalf("pattern issue = %#v", issue)
+	}
+}
+
 func hasIssue(issues []Issue, typ string) bool {
 	for _, issue := range issues {
 		if issue.Type == typ {
@@ -67,4 +123,13 @@ func hasIssue(issues []Issue, typ string) bool {
 		}
 	}
 	return false
+}
+
+func issueByType(issues []Issue, typ string) *Issue {
+	for i := range issues {
+		if issues[i].Type == typ {
+			return &issues[i]
+		}
+	}
+	return nil
 }

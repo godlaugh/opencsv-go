@@ -125,6 +125,12 @@ const diffPasteClipboardButton = document.querySelector("#diffPasteClipboardButt
 const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
+const runProfileButton = document.querySelector("#runProfileButton");
+const toggleProfileSchemaButton = document.querySelector("#toggleProfileSchemaButton");
+const saveProfileSchemaButton = document.querySelector("#saveProfileSchemaButton");
+const resetProfileSchemaButton = document.querySelector("#resetProfileSchemaButton");
+const profileSchemaStatus = document.querySelector("#profileSchemaStatus");
+const profileSchemaInput = document.querySelector("#profileSchemaInput");
 const profileSummary = document.querySelector("#profileSummary");
 const profileColumns = document.querySelector("#profileColumns");
 const profileIssues = document.querySelector("#profileIssues");
@@ -267,6 +273,12 @@ const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const findPageSize = 100;
+const profileSchemaStorageKey = "opencsv-profile-schema";
+const defaultProfileSchemaText = `{
+  "columns": [
+    { "name": "id", "required": true, "type": "integer", "unique": true }
+  ]
+}`;
 const localeStorageKey = "opencsv-locale";
 const defaultLocale = "en";
 const supportedLocales = [
@@ -717,6 +729,8 @@ let lastSQLResult = null;
 let sqlResultSelectionAnchor = null;
 let sqlResultSelectionRange = null;
 let profileLoading = false;
+let profileSchemaVisible = false;
+let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let paletteOpen = false;
 let paletteItems = [];
 let paletteIndex = 0;
@@ -762,6 +776,7 @@ setLocalePreference(localePreference, false);
 setAutoRefreshMode(autoRefreshMode, false);
 setUpdateCheckMode(updateCheckMode, false);
 applyEditorAppearance(editorAppearance, false);
+syncProfileSchemaControls();
 
 function resize() {
   draw();
@@ -10345,6 +10360,81 @@ async function openProfilePanel() {
   await loadProfile();
 }
 
+function parseProfileSchemaText(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const parsed = JSON.parse(trimmed);
+  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.columns)) {
+    throw new Error("Schema must be an object with a columns array.");
+  }
+  return parsed;
+}
+
+function activeProfileSchema() {
+  return parseProfileSchemaText(profileSchemaText);
+}
+
+function syncProfileSchemaControls() {
+  if (!profileSchemaInput) return;
+  if (profileSchemaInput.value !== profileSchemaText) profileSchemaInput.value = profileSchemaText;
+  profileSchemaInput.placeholder = defaultProfileSchemaText;
+  profileSchemaInput.hidden = !profileSchemaVisible;
+  toggleProfileSchemaButton.setAttribute("aria-expanded", profileSchemaVisible ? "true" : "false");
+  const text = profileSchemaText.trim();
+  resetProfileSchemaButton.disabled = !text && !localStorage.getItem(profileSchemaStorageKey);
+  saveProfileSchemaButton.disabled = !text;
+  if (!text) {
+    profileSchemaStatus.textContent = "No schema";
+    document.body.dataset.profileSchemaRules = "0";
+    return;
+  }
+  try {
+    const schema = parseProfileSchemaText(text);
+    const rules = schema.columns.length;
+    profileSchemaStatus.textContent = `${formatCount(rules)} schema rules`;
+    document.body.dataset.profileSchemaRules = String(rules);
+  } catch (error) {
+    profileSchemaStatus.textContent = "Invalid schema JSON";
+    document.body.dataset.profileSchemaRules = "invalid";
+  }
+}
+
+function toggleProfileSchemaEditor() {
+  profileSchemaVisible = !profileSchemaVisible;
+  syncProfileSchemaControls();
+}
+
+function updateProfileSchemaDraft() {
+  profileSchemaText = profileSchemaInput.value;
+  profileData = null;
+  syncProfileSchemaControls();
+}
+
+function saveProfileSchema() {
+  try {
+    parseProfileSchemaText(profileSchemaText);
+  } catch (error) {
+    status.textContent = `Schema invalid: ${error.message}`;
+    syncProfileSchemaControls();
+    return;
+  }
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText.trim());
+  profileSchemaText = profileSchemaText.trim();
+  profileData = null;
+  syncProfileSchemaControls();
+  status.textContent = "Validation schema saved.";
+  void loadProfile(true);
+}
+
+function resetProfileSchema() {
+  localStorage.removeItem(profileSchemaStorageKey);
+  profileSchemaText = "";
+  profileData = null;
+  syncProfileSchemaControls();
+  status.textContent = "Validation schema reset.";
+  void loadProfile(true);
+}
+
 async function loadProfile(force = false) {
   if (!documentId || profileLoading) return;
   if (profileData && !force) {
@@ -10357,10 +10447,12 @@ async function loadProfile(force = false) {
   profileIssues.replaceChildren(emptyProfileNode("Checking data quality..."));
   status.textContent = "Profiling data...";
   try {
+    const schema = activeProfileSchema();
+    syncProfileSchemaControls();
     const response = await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId }),
+      body: JSON.stringify({ documentId, schema }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "profile failed");
@@ -10379,15 +10471,20 @@ async function loadProfile(force = false) {
 }
 
 function renderProfile(result) {
+  syncProfileSchemaControls();
   const issues = result.issues ?? [];
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
-  profileSummary.replaceChildren(
+  const summaryNodes = [
     summaryNode("Rows", result.rows ?? 0),
     summaryNode("Columns", result.columns?.length ?? 0),
     summaryNode("Errors", errorCount),
     summaryNode("Warnings", warningCount),
-  );
+  ];
+  if (result.schemaRules) summaryNodes.push(summaryNode("Rules", result.schemaRules));
+  profileSummary.replaceChildren(...summaryNodes);
+  document.body.dataset.profileIssueCount = String(issues.length);
+  document.body.dataset.profileSchemaIssueCount = String(issues.filter((issue) => String(issue.type || "").startsWith("schema-")).length);
   renderProfileColumns(result.columns ?? []);
   renderProfileIssues(issues);
 }
@@ -10447,7 +10544,7 @@ function renderProfileIssues(issues) {
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  for (const label of ["Severity", "Type", "Row", "Column", "Message"]) {
+  for (const label of ["Severity", "Type", "Row", "Column", "Message", "Fix"]) {
     const th = document.createElement("th");
     th.textContent = label;
     headerRow.append(th);
@@ -10464,10 +10561,117 @@ function renderProfileIssues(issues) {
     appendCell(tr, issue.row || "");
     appendCell(tr, issue.col || "");
     appendCell(tr, issue.message ?? "");
+    const fixCell = document.createElement("td");
+    for (const fix of issue.quickFixes ?? []) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = fix.label ?? "Fix";
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void applyProfileQuickFix(issue, fix.id);
+      });
+      fixCell.append(button);
+    }
+    tr.append(fixCell);
+    tr.addEventListener("click", () => {
+      void navigateToProfileIssue(issue);
+    });
     tbody.append(tr);
   }
   table.append(tbody);
   profileIssues.replaceChildren(table);
+}
+
+function issueDisplayRow(issue) {
+  if (!issue?.row || sourceRowCount <= 0) return Math.max(0, Math.min(sourceRowCount - 1, selected.row));
+  const sourceRow = Math.max(0, Number(issue.row) - 1);
+  const mapped = displayRowForSourceRow(sourceRow);
+  if (mapped >= 0) return Math.max(0, Math.min(sourceRowCount - 1, mapped));
+  return Math.max(0, Math.min(sourceRowCount - 1, sourceRow - dataStartRow));
+}
+
+function issueVisibleCol(issue) {
+  if (!issue?.col || columns.length === 0) return Math.max(0, Math.min(columns.length - 1, selected.col));
+  const visibleCol = visibleColForSource(Number(issue.col) - 1);
+  return Math.max(0, Math.min(columns.length - 1, visibleCol >= 0 ? visibleCol : selected.col));
+}
+
+async function navigateToProfileIssue(issue) {
+  if (!documentId || sourceRowCount <= 0 || columns.length === 0) return;
+  const row = issueDisplayRow(issue);
+  const col = issueVisibleCol(issue);
+  selected = { row, col };
+  selectionAnchor = { ...selected };
+  clearSmartSelectionRanges();
+  scrollRangeIntoView({ startRow: row, endRow: row, startCol: col, endCol: col });
+  setViewMode("grid");
+  await maybeLoadWindow(row);
+  draw();
+  document.body.dataset.profileIssueSelection = `${issue.type ?? "issue"}:${issue.row || ""}:${issue.col || ""}`;
+  status.textContent = `Selected ${issue.type ?? "issue"} at row ${issue.row || "-"}, column ${issue.col || "-"}.`;
+}
+
+function profileQuickFixEdits(issue, fixID) {
+  if (fixID === "header.fill" && issue?.col) {
+    const col = Number(issue.col) - 1;
+    return [{ row: 0, col, value: `Column ${Number(issue.col)}` }];
+  }
+  if (fixID === "row.pad" && issue?.row && issue?.expected && issue.actual < issue.expected) {
+    const row = Number(issue.row) - 1;
+    const edits = [];
+    for (let col = Number(issue.actual); col < Number(issue.expected); col++) {
+      edits.push({ row, col, value: "" });
+    }
+    return edits;
+  }
+  return [];
+}
+
+async function applyProfileQuickFix(issue, fixID) {
+  if (!documentId || readOnly) {
+    status.textContent = readOnly ? "Read-only mode blocks quick fixes." : "Open a file before applying fixes.";
+    return;
+  }
+  const edits = profileQuickFixEdits(issue, fixID);
+  if (!edits.length) {
+    status.textContent = "No safe quick fix is available for this issue.";
+    return;
+  }
+  try {
+    const response = await fetch("/api/edit-batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId, edits }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "quick fix failed");
+    dirty = true;
+    profileData = null;
+    rows = new Map();
+    rowSource = new Map();
+    windowStart = 0;
+    windowEnd = 0;
+    windowGeneration++;
+    const row = issueDisplayRow(issue);
+    await maybeLoadWindow(row);
+    applyEditsToLoadedRows(edits);
+    if (fixID === "header.fill" && issue?.col) {
+      const sourceCol = Number(issue.col) - 1;
+      const name = `Column ${Number(issue.col)}`;
+      for (const column of allColumns) {
+        if (column.sourceCol === sourceCol) column.name = name;
+      }
+      for (const column of columns) {
+        if (column.sourceCol === sourceCol) column.name = name;
+      }
+    }
+    draw();
+    document.body.dataset.profileQuickFix = `${fixID}:${edits.length}`;
+    status.textContent = `Applied quick fix to ${formatCount(edits.length)} cells.`;
+    await loadProfile(true);
+  } catch (error) {
+    status.textContent = `Quick fix failed: ${error.message}`;
+  }
 }
 
 function openDiffPanel() {
@@ -11340,6 +11544,16 @@ async function openInitialURLTarget() {
       if (truthyParam(params.get("sqlRun"))) {
         await runSQLQuery();
       }
+    } else {
+      const profileSchemaParam = params.get("profileSchema");
+      if (profileSchemaParam != null) {
+        profileSchemaText = profileSchemaParam;
+        profileSchemaVisible = true;
+        syncProfileSchemaControls();
+      }
+      if (profileSchemaParam != null || truthyParam(params.get("profileRun"))) {
+        await openProfilePanel();
+      }
     }
   } catch (error) {
     status.textContent = `Open failed: ${error.message}`;
@@ -11494,6 +11708,11 @@ sqlTabButton.addEventListener("click", () => {
   if (!sqlTabButton.disabled) setViewMode("sql");
 });
 profileTabButton.addEventListener("click", openProfilePanel);
+runProfileButton.addEventListener("click", () => loadProfile(true));
+toggleProfileSchemaButton.addEventListener("click", toggleProfileSchemaEditor);
+profileSchemaInput.addEventListener("input", updateProfileSchemaDraft);
+saveProfileSchemaButton.addEventListener("click", saveProfileSchema);
+resetProfileSchemaButton.addEventListener("click", resetProfileSchema);
 settingsTabButton.addEventListener("click", openSettingsPanel);
 paletteButton.addEventListener("click", openCommandPalette);
 copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));

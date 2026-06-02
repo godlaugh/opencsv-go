@@ -566,11 +566,13 @@ The app shall validate:
 - Duplicate headers.
 - Empty headers.
 - Type-profile anomalies.
+- User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, and numeric ranges.
 
 Acceptance:
 
 - Problems panel lists issue type, row, column, message.
 - Clicking issue navigates to location.
+- Safe quick fixes can repair straightforward structural issues such as empty generated headers and short ragged rows without guessing semantic data changes.
 
 ### FR-015 Clipboard and Export
 

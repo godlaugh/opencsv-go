@@ -115,6 +115,8 @@ flowchart TD
 - `pkg/dataprofile`
   - Column profile metrics: dominant type, nulls, distinct count, min/max, numeric sum/average, and top values.
   - Data quality issues: empty headers, duplicate headers, ragged rows, and type anomalies.
+  - User-supplied schema rules for required values, primitive type checks, uniqueness, enum values, regular-expression patterns, and numeric ranges.
+  - Issue metadata includes source location, rule name, actual/expected widths for ragged rows, and safe quick-fix descriptors where available.
   - Shared result model for `/api/profile`, the Profile view, and future CSVLint-compatible validation.
 
 - `pkg/clipboard`
@@ -125,7 +127,8 @@ flowchart TD
 
 - `web Profile View`
   - Summary, column profile table, issue table, and inspector integration.
-  - First visual surface for validation work before full schema/rule editing exists.
+  - Schema JSON editor with local save/reset controls and URL boot support via `profileSchema=` plus `profileRun=1`.
+  - Problems rows navigate back to the grid selection, and safe quick-fix buttons dispatch through the existing edit-batch mutation path.
 
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
@@ -713,6 +716,7 @@ Output:
 - Restore From Backup materializes a selected timestamped backup into the current session, marks it dirty, and keeps the backing file unchanged until Save.
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
+- Profile validation can run saved or URL-supplied schema rules and quick-fix short ragged rows through edit-batch mutations.
 - Command Palette can search and execute an enabled command.
 - Command Palette fuzzy search ranks `Profile` first for `pf`, and empty-query results prioritize recently executed commands.
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move/hide row/column commands without modifying the original file before Save.
