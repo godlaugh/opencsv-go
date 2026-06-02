@@ -142,6 +142,10 @@ flowchart TD
   - Local allow-list for safe custom cell-link protocols.
   - Trusted standard schemes remain built in, unsafe schemes are always blocked, and unknown custom schemes stay disabled until allowed in Settings.
 
+- `web Settings`
+  - Section-level search over settings categories, controls, summaries, saved views, and format presets.
+  - Empty-state feedback when no settings section matches.
+
 - `web Start / Recent Files`
   - Sidebar start surface with path-input focus and browser file-picker quick actions.
   - Local recent file persistence for path-opened files.

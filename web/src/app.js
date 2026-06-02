@@ -104,6 +104,7 @@ const profileColumns = document.querySelector("#profileColumns");
 const profileIssues = document.querySelector("#profileIssues");
 const settingsPanel = document.querySelector("#settingsPanel");
 const settingsSearch = document.querySelector("#settingsSearch");
+const settingsEmpty = document.querySelector("#settingsEmpty");
 const settingsModifiedBadge = document.querySelector("#settingsModifiedBadge");
 const settingsQuoteSummary = document.querySelector("#settingsQuoteSummary");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
@@ -1632,11 +1633,12 @@ function renderSettingsPanel() {
   document.body.dataset.settingsVisiblePresetCount = String(visiblePresets.length);
   if (visiblePresets.length === 0) {
     settingsPresetList.append(emptySettingsNode(presets.length ? "No matching presets" : "No format presets saved"));
-    return;
+  } else {
+    for (const preset of visiblePresets) {
+      settingsPresetList.append(formatPresetSettingsRow(preset));
+    }
   }
-  for (const preset of visiblePresets) {
-    settingsPresetList.append(formatPresetSettingsRow(preset));
-  }
+  filterSettingsSections(query);
 }
 
 function renderSavedViewSettingsList(filters, sorts, query) {
@@ -1658,6 +1660,25 @@ function renderSavedViewSettingsList(filters, sorts, query) {
   }
   for (const entry of visible) {
     settingsSavedViewList.append(savedViewSettingsRow(entry.kind, entry.item));
+  }
+}
+
+function filterSettingsSections(query) {
+  if (!settingsPanel) return;
+  const sections = Array.from(settingsPanel.querySelectorAll(".settings-section"));
+  const visibleLabels = [];
+  for (const section of sections) {
+    const label = section.getAttribute("aria-label") || "";
+    const text = `${label} ${section.textContent}`.toLowerCase();
+    const visible = !query || text.includes(query);
+    section.hidden = !visible;
+    if (visible) visibleLabels.push(label);
+  }
+  document.body.dataset.settingsVisibleSectionCount = String(visibleLabels.length);
+  document.body.dataset.settingsVisibleSections = visibleLabels.join("|");
+  if (settingsEmpty) {
+    settingsEmpty.hidden = visibleLabels.length > 0;
+    settingsEmpty.textContent = query ? `No settings match "${settingsSearch.value.trim()}".` : "No matching settings";
   }
 }
 

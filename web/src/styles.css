@@ -640,6 +640,16 @@ button:disabled {
   display: none;
 }
 
+.settings-empty {
+  padding: 16px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-empty[hidden] {
+  display: none;
+}
+
 .settings-import-panel textarea {
   width: 100%;
   min-height: 112px;
