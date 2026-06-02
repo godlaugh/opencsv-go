@@ -685,6 +685,8 @@ const quoteRulesExportKind = "opencsv-quote-rules";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const scrollPositionsStorageKey = "opencsv-scroll-positions";
 const scrollPositionsLimit = 32;
+const hiddenColumnsStorageKey = "opencsv-hidden-columns";
+const hiddenColumnsLimit = 64;
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
 const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
@@ -945,6 +947,66 @@ function restoreScrollPosition() {
   document.body.dataset.scrollPositionRestored = `${Math.round(scrollX)}:${Math.round(scrollY)}`;
   updateScrollPositionDataset();
   return true;
+}
+
+function hiddenColumnsKey() {
+  const path = metadata?.path || activeFileEntry?.detail || "";
+  return path && path !== "temporary upload" ? path : "";
+}
+
+function hiddenColumnStates() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(hiddenColumnsStorageKey) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function normalizedHiddenColumnList(columnsList) {
+  const sourceColumns = new Set(allColumns.map((column) => column.sourceCol));
+  const seen = new Set();
+  const result = [];
+  for (const value of columnsList ?? []) {
+    const sourceCol = Number(value);
+    if (!Number.isInteger(sourceCol) || sourceCol < 0 || !sourceColumns.has(sourceCol) || seen.has(sourceCol)) {
+      continue;
+    }
+    seen.add(sourceCol);
+    result.push(sourceCol);
+  }
+  result.sort((a, b) => a - b);
+  return result.length >= allColumns.length ? [] : result;
+}
+
+function restoreHiddenColumnsState() {
+  const key = hiddenColumnsKey();
+  if (!documentId || !key) {
+    delete document.body.dataset.hiddenColumnsRestored;
+    return new Set();
+  }
+  const entry = hiddenColumnStates().find((item) => item?.path === key);
+  const columnsList = normalizedHiddenColumnList(entry?.columns);
+  if (!columnsList.length) {
+    delete document.body.dataset.hiddenColumnsRestored;
+    return new Set();
+  }
+  document.body.dataset.hiddenColumnsRestored = columnsList.join(",");
+  return new Set(columnsList);
+}
+
+function saveHiddenColumnsState() {
+  const key = hiddenColumnsKey();
+  if (!documentId || !key) return;
+  const columnsList = normalizedHiddenColumnList(Array.from(hiddenSourceColumns));
+  const rest = hiddenColumnStates().filter((item) => item?.path && item.path !== key);
+  const next = columnsList.length
+    ? [{ path: key, columns: columnsList, updatedAt: Date.now() }, ...rest].slice(0, hiddenColumnsLimit)
+    : rest.slice(0, hiddenColumnsLimit);
+  localStorage.setItem(hiddenColumnsStorageKey, JSON.stringify(next));
+  delete document.body.dataset.hiddenColumnsRestored;
+  document.body.dataset.hiddenColumnsPersisted = columnsList.join(",");
+  document.body.dataset.hiddenColumnsKey = key;
 }
 
 function applyVerticalWheelDelta(deltaY) {
@@ -1607,6 +1669,8 @@ function syncHiddenColumnControls() {
   columnShowAll.disabled = !documentId || count === 0;
   document.body.dataset.hiddenColumns = hidden.join(",");
   document.body.dataset.hiddenColumnCount = documentId ? String(count) : "0";
+  document.body.dataset.hiddenColumnsKey = documentId ? hiddenColumnsKey() : "";
+  document.body.dataset.hiddenColumnsPersisted = hidden.join(",");
 }
 
 function setStructureClipboard(kind, sources, cut = false) {
@@ -6839,7 +6903,7 @@ function loadDocument(document) {
   aggregateRows = [];
   syncTotalRows();
   allColumns = buildColumns(document);
-  hiddenSourceColumns = new Set();
+  hiddenSourceColumns = restoreHiddenColumnsState();
   applyHiddenColumns();
   selected = { row: 0, col: 0 };
   selectionAnchor = { row: 0, col: 0 };
@@ -9346,6 +9410,7 @@ async function clearView() {
   clearActiveFilter();
   hiddenSourceColumns = new Set();
   applyHiddenColumns();
+  saveHiddenColumnsState();
   rows = new Map();
   rowSource = new Map();
   aggregateRows = [];
@@ -9593,6 +9658,7 @@ function hideSelectedColumn() {
   const sourceCol = sourceColFor(selected.col);
   hiddenSourceColumns.add(sourceCol);
   applyHiddenColumns();
+  saveHiddenColumnsState();
   const nextCol = Math.max(0, Math.min(columns.length - 1, selected.col));
   selected = { row: selected.row, col: nextCol };
   selectionAnchor = { ...selected };
@@ -9612,6 +9678,7 @@ function showAllHiddenColumns() {
   const sourceCol = sourceColFor(selected.col);
   hiddenSourceColumns = new Set();
   applyHiddenColumns();
+  saveHiddenColumnsState();
   const visibleCol = visibleColForSource(sourceCol);
   selected = {
     row: Math.max(0, Math.min(totalRows - 1, selected.row)),

@@ -198,6 +198,7 @@ flowchart TD
   - Format visibility in status/Inspector: encoding, delimiter, line ending, header mode, quote policy, and selected-cell quote state.
   - Per-cell quote indicators for values that will be quoted by the current minimal save policy.
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
+  - Hidden source-column state persists per local file path and is restored on reopen while rejecting stale or all-hidden column sets.
   - Recent and saved filter dropdown for replaying toolbar, SQL, value-checklist, and saved filter expressions without retyping.
   - Length-based column sort entry point and frontend sort-mode inference for numeric/date-looking columns.
   - Column value checklist inside the header quick menu.

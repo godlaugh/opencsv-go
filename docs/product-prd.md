@@ -305,7 +305,7 @@ The app shall render a spreadsheet-like grid with:
 - Selected cell/range visibility in light and dark themes.
 - Column resize.
 - Column reorder.
-- Column hide/show.
+- Column hide/show with per-file hidden-column persistence.
 - Quote indicators for cells that will be quoted on save.
 - Scroll position persistence per file.
 - Open hyperlink command for URL-like cell values.
