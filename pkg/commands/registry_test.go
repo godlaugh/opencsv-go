@@ -22,6 +22,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"settings.keyboardShortcuts",
 		"settings.exportShortcuts",
 		"settings.importShortcuts",
+		"settings.checkForUpdates",
 		"workbench.splitEditor",
 		"workbench.toggleSplitOrientation",
 		"workbench.focusNextGroup",

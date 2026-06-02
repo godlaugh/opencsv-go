@@ -1639,6 +1639,19 @@ func TestServerCommands(t *testing.T) {
 	}
 }
 
+func TestServerUpdateCheck(t *testing.T) {
+	payload := getJSON(t, New(t.TempDir()).Handler(), "/api/update-check?source=startup")
+	if payload["source"] != "startup" {
+		t.Fatalf("source = %#v, payload %#v", payload["source"], payload)
+	}
+	if payload["status"] != "offline" {
+		t.Fatalf("status = %#v, payload %#v", payload["status"], payload)
+	}
+	if payload["checkedAt"] == "" {
+		t.Fatalf("missing checkedAt in %#v", payload)
+	}
+}
+
 func TestServerDiff(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")

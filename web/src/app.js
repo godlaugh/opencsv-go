@@ -151,6 +151,11 @@ const resetThemePreferenceButton = document.querySelector("#resetThemePreference
 const settingsRefreshSummary = document.querySelector("#settingsRefreshSummary");
 const autoRefreshModeSelect = document.querySelector("#autoRefreshModeSelect");
 const resetAutoRefreshButton = document.querySelector("#resetAutoRefreshButton");
+const settingsUpdateSummary = document.querySelector("#settingsUpdateSummary");
+const updateCheckModeSelect = document.querySelector("#updateCheckModeSelect");
+const checkForUpdatesButton = document.querySelector("#checkForUpdatesButton");
+const resetUpdateChecksButton = document.querySelector("#resetUpdateChecksButton");
+const updateCheckResult = document.querySelector("#updateCheckResult");
 const settingsLinkSummary = document.querySelector("#settingsLinkSummary");
 const customLinkProtocolsInput = document.querySelector("#customLinkProtocolsInput");
 const applyCustomLinkProtocolsButton = document.querySelector("#applyCustomLinkProtocolsButton");
@@ -305,6 +310,10 @@ const scrollPositionsLimit = 32;
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
 const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
+const updateCheckStorageKey = "opencsv-update-check-mode";
+const updateCheckResultStorageKey = "opencsv-update-check-result";
+const defaultUpdateCheckMode = "manual";
+const updateCheckModes = ["automatic", "manual", "off"];
 const blockedLinkProtocols = new Set(["javascript:", "data:", "vbscript:", "blob:", "about:"]);
 const trustedLinkProtocols = new Set(["http:", "https:", "mailto:", "file:"]);
 const customLinkProtocolsStorageKey = "opencsv-custom-link-protocols";
@@ -411,12 +420,15 @@ let quotePolicyDraftDirty = false;
 const themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let themePreference = normalizeThemePreference(localStorage.getItem(themeStorageKey));
 let autoRefreshMode = normalizeAutoRefreshMode(localStorage.getItem(autoRefreshStorageKey));
+let updateCheckMode = normalizeUpdateCheckMode(localStorage.getItem(updateCheckStorageKey));
+let updateCheckState = loadUpdateCheckState();
 let filterHistoryLimit = normalizeFilterHistoryLimit(localStorage.getItem(filterHistoryLimitStorageKey));
 let themeColors = {};
 let editorAppearance = loadEditorAppearance();
 
 initializeTheme();
 setAutoRefreshMode(autoRefreshMode, false);
+setUpdateCheckMode(updateCheckMode, false);
 applyEditorAppearance(editorAppearance, false);
 
 function resize() {
@@ -675,6 +687,145 @@ function resetAutoRefreshMode() {
   setAutoRefreshMode(defaultAutoRefreshMode);
   renderSettingsPanel();
   status.textContent = "External change refresh reset.";
+}
+
+function normalizeUpdateCheckMode(value) {
+  return updateCheckModes.includes(value) ? value : defaultUpdateCheckMode;
+}
+
+function updateCheckModeLabel(mode = updateCheckMode) {
+  const labels = {
+    automatic: "Automatic checks",
+    manual: "Manual only",
+    off: "Off",
+  };
+  return labels[mode] || labels[defaultUpdateCheckMode];
+}
+
+function loadUpdateCheckState() {
+  try {
+    return JSON.parse(localStorage.getItem(updateCheckResultStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveUpdateCheckState(state) {
+  updateCheckState = { ...state };
+  try {
+    localStorage.setItem(updateCheckResultStorageKey, JSON.stringify(updateCheckState));
+  } catch {
+    status.textContent = "Update check result could not be saved.";
+  }
+}
+
+function setUpdateCheckMode(mode, persist = true) {
+  updateCheckMode = normalizeUpdateCheckMode(mode);
+  if (persist) {
+    localStorage.setItem(updateCheckStorageKey, updateCheckMode);
+  }
+  document.body.dataset.updateCheckMode = updateCheckMode;
+  syncUpdateCheckControls();
+}
+
+function updateCheckModeModified() {
+  return updateCheckMode !== defaultUpdateCheckMode;
+}
+
+function syncUpdateCheckControls() {
+  if (!updateCheckModeSelect) return;
+  updateCheckModeSelect.value = updateCheckMode;
+  const last = updateCheckState?.checkedAt ? ` · last ${new Date(updateCheckState.checkedAt).toLocaleString()}` : "";
+  settingsUpdateSummary.textContent = `${updateCheckModeLabel()}${last}`;
+  const checksDisabled = updateCheckMode === "off";
+  checkForUpdatesButton.disabled = checksDisabled;
+  checkForUpdatesButton.setAttribute("aria-disabled", String(checksDisabled));
+  resetUpdateChecksButton.disabled = !updateCheckModeModified() && !updateCheckState?.checkedAt;
+  if (updateCheckResult) {
+    updateCheckResult.textContent = updateCheckState?.message || "No update check has run.";
+  }
+  document.body.dataset.updateCheckSummary = settingsUpdateSummary.textContent;
+  document.body.dataset.updateCheckLastSource = updateCheckState?.source || "";
+  document.body.dataset.updateCheckLastStatus = updateCheckState?.status || "";
+  document.body.dataset.updateCheckCount = String(Number(document.body.dataset.updateCheckCount || "0"));
+}
+
+function updateUpdateCheckModeFromSettings() {
+  setUpdateCheckMode(updateCheckModeSelect.value);
+  renderSettingsPanel();
+  if (updateCheckMode === "automatic") {
+    status.textContent = "Startup update checks are enabled.";
+  } else if (updateCheckMode === "manual") {
+    status.textContent = "Update checks run manually only.";
+  } else {
+    status.textContent = "Update checks are off.";
+  }
+}
+
+function resetUpdateCheckMode() {
+  setUpdateCheckMode(defaultUpdateCheckMode);
+  updateCheckState = {};
+  localStorage.removeItem(updateCheckResultStorageKey);
+  syncUpdateCheckControls();
+  renderSettingsPanel();
+  status.textContent = "Update checks reset.";
+}
+
+async function checkForUpdates(source = "manual") {
+  if (updateCheckMode === "off") {
+    document.body.dataset.updateCheckSkipped = `${source}:off`;
+    status.textContent = "Update checks are off.";
+    syncUpdateCheckControls();
+    return;
+  }
+  document.body.dataset.updateCheckInFlight = source;
+  try {
+    const response = await fetch(`/api/update-check?source=${encodeURIComponent(source)}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "update check failed");
+    const nextState = {
+      status: payload.status || "unknown",
+      source: payload.source || source,
+      currentVersion: payload.currentVersion || "",
+      latestVersion: payload.latestVersion || "",
+      checkedAt: payload.checkedAt || new Date().toISOString(),
+      message: payload.message || "Update check completed.",
+    };
+    saveUpdateCheckState(nextState);
+    document.body.dataset.updateCheckCount = String(Number(document.body.dataset.updateCheckCount || "0") + 1);
+    document.body.dataset.updateCheckSkipped = "";
+    if (source !== "startup") {
+      status.textContent = "Update check completed.";
+    }
+  } catch (error) {
+    const nextState = {
+      status: "error",
+      source,
+      checkedAt: new Date().toISOString(),
+      message: `Update check failed: ${error.message}`,
+    };
+    saveUpdateCheckState(nextState);
+    if (source !== "startup") {
+      status.textContent = nextState.message;
+    }
+  } finally {
+    document.body.dataset.updateCheckInFlight = "";
+    syncUpdateCheckControls();
+    if (viewMode === "settings") renderSettingsPanel();
+  }
+}
+
+function maybeRunStartupUpdateCheck() {
+  if (updateCheckMode !== "automatic") {
+    document.body.dataset.updateStartupCheck = `skipped:${updateCheckMode}`;
+    document.body.dataset.updateCheckSkipped = `startup:${updateCheckMode}`;
+    syncUpdateCheckControls();
+    return;
+  }
+  document.body.dataset.updateStartupCheck = "running";
+  checkForUpdates("startup").then(() => {
+    document.body.dataset.updateStartupCheck = "completed";
+  });
 }
 
 function normalizeFilterHistoryLimit(value) {
@@ -1436,6 +1587,8 @@ function applyCommandMetadata() {
       button.textContent = "Export";
     } else if (button.dataset.command === "settings.importShortcuts") {
       button.textContent = "Import";
+    } else if (button.dataset.command === "settings.checkForUpdates") {
+      button.textContent = "Check Now";
     } else if (button.dataset.command === "view.exportSavedSets") {
       button.textContent = "Export Views";
     } else if (button.dataset.command === "view.importSavedSets") {
@@ -1493,6 +1646,7 @@ function isCommandDisabled(command) {
   const needsHiddenColumn = command.id === "column.showAll";
   const needsRowClipboard = command.id === "row.paste";
   const needsColumnClipboard = command.id === "column.paste";
+  const needsUpdateChecksEnabled = command.id === "settings.checkForUpdates";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -1573,6 +1727,7 @@ function isCommandDisabled(command) {
     (needsRowClipboard && !structureClipboardFor("row")) ||
     (needsColumnClipboard && !structureClipboardFor("column")) ||
     (needsSelectedCells && selectionCellCount() === 0) ||
+    (needsUpdateChecksEnabled && updateCheckMode === "off") ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -2008,6 +2163,7 @@ function renderSettingsPanel() {
   if (!settingsPresetList) return;
   syncThemeControls();
   syncAutoRefreshControls();
+  syncUpdateCheckControls();
   syncFilterHistoryControls();
   syncCustomLinkProtocolControls();
   syncQuotePolicyControls();
@@ -2020,7 +2176,7 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || updateCheckModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
@@ -4540,6 +4696,9 @@ async function executeCommand(commandID) {
       break;
     case "settings.importShortcuts":
       showShortcutImportPanel();
+      break;
+    case "settings.checkForUpdates":
+      await checkForUpdates("manual");
       break;
     case "workbench.toggleTheme":
       cycleTheme();
@@ -10941,6 +11100,9 @@ themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
 resetThemePreferenceButton.addEventListener("click", resetThemePreference);
 autoRefreshModeSelect.addEventListener("change", updateAutoRefreshModeFromSettings);
 resetAutoRefreshButton.addEventListener("click", resetAutoRefreshMode);
+updateCheckModeSelect.addEventListener("change", updateUpdateCheckModeFromSettings);
+checkForUpdatesButton.addEventListener("click", () => executeCommand("settings.checkForUpdates"));
+resetUpdateChecksButton.addEventListener("click", resetUpdateCheckMode);
 filterHistoryLimitSelect.addEventListener("change", updateFilterHistoryLimitFromSettings);
 clearRecentFiltersButton.addEventListener("click", clearRecentFilters);
 applyCustomLinkProtocolsButton.addEventListener("click", updateCustomLinkProtocolsFromSettings);
@@ -11323,3 +11485,4 @@ renderFormatPresetSelect();
 refreshFilterDropdown();
 renderSettingsPanel();
 openInitialURLTarget();
+maybeRunStartupUpdateCheck();

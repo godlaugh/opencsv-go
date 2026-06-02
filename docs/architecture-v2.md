@@ -51,6 +51,7 @@ flowchart TD
 - `pkg/appserver`
   - Local HTTP API for browser prototype.
   - Static file serving.
+  - Local update-check endpoint for Settings/manual check workflows; remote signed update feeds remain a desktop-shell concern.
 
 ### Implemented in Current Prototype
 
@@ -147,6 +148,7 @@ flowchart TD
   - Section-level search over settings categories, controls, summaries, saved views, and format presets.
   - Empty-state feedback when no settings section matches.
   - Saved/recent filter controls share the saved-view settings section, including configurable recent-filter retention and clear-history action.
+  - Update check mode controls for automatic, manual-only, and off states, with startup checks gated by the persisted mode.
 
 - `web Start / Recent Files`
   - Sidebar start surface with path-input focus and browser file-picker quick actions.

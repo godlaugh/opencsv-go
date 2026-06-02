@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/opencsv/opencsv/pkg/commands"
 	"github.com/opencsv/opencsv/pkg/csvcore"
@@ -42,6 +43,7 @@ func (server *Server) Handler() http.Handler {
 func (server *Server) routes() {
 	server.mux.HandleFunc("GET /api/health", server.handleHealth)
 	server.mux.HandleFunc("GET /api/commands", server.handleCommands)
+	server.mux.HandleFunc("GET /api/update-check", server.handleUpdateCheck)
 	server.mux.HandleFunc("POST /api/open", server.handleOpen)
 	server.mux.HandleFunc("POST /api/file-sample", server.handleFileSample)
 	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
@@ -98,6 +100,21 @@ func (server *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (server *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"commands": commands.Registry()})
+}
+
+func (server *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	source := r.URL.Query().Get("source")
+	if source == "" {
+		source = "manual"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":         "offline",
+		"source":         source,
+		"currentVersion": "dev",
+		"latestVersion":  "dev",
+		"checkedAt":      time.Now().UTC().Format(time.RFC3339),
+		"message":        "No remote update feed is configured for the local prototype.",
+	})
 }
 
 type openRequest struct {

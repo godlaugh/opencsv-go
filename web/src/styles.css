@@ -714,6 +714,7 @@ button:disabled {
 .settings-policy-grid,
 .settings-theme-grid,
 .settings-refresh-grid,
+.settings-update-grid,
 .settings-link-grid,
 .settings-appearance-grid,
 .settings-filter-history-grid,
@@ -727,6 +728,7 @@ button:disabled {
 .settings-policy-grid label,
 .settings-theme-grid label,
 .settings-refresh-grid label,
+.settings-update-grid label,
 .settings-link-grid label,
 .settings-appearance-grid label,
 .settings-filter-history-grid label {
@@ -740,6 +742,7 @@ button:disabled {
 .settings-policy-grid select,
 .settings-theme-grid select,
 .settings-refresh-grid select,
+.settings-update-grid select,
 .settings-link-grid input,
 .settings-appearance-grid select,
 .settings-appearance-grid input,
@@ -756,6 +759,7 @@ button:disabled {
 .settings-policy-grid button,
 .settings-theme-grid button,
 .settings-refresh-grid button,
+.settings-update-grid button,
 .settings-link-grid button,
 .settings-appearance-grid button,
 .settings-filter-history-grid button {
@@ -940,6 +944,12 @@ button:disabled {
 #clearSqlHistoryButton {
   height: 28px;
   border-radius: 6px;
+}
+
+.settings-update-result {
+  padding: 0 12px 12px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .diff-editor-row {

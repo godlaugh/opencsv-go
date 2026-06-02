@@ -224,6 +224,25 @@
                 <button id="resetAutoRefreshButton" type="button">Reset Refresh</button>
               </div>
             </section>
+            <section class="settings-section settings-update-section" aria-label="Updates">
+              <header>
+                <strong>Updates</strong>
+                <span id="settingsUpdateSummary">Manual only</span>
+              </header>
+              <div class="settings-update-grid">
+                <label>
+                  <span>Checks</span>
+                  <select id="updateCheckModeSelect" aria-label="Update check mode">
+                    <option value="automatic">Automatic checks</option>
+                    <option value="manual">Manual only</option>
+                    <option value="off">Off</option>
+                  </select>
+                </label>
+                <button id="checkForUpdatesButton" type="button" data-command="settings.checkForUpdates">Check Now</button>
+                <button id="resetUpdateChecksButton" type="button">Reset Updates</button>
+              </div>
+              <div id="updateCheckResult" class="settings-update-result" aria-live="polite">No update check has run.</div>
+            </section>
             <section class="settings-section settings-link-section" aria-label="Link protocols">
               <header>
                 <strong>Link Protocols</strong>
