@@ -556,6 +556,7 @@ button:disabled {
 .settings-policy-grid,
 .settings-theme-grid,
 .settings-refresh-grid,
+.settings-link-grid,
 .settings-appearance-grid,
 .quote-rule-grid {
   display: grid;
@@ -567,6 +568,7 @@ button:disabled {
 .settings-policy-grid label,
 .settings-theme-grid label,
 .settings-refresh-grid label,
+.settings-link-grid label,
 .settings-appearance-grid label {
   display: grid;
   gap: 5px;
@@ -578,6 +580,7 @@ button:disabled {
 .settings-policy-grid select,
 .settings-theme-grid select,
 .settings-refresh-grid select,
+.settings-link-grid input,
 .settings-appearance-grid select,
 .settings-appearance-grid input {
   height: 30px;
@@ -592,6 +595,7 @@ button:disabled {
 .settings-policy-grid button,
 .settings-theme-grid button,
 .settings-refresh-grid button,
+.settings-link-grid button,
 .settings-appearance-grid button {
   align-self: end;
   min-height: 30px;

@@ -138,6 +138,10 @@ flowchart TD
   - System color-scheme listener while preference is `system`.
   - CSS design tokens shared by DOM controls and Canvas grid rendering.
 
+- `web Link Policy`
+  - Local allow-list for safe custom cell-link protocols.
+  - Trusted standard schemes remain built in, unsafe schemes are always blocked, and unknown custom schemes stay disabled until allowed in Settings.
+
 - `web Start / Recent Files`
   - Sidebar start surface with path-input focus and browser file-picker quick actions.
   - Local recent file persistence for path-opened files.
@@ -675,6 +679,7 @@ Output:
 - Column header quick menu can append a secondary sort key and report the composed sort order.
 - Column header value checklist can load distinct values with counts and filter by multiple selected values.
 - Cell Value panel follows the active cell, applies edits through `/api/edit`, respects read-only mode, and exposes URL-like cell values as links.
+- Link protocol Settings can allow or reset custom cell-link protocols without enabling unsafe schemes.
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns for the whole table, or transposes one rectangular selected range through batch edits; both paths mark the document dirty and remain undoable.

@@ -124,6 +124,10 @@ const resetThemePreferenceButton = document.querySelector("#resetThemePreference
 const settingsRefreshSummary = document.querySelector("#settingsRefreshSummary");
 const autoRefreshModeSelect = document.querySelector("#autoRefreshModeSelect");
 const resetAutoRefreshButton = document.querySelector("#resetAutoRefreshButton");
+const settingsLinkSummary = document.querySelector("#settingsLinkSummary");
+const customLinkProtocolsInput = document.querySelector("#customLinkProtocolsInput");
+const applyCustomLinkProtocolsButton = document.querySelector("#applyCustomLinkProtocolsButton");
+const resetCustomLinkProtocolsButton = document.querySelector("#resetCustomLinkProtocolsButton");
 const settingsAppearanceSummary = document.querySelector("#settingsAppearanceSummary");
 const gridFontSelect = document.querySelector("#gridFontSelect");
 const gridFontSizeInput = document.querySelector("#gridFontSizeInput");
@@ -270,6 +274,8 @@ const defaultAutoRefreshMode = "clean";
 const autoRefreshModes = ["clean", "notify"];
 const blockedLinkProtocols = new Set(["javascript:", "data:", "vbscript:", "blob:", "about:"]);
 const trustedLinkProtocols = new Set(["http:", "https:", "mailto:", "file:"]);
+const customLinkProtocolsStorageKey = "opencsv-custom-link-protocols";
+const defaultCustomLinkProtocols = ["obsidian", "vscode"];
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
 const themePreferences = ["light", "dark", "high-contrast", "system"];
@@ -348,6 +354,7 @@ let readOnly = false;
 let externalFileChanged = false;
 let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
+let customLinkProtocols = loadCustomLinkProtocols();
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
 let cellValueExpanded = false;
@@ -629,6 +636,87 @@ function resetAutoRefreshMode() {
   setAutoRefreshMode(defaultAutoRefreshMode);
   renderSettingsPanel();
   status.textContent = "External change refresh reset.";
+}
+
+function loadCustomLinkProtocols() {
+  try {
+    const stored = localStorage.getItem(customLinkProtocolsStorageKey);
+    if (stored == null) return [...defaultCustomLinkProtocols];
+    const parsed = JSON.parse(stored);
+    const normalized = normalizeCustomLinkProtocols(parsed);
+    return normalized.error ? [...defaultCustomLinkProtocols] : normalized.protocols;
+  } catch {
+    return [...defaultCustomLinkProtocols];
+  }
+}
+
+function normalizeCustomLinkProtocols(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value ?? "").split(/[,\s]+/);
+  const protocols = [];
+  const seen = new Set();
+  for (const item of rawItems) {
+    const protocol = normalizeCustomLinkProtocol(item);
+    if (!protocol) continue;
+    if (blockedLinkProtocols.has(`${protocol}:`)) {
+      return { protocols: [], error: `${protocol} is unsafe and cannot be allowed.` };
+    }
+    if (trustedLinkProtocols.has(`${protocol}:`)) continue;
+    if (!seen.has(protocol)) {
+      seen.add(protocol);
+      protocols.push(protocol);
+    }
+  }
+  return { protocols: protocols.slice(0, 24), error: "" };
+}
+
+function normalizeCustomLinkProtocol(value) {
+  const protocol = String(value ?? "").trim().toLowerCase().replace(/:$/, "");
+  if (!protocol) return "";
+  return /^[a-z][a-z0-9+.-]*$/.test(protocol) ? protocol : "";
+}
+
+function customLinkProtocolLabel() {
+  return customLinkProtocols.length ? customLinkProtocols.join(", ") : "None";
+}
+
+function customLinkProtocolsModified() {
+  return JSON.stringify(customLinkProtocols) !== JSON.stringify(defaultCustomLinkProtocols);
+}
+
+function syncCustomLinkProtocolControls() {
+  if (!customLinkProtocolsInput) return;
+  customLinkProtocolsInput.value = customLinkProtocols.join(", ");
+  settingsLinkSummary.textContent = customLinkProtocolLabel();
+  resetCustomLinkProtocolsButton.disabled = !customLinkProtocolsModified();
+  document.body.dataset.customLinkProtocols = customLinkProtocols.join(",");
+}
+
+function applyCustomLinkProtocols(nextProtocols, announce = true) {
+  customLinkProtocols = [...nextProtocols];
+  localStorage.setItem(customLinkProtocolsStorageKey, JSON.stringify(customLinkProtocols));
+  syncCustomLinkProtocolControls();
+  syncCellLinkState(cellValueInput.value);
+  if (announce) {
+    status.textContent = `Allowed link protocols: ${customLinkProtocolLabel()}`;
+  }
+}
+
+function updateCustomLinkProtocolsFromSettings() {
+  const normalized = normalizeCustomLinkProtocols(customLinkProtocolsInput.value);
+  if (normalized.error) {
+    status.textContent = normalized.error;
+    return;
+  }
+  applyCustomLinkProtocols(normalized.protocols);
+  renderSettingsPanel();
+}
+
+function resetCustomLinkProtocols() {
+  applyCustomLinkProtocols(defaultCustomLinkProtocols);
+  renderSettingsPanel();
+  status.textContent = "Link protocols reset.";
 }
 
 function loadEditorAppearance() {
@@ -1524,6 +1612,7 @@ function renderSettingsPanel() {
   if (!settingsPresetList) return;
   syncThemeControls();
   syncAutoRefreshControls();
+  syncCustomLinkProtocolControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   const presets = formatPresets();
@@ -1533,7 +1622,7 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() ? "Modified" : "Defaults";
+  settingsModifiedBadge.textContent = presets.length || filters.length || sorts.length || editorAppearanceModified() || themePreferenceModified() || autoRefreshModeModified() || customLinkProtocolsModified() ? "Modified" : "Defaults";
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${sorts.length} sorts`;
   resetFormatPresetsButton.disabled = presets.length === 0;
@@ -2480,6 +2569,9 @@ function analyzeCellLink(value) {
   }
   if (protocol === "file:" && !parsed.hostname && !parsed.pathname) {
     return blockedCellLink(text, protocolName, "Missing file path");
+  }
+  if (!trustedLinkProtocols.has(protocol) && !customLinkProtocols.includes(protocolName)) {
+    return blockedCellLink(text, protocolName, "Protocol not allowed");
   }
   return {
     href: candidate,
@@ -10217,6 +10309,8 @@ themePreferenceSelect.addEventListener("change", updateThemeFromSettings);
 resetThemePreferenceButton.addEventListener("click", resetThemePreference);
 autoRefreshModeSelect.addEventListener("change", updateAutoRefreshModeFromSettings);
 resetAutoRefreshButton.addEventListener("click", resetAutoRefreshMode);
+applyCustomLinkProtocolsButton.addEventListener("click", updateCustomLinkProtocolsFromSettings);
+resetCustomLinkProtocolsButton.addEventListener("click", resetCustomLinkProtocols);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
