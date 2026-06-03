@@ -1792,6 +1792,32 @@ button:disabled {
   gap: 10px;
 }
 
+.condition-template-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  border-radius: 6px;
+  background: var(--panel-subtle);
+  padding: 8px;
+}
+
+.condition-template-bar label {
+  min-width: 0;
+}
+
+.condition-template-bar button {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .condition-row {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
@@ -2321,6 +2347,7 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
+  .condition-template-bar,
   .condition-row,
   .condition-row-extra {
     grid-template-columns: 1fr;

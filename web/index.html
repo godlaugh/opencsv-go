@@ -723,6 +723,22 @@
           <button id="closeConditionButton" type="button">Close</button>
         </header>
         <div class="condition-grid">
+          <div class="condition-template-bar" aria-label="Quick filter conditions">
+            <label>
+              <span>Quick Condition</span>
+              <select id="conditionTemplateSelect" aria-label="Quick filter condition">
+                <option value="">Choose template</option>
+                <option value="selectedEquals">Selected cell equals</option>
+                <option value="selectedContains">Selected cell contains</option>
+                <option value="selectedNotEquals">Selected cell not equal</option>
+                <option value="activeBlank">Active column blank</option>
+                <option value="activeNotBlank">Active column not blank</option>
+                <option value="activeTrue">Active column true</option>
+                <option value="activeFalse">Active column false</option>
+              </select>
+            </label>
+            <button id="useConditionTemplateButton" type="button">Use Template</button>
+          </div>
           <fieldset class="condition-row" data-condition-row="primary">
             <legend>Condition 1</legend>
             <label>

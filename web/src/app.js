@@ -271,6 +271,8 @@ const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
+const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
+const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
 const conditionRows = document.querySelector("#conditionRows");
 const closeConditionButton = document.querySelector("#closeConditionButton");
 const addConditionButton = document.querySelector("#addConditionButton");
@@ -5871,6 +5873,8 @@ function openConditionBuilder() {
     conditionColumn.selectedIndex = 0;
   }
   conditionOperator.value = conditionOperator.value || "contains";
+  conditionTemplateSelect.value = "";
+  document.body.dataset.conditionTemplate = "";
   updateConditionValueState();
   conditionPanel.hidden = false;
   conditionValue.focus();
@@ -6096,6 +6100,59 @@ function addConditionRow() {
   renderConditionExtraRows();
   const valueInput = conditionRows.querySelector(".condition-row-extra:last-child .condition-value");
   valueInput?.focus();
+}
+
+function useConditionTemplate() {
+  if (!documentId) return;
+  const template = conditionTemplateSelect.value;
+  if (!template) {
+    status.textContent = "Choose a quick filter condition.";
+    return;
+  }
+  const draft = conditionTemplateDraft(template);
+  if (!draft) return;
+  conditionColumn.value = String(draft.column);
+  conditionOperator.value = draft.operator;
+  conditionValue.value = draft.value ?? "";
+  updateConditionValueState();
+  document.body.dataset.conditionTemplate = `${template}:${columns.find((column) => column.sourceCol === draft.column)?.name || draft.column}:${draft.operator}:${String(draft.value ?? "").slice(0, 80)}`;
+  document.body.dataset.conditionPreview = conditionExpression(draft.column, draft.operator, draft.value ?? "", conditionValue);
+  status.textContent = `Quick condition ready: ${conditionTemplateLabel(template)}.`;
+  conditionValue.focus();
+  if (conditionOperatorNeedsValue(draft.operator)) conditionValue.select();
+}
+
+function conditionTemplateDraft(template) {
+  const activeColumn = sourceColFor(selected.col);
+  if (!Number.isInteger(activeColumn) || activeColumn < 0) {
+    status.textContent = "Select a cell before using a quick condition.";
+    return null;
+  }
+  const value = String(valueAt(selected.row, selected.col) ?? "");
+  switch (template) {
+    case "selectedEquals":
+      return { column: activeColumn, operator: "equals", value };
+    case "selectedContains":
+      return { column: activeColumn, operator: "contains", value };
+    case "selectedNotEquals":
+      return { column: activeColumn, operator: "notEquals", value };
+    case "activeBlank":
+      return { column: activeColumn, operator: "blank", value: "" };
+    case "activeNotBlank":
+      return { column: activeColumn, operator: "notBlank", value: "" };
+    case "activeTrue":
+      return { column: activeColumn, operator: "booleanTrue", value: "" };
+    case "activeFalse":
+      return { column: activeColumn, operator: "booleanFalse", value: "" };
+    default:
+      status.textContent = "Choose a supported quick condition.";
+      return null;
+  }
+}
+
+function conditionTemplateLabel(template) {
+  const option = Array.from(conditionTemplateSelect.options).find((item) => item.value === template);
+  return option?.textContent || template;
 }
 
 function removeConditionRow(index) {
@@ -14421,6 +14478,7 @@ filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
 conditionOperator.addEventListener("change", updateConditionValueState);
+useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 conditionRows.addEventListener("change", updateConditionValueState);
 conditionRows.addEventListener("input", () => {
