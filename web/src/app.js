@@ -3030,7 +3030,7 @@ function renderSettingsPanel() {
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
   settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || localePreferenceModified() || themePreferenceModified() || autoRefreshModeModified() || updateCheckModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? t("settings.modified") : t("settings.defaults");
-  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + (preset.rules?.length ?? 0), 0)} rules`;
+  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
   renderSavedViewSettingsList(filters, sorts, query);
@@ -3164,10 +3164,21 @@ function formatPresetSettingsRow(preset) {
   const header = document.createElement("header");
   const title = document.createElement("strong");
   title.textContent = preset.name || preset.id;
+  const presetRules = normalizeFormatRules(preset.rules);
   const meta = document.createElement("span");
-  meta.textContent = `${formatPresetPreview(preset)} · ${preset.rules?.length ?? 0} rules`;
+  meta.textContent = `${formatPresetPreview(preset)} · ${presetRules.length} rules`;
   const actions = document.createElement("div");
   actions.className = "settings-preset-actions";
+  const presets = formatPresets();
+  const presetIndex = presets.findIndex((item) => item.id === preset.id);
+  const moveUpButton = settingsActionButton("Up");
+  moveUpButton.disabled = presetIndex <= 0;
+  moveUpButton.setAttribute("aria-label", `Move preset ${preset.name || preset.id} up`);
+  moveUpButton.addEventListener("click", () => moveFormatPreset(preset.id, -1));
+  const moveDownButton = settingsActionButton("Down");
+  moveDownButton.disabled = presetIndex < 0 || presetIndex >= presets.length - 1;
+  moveDownButton.setAttribute("aria-label", `Move preset ${preset.name || preset.id} down`);
+  moveDownButton.addEventListener("click", () => moveFormatPreset(preset.id, 1));
   const applyButton = settingsActionButton("Apply");
   applyButton.disabled = !documentId;
   applyButton.addEventListener("click", async () => {
@@ -3176,25 +3187,35 @@ function formatPresetSettingsRow(preset) {
   });
   const deleteButton = settingsActionButton("Delete");
   deleteButton.addEventListener("click", () => deleteFormatPreset(preset.id));
-  actions.append(applyButton, deleteButton);
+  actions.append(moveUpButton, moveDownButton, applyButton, deleteButton);
   header.append(title, meta, actions);
 
   const rules = document.createElement("div");
   rules.className = "settings-rule-list";
-  if ((preset.rules ?? []).length === 0) {
+  if (presetRules.length === 0) {
     const empty = document.createElement("span");
     empty.className = "settings-rule-empty";
     empty.textContent = "No automatic rules";
     rules.append(empty);
   } else {
-    for (const rule of preset.rules) {
+    for (const [ruleIndex, rule] of presetRules.entries()) {
       const item = document.createElement("div");
       item.className = "settings-rule-row";
+      item.dataset.rulePattern = rule.pattern;
+      item.dataset.ruleIndex = String(ruleIndex);
       const label = document.createElement("code");
       label.textContent = rule.pattern;
+      const moveRuleUp = settingsActionButton("Up");
+      moveRuleUp.disabled = ruleIndex === 0;
+      moveRuleUp.setAttribute("aria-label", `Move rule ${rule.pattern} up`);
+      moveRuleUp.addEventListener("click", () => moveFormatRule(preset.id, rule.pattern, -1));
+      const moveRuleDown = settingsActionButton("Down");
+      moveRuleDown.disabled = ruleIndex >= presetRules.length - 1;
+      moveRuleDown.setAttribute("aria-label", `Move rule ${rule.pattern} down`);
+      moveRuleDown.addEventListener("click", () => moveFormatRule(preset.id, rule.pattern, 1));
       const remove = settingsActionButton("Remove");
       remove.addEventListener("click", () => deleteFormatRule(preset.id, rule.pattern));
-      item.append(label, remove);
+      item.append(label, moveRuleUp, moveRuleDown, remove);
       rules.append(item);
     }
   }
@@ -3238,7 +3259,25 @@ function deleteFormatPreset(presetID) {
   const presets = formatPresets().filter((preset) => preset.id !== presetID);
   saveFormatPresets(presets);
   if (formatPresetSelect.value === presetID) formatPresetSelect.value = "";
+  document.body.dataset.formatPresetOrder = presets.map((preset) => preset.id).join("|");
   status.textContent = "Deleted format preset.";
+  updateCommandState();
+}
+
+function moveFormatPreset(presetID, delta) {
+  const presets = formatPresets();
+  const index = presets.findIndex((preset) => preset.id === presetID);
+  const nextIndex = index + delta;
+  if (index < 0 || nextIndex < 0 || nextIndex >= presets.length) {
+    status.textContent = "Format preset order unchanged.";
+    return;
+  }
+  const [preset] = presets.splice(index, 1);
+  presets.splice(nextIndex, 0, preset);
+  saveFormatPresets(presets);
+  formatPresetSelect.value = presetID;
+  document.body.dataset.formatPresetOrder = presets.map((item) => item.id).join("|");
+  status.textContent = `Moved format preset ${nextIndex < index ? "up" : "down"}.`;
   updateCommandState();
 }
 
@@ -3251,7 +3290,37 @@ function deleteFormatRule(presetID, pattern) {
   ));
   saveFormatPresets(presets);
   document.body.dataset.formatRulePreview = `removed:${pattern}`;
+  document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
   status.textContent = `Removed format rule: ${pattern}`;
+}
+
+function moveFormatRule(presetID, pattern, delta) {
+  const key = pattern.toLowerCase();
+  let moved = false;
+  const presets = formatPresets().map((preset) => {
+    const rules = normalizeFormatRules(preset.rules);
+    if (preset.id !== presetID) return { ...preset, rules };
+    const index = rules.findIndex((rule) => formatRuleKey(rule) === key);
+    const nextIndex = index + delta;
+    if (index < 0 || nextIndex < 0 || nextIndex >= rules.length) return { ...preset, rules };
+    const [rule] = rules.splice(index, 1);
+    rules.splice(nextIndex, 0, rule);
+    moved = true;
+    return { ...preset, rules };
+  });
+  if (!moved) {
+    status.textContent = "Format rule order unchanged.";
+    return;
+  }
+  saveFormatPresets(presets);
+  document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
+  status.textContent = `Moved format rule ${delta < 0 ? "up" : "down"}.`;
+  updateCommandState();
+}
+
+function formatRuleOrderSignature(presets, presetID) {
+  const preset = presets.find((item) => item.id === presetID);
+  return normalizeFormatRules(preset?.rules).map((rule) => rule.pattern).join("|");
 }
 
 function addFormatRuleToPreset(presetID, pattern) {
@@ -3268,6 +3337,7 @@ function addFormatRuleToPreset(presetID, pattern) {
   });
   saveFormatPresets(presets);
   document.body.dataset.formatRulePreview = `${formatRuleTarget(normalized.pattern)}:${formatRulePattern(normalized.pattern)}`;
+  document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
   status.textContent = `Added format rule: ${normalized.pattern}`;
 }
 

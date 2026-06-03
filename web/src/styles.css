@@ -865,9 +865,17 @@ button:disabled {
 }
 
 .settings-preset-actions,
-.settings-rule-row,
 .settings-add-rule {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.settings-rule-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
   gap: 6px;
   align-items: center;
   min-width: 0;
@@ -879,7 +887,6 @@ button:disabled {
 }
 
 .settings-rule-row {
-  justify-content: space-between;
   border-radius: 6px;
   background: var(--panel-subtle);
   padding: 6px 8px;

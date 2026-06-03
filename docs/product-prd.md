@@ -560,6 +560,7 @@ The app shall support named presets and automatic rules:
 - Header columns.
 - Line ending.
 - Rule matching by filename/path/content sample.
+- Explicit ordering for presets and rules so overlapping automatic rules are deterministic.
 
 Acceptance:
 
