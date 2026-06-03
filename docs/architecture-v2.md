@@ -138,6 +138,7 @@ flowchart TD
   - Fuzzy command scoring across command ID, title, description, and aliases.
   - Local recent command history shared by palette/toolbar/shortcut dispatch.
   - Keyboard Shortcuts stores backward-compatible string bindings plus object bindings with optional `when` contexts; conflict detection allows the same shortcut in non-overlapping contexts and runtime dispatch checks the active Grid/SQL/Profile/Settings/Diff/typing state.
+  - Official Filter entrypoint uses `Cmd+Shift+F`/`Ctrl+Shift+F` in command metadata and runtime dispatch.
   - Honors implementation status and document requirements.
   - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 

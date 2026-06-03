@@ -13124,13 +13124,13 @@ function handleGlobalShortcut(event) {
     saveCurrentDocument();
     return true;
   }
-  if (key === "f" && defaultShortcutActive("edit.find")) {
+  if (key === "f" && event.shiftKey && defaultShortcutActive("view.filter")) {
     event.preventDefault();
     commandInput.focus();
     commandInput.select();
     return true;
   }
-  if (key === "l" && defaultShortcutActive("view.filter")) {
+  if (key === "f" && !event.shiftKey && defaultShortcutActive("edit.find")) {
     event.preventDefault();
     commandInput.focus();
     commandInput.select();

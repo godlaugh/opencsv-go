@@ -131,3 +131,13 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestOfficialFilterShortcutDefault(t *testing.T) {
+	command, ok := ByID("view.filter")
+	if !ok {
+		t.Fatal("missing view.filter command")
+	}
+	if command.Shortcut != "Cmd+Shift+F" {
+		t.Fatalf("view.filter shortcut = %q, want Cmd+Shift+F", command.Shortcut)
+	}
+}

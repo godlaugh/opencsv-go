@@ -2047,14 +2047,21 @@ func TestServerCommands(t *testing.T) {
 		t.Fatalf("commands payload = %#v", payload)
 	}
 	foundOpen := false
+	foundOfficialFilterShortcut := false
 	for _, item := range commands {
 		command := item.(map[string]any)
 		if command["id"] == "file.open" {
 			foundOpen = true
 		}
+		if command["id"] == "view.filter" && command["shortcut"] == "Cmd+Shift+F" {
+			foundOfficialFilterShortcut = true
+		}
 	}
 	if !foundOpen {
 		t.Fatalf("file.open not found in %#v", commands)
+	}
+	if !foundOfficialFilterShortcut {
+		t.Fatalf("view.filter Cmd+Shift+F shortcut not found in %#v", commands)
 	}
 }
 
