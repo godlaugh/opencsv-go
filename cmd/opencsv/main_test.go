@@ -199,6 +199,41 @@ func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	}
 }
 
+func TestRootOpenParsesOpenCSVURLScheme(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "url.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rawURL := "opencsv://file" + path + ":2:2?Delimiter=comma&QuoteMode=always"
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{rawURL})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if len(invocation.Files) != 1 || invocation.Files[0].Path != path {
+		t.Fatalf("invocation files = %#v", invocation.Files)
+	}
+	if invocation.Files[0].Location != (protocol.Location{StartRow: 2, StartCol: 2}) {
+		t.Fatalf("location = %#v", invocation.Files[0].Location)
+	}
+	if invocation.Files[0].Format.Delimiter != "comma" || invocation.Files[0].Format.QuoteMode != "always" {
+		t.Fatalf("format = %#v", invocation.Files[0].Format)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webURL.Query().Get("open") != path || webURL.Query().Get("goto") != "2:2" || webURL.Query().Get("quotemode") != "always" {
+		t.Fatalf("web URL query = %#v", webURL.Query())
+	}
+}
+
 func TestOpenCLITargetReadsStdin(t *testing.T) {
 	input, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
 	if err != nil {

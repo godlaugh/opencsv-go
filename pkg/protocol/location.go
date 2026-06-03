@@ -67,11 +67,11 @@ func ParseSmoothCSVURL(raw string) (FileTarget, error) {
 	if err != nil {
 		return FileTarget{}, err
 	}
-	if !strings.EqualFold(parsed.Scheme, "smoothcsv") {
+	if !isCSVURLScheme(parsed.Scheme) {
 		return FileTarget{}, fmt.Errorf("unsupported URL scheme %q", parsed.Scheme)
 	}
 	if !strings.EqualFold(parsed.Host, "file") {
-		return FileTarget{}, fmt.Errorf("unsupported SmoothCSV URL host %q", parsed.Host)
+		return FileTarget{}, fmt.Errorf("unsupported CSV URL host %q", parsed.Host)
 	}
 	path, err := url.PathUnescape(parsed.EscapedPath())
 	if err != nil {
@@ -91,6 +91,15 @@ func ParseSmoothCSVURL(raw string) (FileTarget, error) {
 		return FileTarget{}, err
 	}
 	return FileTarget{Path: path, Location: location, Format: format}, nil
+}
+
+func IsCSVURL(raw string) bool {
+	parsed, err := url.Parse(raw)
+	return err == nil && isCSVURLScheme(parsed.Scheme)
+}
+
+func isCSVURLScheme(scheme string) bool {
+	return strings.EqualFold(scheme, "smoothcsv") || strings.EqualFold(scheme, "opencsv")
 }
 
 func splitLocation(value string) (string, Location, error) {

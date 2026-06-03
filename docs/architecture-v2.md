@@ -82,7 +82,7 @@ flowchart TD
   - `CAST`/`TRY_CAST`, exact bigint literals/casts/comparisons, typed temporal/interval literals, temporal interval arithmetic, signed composite interval quantities, interval field precision qualifiers, and documented string/numeric/conditional function subset.
 
 - `pkg/protocol`
-  - `smoothcsv://file/...` deep-link parser.
+  - `smoothcsv://file/...` and `opencsv://file/...` deep-link parser.
   - CLI `--goto` location parser.
   - Row, cell, row-range, and cell-range coordinates.
 - Shared CSV format query parameter parsing, including official case-insensitive URL spellings such as `quotemode`, `lineending`, `headerrows`, and `headercolumns`.
@@ -793,7 +793,7 @@ Output:
 - `--diff` arity and stdin rejection.
 - `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
 - Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`, including official URL aliases for generated Browser routes.
-- `smoothcsv://file/...` URL parsing with format query parameters.
+- `smoothcsv://file/...` and `opencsv://file/...` URL parsing with format query parameters.
 
 ## 8. Immediate Refactor Sequence
 

@@ -192,6 +192,7 @@ CLI:
 URL:
 
 - `smoothcsv://file/path/to/file.csv[:location][?params]`
+- `opencsv://file/path/to/file.csv[:location][?params]`
 - Row/cell/range locations.
 - Delimiter, quote, quote mode, encoding, line ending query params.
 
@@ -507,6 +508,10 @@ Acceptance:
 
 The app shall parse and handle:
 
+- Official SmoothCSV-compatible URLs:
+  - `smoothcsv://file/path/to/file.csv`
+  - `smoothcsv://file/path/to/file.csv:5`
+  - `smoothcsv://file/path/to/file.csv:1:2`
 - `opencsv://file/path/to/file.csv`
 - `opencsv://file/path/to/file.csv:5`
 - `opencsv://file/path/to/file.csv:1:2`

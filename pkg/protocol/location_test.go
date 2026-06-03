@@ -70,6 +70,28 @@ func TestParseSmoothCSVURL(t *testing.T) {
 	}
 }
 
+func TestParseOpenCSVURLNativeScheme(t *testing.T) {
+	target, err := ParseSmoothCSVURL("opencsv://file/tmp/data.csv:5?delimiter=pipe&quotemode=always")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Path != "/tmp/data.csv" {
+		t.Fatalf("path = %q, want /tmp/data.csv", target.Path)
+	}
+	if target.Location != (Location{StartRow: 5}) {
+		t.Fatalf("location = %#v", target.Location)
+	}
+	if target.Format.Delimiter != "pipe" || target.Format.QuoteMode != "always" {
+		t.Fatalf("format = %#v", target.Format)
+	}
+	if !IsCSVURL("opencsv://file/tmp/data.csv") || !IsCSVURL("smoothcsv://file/tmp/data.csv") {
+		t.Fatal("expected both opencsv and smoothcsv schemes to be recognized")
+	}
+	if IsCSVURL("file:///tmp/data.csv") {
+		t.Fatal("file scheme should not be treated as app CSV URL")
+	}
+}
+
 func TestParseSmoothCSVURLOfficialCaseInsensitiveFormatAliases(t *testing.T) {
 	target, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv?Delimiter=pipe&Quote=single&QuoteMode=always&Encoding=UTF-8&LineEnding=crlf&HeaderRows=1&HeaderColumns=1&NoHeader=false")
 	if err != nil {

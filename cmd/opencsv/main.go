@@ -168,7 +168,7 @@ func rootOpen(args []string) error {
 	for _, rawPath := range options.paths {
 		target := protocol.FileTarget{Path: rawPath, Format: options.format}
 		targetFormat := options.format
-		if strings.HasPrefix(strings.ToLower(rawPath), "smoothcsv://") {
+		if protocol.IsCSVURL(rawPath) {
 			parsed, err := protocol.ParseSmoothCSVURL(rawPath)
 			if err != nil {
 				return usageError(err.Error())
