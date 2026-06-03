@@ -158,7 +158,17 @@ func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	}
 
 	output, err := captureStdout(t, func() error {
-		return rootOpen([]string{"--goto", path + ":2:1", "--delimiter", "tab", "--encoding", "utf-8", path})
+		return rootOpen([]string{
+			"--goto", path + ":2:1",
+			"--delimiter", "tab",
+			"--encoding", "utf-8",
+			"--quote", "single",
+			"--quote-mode", "always",
+			"--line-ending", "crlf",
+			"--header-rows", "1",
+			"--header-columns", "1",
+			path,
+		})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +190,12 @@ func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	}
 	if query.Get("delimiter") != "tab" || query.Get("encoding") != "utf-8" {
 		t.Fatalf("format route query = %#v", query)
+	}
+	if query.Get("quote") != "single" || query.Get("quotemode") != "always" || query.Get("lineending") != "crlf" {
+		t.Fatalf("official format route query = %#v", query)
+	}
+	if query.Get("headerrows") != "1" || query.Get("headercolumns") != "1" {
+		t.Fatalf("header format route query = %#v", query)
 	}
 }
 

@@ -70,6 +70,25 @@ func TestParseSmoothCSVURL(t *testing.T) {
 	}
 }
 
+func TestParseSmoothCSVURLOfficialCaseInsensitiveFormatAliases(t *testing.T) {
+	target, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv?Delimiter=pipe&Quote=single&QuoteMode=always&Encoding=UTF-8&LineEnding=crlf&HeaderRows=1&HeaderColumns=1&NoHeader=false")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Format.Delimiter != "pipe" || target.Format.Quote != "single" || target.Format.QuoteMode != "always" || target.Format.Encoding != "UTF-8" || target.Format.LineEnding != "crlf" {
+		t.Fatalf("unexpected official format aliases: %#v", target.Format)
+	}
+	if target.Format.HeaderRows == nil || *target.Format.HeaderRows != 1 {
+		t.Fatalf("header rows = %#v, want 1", target.Format.HeaderRows)
+	}
+	if target.Format.HeaderCols == nil || *target.Format.HeaderCols != 1 {
+		t.Fatalf("header columns = %#v, want 1", target.Format.HeaderCols)
+	}
+	if target.Format.NoHeader == nil || *target.Format.NoHeader {
+		t.Fatalf("no header = %#v, want false", target.Format.NoHeader)
+	}
+}
+
 func TestParseSmoothCSVURLWindowsPath(t *testing.T) {
 	target, err := ParseSmoothCSVURL("smoothcsv://file/C:/Users/me/data.csv:12?delimiter=comma")
 	if err != nil {

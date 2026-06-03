@@ -160,17 +160,17 @@ func parseFormatParams(values url.Values) (FormatParams, error) {
 	params := FormatParams{RawParameter: values}
 	params.Delimiter = first(values, "delimiter", "d")
 	params.Quote = first(values, "quote", "q")
-	params.QuoteMode = first(values, "quote-mode", "quoteMode", "quote_mode", "qm")
+	params.QuoteMode = first(values, "quotemode", "quote-mode", "quoteMode", "quote_mode", "qm")
 	params.Encoding = first(values, "encoding", "e")
-	params.LineEnding = first(values, "line-ending", "lineEnding", "line_ending", "newline", "eol", "le")
-	if raw := first(values, "header-rows", "headerRows"); raw != "" {
+	params.LineEnding = first(values, "lineending", "line-ending", "lineEnding", "line_ending", "newline", "eol", "le")
+	if raw := first(values, "headerrows", "header-rows", "headerRows"); raw != "" {
 		value, err := nonNegativeInt(raw, "header rows")
 		if err != nil {
 			return FormatParams{}, err
 		}
 		params.HeaderRows = &value
 	}
-	if raw := first(values, "header-columns", "headerColumns", "header_cols"); raw != "" {
+	if raw := first(values, "headercolumns", "header-columns", "headerColumns", "header_cols"); raw != "" {
 		value, err := nonNegativeInt(raw, "header columns")
 		if err != nil {
 			return FormatParams{}, err
@@ -184,7 +184,7 @@ func parseFormatParams(values url.Values) (FormatParams, error) {
 		}
 		params.Header = &value
 	}
-	if raw := first(values, "no-header", "noHeader"); raw != "" {
+	if raw := first(values, "noheader", "no-header", "noHeader"); raw != "" {
 		value, err := parseBool(raw, "no-header")
 		if err != nil {
 			return FormatParams{}, err
@@ -209,6 +209,13 @@ func first(values url.Values, names ...string) string {
 	for _, name := range names {
 		if value := values.Get(name); value != "" {
 			return value
+		}
+	}
+	for _, name := range names {
+		for key, value := range values {
+			if strings.EqualFold(key, name) && len(value) > 0 && value[0] != "" {
+				return value[0]
+			}
 		}
 	}
 	return ""

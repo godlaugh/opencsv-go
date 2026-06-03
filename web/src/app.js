@@ -13571,6 +13571,9 @@ function formatOverrideFromParams(params) {
       const value = params.get(name);
       if (value) return value;
     }
+    for (const [key, value] of params.entries()) {
+      if (value && names.some((name) => key.toLowerCase() === name.toLowerCase())) return value;
+    }
     return "";
   };
   const override = {};
@@ -13582,27 +13585,27 @@ function formatOverrideFromParams(params) {
   }
   const quoteChar = firstParam("quote", "q");
   if (quoteChar) override.quoteChar = quoteChar;
-  const quoteMode = firstParam("quote-mode", "quoteMode", "quote_mode", "qm");
+  const quoteMode = firstParam("quotemode", "quote-mode", "quoteMode", "quote_mode", "qm");
   if (quoteMode) override.quoteMode = quoteMode;
   const quoteEscape = firstParam("quote-escape", "quoteEscape", "quote_escape", "qe");
   if (quoteEscape) override.quoteEscape = normalizeQuoteEscapeValue(quoteEscape);
   const encodingName = firstParam("encoding", "e");
   if (encodingName) override.encodingName = encodingName;
-  const lineEnding = firstParam("line-ending", "lineEnding", "line_ending", "newline", "eol", "le");
+  const lineEnding = firstParam("lineending", "line-ending", "lineEnding", "line_ending", "newline", "eol", "le");
   if (lineEnding) override.lineEnding = normalizeLineEndingName(lineEnding);
-  const headerRows = firstParam("header-rows", "headerRows");
+  const headerRows = firstParam("headerrows", "header-rows", "headerRows");
   if (headerRows) {
     const rows = Number.parseInt(headerRows, 10);
     if (Number.isFinite(rows) && rows >= 0) override.hasHeader = rows > 0;
   }
-  const headerColumns = firstParam("header-columns", "headerColumns", "header_cols");
+  const headerColumns = firstParam("headercolumns", "header-columns", "headerColumns", "header_cols");
   if (headerColumns) {
     const cols = Number.parseInt(headerColumns, 10);
     if (Number.isFinite(cols) && cols >= 0) override.headerColumns = cols;
   }
   const header = firstParam("header");
   if (header) override.hasHeader = truthyParam(header);
-  const noHeader = firstParam("no-header", "noHeader");
+  const noHeader = firstParam("noheader", "no-header", "noHeader");
   if (noHeader && truthyParam(noHeader)) override.hasHeader = false;
   const sheetName = firstParam("sheet", "sheetName", "worksheet", "xlsx-sheet");
   if (sheetName) override.sheetName = sheetName;

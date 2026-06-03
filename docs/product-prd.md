@@ -513,12 +513,14 @@ The app shall parse and handle:
 - `opencsv://file/path/to/file.csv:1-5`
 - `opencsv://file/path/to/file.csv:1:2-10:20`
 - Query params for delimiter, quote, quote mode, encoding, line ending.
+- Official URL query aliases such as `quotemode`, `lineending`, `headerrows`, and `headercolumns`, with case-insensitive parameter names.
 
 Acceptance:
 
 - Coordinates are 1-indexed.
 - Windows-style paths are accepted.
 - URL open can jump to target row/cell/range.
+- URL format parameters accept official spelling plus existing dashed/camel/snake aliases.
 
 ### FR-012 Command Palette and Shortcuts
 

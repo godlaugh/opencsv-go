@@ -85,7 +85,7 @@ flowchart TD
   - `smoothcsv://file/...` deep-link parser.
   - CLI `--goto` location parser.
   - Row, cell, row-range, and cell-range coordinates.
-  - Shared CSV format query parameter parsing.
+- Shared CSV format query parameter parsing, including official case-insensitive URL spellings such as `quotemode`, `lineending`, `headerrows`, and `headercolumns`.
 
 - `cmd/opencsv`
   - Developer subcommands for open/inspect/generate/save/serve/bench.
@@ -300,7 +300,7 @@ Input:
 - `path`
 - `previewRows`
 - `indexRows`
-- optional format overrides: delimiter, quote character/mode/escape, encoding, line ending, header rows, header columns.
+- optional format overrides: delimiter, quote character/mode/escape, encoding, line ending, header rows, and header columns, accepting official URL aliases case-insensitively.
 
 Output:
 
@@ -792,7 +792,7 @@ Output:
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
 - `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
-- Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`.
+- Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`, including official URL aliases for generated Browser routes.
 - `smoothcsv://file/...` URL parsing with format query parameters.
 
 ## 8. Immediate Refactor Sequence

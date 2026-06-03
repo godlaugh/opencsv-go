@@ -290,25 +290,25 @@ func addFormatQuery(values url.Values, format protocol.FormatParams) {
 		values.Set("quote", format.Quote)
 	}
 	if format.QuoteMode != "" {
-		values.Set("quote-mode", format.QuoteMode)
+		values.Set("quotemode", format.QuoteMode)
 	}
 	if format.Encoding != "" {
 		values.Set("encoding", format.Encoding)
 	}
 	if format.LineEnding != "" {
-		values.Set("line-ending", format.LineEnding)
+		values.Set("lineending", format.LineEnding)
 	}
 	if format.HeaderRows != nil {
-		values.Set("header-rows", strconv.Itoa(*format.HeaderRows))
+		values.Set("headerrows", strconv.Itoa(*format.HeaderRows))
 	}
 	if format.HeaderCols != nil {
-		values.Set("header-columns", strconv.Itoa(*format.HeaderCols))
+		values.Set("headercolumns", strconv.Itoa(*format.HeaderCols))
 	}
 	if format.Header != nil {
 		values.Set("header", strconv.FormatBool(*format.Header))
 	}
 	if format.NoHeader != nil {
-		values.Set("no-header", strconv.FormatBool(*format.NoHeader))
+		values.Set("noheader", strconv.FormatBool(*format.NoHeader))
 	}
 }
 
