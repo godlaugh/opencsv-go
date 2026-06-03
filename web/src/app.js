@@ -3190,6 +3190,8 @@ function formatPresetSettingsRow(preset) {
   actions.append(moveUpButton, moveDownButton, applyButton, deleteButton);
   header.append(title, meta, actions);
 
+  const editForm = formatPresetEditForm(preset);
+
   const rules = document.createElement("div");
   rules.className = "settings-rule-list";
   if (presetRules.length === 0) {
@@ -3234,8 +3236,156 @@ function formatPresetSettingsRow(preset) {
     addFormatRuleToPreset(preset.id, input.value);
   });
 
-  row.append(header, rules, addRule);
+  row.append(header, editForm, rules, addRule);
   return row;
+}
+
+function formatPresetEditForm(preset) {
+  const form = document.createElement("form");
+  form.className = "settings-preset-edit";
+  form.dataset.presetId = preset.id;
+
+  const presetLabel = preset.name || preset.id;
+  const nameInput = document.createElement("input");
+  nameInput.name = "presetName";
+  nameInput.type = "text";
+  nameInput.maxLength = 120;
+  nameInput.value = preset.name || formatPresetName(preset);
+  nameInput.setAttribute("aria-label", `Preset name for ${presetLabel}`);
+
+  const delimiterSelect = settingsSelectControl("delimiter", [
+    ["comma", "Comma"],
+    ["tab", "Tab"],
+    ["semicolon", "Semicolon"],
+    ["pipe", "Pipe"],
+    ["space", "Space"],
+    ["custom", "Custom"],
+  ], delimiterOptionValue(preset));
+  delimiterSelect.setAttribute("aria-label", `Delimiter for ${presetLabel}`);
+
+  const customDelimiter = document.createElement("input");
+  customDelimiter.name = "customDelimiter";
+  customDelimiter.type = "text";
+  customDelimiter.maxLength = 1;
+  customDelimiter.value = delimiterCustomValue(preset);
+  customDelimiter.disabled = delimiterSelect.value !== "custom";
+  customDelimiter.setAttribute("aria-label", `Custom delimiter for ${presetLabel}`);
+  delimiterSelect.addEventListener("change", () => {
+    const custom = delimiterSelect.value === "custom";
+    customDelimiter.disabled = !custom;
+    if (!custom) customDelimiter.value = "";
+  });
+
+  const headerRow = document.createElement("input");
+  headerRow.name = "hasHeader";
+  headerRow.type = "checkbox";
+  headerRow.checked = Boolean(preset.hasHeader);
+  headerRow.setAttribute("aria-label", `Header row for ${presetLabel}`);
+
+  const headerColumns = document.createElement("input");
+  headerColumns.name = "headerColumns";
+  headerColumns.type = "number";
+  headerColumns.min = "0";
+  headerColumns.max = "64";
+  headerColumns.step = "1";
+  headerColumns.value = String(normalizeHeaderColumns(preset.headerColumns));
+  headerColumns.setAttribute("aria-label", `Header columns for ${presetLabel}`);
+
+  const encodingSelectEdit = settingsSelectControl("encodingName", [
+    ["utf-8", "UTF-8"],
+    ["utf-8-bom", "UTF-8 BOM"],
+    ["utf-16le", "UTF-16 LE"],
+    ["utf-16le-bom", "UTF-16 LE BOM"],
+    ["utf-16be", "UTF-16 BE"],
+    ["utf-16be-bom", "UTF-16 BE BOM"],
+    ["shift-jis", "Shift-JIS"],
+    ["gbk", "GBK"],
+    ["windows-1252", "Windows-1252"],
+    ["legacy-single-byte", "Legacy byte"],
+  ], preset.encodingName || "utf-8");
+  encodingSelectEdit.setAttribute("aria-label", `Encoding for ${presetLabel}`);
+
+  const lineEndingSelectEdit = settingsSelectControl("lineEndingName", [
+    ["lf", "LF"],
+    ["crlf", "CRLF"],
+    ["cr", "CR"],
+  ], normalizeLineEndingName(preset.lineEndingName));
+  lineEndingSelectEdit.setAttribute("aria-label", `Line ending for ${presetLabel}`);
+
+  const quoteModeSelectEdit = settingsSelectControl("quoteMode", [
+    ["minimal", "Minimal"],
+    ["always", "Always"],
+    ["never", "Never"],
+    ["manual", "Manual"],
+  ], quoteModeValue(preset));
+  quoteModeSelectEdit.setAttribute("aria-label", `Quote mode for ${presetLabel}`);
+
+  const quoteCharSelectEdit = settingsSelectControl("quoteChar", [
+    ["double", "Double quote"],
+    ["single", "Single quote"],
+    ["none", "None"],
+  ], quoteCharValue(preset));
+  quoteCharSelectEdit.setAttribute("aria-label", `Quote character for ${presetLabel}`);
+
+  const quoteEscapeSelectEdit = settingsSelectControl("quoteEscape", [
+    ["double", "Double quote"],
+    ["backslash", "Backslash"],
+  ], quoteEscapeValue(preset));
+  quoteEscapeSelectEdit.setAttribute("aria-label", `Quote escape for ${presetLabel}`);
+
+  const save = settingsActionButton("Save Edit");
+  save.type = "submit";
+  save.setAttribute("aria-label", `Save preset edit for ${presetLabel}`);
+
+  form.append(
+    settingsControlLabel("Name", nameInput),
+    settingsControlLabel("Delimiter", delimiterSelect),
+    settingsControlLabel("Custom", customDelimiter),
+    settingsCheckboxLabel("Header Row", headerRow),
+    settingsControlLabel("Header Cols", headerColumns),
+    settingsControlLabel("Encoding", encodingSelectEdit),
+    settingsControlLabel("EOL", lineEndingSelectEdit),
+    settingsControlLabel("Quote Mode", quoteModeSelectEdit),
+    settingsControlLabel("Quote Char", quoteCharSelectEdit),
+    settingsControlLabel("Quote Escape", quoteEscapeSelectEdit),
+    save,
+  );
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveEditedFormatPreset(preset.id, form);
+  });
+  return form;
+}
+
+function settingsControlLabel(labelText, control) {
+  const label = document.createElement("label");
+  const span = document.createElement("span");
+  span.textContent = labelText;
+  label.append(span, control);
+  return label;
+}
+
+function settingsCheckboxLabel(labelText, control) {
+  const label = document.createElement("label");
+  label.className = "settings-preset-checkbox";
+  const span = document.createElement("span");
+  span.textContent = labelText;
+  label.append(control, span);
+  return label;
+}
+
+function settingsSelectControl(name, options, selectedValue) {
+  const select = document.createElement("select");
+  select.name = name;
+  for (const [value, label] of options) {
+    select.append(new Option(label, value));
+  }
+  if (options.some(([value]) => value === selectedValue)) {
+    select.value = selectedValue;
+  } else if (options.length) {
+    select.value = options[0][0];
+  }
+  return select;
 }
 
 function settingsActionButton(label) {
@@ -3279,6 +3429,69 @@ function moveFormatPreset(presetID, delta) {
   document.body.dataset.formatPresetOrder = presets.map((item) => item.id).join("|");
   status.textContent = `Moved format preset ${nextIndex < index ? "up" : "down"}.`;
   updateCommandState();
+}
+
+function saveEditedFormatPreset(presetID, form) {
+  let updated = null;
+  let found = false;
+  const presets = formatPresets().map((preset) => {
+    if (preset.id !== presetID) return preset;
+    found = true;
+    const draft = editedFormatPresetFromForm(preset, form);
+    if (!draft) return preset;
+    updated = draft;
+    return draft;
+  });
+  if (!found) {
+    status.textContent = "Format preset not found.";
+    return;
+  }
+  if (!updated) return;
+  saveFormatPresets(presets);
+  formatPresetSelect.value = presetID;
+  const signature = formatPresetPreview(updated);
+  document.body.dataset.formatPresetEdit = `${presetID}:${signature}`;
+  document.body.dataset.formatPresetPreview = signature;
+  status.textContent = `Updated format preset: ${updated.name || formatPresetName(updated)}`;
+  updateCommandState();
+}
+
+function editedFormatPresetFromForm(preset, form) {
+  const delimiterOption = form.elements.delimiter?.value || "comma";
+  let delimiterInfo;
+  if (delimiterOption === "custom") {
+    const custom = Array.from(form.elements.customDelimiter?.value || "")[0];
+    if (!custom) {
+      status.textContent = "Enter a custom delimiter before saving the preset.";
+      return null;
+    }
+    delimiterInfo = { delimiter: custom, delimiterName: custom };
+  } else {
+    delimiterInfo = normalizeDelimiterOverride(delimiterOption);
+  }
+  const quoteChar = ["double", "single", "none"].includes(form.elements.quoteChar?.value)
+    ? form.elements.quoteChar.value
+    : "double";
+  const quoteMode = ["minimal", "always", "never", "manual"].includes(form.elements.quoteMode?.value)
+    ? form.elements.quoteMode.value
+    : "minimal";
+  const quoteEscape = normalizeQuoteEscapeValue(form.elements.quoteEscape?.value);
+  const draft = {
+    ...preset,
+    delimiter: delimiterInfo.delimiter,
+    delimiterName: delimiterInfo.delimiterName,
+    hasHeader: Boolean(form.elements.hasHeader?.checked),
+    headerColumns: normalizeHeaderColumns(form.elements.headerColumns?.value),
+    encodingName: form.elements.encodingName?.value || "utf-8",
+    lineEndingName: normalizeLineEndingName(form.elements.lineEndingName?.value),
+    quoteChar,
+    quoteMode,
+    quoteEscape,
+    rules: normalizeFormatRules(preset.rules),
+  };
+  const name = String(form.elements.presetName?.value || "").trim().slice(0, 120);
+  draft.name = name || formatPresetName(draft);
+  return draft;
 }
 
 function deleteFormatRule(presetID, pattern) {
@@ -3347,6 +3560,7 @@ function resetFormatPresets() {
   document.body.dataset.formatPresets = "0";
   document.body.dataset.formatRulePreview = "reset";
   document.body.dataset.formatPresetPreview = "";
+  document.body.dataset.formatPresetEdit = "";
   document.body.dataset.formatPresetExport = "";
   document.body.dataset.formatPresetImport = "";
   document.body.dataset.formatPresetImportPanel = "closed";
