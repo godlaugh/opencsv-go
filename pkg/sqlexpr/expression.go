@@ -917,8 +917,10 @@ func normalizeTemporalLiteral(kind string, raw string) (string, error) {
 	}
 }
 
+var intervalFieldQualifierPattern = regexp.MustCompile(`\b(year|month|day|hour|minute|second)\s*\(\s*[0-9]+\s*\)`)
+
 func parseFlexibleInterval(raw string) (value, error) {
-	trimmed := strings.TrimSpace(strings.ToLower(raw))
+	trimmed := strings.TrimSpace(stripIntervalFieldQualifiers(strings.ToLower(raw)))
 	for _, suffix := range []string{
 		"year to month",
 		"day to second",
@@ -941,6 +943,10 @@ func parseFlexibleInterval(raw string) (value, error) {
 		}
 	}
 	return nullValue(), fmt.Errorf("cannot cast %q as interval", raw)
+}
+
+func stripIntervalFieldQualifiers(raw string) string {
+	return intervalFieldQualifierPattern.ReplaceAllString(raw, "$1")
 }
 
 func parseIntervalLiteral(quantity string, fields []string) (value, error) {
@@ -1563,6 +1569,9 @@ func (parser *parser) parseIntervalFields() ([]string, error) {
 	if !isIntervalField(first) {
 		return nil, fmt.Errorf("unsupported interval field %q", first)
 	}
+	if err := parser.parseOptionalIntervalFieldPrecision(first); err != nil {
+		return nil, err
+	}
 	fields := []string{first}
 	if parser.matchKeyword("to") {
 		if parser.peek().kind != tokenIdentifier {
@@ -1572,9 +1581,41 @@ func (parser *parser) parseIntervalFields() ([]string, error) {
 		if !isIntervalField(second) {
 			return nil, fmt.Errorf("unsupported interval field %q", second)
 		}
+		if err := parser.parseOptionalIntervalFieldPrecision(second); err != nil {
+			return nil, err
+		}
 		fields = append(fields, "to", second)
 	}
 	return fields, nil
+}
+
+func (parser *parser) parseOptionalIntervalFieldPrecision(field string) error {
+	if !parser.match(tokenLeftParen) {
+		return nil
+	}
+	if parser.peek().kind != tokenNumber {
+		return fmt.Errorf("interval %s precision expects an integer", field)
+	}
+	raw := parser.advance().text
+	if !isUnsignedIntegerToken(raw) {
+		return fmt.Errorf("interval %s precision expects an integer", field)
+	}
+	if !parser.match(tokenRightParen) {
+		return fmt.Errorf("interval %s precision expects closing parenthesis", field)
+	}
+	return nil
+}
+
+func isUnsignedIntegerToken(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, r := range raw {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func isIntervalField(field string) bool {

@@ -121,6 +121,30 @@ func TestMatchTemporalArithmetic(t *testing.T) {
 	}
 }
 
+func TestMatchIntervalPrecisionQualifiers(t *testing.T) {
+	headers := []string{"duration", "age"}
+	record := []string{"1 02:03:04.123 day(2) to second(3)", "1-2 year(4) to month"}
+
+	tests := []string{
+		"INTERVAL '1.234' second(3) = INTERVAL '1.234' second",
+		"INTERVAL '1 02:03:04.123' day(2) to second(3) = INTERVAL '1 02:03:04.123' day to second",
+		"INTERVAL '1:30' hour(2) to minute = INTERVAL '90' minute",
+		"INTERVAL '1-2' year(4) to month = INTERVAL '14' month",
+		"CAST(duration AS interval) = INTERVAL '1 02:03:04.123' day to second",
+		"CAST(age AS interval) = INTERVAL '14' month",
+	}
+
+	for _, source := range tests {
+		got, err := Match(source, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", source, err)
+		}
+		if !got {
+			t.Fatalf("Match(%q) = false, want true", source)
+		}
+	}
+}
+
 func TestMatchFunctionsAndArithmetic(t *testing.T) {
 	headers := []string{"name", "amount"}
 	record := []string{"  Alice  ", "9"}
@@ -159,5 +183,11 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("INTERVAL '1:02:03' hour to minute = INTERVAL '62' minute", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected hour-to-minute interval syntax error")
+	}
+	if _, err := Match("INTERVAL '1' day(foo) = INTERVAL '1' day", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected interval precision syntax error")
+	}
+	if _, err := Match("INTERVAL '1' second(3, 2) = INTERVAL '1' second", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected interval precision scale syntax error")
 	}
 }

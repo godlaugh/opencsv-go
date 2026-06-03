@@ -1698,7 +1698,7 @@ func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "temporal.csv")
-	if err := os.WriteFile(path, []byte("id,created_at,seen_at,duration\n1,2026-05-27,15:30:00.123,1 02:30 day to minute\n2,2026-05-28,15:29:00,10 second\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,created_at,seen_at,duration,precise_duration\n1,2026-05-27,15:30:00.123,1 02:30 day to minute,1 02:03:04.123 day(2) to second(3)\n2,2026-05-28,15:29:00,10 second,1 second(3)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1722,6 +1722,20 @@ func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	rows := windowPayload["rows"].([]any)
 	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
 		t.Fatalf("SQL temporal filtered window rows = %#v, want row 1", rows)
+	}
+
+	sqlFilterPayload = postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "CAST(precise_duration AS interval) = INTERVAL '1 02:03:04.123' day(2) to second(3)",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL interval precision filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows = windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
+		t.Fatalf("SQL interval precision filtered window rows = %#v, want row 1", rows)
 	}
 }
 
