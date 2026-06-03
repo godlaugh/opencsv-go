@@ -137,7 +137,7 @@ flowchart TD
   - Searchable command runner backed by `/api/commands`.
   - Fuzzy command scoring across command ID, title, description, and aliases.
   - Local recent command history shared by palette/toolbar/shortcut dispatch.
-  - Keyboard Shortcuts stores backward-compatible string bindings plus object bindings with optional `when` contexts; conflict detection allows the same shortcut in non-overlapping contexts and runtime dispatch checks the active Grid/SQL/Profile/Settings/Diff/typing state.
+  - Keyboard Shortcuts stores backward-compatible string bindings plus object bindings with optional `when` contexts or boolean `when` expressions; conflict detection allows the same shortcut in non-overlapping contexts and runtime dispatch checks the active Grid/SQL/Profile/Settings/Diff/typing state.
   - Official Filter entrypoint uses `Cmd+Shift+F`/`Ctrl+Shift+F` in command metadata and runtime dispatch.
   - Honors implementation status and document requirements.
   - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
@@ -762,6 +762,7 @@ Output:
 - Command Palette can search and execute an enabled command.
 - Command Palette fuzzy search ranks `Profile` first for `pf`, and empty-query results prioritize recently executed commands.
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move/hide row/column commands without modifying the original file before Save.
+- Keyboard Shortcuts can import boolean `when` expressions such as `grid && !typing` or `sql || settings`, preserve them on export, and dispatch only when the expression matches the active app context.
 - Grid range selection can aggregate a 2x2 numeric range and edit all selected cells as one undoable batch.
 - Command Palette exposes copy commands, and clipboard formatters preserve TSV/CSV/Markdown/JSON/HTML/SQL/LaTeX/raw output contracts.
 - Copy with Headers prepends selected column labels before formatting the selected matrix.

@@ -652,6 +652,7 @@ const shortcutContextOptions = [
   { id: "diff", label: "Diff" },
   { id: "typing", label: "Typing" },
 ];
+const shortcutContextAtoms = new Set(shortcutContextOptions.map((option) => option.id).filter(Boolean));
 const shortcutViewContexts = new Set(["grid", "sql", "profile", "settings", "diff"]);
 const shortcutPresets = [
   { id: "default", name: "Default", shortcuts: {} },
@@ -4895,6 +4896,12 @@ function renderKeyboardShortcuts() {
       option.textContent = optionValue.label;
       contextSelect.append(option);
     }
+    if (binding.when && !shortcutContextOptions.some((option) => option.id === binding.when)) {
+      const option = document.createElement("option");
+      option.value = binding.when;
+      option.textContent = shortcutContextLabel(binding.when);
+      contextSelect.append(option);
+    }
     contextSelect.value = binding.when;
     contextSelect.addEventListener("change", () => updateShortcutContext(command, contextSelect.value));
 
@@ -5114,11 +5121,16 @@ function normalizeShortcutBinding(value) {
 
 function normalizeShortcutWhen(value) {
   const when = String(value || "").trim().toLowerCase();
-  return shortcutContextOptions.some((option) => option.id === when) ? when : "";
+  if (!when) return "";
+  if (shortcutContextOptions.some((option) => option.id === when)) return when;
+  const parsed = parseShortcutWhenExpression(when);
+  return parsed ? serializeShortcutWhenExpression(parsed) : "";
 }
 
 function shortcutContextLabel(when) {
-  return shortcutContextOptions.find((option) => option.id === when)?.label ?? "Always";
+  const normalized = normalizeShortcutWhen(when);
+  return shortcutContextOptions.find((option) => option.id === normalized)?.label
+    ?? (normalized ? `Expression: ${normalized}` : "Always");
 }
 
 function serializedShortcutMap(map) {
@@ -5296,17 +5308,25 @@ function shortcutContextsOverlap(left, right) {
   const normalizedLeft = normalizeShortcutWhen(left);
   const normalizedRight = normalizeShortcutWhen(right);
   if (!normalizedLeft || !normalizedRight) return true;
-  if (normalizedLeft === normalizedRight) return true;
-  if (normalizedLeft === "document" && shortcutViewContexts.has(normalizedRight)) return true;
-  if (normalizedRight === "document" && shortcutViewContexts.has(normalizedLeft)) return true;
-  if (normalizedLeft === "typing" || normalizedRight === "typing") return true;
-  return false;
+  const leftExpression = parseShortcutWhenExpression(normalizedLeft);
+  const rightExpression = parseShortcutWhenExpression(normalizedRight);
+  if (!leftExpression || !rightExpression) return true;
+  return shortcutContextScenarios().some((scenario) => (
+    evaluateShortcutWhenExpression(leftExpression, (atom) => Boolean(scenario[atom])) &&
+    evaluateShortcutWhenExpression(rightExpression, (atom) => Boolean(scenario[atom]))
+  ));
 }
 
 function shortcutContextMatches(when, event) {
-  switch (normalizeShortcutWhen(when)) {
-    case "":
-      return true;
+  const normalized = normalizeShortcutWhen(when);
+  if (!normalized) return true;
+  const expression = parseShortcutWhenExpression(normalized);
+  if (!expression) return true;
+  return evaluateShortcutWhenExpression(expression, (atom) => shortcutContextValue(atom, event));
+}
+
+function shortcutContextValue(atom, event) {
+  switch (atom) {
     case "document":
       return Boolean(documentId);
     case "grid":
@@ -5322,8 +5342,147 @@ function shortcutContextMatches(when, event) {
     case "typing":
       return isTypingTarget(event.target);
     default:
-      return true;
+      return false;
   }
+}
+
+function shortcutContextScenarios() {
+  const scenarios = [];
+  for (const hasDocument of [false, true]) {
+    for (const view of shortcutViewContexts) {
+      for (const typing of [false, true]) {
+        scenarios.push({
+          document: hasDocument,
+          grid: view === "grid" && !typing,
+          sql: view === "sql",
+          profile: view === "profile",
+          settings: view === "settings",
+          diff: view === "diff",
+          typing,
+        });
+      }
+    }
+  }
+  return scenarios;
+}
+
+function parseShortcutWhenExpression(raw) {
+  const tokens = tokenizeShortcutWhenExpression(raw);
+  if (!tokens) return null;
+  let index = 0;
+
+  const parseOr = () => {
+    let node = parseAnd();
+    if (!node) return null;
+    while (tokens[index] === "||") {
+      index += 1;
+      const right = parseAnd();
+      if (!right) return null;
+      node = { type: "or", left: node, right };
+    }
+    return node;
+  };
+
+  const parseAnd = () => {
+    let node = parseUnary();
+    if (!node) return null;
+    while (tokens[index] === "&&") {
+      index += 1;
+      const right = parseUnary();
+      if (!right) return null;
+      node = { type: "and", left: node, right };
+    }
+    return node;
+  };
+
+  const parseUnary = () => {
+    const token = tokens[index];
+    if (token === "!") {
+      index += 1;
+      const operand = parseUnary();
+      return operand ? { type: "not", operand } : null;
+    }
+    if (token === "(") {
+      index += 1;
+      const node = parseOr();
+      if (!node || tokens[index] !== ")") return null;
+      index += 1;
+      return node;
+    }
+    if (shortcutContextAtoms.has(token)) {
+      index += 1;
+      return { type: "atom", value: token };
+    }
+    return null;
+  };
+
+  const expression = parseOr();
+  return expression && index === tokens.length ? expression : null;
+}
+
+function tokenizeShortcutWhenExpression(raw) {
+  const normalized = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\band\b/g, "&&")
+    .replace(/\bor\b/g, "||")
+    .replace(/\bnot\b/g, "!");
+  const tokens = [];
+  let index = 0;
+  while (index < normalized.length) {
+    const char = normalized[index];
+    if (/\s/.test(char)) {
+      index += 1;
+      continue;
+    }
+    if (normalized.startsWith("&&", index) || normalized.startsWith("||", index)) {
+      tokens.push(normalized.slice(index, index + 2));
+      index += 2;
+      continue;
+    }
+    if (char === "!" || char === "(" || char === ")") {
+      tokens.push(char);
+      index += 1;
+      continue;
+    }
+    const match = normalized.slice(index).match(/^[a-z]+/);
+    if (!match) return null;
+    tokens.push(match[0]);
+    index += match[0].length;
+  }
+  return tokens;
+}
+
+function serializeShortcutWhenExpression(expression, parentPrecedence = 0) {
+  const precedence = shortcutWhenExpressionPrecedence(expression);
+  let text = "";
+  if (expression.type === "atom") {
+    text = expression.value;
+  } else if (expression.type === "not") {
+    text = `!${serializeShortcutWhenExpression(expression.operand, precedence)}`;
+  } else {
+    const operator = expression.type === "and" ? "&&" : "||";
+    text = `${serializeShortcutWhenExpression(expression.left, precedence)} ${operator} ${serializeShortcutWhenExpression(expression.right, precedence + 1)}`;
+  }
+  return precedence < parentPrecedence ? `(${text})` : text;
+}
+
+function shortcutWhenExpressionPrecedence(expression) {
+  if (expression.type === "atom") return 4;
+  if (expression.type === "not") return 3;
+  if (expression.type === "and") return 2;
+  return 1;
+}
+
+function evaluateShortcutWhenExpression(expression, atomValue) {
+  if (expression.type === "atom") return Boolean(atomValue(expression.value));
+  if (expression.type === "not") return !evaluateShortcutWhenExpression(expression.operand, atomValue);
+  if (expression.type === "and") {
+    return evaluateShortcutWhenExpression(expression.left, atomValue) &&
+      evaluateShortcutWhenExpression(expression.right, atomValue);
+  }
+  return evaluateShortcutWhenExpression(expression.left, atomValue) ||
+    evaluateShortcutWhenExpression(expression.right, atomValue);
 }
 
 function commandForShortcut(shortcut, when = "", exceptID = "") {
