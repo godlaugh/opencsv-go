@@ -1768,7 +1768,7 @@ button:disabled {
 }
 
 .condition-row-extra {
-  grid-template-columns: 90px minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(0, 1.25fr) auto;
+  grid-template-columns: 82px 86px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) auto;
 }
 
 .condition-row-extra legend {
@@ -1777,6 +1777,18 @@ button:disabled {
 
 .condition-row-extra .condition-join-control {
   align-self: end;
+}
+
+.condition-row-extra .condition-group-control {
+  align-items: center;
+  align-self: end;
+  min-height: 34px;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.condition-row-extra .condition-group-control input {
+  width: auto;
 }
 
 .condition-row-extra .condition-remove-button {

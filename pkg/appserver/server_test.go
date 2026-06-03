@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/opencsv/opencsv/pkg/xlsx"
@@ -1692,6 +1693,40 @@ func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 		if !jsonIssuesContainType(issues, typ) {
 			t.Fatalf("expected %s issue in %#v", typ, issues)
 		}
+	}
+}
+
+func TestServerSQLFilterNestedConditionGroups(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested-filter.csv")
+	if err := os.WriteFile(path, []byte("id,status,region,score\n1,active,APAC,8\n2,active,EU,9\n3,paused,APAC,9\n4,active,APAC,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": `"status" = 'active' AND ("region" = 'APAC' OR "score" >= 9)`,
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 3 {
+		t.Fatalf("SQL nested filter totalRows = %#v, want 3", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 3 {
+		t.Fatalf("SQL nested filtered rows = %#v, want 3 rows", rows)
+	}
+	gotIDs := []string{rows[0].([]any)[0].(string), rows[1].([]any)[0].(string), rows[2].([]any)[0].(string)}
+	if strings.Join(gotIDs, ",") != "1,2,4" {
+		t.Fatalf("SQL nested filtered IDs = %#v, want 1,2,4", gotIDs)
 	}
 }
 

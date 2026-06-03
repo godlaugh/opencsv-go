@@ -5464,6 +5464,19 @@ function conditionExtraRowElement(row, index) {
   joinLabel.append(joinSelect);
   fieldset.append(joinLabel);
 
+  const groupLabel = document.createElement("label");
+  groupLabel.className = "condition-group-control";
+  groupLabel.title = number > 2 ? "Group this condition with the previous condition" : "Add another condition before grouping";
+  const groupCheckbox = document.createElement("input");
+  groupCheckbox.className = "condition-group-previous";
+  groupCheckbox.dataset.conditionField = "groupPrevious";
+  groupCheckbox.type = "checkbox";
+  groupCheckbox.checked = Boolean(row.groupPrevious) && number > 2;
+  groupCheckbox.disabled = number <= 2;
+  groupCheckbox.setAttribute("aria-label", `Group condition ${number} with previous`);
+  groupLabel.append(groupCheckbox, conditionLabelText("Group"));
+  fieldset.append(groupLabel);
+
   const columnLabel = document.createElement("label");
   columnLabel.append(conditionLabelText("Column"));
   const columnSelect = document.createElement("select");
@@ -5523,7 +5536,9 @@ function updateConditionValueState() {
     );
   }
   const joins = Array.from(conditionRows.querySelectorAll(".condition-join-select")).map((select) => select.value);
+  const nestedCount = conditionRows.querySelectorAll(".condition-group-previous:checked").length;
   document.body.dataset.conditionGrouped = joins.join(",");
+  document.body.dataset.conditionNestedGroupCount = String(nestedCount);
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
 }
 
@@ -5554,15 +5569,31 @@ async function applyConditionBuilder() {
       operator: row.querySelector(".condition-operator")?.value,
       value: row.querySelector(".condition-value")?.value ?? "",
       valueInput: row.querySelector(".condition-value"),
+      groupPrevious: row.querySelector(".condition-group-previous")?.checked ?? false,
     })),
   ];
-  let expression = "";
+  const nodes = [];
   for (const [index, builder] of builders.entries()) {
     const next = conditionExpression(builder.sourceCol, builder.operator, builder.value, builder.valueInput);
     if (!next) return;
-    expression = index === 0 ? next : `(${expression}) ${builder.join} (${next})`;
+    const node = {
+      join: index === 0 ? "" : builder.join,
+      expression: next,
+    };
+    if (builder.groupPrevious && nodes.length > 0) {
+      const previous = nodes.pop();
+      nodes.push({
+        join: previous.join,
+        expression: `(${previous.expression}) ${builder.join} (${node.expression})`,
+        grouped: true,
+      });
+    } else {
+      nodes.push(node);
+    }
   }
+  const expression = conditionNodesExpression(nodes);
   document.body.dataset.conditionPreview = expression;
+  document.body.dataset.conditionNestedGroupCount = String(nodes.filter((node) => node.grouped).length);
   document.body.dataset.conditionRowCount = String(builders.length);
   commandInput.value = `where ${expression}`;
   closeConditionBuilder();
@@ -5581,6 +5612,7 @@ function addConditionRow() {
     column: conditionColumn.value || String(sourceColFor(selected.col)),
     operator: "contains",
     value: "",
+    groupPrevious: false,
   });
   renderConditionExtraRows();
   const valueInput = conditionRows.querySelector(".condition-row-extra:last-child .condition-value");
@@ -5601,7 +5633,17 @@ function readConditionExtraRowsFromDOM() {
     column: row.querySelector(".condition-column")?.value || "",
     operator: row.querySelector(".condition-operator")?.value || "contains",
     value: row.querySelector(".condition-value")?.value || "",
+    groupPrevious: row.querySelector(".condition-group-previous")?.checked ?? false,
   }));
+}
+
+function conditionNodesExpression(nodes) {
+  if (!nodes.length) return "";
+  let expression = nodes[0].expression;
+  for (const node of nodes.slice(1)) {
+    expression = `(${expression}) ${node.join} (${node.expression})`;
+  }
+  return expression;
 }
 
 function conditionExpression(sourceCol, operator, value, valueInput = conditionValue) {
