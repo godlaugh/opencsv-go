@@ -8796,6 +8796,17 @@ function editableSelectedText(target) {
   }
 }
 
+function searchQueryOrSeed(target, emptyMessage) {
+  let search = parseSearchQuery(commandInput.value);
+  if (search.query) return search;
+  if (!applyFindSeed(target ?? document.activeElement)) {
+    status.textContent = emptyMessage;
+    return null;
+  }
+  search = parseSearchQuery(commandInput.value);
+  return search.query ? search : null;
+}
+
 async function findNextMatch(direction) {
   if (!documentId) return;
   await runFind(direction, false);
@@ -8929,15 +8940,12 @@ async function selectFindMatch(match, query) {
   status.textContent = `Found ${ordinal.toLocaleString()} of ${total.toLocaleString()} for ${query} at row ${displayRow + 1}, column ${match.col + 1}${loadedNote}`;
 }
 
-async function replaceCurrentQuery(all) {
+async function replaceCurrentQuery(all, options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Replace")) return;
-  const search = parseSearchQuery(commandInput.value);
+  const search = searchQueryOrSeed(options.target, "Type text to replace.");
+  if (!search) return;
   const query = search.query;
-  if (!query) {
-    status.textContent = "Type text to replace.";
-    return;
-  }
   const cells = search.inSelection ? cellsForReplaceScope(search) : [];
   if (cells == null) return;
   const response = await fetch("/api/replace", {
@@ -8986,14 +8994,11 @@ async function replaceCurrentQuery(all) {
   clearReplacePreview();
 }
 
-async function previewReplace() {
+async function previewReplace(options = {}) {
   if (!documentId) return;
-  const search = parseSearchQuery(commandInput.value);
+  const search = searchQueryOrSeed(options.target, "Type text to preview replacements.");
+  if (!search) return;
   const query = search.query;
-  if (!query) {
-    status.textContent = "Type text to preview replacements.";
-    return;
-  }
   const cells = search.inSelection ? cellsForReplaceScope(search) : [];
   if (cells == null) return;
   const response = await fetch("/api/replace", {
@@ -13891,9 +13896,9 @@ openCellLink.addEventListener("click", (event) => {
 findButton.addEventListener("click", (event) => focusFindInput({ run: true, target: event.target }));
 findPrevButton.addEventListener("click", () => findNextMatch(-1));
 findNextButton.addEventListener("click", () => findNextMatch(1));
-replacePreviewButton.addEventListener("click", previewReplace);
-replaceButton.addEventListener("click", () => replaceCurrentQuery(false));
-replaceAllButton.addEventListener("click", () => replaceCurrentQuery(true));
+replacePreviewButton.addEventListener("click", (event) => previewReplace({ target: event.target }));
+replaceButton.addEventListener("click", (event) => replaceCurrentQuery(false, { target: event.target }));
+replaceAllButton.addEventListener("click", (event) => replaceCurrentQuery(true, { target: event.target }));
 findCaseButton.addEventListener("click", () => toggleFindOption("case"));
 findWholeButton.addEventListener("click", () => toggleFindOption("whole"));
 findRegexButton.addEventListener("click", () => toggleFindOption("regex"));

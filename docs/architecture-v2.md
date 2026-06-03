@@ -214,7 +214,7 @@ flowchart TD
   - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, regex mode, and search within selection.
   - Toggles map directly to existing `/api/find` and `/api/replace` request options.
   - Search-in-selection sends explicit selected source-cell scopes and keeps that original scope while match navigation changes the active cell.
-  - Find command routing seeds the query from selected inline-editor text, Cell Value panel text, detached cell-dialog text, or the active grid cell when the Find box is empty.
+  - Find/Replace command routing seeds the query from selected inline-editor text, Cell Value panel text, detached cell-dialog text, or the active grid cell when the Find box is empty.
   - Match count display plus Previous/Next navigation for the current result window.
 
 - `web File State`
@@ -769,7 +769,7 @@ Output:
 - Command Palette can toggle dark mode, Canvas grid colors follow CSS variables, and the selected theme persists after reload.
 - Find/Replace toggles can drive case-sensitive, whole-cell, regex, and selection-scoped searches from the toolbar.
 - Find toolbar shows current/total match count and navigates previous/next matches.
-- Find can seed the toolbar query from selected cell/editor text through shortcut, toolbar, and command-palette dispatch.
+- Find/Replace can seed the toolbar query from selected cell/editor text through shortcut, toolbar, and command-palette dispatch.
 - SQL Console delegates execution to in-memory SQLite and supports joins, expression projection, subqueries, `GROUP BY`, `HAVING`, and ordering by an expression alias.
 - SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
 - SQL Console result table supports rectangular range selection and selected-range CSV copy through the existing Copy CSV command.
