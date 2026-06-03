@@ -8946,7 +8946,7 @@ async function replaceCurrentQuery(all, options = {}) {
   const search = searchQueryOrSeed(options.target, "Type text to replace.");
   if (!search) return;
   const query = search.query;
-  const cells = search.inSelection ? cellsForReplaceScope(search) : [];
+  const cells = replaceScopeCells(search, all);
   if (cells == null) return;
   const response = await fetch("/api/replace", {
     method: "POST",
@@ -8990,8 +8990,31 @@ async function replaceCurrentQuery(all, options = {}) {
   draw();
   status.textContent = all
     ? `Replaced ${payload.count.toLocaleString()} cells`
-    : "Replaced 1 cell";
+    : document.body.dataset.replaceScope.startsWith("current:")
+      ? "Replaced current match"
+      : "Replaced 1 cell";
   clearReplacePreview();
+}
+
+function replaceScopeCells(search, all) {
+  if (all) {
+    document.body.dataset.replaceScope = search.inSelection ? "selection" : "all";
+    return search.inSelection ? cellsForReplaceScope(search) : [];
+  }
+  const active = activeFindMatchCell(search);
+  if (active) {
+    document.body.dataset.replaceScope = `current:${active.row}:${active.col}`;
+    return [active];
+  }
+  document.body.dataset.replaceScope = search.inSelection ? "selection-first" : "first";
+  return search.inSelection ? cellsForReplaceScope(search) : [];
+}
+
+function activeFindMatchCell(search) {
+  if (!findState.matches.length || findState.criteriaKey !== findCriteriaKey(search)) return null;
+  const match = findState.matches[findState.index];
+  if (!match || !Number.isInteger(match.row) || !Number.isInteger(match.col)) return null;
+  return { row: match.row, col: match.col };
 }
 
 async function previewReplace(options = {}) {

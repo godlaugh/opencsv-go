@@ -1623,6 +1623,49 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerReplaceSingleScopedCell(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "replace-current.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Ada\n3,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	replacePayload := postJSON(t, handler, "/api/replace", map[string]any{
+		"documentId":  documentID,
+		"query":       "Ada",
+		"replacement": "Grace",
+		"all":         false,
+		"cells": []map[string]any{
+			{"row": 2, "col": 1},
+		},
+	})
+	if replacePayload["count"].(float64) != 1 {
+		t.Fatalf("replace count = %#v, want 1", replacePayload["count"])
+	}
+	changes := replacePayload["changes"].([]any)
+	if len(changes) != 1 {
+		t.Fatalf("replace changes = %#v, want one change", changes)
+	}
+	change := changes[0].(map[string]any)
+	if change["row"].(float64) != 2 || change["col"].(float64) != 1 {
+		t.Fatalf("replace change = %#v, want row 2 col 1", change)
+	}
+
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" || rows[2].([]any)[1] != "Grace" || rows[3].([]any)[1] != "Ada" {
+		t.Fatalf("rows after scoped replace = %#v", rows)
+	}
+}
+
 func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "schema.csv")
