@@ -6086,8 +6086,7 @@ async function executeCommand(commandID) {
       await pasteClipboard();
       break;
     case "edit.find":
-      commandInput.focus();
-      if (commandInput.value.trim()) await findCurrentQuery();
+      await focusFindInput({ run: true });
       break;
     case "edit.replacePreview":
       await previewReplace();
@@ -8741,6 +8740,60 @@ async function maybeLoadWindow(row) {
 
 async function findCurrentQuery() {
   await runFind(0, true);
+}
+
+async function focusFindInput(options = {}) {
+  const seeded = applyFindSeed(options.target ?? document.activeElement);
+  commandInput.focus();
+  commandInput.select();
+  if ((options.run || seeded) && commandInput.value.trim()) {
+    await findCurrentQuery();
+  }
+}
+
+function applyFindSeed(target) {
+  const seed = findSeedFromSelection(target);
+  if (!seed) {
+    document.body.dataset.findSeed = "";
+    return false;
+  }
+  commandInput.value = seed.value;
+  document.body.dataset.findSeed = `${seed.source}:${String(seed.value).replace(/\s+/g, " ").slice(0, 80)}`;
+  invalidateFindState();
+  return true;
+}
+
+function findSeedFromSelection(target) {
+  const selectedText = editableSelectedText(target);
+  if (selectedText && target !== commandInput) {
+    return {
+      source: target === editor
+        ? "cell-editor"
+        : target === cellValueInput
+          ? "cell-panel"
+          : target === cellValueDialogInput
+            ? "cell-dialog"
+            : "text-selection",
+      value: selectedText,
+    };
+  }
+  if (commandInput.value.trim()) return null;
+  if (selectionCellCount() !== 1 || aggregateRowAt(selected.row)) return null;
+  const value = String(valueAt(selected.row, selected.col) ?? "");
+  return value ? { source: "cell", value } : null;
+}
+
+function editableSelectedText(target) {
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return "";
+  if (target.type && ["button", "checkbox", "file", "radio"].includes(target.type)) return "";
+  try {
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || end <= start) return "";
+    return target.value.slice(start, end);
+  } catch {
+    return "";
+  }
 }
 
 async function findNextMatch(direction) {
@@ -13174,8 +13227,7 @@ function handleGlobalShortcut(event) {
   }
   if (key === "f" && !event.shiftKey && defaultShortcutActive("edit.find")) {
     event.preventDefault();
-    commandInput.focus();
-    commandInput.select();
+    focusFindInput({ target: event.target });
     return true;
   }
   return false;
@@ -13836,7 +13888,7 @@ openCellLink.addEventListener("click", (event) => {
     });
   }
 });
-findButton.addEventListener("click", findCurrentQuery);
+findButton.addEventListener("click", (event) => focusFindInput({ run: true, target: event.target }));
 findPrevButton.addEventListener("click", () => findNextMatch(-1));
 findNextButton.addEventListener("click", () => findNextMatch(1));
 replacePreviewButton.addEventListener("click", previewReplace);

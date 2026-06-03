@@ -1,6 +1,6 @@
 # Product Parity Progress
 
-Last updated: 2026-06-02
+Last updated: 2026-06-03
 
 This document tracks implementation status against `docs/product-prd.md`.
 
@@ -78,6 +78,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-005 | Paged large-result find navigation | Started | `/api/find offset`, `pkg/document`/`pkg/appserver` tests, Browser cross-page Next/Previous verification |
 | FR-005 | In-cell find match highlighting | Started | Browser find-highlight verification |
 | FR-005 | Search/replace within selection foundation | Started | `pkg/document`/`pkg/appserver` tests, Browser toolbar verification |
+| FR-005 | Seed Find from selected cell or editing text | Started | Browser shortcut/button verification |
 | FR-006 | Basic contains filter | Started | `/api/filter`, toolbar query, Browser verification |
 | FR-006 | SQL WHERE row filter subset | Started | `pkg/sqlexpr` tests, `/api/filter mode=sql`, Browser verification |
 | FR-006 | SQL WHERE temporal and interval literals | Started | `pkg/sqlexpr`/`pkg/appserver` tests, Browser SQL-filter verification |
@@ -181,6 +182,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Find highlight verification on `/tmp/opencsv-find-highlight.csv`: searching `ada` records active highlight range `0:1:0-3`, Next moves it to `2:1:8-11`, and regex search `A[a-z]+` records multiple in-cell highlight ranges `0:1:0-3,0:1:9-12` for the active cell.
 - Replace preview verification on `/tmp/opencsv-replace-preview.csv`: searching `Ada`, replacing with `Grace`, and clicking Preview reports `Preview: 4 cells would change`, records `data-replace-preview-count="4"` and first change `Ada->Grace`, while the source file remains unchanged. Clicking Replace All then reports `Replaced 4 cells` and clears the preview markers.
 - Search-in-selection verification on `/tmp/opencsv-find-selection.csv`: selecting two cells in column `a`, enabling `Sel`, and searching `Ada` reports `2/2` even though column `b` also contains `Ada`; Replace All with the same scoped find changes both selected `a` cells to `Grace` while adjacent `b` cells remain `Ada`.
+- Find seed verification on `/tmp/opencsv-find-seed.csv`: with an empty Find box, `Ctrl+F` while the grid is focused seeds the current cell value `1`, records `data-find-seed="cell:1"`, focuses/selects the Find box, reports `Found 1 of 1 for 1 at row 1, column 1`, and marks `data-find-highlight="0:0:0-1"`. The inline cell editor path seeds selected editor text as `data-find-seed="cell-editor:1"` through the same shortcut. Clicking the toolbar Find button reuses the current-cell seed path and produces the same `1/1` result. Browser console warnings/errors were clean.
 - Grid scroll verification on `/tmp/opencsv-m0-bench.csv`: wheel deltas accumulate into row-aligned vertical movement, keeping the overlay canvas header at a CSS-driven constant height without clipped body text touching its lower edge.
 - Scroll-position restore verification on `/tmp/opencsv-scroll-restore.csv`: scrolling the grid records `data-scroll-position="0:980"` for the active path; reloading the same file restores `data-scroll-position-restored="0:980"` from the per-file browser store. Browser console warnings/errors were clean.
 - Mouse selection verification on `/tmp/opencsv-m0-bench.csv`: URL boot open via `?open=/tmp/opencsv-m0-bench.csv` loads the file, body drag selects `0:0-2:1`, row-label click selects `1:0-1:11`, column-header click selects `0:0-9999:0`, `Shift+Alt+H` toggles header inclusion so the selection marker becomes `0:0-9999:0:headers`, and clicking the header menu glyph still opens the `id` column menu.
@@ -351,6 +353,7 @@ Verified in the in-app browser on `http://127.0.0.1:43255/`:
 - Frontend Find now caches the current result window, shows `current/total`, and supports Previous/Next navigation from the toolbar and Enter/Shift+Enter in the query field. Large match sets page through `/api/find offset` instead of trapping navigation in the first loaded result window.
 - Frontend grid now highlights matched text spans inside visible cells for literal, whole-cell, and regex find modes, with a stronger highlight on the active match.
 - Frontend Find/Replace now supports a `Sel` search-in-selection toggle. The selected source-cell scope is sent to `/api/find` and `/api/replace`, and the original find scope is retained after navigation collapses the active selection to a match.
+- Frontend Find can seed the query from selected text in the inline cell editor, Cell Value panel, or detached Cell Value dialog, and can seed from the current grid cell when the Find box is empty. Toolbar, shortcut, and command-palette Find share the same seed path.
 - Toolbar wraps into two rows on narrower workspaces so Find/Replace buttons stay clickable instead of sliding under the inspector.
 - `pkg/csvdiff` computes row-level and cell-level compare results using LCS anchors plus changed-row pairing by leading key. It supports ignore-case, ignore-whitespace, ignored columns, header-name column alignment, explicit row alignment by key column, and inline character spans for changed cells.
 - `/api/diff` exposes diff results for two local paths, and root CLI `--diff` now includes a diff result payload in prototype mode.
