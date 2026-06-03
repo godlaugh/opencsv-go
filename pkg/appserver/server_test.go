@@ -490,6 +490,67 @@ func TestServerQuotePolicySave(t *testing.T) {
 	}
 }
 
+func TestServerQuotePolicyBackslashEscapeSaveAndReadback(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote-backslash.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,\"has \"\"quote\"\"\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	policyPayload := postJSON(t, handler, "/api/quote-policy", map[string]any{
+		"documentId":  documentID,
+		"quoteChar":   "double",
+		"quoteMode":   "minimal",
+		"quoteEscape": "backslash",
+	})
+	document := policyPayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if dialect["quoteEscape"] != "backslash" {
+		t.Fatalf("quoteEscape = %#v, want backslash", dialect["quoteEscape"])
+	}
+
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     false,
+	})
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "id,note\n1,\"has \\\"quote\\\"\"\n"
+	if string(saved) != want {
+		t.Fatalf("saved quote escape = %q, want %q", string(saved), want)
+	}
+
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows := windowPayload["rows"].([]any)
+	record := rows[1].([]any)
+	if record[1] != `has "quote"` {
+		t.Fatalf("readback cell = %#v, want quote-preserved value", record[1])
+	}
+
+	reopenPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   -1,
+		"quoteEscape": "backslash",
+	})
+	reopenID := reopenPayload["documentId"].(string)
+	reopenWindow := getJSON(t, handler, "/api/window?id="+reopenID+"&start=0&count=2")
+	reopenRows := reopenWindow["rows"].([]any)
+	reopenRecord := reopenRows[1].([]any)
+	if reopenRecord[1] != `has "quote"` {
+		t.Fatalf("reopen readback cell = %#v, want quote-preserved value", reopenRecord[1])
+	}
+}
+
 func TestServerOpenLineEndingOverrideSave(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "line-ending-open.csv")

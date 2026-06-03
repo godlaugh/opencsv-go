@@ -33,7 +33,7 @@ func ReadRecordWindow(path string, metadata FileMetadata, start int, count int) 
 		return RecordWindow{}, err
 	}
 
-	reader := csv.NewReader(bytes.NewReader(utf8Bytes))
+	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(utf8Bytes, metadata.Dialect)))
 	reader.Comma = metadata.Dialect.Delimiter
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true

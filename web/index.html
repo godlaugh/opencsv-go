@@ -414,6 +414,13 @@
                     <option value="none">None</option>
                   </select>
                 </label>
+                <label>
+                  <span>Escape</span>
+                  <select id="quoteEscapeSelect" aria-label="Quote escape">
+                    <option value="double">Double quote</option>
+                    <option value="backslash">Backslash</option>
+                  </select>
+                </label>
                 <button id="applyQuotePolicyButton" type="button" data-command="format.applyQuotePolicy">Apply Quote</button>
                 <label>
                   <span>Line Ending</span>
@@ -440,7 +447,7 @@
                 </label>
               </div>
               <div id="quoteRulesImportPanel" class="settings-import-panel" hidden>
-                <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteColumns":[]}'></textarea>
+                <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteEscape":"double","quoteColumns":[]}'></textarea>
                 <div class="settings-import-actions">
                   <button id="applyQuoteRulesImportButton" type="button">Apply Import</button>
                   <button id="cancelQuoteRulesImportButton" type="button">Cancel</button>

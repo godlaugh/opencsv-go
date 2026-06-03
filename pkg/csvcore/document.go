@@ -49,6 +49,7 @@ type OpenOptions struct {
 	DelimiterName string
 	QuoteChar     *string
 	QuoteMode     string
+	QuoteEscape   string
 	HasHeader     *bool
 	HeaderColumns *int
 	Encoding      *EncodingInfo
@@ -119,6 +120,13 @@ func OpenDocument(path string, options OpenOptions) (Document, error) {
 		}
 		dialect.QuoteMode = quoteMode
 	}
+	if strings.TrimSpace(options.QuoteEscape) != "" {
+		quoteEscape, err := NormalizeQuoteEscape(options.QuoteEscape)
+		if err != nil {
+			return Document{}, err
+		}
+		dialect.QuoteEscape = quoteEscape
+	}
 	if options.IndexRows < 0 {
 		detectedDialect, err := DetectQuoteRulesForFile(path, dialect, encoding)
 		if err != nil {
@@ -176,7 +184,7 @@ func ReadAllRecords(path string, metadata FileMetadata) ([][]string, error) {
 		return nil, err
 	}
 
-	reader := csv.NewReader(bytes.NewReader(utf8Bytes))
+	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(utf8Bytes, metadata.Dialect)))
 	reader.Comma = metadata.Dialect.Delimiter
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
@@ -199,7 +207,7 @@ func ReadAllRecords(path string, metadata FileMetadata) ([][]string, error) {
 }
 
 func ParseRecordsFromUTF8(input []byte, dialect Dialect) ([][]string, error) {
-	reader := csv.NewReader(bytes.NewReader(input))
+	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(input, dialect)))
 	reader.Comma = dialect.Delimiter
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
@@ -222,7 +230,7 @@ func ParseRecordsFromUTF8(input []byte, dialect Dialect) ([][]string, error) {
 }
 
 func previewRecordsFromSample(sample []byte, dialect Dialect, maxRows int) ([][]string, error) {
-	reader := csv.NewReader(bytes.NewReader(sample))
+	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(sample, dialect)))
 	reader.Comma = dialect.Delimiter
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
@@ -245,4 +253,61 @@ func previewRecordsFromSample(sample []byte, dialect Dialect, maxRows int) ([][]
 		records = append(records, record)
 	}
 	return records, nil
+}
+
+func normalizeQuoteEscapeInput(input []byte, dialect Dialect) []byte {
+	if DialectQuoteEscape(dialect) != QuoteEscapeBackslash || DialectQuoteChar(dialect) != `"` {
+		return input
+	}
+	output := make([]byte, 0, len(input))
+	delimiterBytes := []byte(",")
+	if dialect.Delimiter > 0 {
+		delimiterBytes = []byte(string(dialect.Delimiter))
+	}
+	const quote = byte('"')
+	inQuotes := false
+	atFieldStart := true
+	for index := 0; index < len(input); index++ {
+		char := input[index]
+		if inQuotes {
+			if char == '\\' && index+1 < len(input) {
+				next := input[index+1]
+				if next == quote {
+					output = append(output, quote, quote)
+					index++
+					continue
+				}
+				if next == '\\' {
+					output = append(output, '\\')
+					index++
+					continue
+				}
+			}
+			if char == quote {
+				if index+1 < len(input) && input[index+1] == quote {
+					output = append(output, quote, quote)
+					index++
+					continue
+				}
+				inQuotes = false
+			}
+			output = append(output, char)
+			continue
+		}
+		if atFieldStart && char == quote {
+			inQuotes = true
+			atFieldStart = false
+			output = append(output, char)
+			continue
+		}
+		if len(delimiterBytes) > 0 && bytes.HasPrefix(input[index:], delimiterBytes) {
+			output = append(output, delimiterBytes...)
+			index += len(delimiterBytes) - 1
+			atFieldStart = true
+			continue
+		}
+		output = append(output, char)
+		atFieldStart = char == '\n' || char == '\r'
+	}
+	return output
 }

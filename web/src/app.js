@@ -175,6 +175,7 @@ const encodingSelect = document.querySelector("#encodingSelect");
 const applyEncodingButton = document.querySelector("#applyEncodingButton");
 const quoteModeSelect = document.querySelector("#quoteModeSelect");
 const quoteCharSelect = document.querySelector("#quoteCharSelect");
+const quoteEscapeSelect = document.querySelector("#quoteEscapeSelect");
 const applyQuotePolicyButton = document.querySelector("#applyQuotePolicyButton");
 const lineEndingSelect = document.querySelector("#lineEndingSelect");
 const applyLineEndingButton = document.querySelector("#applyLineEndingButton");
@@ -2214,6 +2215,7 @@ function updateCommandState() {
   applyEncodingButton.disabled = !hasDocument || readOnly;
   quoteModeSelect.disabled = !hasDocument;
   quoteCharSelect.disabled = !hasDocument;
+  quoteEscapeSelect.disabled = !hasDocument;
   applyQuotePolicyButton.disabled = !hasDocument || readOnly;
   lineEndingSelect.disabled = !hasDocument || readOnly;
   applyLineEndingButton.disabled = !hasDocument || readOnly;
@@ -2524,8 +2526,25 @@ function quoteCharLabel(dialect = metadata?.dialect) {
   return "double";
 }
 
+function normalizeQuoteEscapeValue(value) {
+  const raw = String(value || "double").toLowerCase().trim();
+  return raw === "backslash" || raw === "slash" ? "backslash" : "double";
+}
+
+function quoteEscapeValue(dialect = metadata?.dialect) {
+  return normalizeQuoteEscapeValue(dialect?.quoteEscape);
+}
+
+function quoteEscapeLabel(dialect = metadata?.dialect) {
+  return `${quoteEscapeValue(dialect)} escape`;
+}
+
+function selectedQuotePolicySummary() {
+  return `${quoteModeSelect.value} ${quoteCharSelect.value} ${quoteEscapeSelect.value} escape`;
+}
+
 function quotePolicyLabel(dialect = metadata?.dialect) {
-  return `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)}`;
+  return `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)} ${quoteEscapeLabel(dialect)}`;
 }
 
 function headerColumnsValue(dialect = metadata?.dialect) {
@@ -2683,13 +2702,14 @@ function syncEncodingControls() {
 }
 
 function syncQuotePolicyControls() {
-  if (!quoteModeSelect || !quoteCharSelect) return;
+  if (!quoteModeSelect || !quoteCharSelect || !quoteEscapeSelect) return;
   if (quotePolicyDraftDirty) {
-    settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+    settingsQuoteSummary.textContent = selectedQuotePolicySummary();
   } else {
     quoteModeSelect.value = quoteModeValue();
     quoteCharSelect.value = quoteCharValue();
-    settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()}` : "minimal double";
+    quoteEscapeSelect.value = quoteEscapeValue();
+    settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()} ${quoteEscapeLabel()}` : "minimal double double escape";
   }
   const dialect = metadata?.dialect;
   quoteHeaderRuleToggle.checked = Boolean(dialect?.quoteHeader);
@@ -2729,6 +2749,7 @@ function currentFormatPreset() {
     lineEndingName: lineEndingValue(metadata.lineEnding),
     quoteChar: quoteCharValue(metadata.dialect),
     quoteMode: quoteModeValue(metadata.dialect),
+    quoteEscape: quoteEscapeValue(metadata.dialect),
     rules: [],
   };
 }
@@ -2744,6 +2765,7 @@ function formatPresets() {
         headerColumns: normalizeHeaderColumns(preset.headerColumns),
         quoteChar: preset.quoteChar || "double",
         quoteMode: preset.quoteMode || "minimal",
+        quoteEscape: normalizeQuoteEscapeValue(preset.quoteEscape),
         lineEndingName: normalizeLineEndingName(preset.lineEndingName),
         rules: normalizeFormatRules(preset.rules),
       }))
@@ -2857,6 +2879,7 @@ function exportFormatPresets() {
       lineEndingName: normalizeLineEndingName(preset.lineEndingName),
       quoteChar: preset.quoteChar || "double",
       quoteMode: preset.quoteMode || "minimal",
+      quoteEscape: normalizeQuoteEscapeValue(preset.quoteEscape),
       rules: normalizeFormatRules(preset.rules),
     })),
   };
@@ -2933,6 +2956,7 @@ function normalizeImportedFormatPreset(raw) {
   const delimiter = normalizeImportedDelimiter(raw.delimiter, raw.delimiterName);
   const quoteChar = ["double", "single", "none"].includes(raw.quoteChar) ? raw.quoteChar : "double";
   const quoteMode = ["minimal", "always", "never", "manual"].includes(raw.quoteMode) ? raw.quoteMode : "minimal";
+  const quoteEscape = normalizeQuoteEscapeValue(raw.quoteEscape);
   const preset = {
     id: "",
     name: "",
@@ -2944,6 +2968,7 @@ function normalizeImportedFormatPreset(raw) {
     lineEndingName: normalizeLineEndingName(raw.lineEndingName),
     quoteChar,
     quoteMode,
+    quoteEscape,
     rules: normalizeFormatRules(raw.rules),
   };
   preset.id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 160) : formatPresetID(preset);
@@ -3119,6 +3144,7 @@ function formatPresetSearchText(preset) {
     preset.lineEndingName,
     preset.quoteMode,
     preset.quoteChar,
+    preset.quoteEscape,
     ...(preset.rules ?? []).map((rule) => rule.pattern),
   ].filter(Boolean).join(" ").toLowerCase();
 }
@@ -3332,10 +3358,11 @@ async function applyQuotePolicy() {
   }
   const quoteMode = quoteModeSelect.value;
   const quoteChar = quoteCharSelect.value;
+  const quoteEscape = quoteEscapeSelect.value;
   const response = await fetch("/api/quote-policy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, quoteChar, quoteMode }),
+    body: JSON.stringify({ documentId, quoteChar, quoteMode, quoteEscape }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -3343,16 +3370,17 @@ async function applyQuotePolicy() {
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `Quote policy set to ${quoteMode} ${quoteChar}.`);
+  applyMutationPayload(payload, `Quote policy set to ${quoteMode} ${quoteChar} ${quoteEscape} escape.`);
   if (metadata?.dialect) {
     metadata.dialect.quoteMode = quoteMode;
     metadata.dialect.quoteChar = quoteChar === "single" ? "'" : quoteChar === "none" ? "" : '"';
+    metadata.dialect.quoteEscape = quoteEscape;
   }
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
-  status.textContent = `Quote policy set to ${quoteMode} ${quoteChar}.`;
-  document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}`;
+  status.textContent = `Quote policy set to ${quoteMode} ${quoteChar} ${quoteEscape} escape.`;
+  document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}:${quoteEscape}`;
 }
 
 async function applyLineEnding() {
@@ -3606,6 +3634,7 @@ function currentQuoteRuleSettings() {
   return {
     quoteChar: quoteCharValue(dialect),
     quoteMode: quoteModeValue(dialect),
+    quoteEscape: quoteEscapeValue(dialect),
     quoteHeader: Boolean(dialect.quoteHeader),
     quoteBody: Boolean(dialect.quoteBody),
     quoteColumns: normalizeIntegerList(dialect.quoteColumns),
@@ -3628,6 +3657,7 @@ function parseQuoteRulesImport(text) {
   return {
     quoteChar: normalizeQuoteRuleChar(source.quoteChar),
     quoteMode: normalizeQuoteRuleMode(source.quoteMode),
+    quoteEscape: normalizeQuoteRuleEscape(source.quoteEscape),
     quoteHeader: normalizeQuoteRuleBoolean(source.quoteHeader),
     quoteBody: normalizeQuoteRuleBoolean(source.quoteBody),
     quoteColumns: normalizeIntegerList(source.quoteColumns),
@@ -3646,6 +3676,10 @@ function normalizeQuoteRuleChar(value) {
   if (raw === "'" || raw === "single") return "single";
   if (raw === "" || raw === "none") return "none";
   return "double";
+}
+
+function normalizeQuoteRuleEscape(value) {
+  return normalizeQuoteEscapeValue(value);
 }
 
 function normalizeQuoteRuleBoolean(value) {
@@ -3686,6 +3720,7 @@ function quoteRulesSignature(settings) {
   return [
     settings.quoteMode,
     settings.quoteChar,
+    normalizeQuoteEscapeValue(settings.quoteEscape),
     settings.quoteHeader ? "header" : "no-header",
     settings.quoteBody ? "body" : "no-body",
     `cols:${settings.quoteColumns.join(",")}`,
@@ -3695,7 +3730,7 @@ function quoteRulesSignature(settings) {
 }
 
 function quoteRulesSummary(settings) {
-  const parts = [`${settings.quoteMode} ${settings.quoteChar}`];
+  const parts = [`${settings.quoteMode} ${settings.quoteChar} ${normalizeQuoteEscapeValue(settings.quoteEscape)} escape`];
   if (settings.quoteHeader) parts.push("header");
   if (settings.quoteBody) parts.push("body");
   if (settings.quoteColumns.length) parts.push(`${settings.quoteColumns.length} columns`);
@@ -3822,6 +3857,7 @@ function formatPresetID(preset) {
     normalizeLineEndingName(preset.lineEndingName),
     preset.quoteChar || "double",
     preset.quoteMode || "minimal",
+    normalizeQuoteEscapeValue(preset.quoteEscape),
   ];
   const headerColumns = normalizeHeaderColumns(preset.headerColumns);
   if (headerColumns > 0) parts.splice(2, 0, `hcols${headerColumns}`);
@@ -3831,11 +3867,11 @@ function formatPresetID(preset) {
 function formatPresetName(preset) {
   const delimiter = preset.delimiterName || (preset.delimiter === "\t" ? "tab" : preset.delimiter);
   const lineEnding = normalizeLineEndingName(preset.lineEndingName).toUpperCase();
-  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${formatPresetHeaderLabel(preset)} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${lineEnding} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)}`;
+  return `${delimiterLabel({ delimiter: preset.delimiter, delimiterName: delimiter })} · ${formatPresetHeaderLabel(preset)} · ${(preset.encodingName || "UTF-8").toUpperCase()} · ${lineEnding} · ${quoteModeValue(preset)} ${quoteCharLabel(preset)} ${quoteEscapeLabel(preset)}`;
 }
 
 function formatPresetPreview(preset) {
-  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${normalizeLineEndingName(preset.lineEndingName)}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}`;
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${normalizeLineEndingName(preset.lineEndingName)}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}|${normalizeQuoteEscapeValue(preset.quoteEscape)}`;
 }
 
 function formatPresetHeaderLabel(preset) {
@@ -7657,6 +7693,7 @@ async function openPath(path, options = {}) {
     body.lineEnding = normalizeLineEndingName(preset.lineEndingName);
     body.quoteChar = preset.quoteChar || "double";
     body.quoteMode = preset.quoteMode || "minimal";
+    body.quoteEscape = normalizeQuoteEscapeValue(preset.quoteEscape);
   }
   applyFormatOverride(body, formatOverride);
   const response = await fetch("/api/open", {
@@ -13547,6 +13584,8 @@ function formatOverrideFromParams(params) {
   if (quoteChar) override.quoteChar = quoteChar;
   const quoteMode = firstParam("quote-mode", "quoteMode", "quote_mode", "qm");
   if (quoteMode) override.quoteMode = quoteMode;
+  const quoteEscape = firstParam("quote-escape", "quoteEscape", "quote_escape", "qe");
+  if (quoteEscape) override.quoteEscape = normalizeQuoteEscapeValue(quoteEscape);
   const encodingName = firstParam("encoding", "e");
   if (encodingName) override.encodingName = encodingName;
   const lineEnding = firstParam("line-ending", "lineEnding", "line_ending", "newline", "eol", "le");
@@ -13789,11 +13828,15 @@ quoteBodyRuleToggle.addEventListener("change", () => toggleQuoteRule("body", quo
 quoteColumnRuleToggle.addEventListener("change", () => toggleQuoteRule("column", quoteColumnRuleToggle.checked));
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
-  settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+  settingsQuoteSummary.textContent = selectedQuotePolicySummary();
 });
 quoteCharSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
-  settingsQuoteSummary.textContent = `${quoteModeSelect.value} ${quoteCharSelect.value}`;
+  settingsQuoteSummary.textContent = selectedQuotePolicySummary();
+});
+quoteEscapeSelect.addEventListener("change", () => {
+  quotePolicyDraftDirty = true;
+  settingsQuoteSummary.textContent = selectedQuotePolicySummary();
 });
 runSqlButton.addEventListener("click", runSQLQuery);
 copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));

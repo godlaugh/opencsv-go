@@ -16,6 +16,9 @@ const (
 	QuoteModeAlways  = "always"
 	QuoteModeNever   = "never"
 	QuoteModeManual  = "manual"
+
+	QuoteEscapeDouble    = "double"
+	QuoteEscapeBackslash = "backslash"
 )
 
 func NormalizeQuoteMode(value string) (string, error) {
@@ -49,12 +52,31 @@ func NormalizeQuoteChar(value string) (string, error) {
 	return value, nil
 }
 
+func NormalizeQuoteEscape(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", QuoteEscapeDouble, "quote", "double-quote", "doublequote":
+		return QuoteEscapeDouble, nil
+	case QuoteEscapeBackslash, "slash":
+		return QuoteEscapeBackslash, nil
+	default:
+		return "", fmt.Errorf("quote escape must be double or backslash")
+	}
+}
+
 func DialectQuoteMode(dialect Dialect) string {
 	mode, err := NormalizeQuoteMode(dialect.QuoteMode)
 	if err != nil {
 		return QuoteModeMinimal
 	}
 	return mode
+}
+
+func DialectQuoteEscape(dialect Dialect) string {
+	escape, err := NormalizeQuoteEscape(dialect.QuoteEscape)
+	if err != nil {
+		return QuoteEscapeDouble
+	}
+	return escape
 }
 
 func DialectQuoteChar(dialect Dialect) string {

@@ -47,6 +47,7 @@ flowchart TD
   - Windowed reads.
   - Save/backup.
   - Minimal quote-policy detection plus full-index source quote-map scanning aligned with the current Go CSV writer.
+  - Quote character, mode, and escape policy metadata for save/open workflows.
 
 - `pkg/appserver`
   - Local HTTP API for browser prototype.
@@ -299,7 +300,7 @@ Input:
 - `path`
 - `previewRows`
 - `indexRows`
-- optional format overrides: delimiter, quote character/mode, encoding, line ending, header rows, header columns.
+- optional format overrides: delimiter, quote character/mode/escape, encoding, line ending, header rows, header columns.
 
 Output:
 
@@ -740,7 +741,7 @@ Output:
 - Diff View marks changed/added/deleted result rows as navigable differences, supports next/previous buttons, and supports the Alt+F5 / Shift+Alt+F5 shortcut shape used by SmoothCSV.
 - Diff View merge actions call a backend merge endpoint that recomputes the diff, applies the selected row or cell in either file direction, creates a backup, and atomically saves the target file.
 - Diff View can compare against pasted right-side CSV text, load right-side text from the browser clipboard when available, and use the same merge actions to apply that text to the left file.
-- Quote indicators and Inspector quote state match minimal CSV save rules for delimiter, quote, CR/LF, and leading whitespace.
+- Quote indicators and Inspector quote state match active CSV save rules for delimiter, quote, quote escape, CR/LF, and leading whitespace.
 - Hidden panels do not intercept grid/header clicks.
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.
 - Column header quick menu can append a secondary sort key and report the composed sort order.
@@ -791,7 +792,7 @@ Output:
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
 - `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
-- Delimiter, encoding, line-ending, quote, and header overrides mapped into `csvcore.OpenOptions`.
+- Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`.
 - `smoothcsv://file/...` URL parsing with format query parameters.
 
 ## 8. Immediate Refactor Sequence

@@ -128,6 +128,7 @@ type openRequest struct {
 	DelimiterName string `json:"delimiterName,omitempty"`
 	QuoteChar     string `json:"quoteChar,omitempty"`
 	QuoteMode     string `json:"quoteMode,omitempty"`
+	QuoteEscape   string `json:"quoteEscape,omitempty"`
 	LineEnding    string `json:"lineEnding,omitempty"`
 	HasHeader     *bool  `json:"hasHeader,omitempty"`
 	HeaderColumns *int   `json:"headerColumns,omitempty"`
@@ -206,6 +207,14 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		options.QuoteMode = quoteMode
+	}
+	if strings.TrimSpace(request.QuoteEscape) != "" {
+		quoteEscape, err := csvcore.NormalizeQuoteEscape(request.QuoteEscape)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		options.QuoteEscape = quoteEscape
 	}
 	if strings.TrimSpace(request.LineEnding) != "" {
 		lineEnding, err := csvcore.NormalizeLineEndingName(request.LineEnding)
@@ -502,9 +511,10 @@ type encodingRequest struct {
 }
 
 type quotePolicyRequest struct {
-	DocumentID string `json:"documentId"`
-	QuoteChar  string `json:"quoteChar"`
-	QuoteMode  string `json:"quoteMode"`
+	DocumentID  string `json:"documentId"`
+	QuoteChar   string `json:"quoteChar"`
+	QuoteMode   string `json:"quoteMode"`
+	QuoteEscape string `json:"quoteEscape"`
 }
 
 type cellQuoteRequest struct {
@@ -525,6 +535,7 @@ type quoteSettingsRequest struct {
 	DocumentID   string         `json:"documentId"`
 	QuoteChar    string         `json:"quoteChar"`
 	QuoteMode    string         `json:"quoteMode"`
+	QuoteEscape  string         `json:"quoteEscape"`
 	QuoteHeader  bool           `json:"quoteHeader"`
 	QuoteBody    bool           `json:"quoteBody"`
 	QuoteColumns []int          `json:"quoteColumns"`
@@ -594,7 +605,7 @@ func (server *Server) handleQuotePolicy(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.SetQuotePolicy(request.DocumentID, request.QuoteChar, request.QuoteMode)
+	result, err := server.documents.SetQuotePolicy(request.DocumentID, request.QuoteChar, request.QuoteMode, request.QuoteEscape)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -625,6 +636,7 @@ func (server *Server) handleQuoteSettings(w http.ResponseWriter, r *http.Request
 	result, err := server.documents.SetQuoteSettings(request.DocumentID, docstore.QuoteSettings{
 		QuoteChar:    request.QuoteChar,
 		QuoteMode:    request.QuoteMode,
+		QuoteEscape:  request.QuoteEscape,
 		QuoteHeader:  request.QuoteHeader,
 		QuoteBody:    request.QuoteBody,
 		QuoteColumns: request.QuoteColumns,

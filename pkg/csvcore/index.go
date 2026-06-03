@@ -34,7 +34,7 @@ func BuildRowIndex(path string, dialect Dialect, maxRows int) (RowIndex, error) 
 	}
 
 	index.Offsets = append(index.Offsets, 0)
-	scanner := rowBoundaryScanner{}
+	scanner := newRowBoundaryScanner(dialect)
 	buffer := make([]byte, 256*1024)
 	fileOffset := int64(0)
 	lastBoundary := int64(-1)
@@ -73,6 +73,23 @@ type rowBoundaryScanner struct {
 	inQuotes     bool
 	pendingQuote bool
 	prevCR       bool
+	escaped      bool
+	quote        byte
+	backslash    bool
+}
+
+func newRowBoundaryScanner(dialect Dialect) rowBoundaryScanner {
+	quoteChar := DialectQuoteChar(dialect)
+	scanner := rowBoundaryScanner{}
+	if quoteChar == "" {
+		scanner.quote = 0
+	} else if len(quoteChar) == 1 {
+		scanner.quote = quoteChar[0]
+	} else {
+		scanner.quote = '"'
+	}
+	scanner.backslash = DialectQuoteEscape(dialect) == QuoteEscapeBackslash
+	return scanner
 }
 
 func (scanner *rowBoundaryScanner) scan(input []byte, baseOffset int64) []int64 {
@@ -80,8 +97,14 @@ func (scanner *rowBoundaryScanner) scan(input []byte, baseOffset int64) []int64 
 	for i, b := range input {
 		offset := baseOffset + int64(i)
 
+		if scanner.escaped {
+			scanner.escaped = false
+			scanner.prevCR = false
+			continue
+		}
+
 		if scanner.pendingQuote {
-			if b == '"' {
+			if b == scanner.quote {
 				scanner.pendingQuote = false
 				continue
 			}
@@ -89,7 +112,13 @@ func (scanner *rowBoundaryScanner) scan(input []byte, baseOffset int64) []int64 
 			scanner.pendingQuote = false
 		}
 
-		if b == '"' {
+		if scanner.inQuotes && scanner.backslash && b == '\\' {
+			scanner.escaped = true
+			scanner.prevCR = false
+			continue
+		}
+
+		if scanner.quote != 0 && b == scanner.quote {
 			if scanner.inQuotes {
 				scanner.pendingQuote = true
 			} else {

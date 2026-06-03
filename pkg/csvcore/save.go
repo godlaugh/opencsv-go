@@ -73,7 +73,7 @@ func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 			}
 			if ShouldQuoteField(field, metadata.Dialect, rowIndex, index) && quoteChar != "" {
 				buffer.WriteString(quoteChar)
-				buffer.WriteString(strings.ReplaceAll(field, quoteChar, quoteChar+quoteChar))
+				buffer.WriteString(EscapeQuotedField(field, metadata.Dialect))
 				buffer.WriteString(quoteChar)
 			} else {
 				buffer.WriteString(field)
@@ -89,6 +89,21 @@ func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 		return bytes.ReplaceAll(buffer.Bytes(), []byte("\n"), []byte("\r")), nil
 	}
 	return buffer.Bytes(), nil
+}
+
+func EscapeQuotedField(value string, dialect Dialect) string {
+	quoteChar := DialectQuoteChar(dialect)
+	if quoteChar == "" {
+		return value
+	}
+	if DialectQuoteEscape(dialect) == QuoteEscapeBackslash {
+		escaped := strings.ReplaceAll(value, `\`, `\\`)
+		if quoteChar != `\` {
+			escaped = strings.ReplaceAll(escaped, quoteChar, `\`+quoteChar)
+		}
+		return escaped
+	}
+	return strings.ReplaceAll(value, quoteChar, quoteChar+quoteChar)
 }
 
 func CreateBackup(path string, requestedPath string) (string, error) {

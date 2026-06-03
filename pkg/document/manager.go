@@ -37,6 +37,7 @@ type Cell struct {
 type QuoteSettings struct {
 	QuoteChar    string
 	QuoteMode    string
+	QuoteEscape  string
 	QuoteHeader  bool
 	QuoteBody    bool
 	QuoteColumns []int
@@ -424,12 +425,16 @@ func (manager *Manager) SetHeaderMode(id string, hasHeader bool) (MutationResult
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
 
-func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode string) (MutationResult, error) {
+func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode string, quoteEscape string) (MutationResult, error) {
 	normalizedQuoteChar, err := csvcore.NormalizeQuoteChar(quoteChar)
 	if err != nil {
 		return MutationResult{}, err
 	}
 	normalizedQuoteMode, err := csvcore.NormalizeQuoteMode(quoteMode)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	normalizedQuoteEscape, err := csvcore.NormalizeQuoteEscape(quoteEscape)
 	if err != nil {
 		return MutationResult{}, err
 	}
@@ -444,11 +449,13 @@ func (manager *Manager) SetQuotePolicy(id string, quoteChar string, quoteMode st
 		return MutationResult{}, errors.New("document is read-only")
 	}
 	if session.Document.Metadata.Dialect.QuoteChar == normalizedQuoteChar &&
-		csvcore.DialectQuoteMode(session.Document.Metadata.Dialect) == normalizedQuoteMode {
+		csvcore.DialectQuoteMode(session.Document.Metadata.Dialect) == normalizedQuoteMode &&
+		csvcore.DialectQuoteEscape(session.Document.Metadata.Dialect) == normalizedQuoteEscape {
 		return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
 	session.Document.Metadata.Dialect.QuoteChar = normalizedQuoteChar
 	session.Document.Metadata.Dialect.QuoteMode = normalizedQuoteMode
+	session.Document.Metadata.Dialect.QuoteEscape = normalizedQuoteEscape
 	session.Dirty = true
 	return MutationResult{Session: cloneSession(session), TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Changed: 1}, nil
 }
@@ -621,6 +628,10 @@ func (manager *Manager) SetQuoteSettings(id string, settings QuoteSettings) (Mut
 	if err != nil {
 		return MutationResult{}, err
 	}
+	normalizedQuoteEscape, err := csvcore.NormalizeQuoteEscape(settings.QuoteEscape)
+	if err != nil {
+		return MutationResult{}, err
+	}
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
@@ -631,6 +642,7 @@ func (manager *Manager) SetQuoteSettings(id string, settings QuoteSettings) (Mut
 	nextDialect := session.Document.Metadata.Dialect
 	nextDialect.QuoteChar = normalizedQuoteChar
 	nextDialect.QuoteMode = normalizedQuoteMode
+	nextDialect.QuoteEscape = normalizedQuoteEscape
 	nextDialect.QuoteHeader = settings.QuoteHeader
 	nextDialect.QuoteBody = settings.QuoteBody
 	nextDialect.QuoteColumns = normalizeQuoteColumns(settings.QuoteColumns)
@@ -1490,6 +1502,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		Encoding:      &session.Document.Metadata.Encoding,
 		QuoteChar:     &session.Document.Metadata.Dialect.QuoteChar,
 		QuoteMode:     session.Document.Metadata.Dialect.QuoteMode,
+		QuoteEscape:   session.Document.Metadata.Dialect.QuoteEscape,
 		SheetName:     selectedWorkbookSheetName(session.Document.Metadata),
 		SheetIndex:    selectedWorkbookSheetIndex(session.Document.Metadata),
 	})
@@ -2766,6 +2779,7 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 		Encoding:      &metadata.Encoding,
 		QuoteChar:     &metadata.Dialect.QuoteChar,
 		QuoteMode:     metadata.Dialect.QuoteMode,
+		QuoteEscape:   metadata.Dialect.QuoteEscape,
 	})
 	if err != nil {
 		return nil, err

@@ -117,6 +117,23 @@ func TestEncodeRecordsQuoteModes(t *testing.T) {
 		t.Fatalf("single quote = %q, want %q", string(got), want)
 	}
 
+	metadata.Dialect = Dialect{Delimiter: ',', QuoteChar: `"`, QuoteMode: QuoteModeMinimal, QuoteEscape: QuoteEscapeBackslash}
+	got, err = EncodeRecords([][]string{{"id", "note"}, {"1", `has "quote" and \ slash`}}, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = "id,note\n1,\"has \\\"quote\\\" and \\\\ slash\"\n"
+	if string(got) != want {
+		t.Fatalf("backslash quote escape = %q, want %q", string(got), want)
+	}
+	readRecords, err := ParseRecordsFromUTF8(got, metadata.Dialect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readRecords[1][1] != `has "quote" and \ slash` {
+		t.Fatalf("backslash quote readback = %q", readRecords[1][1])
+	}
+
 	metadata.Dialect = Dialect{
 		Delimiter:    ',',
 		QuoteChar:    `"`,
@@ -158,6 +175,37 @@ func TestEncodeRecordsQuoteModes(t *testing.T) {
 	want = "id,note\n\"1\",\"plain\"\n\"2\",\"has,comma\"\n"
 	if string(got) != want {
 		t.Fatalf("manual body quote = %q, want %q", string(got), want)
+	}
+}
+
+func TestBackslashQuoteEscapeRowIndex(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "backslash-escape.csv")
+	metadata := FileMetadata{
+		Encoding: EncodingInfo{Name: EncodingUTF8},
+		Dialect:  Dialect{Delimiter: ',', QuoteChar: `"`, QuoteMode: QuoteModeMinimal, QuoteEscape: QuoteEscapeBackslash},
+	}
+	records := [][]string{{"id", "note"}, {"1", "line \"one\"\nline two"}, {"2", "plain"}}
+	encoded, err := EncodeRecords(records, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, encoded, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	index, err := BuildRowIndex(path, metadata.Dialect, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.Rows != 3 {
+		t.Fatalf("row index rows = %d, want 3 for %q", index.Rows, string(encoded))
+	}
+	readBack, err := ReadAllRecords(path, metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readBack[1][1] != records[1][1] {
+		t.Fatalf("readback multiline field = %q, want %q", readBack[1][1], records[1][1])
 	}
 }
 
