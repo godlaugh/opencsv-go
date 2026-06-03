@@ -1753,6 +1753,20 @@ func TestServerSQLFilterTemporalArithmetic(t *testing.T) {
 	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
 		t.Fatalf("SQL temporal arithmetic filtered window rows = %#v, want row 1", rows)
 	}
+
+	sqlFilterPayload = postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "CAST(stamp AS timestamp) + INTERVAL '-1:30' hour to minute = TIMESTAMP '2026-05-27 13:00:00'",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL signed interval arithmetic filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows = windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
+		t.Fatalf("SQL signed interval filtered window rows = %#v, want row 1", rows)
+	}
 }
 
 func TestServerSQLFilterBigIntPrecision(t *testing.T) {

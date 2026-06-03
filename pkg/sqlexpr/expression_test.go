@@ -101,6 +101,12 @@ func TestMatchTemporalArithmetic(t *testing.T) {
 		{expr: "TIME '16:00:00.123' - CAST(seen_at AS time) = INTERVAL '30' minute", want: true},
 		{expr: "CAST(stamp AS timestamp) + INTERVAL '1:30' hour to minute = TIMESTAMP '2026-05-27 16:00:00'", want: true},
 		{expr: "TIMESTAMP '2026-05-27 16:00:00' - CAST(stamp AS timestamp) = INTERVAL '1:30' hour to minute", want: true},
+		{expr: "CAST(stamp AS timestamp) + INTERVAL '-1:30' hour to minute = TIMESTAMP '2026-05-27 13:00:00'", want: true},
+		{expr: "CAST(created_at AS date) + INTERVAL '-1 02:30' day to minute = TIMESTAMP '2026-05-25 21:30:00'", want: true},
+		{expr: "CAST(stamp AS timestamp) + INTERVAL '+1:30' hour to minute = TIMESTAMP '2026-05-27 16:00:00'", want: true},
+		{expr: "INTERVAL '-1-2' year to month = INTERVAL '-14' month", want: true},
+		{expr: "INTERVAL '+1-2' year to month = INTERVAL '14' month", want: true},
+		{expr: "INTERVAL '-1:30' minute to second = INTERVAL '-90' second", want: true},
 		{expr: "DATE '2026-05-27' = '2026-05-27'", want: false},
 	}
 

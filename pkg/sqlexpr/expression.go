@@ -953,7 +953,8 @@ func parseIntervalLiteral(quantity string, fields []string) (value, error) {
 		months, err := parseIntegerQuantity(quantity)
 		return intervalValue(months, 0), err
 	case "year to month":
-		parts := strings.Split(quantity, "-")
+		sign, unsigned := splitIntervalSign(quantity)
+		parts := strings.Split(unsigned, "-")
 		if len(parts) != 2 {
 			return nullValue(), fmt.Errorf("interval %q does not match year to month", quantity)
 		}
@@ -965,7 +966,7 @@ func parseIntervalLiteral(quantity string, fields []string) (value, error) {
 		if err != nil {
 			return nullValue(), err
 		}
-		return intervalValue(years*12+months, 0), nil
+		return intervalValue(int64(sign)*(years*12+months), 0), nil
 	case "day":
 		days, err := parseFloatQuantity(quantity)
 		return intervalValue(0, days*86400), err
@@ -1005,8 +1006,20 @@ func parseFloatQuantity(raw string) (float64, error) {
 	return value, nil
 }
 
+func splitIntervalSign(raw string) (int, string) {
+	trimmed := strings.TrimSpace(raw)
+	if strings.HasPrefix(trimmed, "-") {
+		return -1, strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
+	}
+	if strings.HasPrefix(trimmed, "+") {
+		return 1, strings.TrimSpace(strings.TrimPrefix(trimmed, "+"))
+	}
+	return 1, trimmed
+}
+
 func parseDayTimeInterval(quantity string, field string) (value, error) {
-	parts := strings.Fields(strings.TrimSpace(quantity))
+	sign, unsigned := splitIntervalSign(quantity)
+	parts := strings.Fields(unsigned)
 	if len(parts) == 0 || len(parts) > 2 {
 		return nullValue(), fmt.Errorf("interval %q does not match %s", quantity, field)
 	}
@@ -1016,13 +1029,13 @@ func parseDayTimeInterval(quantity string, field string) (value, error) {
 	}
 	seconds := days * 86400
 	if len(parts) == 1 {
-		return intervalValue(0, seconds), nil
+		return intervalValue(0, float64(sign)*seconds), nil
 	}
 	clock, err := parseDayClockInterval(parts[1], field)
 	if err != nil {
 		return nullValue(), err
 	}
-	return intervalValue(0, seconds+clock.intervalSeconds), nil
+	return intervalValue(0, float64(sign)*(seconds+clock.intervalSeconds)), nil
 }
 
 func parseDayClockInterval(quantity string, field string) (value, error) {
@@ -1068,7 +1081,8 @@ func parseDayClockInterval(quantity string, field string) (value, error) {
 }
 
 func parseClockInterval(quantity string, field string, baseHours float64) (value, error) {
-	parts := strings.Split(strings.TrimSpace(quantity), ":")
+	sign, unsigned := splitIntervalSign(quantity)
+	parts := strings.Split(unsigned, ":")
 	var seconds float64
 	switch field {
 	case "hour to minute":
@@ -1103,19 +1117,19 @@ func parseClockInterval(quantity string, field string, baseHours float64) (value
 		}
 		seconds += extra
 	case "hour":
-		hours, err := parseFloatQuantity(quantity)
+		hours, err := parseFloatQuantity(unsigned)
 		if err != nil {
 			return nullValue(), err
 		}
 		seconds = (baseHours + hours) * 3600
 	case "minute":
-		minutes, err := parseFloatQuantity(quantity)
+		minutes, err := parseFloatQuantity(unsigned)
 		if err != nil {
 			return nullValue(), err
 		}
 		seconds = baseHours*3600 + minutes*60
 	case "second":
-		extra, err := parseFloatQuantity(quantity)
+		extra, err := parseFloatQuantity(unsigned)
 		if err != nil {
 			return nullValue(), err
 		}
@@ -1123,11 +1137,12 @@ func parseClockInterval(quantity string, field string, baseHours float64) (value
 	default:
 		return nullValue(), fmt.Errorf("unsupported interval clock field %q", field)
 	}
-	return intervalValue(0, seconds), nil
+	return intervalValue(0, float64(sign)*seconds), nil
 }
 
 func parseMinuteSecondInterval(quantity string) (value, error) {
-	parts := strings.Split(strings.TrimSpace(quantity), ":")
+	sign, unsigned := splitIntervalSign(quantity)
+	parts := strings.Split(unsigned, ":")
 	if len(parts) != 2 {
 		return nullValue(), fmt.Errorf("interval %q does not match minute to second", quantity)
 	}
@@ -1139,7 +1154,7 @@ func parseMinuteSecondInterval(quantity string) (value, error) {
 	if err != nil {
 		return nullValue(), err
 	}
-	return intervalValue(0, minutes*60+seconds), nil
+	return intervalValue(0, float64(sign)*(minutes*60+seconds)), nil
 }
 
 type tokenKind int
