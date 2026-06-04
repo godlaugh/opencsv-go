@@ -12539,6 +12539,7 @@ async function runSQLQuery() {
   }
   status.textContent = "Running SQL...";
   lastSQLResult = null;
+  clearSQLErrorState();
   clearSQLResultSelection();
   syncSQLResultActions();
   const response = await fetch("/api/sql", {
@@ -12548,12 +12549,12 @@ async function runSQLQuery() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `SQL failed: ${payload.error ?? "unknown error"}`;
-    sqlResult.replaceChildren(emptySQLNode(payload.error ?? "Query failed"));
+    renderSQLError(payload);
     clearSQLResultSelection();
     syncSQLResultActions();
     return;
   }
+  clearSQLErrorState();
   lastSQLResult = payload;
   renderSQLResult(payload);
   rememberSQLQuery(query);
@@ -12624,6 +12625,63 @@ function renderSQLHistory() {
 
 function compactSQLQuery(query) {
   return query.replace(/\s+/g, " ").trim();
+}
+
+function clearSQLErrorState() {
+  delete document.body.dataset.sqlErrorMessage;
+  delete document.body.dataset.sqlErrorLocation;
+  delete document.body.dataset.sqlErrorToken;
+  delete document.body.dataset.sqlErrorSnippet;
+  delete document.body.dataset.sqlErrorCaret;
+  delete document.body.dataset.sqlErrorPhase;
+}
+
+function renderSQLError(payload = {}) {
+  const detail = payload.sqlError && typeof payload.sqlError === "object" ? payload.sqlError : {};
+  const message = detail.message || payload.error || "Query failed";
+  const line = Number(detail.line);
+  const column = Number(detail.column);
+  const hasLocation = Number.isInteger(line) && line > 0 && Number.isInteger(column) && column > 0;
+  status.textContent = hasLocation
+    ? `SQL failed at line ${line}, column ${column}: ${message}`
+    : `SQL failed: ${message}`;
+
+  document.body.dataset.sqlErrorMessage = message;
+  document.body.dataset.sqlErrorLocation = hasLocation ? `${line}:${column}` : "";
+  document.body.dataset.sqlErrorToken = detail.token || "";
+  document.body.dataset.sqlErrorSnippet = detail.snippet || "";
+  document.body.dataset.sqlErrorCaret = detail.caret || "";
+  document.body.dataset.sqlErrorPhase = detail.phase || "";
+
+  const panel = document.createElement("div");
+  panel.className = "sql-error";
+  panel.setAttribute("role", "alert");
+
+  const title = document.createElement("strong");
+  title.textContent = "SQL error";
+  const messageNode = document.createElement("p");
+  messageNode.textContent = message;
+  panel.append(title, messageNode);
+
+  if (hasLocation || detail.phase || detail.token) {
+    const meta = document.createElement("span");
+    meta.className = "sql-error-meta";
+    meta.textContent = [
+      hasLocation ? `line ${line}, column ${column}` : "",
+      detail.token ? `token ${detail.token}` : "",
+      detail.phase ? `phase ${detail.phase}` : "",
+    ].filter(Boolean).join(" · ");
+    panel.append(meta);
+  }
+
+  if (detail.snippet) {
+    const snippet = document.createElement("pre");
+    snippet.className = "sql-error-snippet";
+    snippet.textContent = detail.caret ? `${detail.snippet}\n${detail.caret}` : detail.snippet;
+    panel.append(snippet);
+  }
+
+  sqlResult.replaceChildren(panel);
 }
 
 async function openProfilePanel() {

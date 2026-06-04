@@ -1467,7 +1467,12 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, map[string]string{"error": err.Error()})
+	payload := map[string]any{"error": err.Error()}
+	var queryErr *sqlconsole.QueryError
+	if errors.As(err, &queryErr) {
+		payload["sqlError"] = queryErr.Detail
+	}
+	writeJSON(w, status, payload)
 }
 
 func queryInt(r *http.Request, name string, fallback int) int {

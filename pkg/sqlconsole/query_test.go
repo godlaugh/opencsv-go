@@ -1,6 +1,9 @@
 package sqlconsole
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestExecuteCurrentSelectWhereOrderLimit(t *testing.T) {
 	source := Source{
@@ -152,6 +155,35 @@ func TestExecuteRejectsUnsupportedSQL(t *testing.T) {
 	}
 	if _, err := Execute("SELECT *", fixedResolver(Source{}), Options{}); err == nil {
 		t.Fatal("expected missing FROM error")
+	}
+}
+
+func TestExecuteReturnsSQLErrorLocation(t *testing.T) {
+	source := Source{
+		Name:    "current",
+		Path:    "/tmp/current.csv",
+		Headers: []string{"id", "name"},
+		Records: [][]string{
+			{"id", "name"},
+			{"1", "Ada"},
+		},
+	}
+	_, err := Execute("SELECT name,\nscroe FROM current", fixedResolver(source), Options{})
+	if err == nil {
+		t.Fatal("expected SQL error")
+	}
+	var queryErr *QueryError
+	if !errors.As(err, &queryErr) {
+		t.Fatalf("error type = %T, want QueryError", err)
+	}
+	if queryErr.Detail.Line != 2 || queryErr.Detail.Column != 1 {
+		t.Fatalf("location = %d:%d, want 2:1", queryErr.Detail.Line, queryErr.Detail.Column)
+	}
+	if queryErr.Detail.Token != "scroe" {
+		t.Fatalf("token = %q, want scroe", queryErr.Detail.Token)
+	}
+	if queryErr.Detail.Snippet != "scroe FROM current" || queryErr.Detail.Caret != "^" {
+		t.Fatalf("snippet/caret = %q / %q", queryErr.Detail.Snippet, queryErr.Detail.Caret)
 	}
 }
 

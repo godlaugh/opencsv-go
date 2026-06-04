@@ -989,6 +989,40 @@ button:disabled {
   font-size: 12px;
 }
 
+.sql-error {
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--danger, #c83f49) 46%, var(--border));
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--danger, #c83f49) 9%, var(--panel));
+  color: var(--text);
+}
+
+.sql-error strong {
+  color: var(--danger, #c83f49);
+}
+
+.sql-error p {
+  margin: 0;
+}
+
+.sql-error-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sql-error-snippet {
+  overflow-x: auto;
+  margin: 2px 0 0;
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+}
+
 #clearSqlHistoryButton {
   height: 28px;
   border-radius: 6px;

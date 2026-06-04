@@ -36,6 +36,30 @@ type Options struct {
 	MaxLimit     int
 }
 
+type ErrorDetail struct {
+	Message string `json:"message"`
+	Phase   string `json:"phase,omitempty"`
+	Line    int    `json:"line,omitempty"`
+	Column  int    `json:"column,omitempty"`
+	Offset  int    `json:"offset,omitempty"`
+	Token   string `json:"token,omitempty"`
+	Snippet string `json:"snippet,omitempty"`
+	Caret   string `json:"caret,omitempty"`
+}
+
+type QueryError struct {
+	Detail ErrorDetail
+	cause  error
+}
+
+func (err *QueryError) Error() string {
+	return err.Detail.Message
+}
+
+func (err *QueryError) Unwrap() error {
+	return err.cause
+}
+
 type queryParts struct {
 	selectClause string
 	fromRef      string
@@ -58,7 +82,7 @@ type selectExpr struct {
 
 func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	if strings.TrimSpace(query) == "" {
-		return Result{}, errors.New("query is required")
+		return Result{}, queryError(query, "validate", errors.New("query is required"))
 	}
 	if options.DefaultLimit <= 0 {
 		options.DefaultLimit = 100
@@ -68,20 +92,20 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	}
 	sqlText := trimSQL(query)
 	if !isReadQuery(sqlText) {
-		return Result{}, errors.New("only SELECT queries are supported")
+		return Result{}, queryError(query, "validate", errors.New("only SELECT queries are supported"))
 	}
 
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
-		return Result{}, err
+		return Result{}, queryError(query, "prepare", err)
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 	if _, err := db.Exec("PRAGMA temp_store = MEMORY"); err != nil {
-		return Result{}, err
+		return Result{}, queryError(query, "prepare", err)
 	}
 	if _, err := db.Exec("PRAGMA journal_mode = MEMORY"); err != nil {
-		return Result{}, err
+		return Result{}, queryError(query, "prepare", err)
 	}
 
 	refs := findSourceRefs(sqlText)
@@ -89,10 +113,10 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	for _, ref := range refs {
 		source, err := resolver(normalizeSourceRef(ref))
 		if err != nil {
-			return Result{}, err
+			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
 		}
 		if err := loadSource(db, ref, source); err != nil {
-			return Result{}, err
+			return Result{}, queryErrorNearToken(query, "load", err, ref)
 		}
 		sourceNames = append(sourceNames, source.Path)
 	}
@@ -109,7 +133,7 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	limitedQuery := fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", sqlText, limit+1)
 	rows, columns, err := queryRows(db, limitedQuery, limit+1)
 	if err != nil {
-		return Result{}, err
+		return Result{}, queryError(query, "execute", err)
 	}
 	if countErr != nil {
 		total = len(rows)
@@ -139,6 +163,185 @@ func trimSQL(query string) string {
 func isReadQuery(query string) bool {
 	lower := strings.ToLower(strings.TrimSpace(query))
 	return strings.HasPrefix(lower, "select ") || strings.HasPrefix(lower, "with ")
+}
+
+func queryError(query string, phase string, cause error) error {
+	return queryErrorNearToken(query, phase, cause, "")
+}
+
+func queryErrorNearToken(query string, phase string, cause error, tokenHint string) error {
+	return &QueryError{
+		Detail: queryErrorDetail(query, phase, cause, tokenHint),
+		cause:  cause,
+	}
+}
+
+func queryErrorDetail(query string, phase string, cause error, tokenHint string) ErrorDetail {
+	detail := ErrorDetail{
+		Message: cause.Error(),
+		Phase:   phase,
+	}
+	token := strings.TrimSpace(tokenHint)
+	if token == "" {
+		token = sqlErrorToken(detail.Message)
+	}
+	offset := -1
+	if token != "" {
+		offset = findQueryTokenOffset(query, token)
+	}
+	if offset < 0 {
+		offset = fallbackQueryErrorOffset(query, detail.Message)
+	}
+	if offset < 0 || strings.TrimSpace(query) == "" {
+		return detail
+	}
+	line, column := lineColumnAtOffset(query, offset)
+	snippet, caret := queryLineSnippet(query, offset)
+	detail.Line = line
+	detail.Column = column
+	detail.Offset = offset
+	detail.Token = tokenAtOffset(query, offset, token)
+	detail.Snippet = snippet
+	detail.Caret = caret
+	return detail
+}
+
+func sqlErrorToken(message string) string {
+	if token, ok := betweenAfter(message, `near "`, `"`); ok {
+		return token
+	}
+	for _, marker := range []string{
+		"no such column:",
+		"ambiguous column name:",
+		"no such table:",
+	} {
+		if token, ok := tokenAfter(message, marker); ok {
+			return token
+		}
+	}
+	return ""
+}
+
+func betweenAfter(value string, prefix string, suffix string) (string, bool) {
+	start := strings.Index(value, prefix)
+	if start < 0 {
+		return "", false
+	}
+	start += len(prefix)
+	end := strings.Index(value[start:], suffix)
+	if end < 0 {
+		return "", false
+	}
+	return value[start : start+end], true
+}
+
+func tokenAfter(value string, marker string) (string, bool) {
+	start := strings.Index(strings.ToLower(value), strings.ToLower(marker))
+	if start < 0 {
+		return "", false
+	}
+	raw := strings.TrimSpace(value[start+len(marker):])
+	if raw == "" {
+		return "", false
+	}
+	for index, char := range raw {
+		if unicode.IsSpace(char) || strings.ContainsRune(",;()", char) {
+			raw = raw[:index]
+			break
+		}
+	}
+	raw = strings.Trim(raw, `"'`+"`"+".")
+	return raw, raw != ""
+}
+
+func fallbackQueryErrorOffset(query string, message string) int {
+	trimmed := strings.TrimSpace(query)
+	if trimmed == "" {
+		return -1
+	}
+	if strings.Contains(message, "only SELECT") {
+		return firstNonSpaceOffset(query)
+	}
+	for _, keyword := range []string{"from", "where", "group", "order", "limit"} {
+		if offset := findTopLevelKeyword(query, keyword); offset >= 0 {
+			return offset
+		}
+	}
+	return firstNonSpaceOffset(query)
+}
+
+func findQueryTokenOffset(query string, token string) int {
+	trimmed := strings.Trim(token, `"'`+"`")
+	for _, sqlToken := range scanSQLTokens(query) {
+		tokenText := strings.Trim(sqlToken.text, `"'`+"`")
+		if tokenText == token || strings.EqualFold(tokenText, token) || tokenText == trimmed || strings.EqualFold(tokenText, trimmed) {
+			return sqlToken.start
+		}
+	}
+	if index := strings.Index(query, token); index >= 0 {
+		return index
+	}
+	if trimmed != token {
+		return strings.Index(query, trimmed)
+	}
+	return -1
+}
+
+func firstNonSpaceOffset(query string) int {
+	for index, char := range query {
+		if !unicode.IsSpace(char) {
+			return index
+		}
+	}
+	return -1
+}
+
+func lineColumnAtOffset(query string, offset int) (int, int) {
+	line := 1
+	column := 1
+	for index, char := range query {
+		if index >= offset {
+			break
+		}
+		if char == '\n' {
+			line++
+			column = 1
+		} else {
+			column++
+		}
+	}
+	return line, column
+}
+
+func queryLineSnippet(query string, offset int) (string, string) {
+	start := strings.LastIndex(query[:offset], "\n") + 1
+	end := len(query)
+	if nextNewline := strings.Index(query[offset:], "\n"); nextNewline >= 0 {
+		end = offset + nextNewline
+	}
+	snippet := query[start:end]
+	column := 1
+	for _, char := range query[start:offset] {
+		if char == '\t' {
+			column += 2
+		} else {
+			column++
+		}
+	}
+	return snippet, strings.Repeat(" ", max(0, column-1)) + "^"
+}
+
+func tokenAtOffset(query string, offset int, fallback string) string {
+	for _, token := range scanSQLTokens(query) {
+		end := token.start + len(token.text)
+		if token.quoted {
+			end += 2
+		}
+		if offset >= token.start && offset <= end {
+			return token.text
+		}
+	}
+	return fallback
 }
 
 func loadSource(db *sql.DB, tableName string, source Source) error {

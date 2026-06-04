@@ -1670,6 +1670,30 @@ func TestServerFindFilterSort(t *testing.T) {
 	if aggregateRow[0] != "3" || aggregateRow[1] != "26" {
 		t.Fatalf("unexpected aggregate row: %#v", aggregateRow)
 	}
+	sqlErrorResponse := postJSONResponse(t, handler, "/api/sql", map[string]any{
+		"documentId": documentID,
+		"query":      "SELECT FROM current",
+	})
+	if sqlErrorResponse.Code != http.StatusBadRequest {
+		t.Fatalf("sql error status = %d, want %d", sqlErrorResponse.Code, http.StatusBadRequest)
+	}
+	var sqlErrorPayload map[string]any
+	if err := json.NewDecoder(sqlErrorResponse.Body).Decode(&sqlErrorPayload); err != nil {
+		t.Fatal(err)
+	}
+	sqlErrorDetail, ok := sqlErrorPayload["sqlError"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing sqlError detail in %#v", sqlErrorPayload)
+	}
+	if sqlErrorDetail["line"] != float64(1) || sqlErrorDetail["column"] != float64(8) {
+		t.Fatalf("sql error location = %#v:%#v, want 1:8", sqlErrorDetail["line"], sqlErrorDetail["column"])
+	}
+	if sqlErrorDetail["token"] != "FROM" || sqlErrorDetail["snippet"] != "SELECT FROM current" {
+		t.Fatalf("unexpected sql error detail: %#v", sqlErrorDetail)
+	}
+	if sqlErrorDetail["caret"] != "       ^" {
+		t.Fatalf("sql error caret = %q, want marker under FROM", sqlErrorDetail["caret"])
+	}
 
 	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
 		"documentId": documentID,
