@@ -332,6 +332,7 @@ The app shall support:
 - Edit single cell.
 - Start editing by typing printable characters, including IME-safe CJK input behavior.
 - Paste tabular clipboard data.
+- Paste spreadsheet clipboard data with quoted cells, embedded tabs, and embedded line breaks.
 - Fill selection.
 - Auto-fill with intelligent pattern detection.
 - Multi-cell edit.
@@ -602,6 +603,7 @@ The app shall support:
 - Copy selections as Markdown, HTML, JSON, SQL, and LaTeX.
 - Copy row/column.
 - Paste spreadsheet ranges.
+- Parse quoted spreadsheet TSV paste payloads, including embedded tabs, escaped quotes, and embedded line breaks.
 - Export filtered rows.
 - Export SQL result.
 - Open and save `.xlsx` files at least as import/export conversion.

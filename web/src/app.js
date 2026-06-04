@@ -8983,6 +8983,9 @@ function pasteText(text) {
     status.textContent = "Clipboard is empty.";
     return;
   }
+  window.__opencsvLastPasteMatrix = matrix;
+  document.body.dataset.pasteMatrix = `${matrix.length}:${Math.max(...matrix.map((row) => row.length), 0)}`;
+  document.body.dataset.pastePreview = JSON.stringify(matrix).slice(0, 500);
   pasteMatrix(matrix);
 }
 
@@ -9110,10 +9113,67 @@ function escapeLaTeX(value) {
 }
 
 function parseTSV(text) {
-  const normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n").replace(/\n$/, "");
-  if (!normalized) return [];
-  return normalized.split("\n").map((line) => line.split("\t"));
+  if (!text) return [];
+  if (text.replaceAll("\r", "").replaceAll("\n", "") === "") return [];
+  const matrix = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+  let fieldStart = true;
+  let rowBreak = false;
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index++;
+        } else {
+          quoted = false;
+        }
+        rowBreak = false;
+        continue;
+      }
+      if (char === "\r") {
+        if (text[index + 1] === "\n") index++;
+        field += "\n";
+      } else {
+        field += char;
+      }
+      rowBreak = false;
+      continue;
+    }
+    if (char === '"' && fieldStart) {
+      quoted = true;
+      fieldStart = false;
+      rowBreak = false;
+    } else if (char === "\t") {
+      row.push(field);
+      field = "";
+      fieldStart = true;
+      rowBreak = false;
+    } else if (char === "\r" || char === "\n") {
+      if (char === "\r" && text[index + 1] === "\n") index++;
+      row.push(field);
+      field = "";
+      matrix.push(row);
+      row = [];
+      fieldStart = true;
+      rowBreak = true;
+    } else {
+      field += char;
+      fieldStart = false;
+      rowBreak = false;
+    }
+  }
+  if (!rowBreak || row.length > 0 || field.length > 0) {
+    row.push(field);
+    matrix.push(row);
+  }
+  return matrix;
 }
+
+window.__opencsvParseTSV = parseTSV;
 
 function updateFileList(name, detail, rowCount, options = {}) {
   activeFileEntry = { name, detail, rowCount };

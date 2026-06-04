@@ -138,14 +138,75 @@ func ToLaTeX(matrix [][]string) string {
 }
 
 func ParseTSV(input string) [][]string {
-	input = strings.TrimSuffix(strings.ReplaceAll(input, "\r\n", "\n"), "\n")
 	if input == "" {
 		return nil
 	}
-	lines := strings.Split(strings.ReplaceAll(input, "\r", "\n"), "\n")
-	matrix := make([][]string, len(lines))
-	for i, line := range lines {
-		matrix[i] = strings.Split(line, "\t")
+	if strings.Trim(input, "\r\n") == "" {
+		return nil
+	}
+	var matrix [][]string
+	var row []string
+	var field strings.Builder
+	quoted := false
+	fieldStart := true
+	rowBreak := false
+	for index := 0; index < len(input); index++ {
+		ch := input[index]
+		if quoted {
+			if ch == '"' {
+				if index+1 < len(input) && input[index+1] == '"' {
+					field.WriteByte('"')
+					index++
+				} else {
+					quoted = false
+				}
+				rowBreak = false
+				continue
+			}
+			if ch == '\r' {
+				if index+1 < len(input) && input[index+1] == '\n' {
+					index++
+				}
+				field.WriteByte('\n')
+			} else {
+				field.WriteByte(ch)
+			}
+			rowBreak = false
+			continue
+		}
+		switch ch {
+		case '"':
+			if fieldStart {
+				quoted = true
+				fieldStart = false
+			} else {
+				field.WriteByte(ch)
+			}
+			rowBreak = false
+		case '\t':
+			row = append(row, field.String())
+			field.Reset()
+			fieldStart = true
+			rowBreak = false
+		case '\r', '\n':
+			if ch == '\r' && index+1 < len(input) && input[index+1] == '\n' {
+				index++
+			}
+			row = append(row, field.String())
+			field.Reset()
+			matrix = append(matrix, row)
+			row = nil
+			fieldStart = true
+			rowBreak = true
+		default:
+			field.WriteByte(ch)
+			fieldStart = false
+			rowBreak = false
+		}
+	}
+	if !rowBreak || len(row) > 0 || field.Len() > 0 {
+		row = append(row, field.String())
+		matrix = append(matrix, row)
 	}
 	return matrix
 }

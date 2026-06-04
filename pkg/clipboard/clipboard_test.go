@@ -67,4 +67,20 @@ func TestParseTSV(t *testing.T) {
 	if ParseTSV("") != nil {
 		t.Fatal("empty input should produce nil matrix")
 	}
+	if ParseTSV("\r\n") != nil {
+		t.Fatal("newline-only input should produce nil matrix")
+	}
+}
+
+func TestParseTSVQuotedSpreadsheetCells(t *testing.T) {
+	matrix := ParseTSV("name\tnote\r\nAda\t\"line\r\nbreak\"\r\nLinus\t\"has\t tab and \"\"quote\"\"\"\r\n")
+	if len(matrix) != 3 {
+		t.Fatalf("matrix row count = %#v", matrix)
+	}
+	if got := matrix[1][1]; got != "line\nbreak" {
+		t.Fatalf("quoted newline cell = %q", got)
+	}
+	if got := matrix[2][1]; got != "has\t tab and \"quote\"" {
+		t.Fatalf("quoted tab/quote cell = %q", got)
+	}
 }
