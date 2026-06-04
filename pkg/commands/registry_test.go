@@ -211,6 +211,29 @@ func TestOfficialFilterShortcutDefault(t *testing.T) {
 	}
 }
 
+func TestEditorGroupLayoutPersistenceIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`const editorGroupLayoutStorageKey = "opencsv-editor-group-layout"`,
+		"let editorGroupLayout = loadEditorGroupLayout()",
+		"function loadEditorGroupLayout()",
+		"function saveEditorGroupLayout()",
+		"function editorGroupLayoutSignature(",
+		"document.body.dataset.editorGroupLayoutRestored",
+		"document.body.dataset.editorGroupLayoutSaved",
+		"saveEditorGroupLayout();",
+		"document.body.dataset.editorGroupLayout = editorGroupLayoutSignature()",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing editor group layout persistence wiring %q", snippet)
+		}
+	}
+}
+
 func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

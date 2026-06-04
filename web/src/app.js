@@ -1595,6 +1595,7 @@ const scrollPositionsStorageKey = "opencsv-scroll-positions";
 const scrollPositionsLimit = 32;
 const hiddenColumnsStorageKey = "opencsv-hidden-columns";
 const hiddenColumnsLimit = 64;
+const editorGroupLayoutStorageKey = "opencsv-editor-group-layout";
 const cellSeparatorStorageKey = "opencsv-cell-separator";
 const defaultCellSeparatorToken = "space";
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
@@ -1707,10 +1708,11 @@ let sortKeys = [];
 let sortStable = true;
 let commandsById = new Map();
 let viewMode = "grid";
-let editorGroupsSplit = false;
-let editorGroupOrientation = "horizontal";
-let activeEditorGroup = "primary";
-let currentEditorTabGroup = "primary";
+let editorGroupLayout = loadEditorGroupLayout();
+let editorGroupsSplit = editorGroupLayout.split;
+let editorGroupOrientation = editorGroupLayout.orientation;
+let activeEditorGroup = editorGroupLayout.activeGroup;
+let currentEditorTabGroup = editorGroupLayout.currentTabGroup;
 let pendingEditorTabDrag = null;
 let profileData = null;
 let lastSQLResult = null;
@@ -1773,6 +1775,7 @@ setAutoRefreshMode(autoRefreshMode, false);
 setUpdateCheckMode(updateCheckMode, false);
 applyEditorAppearance(editorAppearance, false);
 setCellSeparatorToken(cellSeparatorToken, false);
+document.body.dataset.editorGroupLayoutRestored = editorGroupLayoutSignature(editorGroupLayout);
 syncProfileSchemaControls();
 
 function resize() {
@@ -2965,6 +2968,7 @@ function renderEditorGroups() {
   document.body.dataset.editorGroupOrientation = editorGroupOrientation;
   document.body.dataset.activeEditorGroup = activeEditorGroup;
   document.body.dataset.currentEditorTabGroup = currentEditorTabGroup;
+  document.body.dataset.editorGroupLayout = editorGroupLayoutSignature();
   document.body.dataset.editorTabLabel = documentId ? `${fileLabel}|${viewLabel}|${selectionLabel}` : "";
   document.body.dataset.secondaryEditorGroup = editorGroupsSplit
     ? `${secondaryHasTab ? fileLabel : "Empty"}|${secondaryHasTab ? viewLabel : "Ready"}|${secondaryHasTab ? selectionLabel : "Ready"}`
@@ -2974,6 +2978,56 @@ function renderEditorGroups() {
   focusEditorGroupButton.disabled = !editorGroupsSplit;
   moveEditorTabButton.disabled = !editorGroupsSplit || !documentId;
   closeSplitEditorButton.disabled = !editorGroupsSplit;
+}
+
+function loadEditorGroupLayout() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(editorGroupLayoutStorageKey) || "{}");
+    const split = Boolean(parsed?.split);
+    const orientation = parsed?.orientation === "vertical" ? "vertical" : "horizontal";
+    return {
+      split,
+      orientation,
+      activeGroup: split && parsed?.activeGroup === "secondary" ? "secondary" : "primary",
+      currentTabGroup: split && parsed?.currentTabGroup === "secondary" ? "secondary" : "primary",
+    };
+  } catch {
+    return {
+      split: false,
+      orientation: "horizontal",
+      activeGroup: "primary",
+      currentTabGroup: "primary",
+    };
+  }
+}
+
+function saveEditorGroupLayout() {
+  const layout = {
+    split: editorGroupsSplit,
+    orientation: editorGroupOrientation === "vertical" ? "vertical" : "horizontal",
+    activeGroup: editorGroupsSplit && activeEditorGroup === "secondary" ? "secondary" : "primary",
+    currentTabGroup: editorGroupsSplit && currentEditorTabGroup === "secondary" ? "secondary" : "primary",
+    updatedAt: Date.now(),
+  };
+  try {
+    localStorage.setItem(editorGroupLayoutStorageKey, JSON.stringify(layout));
+    document.body.dataset.editorGroupLayoutSaved = editorGroupLayoutSignature(layout);
+  } catch {
+    status.textContent = "Editor group layout could not be saved.";
+  }
+}
+
+function editorGroupLayoutSignature(layout = {
+  split: editorGroupsSplit,
+  orientation: editorGroupOrientation,
+  activeGroup: activeEditorGroup,
+  currentTabGroup: currentEditorTabGroup,
+}) {
+  const split = layout.split ? "split" : "single";
+  const orientation = layout.orientation === "vertical" ? "vertical" : "horizontal";
+  const activeGroup = layout.split && layout.activeGroup === "secondary" ? "secondary" : "primary";
+  const currentTabGroup = layout.split && layout.currentTabGroup === "secondary" ? "secondary" : "primary";
+  return `${split}:${orientation}:${activeGroup}:${currentTabGroup}`;
 }
 
 function editorGroupBody(group) {
@@ -3007,6 +3061,7 @@ function splitEditorGroup() {
   if (documentId) currentEditorTabGroup = "secondary";
   activeEditorGroup = documentId ? currentEditorTabGroup : "secondary";
   renderEditorGroups();
+  saveEditorGroupLayout();
   focusEditorGroup(activeEditorGroup);
   resize();
   status.textContent = "Split editor group opened";
@@ -3018,6 +3073,7 @@ function closeSplitEditorGroup() {
   editorGroupsSplit = false;
   activeEditorGroup = "primary";
   renderEditorGroups();
+  saveEditorGroupLayout();
   focusEditorGroup("primary");
   resize();
   status.textContent = "Split editor group closed";
@@ -3027,6 +3083,7 @@ function toggleSplitOrientation() {
   if (!editorGroupsSplit) return;
   editorGroupOrientation = editorGroupOrientation === "horizontal" ? "vertical" : "horizontal";
   renderEditorGroups();
+  saveEditorGroupLayout();
   resize();
   status.textContent = `Split layout ${editorGroupOrientation}`;
 }
@@ -3059,6 +3116,7 @@ function moveCurrentTabToGroup(group, source = "command") {
   currentEditorTabGroup = group;
   activeEditorGroup = group;
   renderEditorGroups();
+  saveEditorGroupLayout();
   resize();
   focusEditorGroup(group);
   const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Current tab";
@@ -3070,6 +3128,7 @@ function moveCurrentTabToGroup(group, source = "command") {
 function focusEditorGroup(group) {
   activeEditorGroup = editorGroupsSplit && group === "secondary" ? "secondary" : "primary";
   renderEditorGroups();
+  saveEditorGroupLayout();
   const activeGroupHasTab = currentEditorTabGroup === activeEditorGroup;
   if (activeGroupHasTab && viewMode === "grid") {
     canvas.focus();
