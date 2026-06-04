@@ -6,6 +6,7 @@ M1 goal:
 - Detect encoding, delimiter, header, and line endings.
 - Build row offset indexes.
 - Show the first screen quickly.
+- Read far-row windows from completed row indexes without replaying the whole file.
 - Create automatic backups on save.
 - Preserve original line endings and encoding on save.
 - Acceptance target: 100 MB CSV reaches first screen in under 2 seconds.
@@ -14,6 +15,7 @@ M1 goal:
 
 - `OpenDocument` detects file metadata and returns preview rows.
 - `BuildRowIndex` scans row boundaries without forcing full record materialization.
+- `ReadRecordWindowWithIndex` seeks to indexed row offsets for clean file-backed windows, including quoted records with embedded newlines.
 - `SaveRecords` writes CSV with the detected delimiter, encoding, and line ending.
 - `SaveRecords` can create a byte-for-byte backup before in-place save.
 - CLI commands: `open`, `inspect`, `generate`, `save`, and `bench`.
@@ -24,18 +26,15 @@ M1 goal:
 
 ```sh
 make test
-GOCACHE=$(pwd)/.cache/go-build go run ./cmd/opencsv bench -rows 720000 -cols 12 -out /tmp/opencsv-m1-100mb.csv
+GOCACHE=$(pwd)/.cache/go-build go run ./cmd/opencsv bench -rows 720000 -cols 12 -window-start 700000 -window-rows 120 -out /tmp/opencsv-m1-100mb.csv
 GOCACHE=$(pwd)/.cache/go-build go run ./cmd/opencsv serve -addr 127.0.0.1:43255 -web web
 ```
 
-Observed on 2026-05-26:
+Observed on 2026-06-04:
 
 ```json
 {
-  "sizeBytes": 112857510,
-  "openDurationMs": 0,
-  "indexDurationMs": 318,
-  "indexedRows": 720001,
+  "cols": 12,
   "encoding": {
     "name": "utf-8",
     "hasBom": false,
@@ -45,7 +44,21 @@ Observed on 2026-05-26:
     "name": "lf",
     "sequence": "\n",
     "confidence": 1
-  }
+  },
+  "generateDurationMs": 1262,
+  "indexComplete": true,
+  "indexDurationMs": 402,
+  "indexDurationUs": 402110,
+  "indexedRows": 720001,
+  "openDurationMs": 0,
+  "openDurationUs": 555,
+  "previewRows": 50,
+  "sizeBytes": 112857510,
+  "windowDurationMs": 0,
+  "windowDurationUs": 156,
+  "windowRows": 120,
+  "windowRowsRead": 120,
+  "windowStart": 700000
 }
 ```
 

@@ -699,6 +699,7 @@ Targets:
 - 1M rows scroll: responsive at 60 FPS target, no body DOM row explosion.
 - Million-row scrolling must not depend on DOM spacer dimensions that hit Safari/Chromium element-size caps.
 - Full row index for 100 MB: under 2 seconds.
+- Far-row window reads after a complete 100 MB row index: under 100 ms and reported by the benchmark.
 - Find over 100 MB: progress visible, cancellable.
 - SQL query over 100 MB: progress visible, cancellable.
 - Startup should defer heavy optional surfaces and render a usable start/open surface before loading SQL, diff, settings, and extension-like modules.
@@ -877,6 +878,7 @@ The desktop shell owns:
 | ID | Requirement | Evidence |
 | --- | --- | --- |
 | A-001 | 100 MB first screen < 2s | `opencsv bench` output |
+| A-001B | 100 MB indexed far-row window < 100 ms | `opencsv bench` output with `windowStart` and `windowDurationUs` |
 | A-002 | Header remains fixed during scroll | Browser screenshot/video and pixel/assertion test |
 | A-003 | Save preserves UTF-8 BOM + CRLF | Unit/integration test |
 | A-004 | Save creates byte-for-byte backup | Unit/integration test |

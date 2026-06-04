@@ -824,6 +824,9 @@ func bench(args []string) error {
 	flags := flag.NewFlagSet("bench", flag.ExitOnError)
 	rows := flags.Int("rows", 100000, "data rows")
 	cols := flags.Int("cols", 16, "columns")
+	previewRows := flags.Int("preview-rows", 50, "preview rows for first-screen open")
+	windowRows := flags.Int("window-rows", 80, "rows to fetch for indexed window timing")
+	windowStart := flags.Int("window-start", -1, "zero-based row to fetch for indexed window timing; defaults to midpoint")
 	out := flags.String("out", "/tmp/opencsv-bench.csv", "output csv")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -844,7 +847,7 @@ func bench(args []string) error {
 	generateDuration := time.Since(start)
 
 	openStart := time.Now()
-	document, err := csvcore.OpenDocument(*out, csvcore.OpenOptions{PreviewRows: 50})
+	document, err := csvcore.OpenDocument(*out, csvcore.OpenOptions{PreviewRows: *previewRows, IndexRows: 0})
 	if err != nil {
 		return err
 	}
@@ -857,18 +860,42 @@ func bench(args []string) error {
 	}
 	indexDuration := time.Since(indexStart)
 
+	fetchStart := *windowStart
+	if fetchStart < 0 {
+		fetchStart = max(0, index.Rows/2)
+	}
+	if fetchStart > index.Rows {
+		fetchStart = index.Rows
+	}
+	windowStartTime := time.Now()
+	window, err := csvcore.ReadRecordWindowWithIndex(*out, document.Metadata, index, fetchStart, *windowRows)
+	if err != nil {
+		return err
+	}
+	windowDuration := time.Since(windowStartTime)
+
 	return printJSON(map[string]any{
 		"path":               *out,
 		"rows":               *rows,
 		"cols":               *cols,
+		"previewRows":        *previewRows,
+		"windowStart":        fetchStart,
+		"windowRows":         *windowRows,
+		"windowRowsRead":     len(window.Rows),
 		"sizeBytes":          document.Metadata.SizeBytes,
 		"encoding":           document.Metadata.Encoding,
 		"lineEnding":         document.Metadata.LineEnding,
 		"dialect":            document.Metadata.Dialect,
 		"indexedRows":        index.Rows,
+		"indexComplete":      index.Complete,
 		"generateDurationMs": generateDuration.Milliseconds(),
+		"generateDurationUs": generateDuration.Microseconds(),
 		"openDurationMs":     openDuration.Milliseconds(),
+		"openDurationUs":     openDuration.Microseconds(),
 		"indexDurationMs":    indexDuration.Milliseconds(),
+		"indexDurationUs":    indexDuration.Microseconds(),
+		"windowDurationMs":   windowDuration.Milliseconds(),
+		"windowDurationUs":   windowDuration.Microseconds(),
 	})
 }
 

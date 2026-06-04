@@ -268,6 +268,42 @@ func TestOpenCLITargetReadsStdin(t *testing.T) {
 	}
 }
 
+func TestBenchReportsIndexedWindowMetrics(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "bench.csv")
+	output, err := captureStdout(t, func() error {
+		return bench([]string{
+			"-rows", "20",
+			"-cols", "4",
+			"-preview-rows", "5",
+			"-window-start", "10",
+			"-window-rows", "6",
+			"-out", out,
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["path"] != out {
+		t.Fatalf("bench path = %#v, want %q", payload["path"], out)
+	}
+	if payload["indexedRows"].(float64) != 21 || payload["indexComplete"] != true {
+		t.Fatalf("index metrics = %#v", payload)
+	}
+	if payload["windowStart"].(float64) != 10 || payload["windowRowsRead"].(float64) != 6 {
+		t.Fatalf("window metrics = %#v", payload)
+	}
+	if _, ok := payload["windowDurationMs"]; !ok {
+		t.Fatalf("missing windowDurationMs in %#v", payload)
+	}
+	if _, ok := payload["windowDurationUs"]; !ok {
+		t.Fatalf("missing windowDurationUs in %#v", payload)
+	}
+}
+
 func TestGrepFileFindsCells(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "grep.csv")

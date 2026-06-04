@@ -228,7 +228,13 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 	}
 
 	if !session.ViewActive && session.EditBaseRecords == nil {
-		window, err := csvcore.ReadRecordWindow(session.WorkingPath, session.Document.Metadata, start, count)
+		window, err := csvcore.ReadRecordWindowWithIndex(
+			session.WorkingPath,
+			session.Document.Metadata,
+			session.Document.RowIndex,
+			start,
+			count,
+		)
 		if err != nil {
 			return csvcore.RecordWindow{}, err
 		}

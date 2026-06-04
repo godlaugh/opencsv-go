@@ -174,6 +174,11 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-020 | Grid row-height appearance setting | Started | Browser Settings persistence/reset verification |
 | FR-020 | Update check mode and manual check foundation | Started | `/api/update-check`, command registry, Browser startup/manual/off verification |
 | NFR-001 | 100 MB first screen under 2s | Passing core benchmark | `opencsv bench` |
+| NFR-001/FR-003 | Indexed large-file window reads | Started | `ReadRecordWindowWithIndex` tests, `opencsv bench` far-window metrics |
+
+## Benchmark Verification Notes
+
+- 2026-06-04 core benchmark on a generated 112,857,510 byte CSV: first-screen open returned in 555 us, full row index completed in 402 ms for 720,001 indexed rows, and an indexed window at row 700,000 returned 120 rows in 156 us.
 
 ## Browser Verification Notes
 
@@ -462,6 +467,7 @@ Verified in the in-app browser on local `opencsv serve` instances:
 - Frontend SQL result cells have a context menu for copying the active cell, row, row with headers, column, column with header, selected range, full result, exporting the result, and clearing selection. Result-level copy/export can now use CSV, TSV, Markdown, and JSON from the toolbar, command palette, and context menu.
 - `pkg/dataprofile` provides first-pass profiling and validation: inferred dominant type, null ratio, distinct count, min/max, numeric sum/average, top values, empty/duplicate headers, ragged rows, type anomalies, schema JSON normalization, and user-supplied schema checks for required/type/unique/enum/pattern/numeric range rules.
 - `/api/profile` profiles the current document and accepts optional schema rules, including common CSVLint/JSON Table Schema `fields`/`constraints`/`datatype`/`tableSchema` shapes. The frontend Profile tab renders summary metrics, a column profile table, issue table, schema JSON controls with CSVLint/JSON Table Schema normalization, visual common-rule builder, named local schema sets with JSON export/import, issue-row grid navigation, and safe quick fixes for empty generated headers and short ragged rows.
+- `pkg/csvcore` and `pkg/document` now use complete row indexes for clean file-backed window reads, so large-file scrolling can seek directly to far rows after indexing instead of replaying all previous records. The fallback path remains available for encodings and dialect features that are not byte-offset safe yet.
 
 ## Known Gaps
 

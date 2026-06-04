@@ -44,10 +44,17 @@ go run ./cmd/opencsv save -out /tmp/opencsv-sample-copy.csv /tmp/opencsv-sample.
 go run ./cmd/opencsv save /tmp/opencsv-sample.csv
 ```
 
-Run the M0 benchmark:
+Run the benchmark:
 
 ```sh
 make bench
+```
+
+The benchmark prints JSON for first-screen open, full row indexing, and an
+indexed far-row window read. The window can be adjusted directly:
+
+```sh
+go run ./cmd/opencsv bench -rows 720000 -cols 12 -window-start 700000 -window-rows 120 -out /tmp/opencsv-m1-100mb.csv
 ```
 
 Run the grid prototype:
@@ -99,9 +106,11 @@ Current local benchmark:
 
 ```text
 112,857,510 byte CSV
-openDurationMs: 0
-indexDurationMs: 318
+openDurationUs: 555
+indexDurationMs: 402
+windowDurationUs: 156
 indexedRows: 720001
+windowRowsRead: 120
 ```
 
 Open a real file in the prototype:
