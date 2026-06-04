@@ -621,6 +621,12 @@ const localeCatalog = {
     "diff.action.applyLeftRowToRight": "Apply left row to right file",
     "diff.action.applyRightCellToLeft": "Apply right cell c{{col}} to left",
     "diff.action.applyLeftCellToRight": "Apply left cell c{{col}} to right",
+    "diff.action.openLeftRow": "Open left row {{row}} in Grid",
+    "diff.action.openRightRow": "Open right row {{row}} in Grid",
+    "diff.action.openLeftShort": "Open L",
+    "diff.action.openRightShort": "Open R",
+    "diff.status.openedSource": "Opened {{side}} row {{row}} from compare.",
+    "diff.status.openSourceFailed": "Open compare source failed: {{message}}",
     "diff.status.summary": "Diff: {{changed}} changed, {{added}} added, {{deleted}} deleted",
     "diff.status.filteredSuffix": "; showing {{shown}} rows after filter",
     "diff.status.filterShown": "Diff filter shows {{shown}} of {{total}} rows.",
@@ -1118,6 +1124,12 @@ const localeCatalog = {
     "diff.action.applyLeftRowToRight": "将左侧行应用到右文件",
     "diff.action.applyRightCellToLeft": "将右侧单元格 c{{col}} 应用到左侧",
     "diff.action.applyLeftCellToRight": "将左侧单元格 c{{col}} 应用到右侧",
+    "diff.action.openLeftRow": "在表格中打开左侧第 {{row}} 行",
+    "diff.action.openRightRow": "在表格中打开右侧第 {{row}} 行",
+    "diff.action.openLeftShort": "打开左侧",
+    "diff.action.openRightShort": "打开右侧",
+    "diff.status.openedSource": "已从比较打开{{side}}第 {{row}} 行。",
+    "diff.status.openSourceFailed": "打开比较源失败：{{message}}",
     "diff.status.summary": "差异：{{changed}} 个更改，{{added}} 个添加，{{deleted}} 个删除",
     "diff.status.filteredSuffix": "；筛选后显示 {{shown}} 行",
     "diff.status.filterShown": "差异筛选显示 {{shown}} / {{total}} 行。",
@@ -15388,6 +15400,7 @@ function navigateDiff(direction) {
 
 function appendDiffActions(container, row, resultIndex) {
   if (row.status === "unchanged") return;
+  appendDiffOpenSourceActions(container, row);
   const rowButton = document.createElement("button");
   rowButton.type = "button";
   rowButton.textContent =
@@ -15430,6 +15443,46 @@ function appendDiffActions(container, row, resultIndex) {
       leftButton.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col, "left-to-right"));
       container.append(leftButton);
     }
+  }
+}
+
+function appendDiffOpenSourceActions(container, row) {
+  const leftRow = Number(row.leftRow);
+  if (Number.isFinite(leftRow) && leftRow >= 1) {
+    const leftButton = document.createElement("button");
+    leftButton.type = "button";
+    leftButton.textContent = t("diff.action.openLeftShort");
+    leftButton.title = tf("diff.action.openLeftRow", { row: leftRow });
+    leftButton.dataset.diffAction = "open-left-row";
+    leftButton.addEventListener("click", () => openDiffSourceRow("left", leftRow));
+    container.append(leftButton);
+  }
+  const rightRow = Number(row.rightRow);
+  if (!diffRightTextMode.checked && Number.isFinite(rightRow) && rightRow >= 1) {
+    const rightButton = document.createElement("button");
+    rightButton.type = "button";
+    rightButton.textContent = t("diff.action.openRightShort");
+    rightButton.title = tf("diff.action.openRightRow", { row: rightRow });
+    rightButton.dataset.diffAction = "open-right-row";
+    rightButton.addEventListener("click", () => openDiffSourceRow("right", rightRow));
+    container.append(rightButton);
+  }
+}
+
+async function openDiffSourceRow(side, row) {
+  const path = side === "right" ? rightDiffPath.value.trim() : leftDiffPath.value.trim();
+  if (!path || !Number.isFinite(row) || row < 1) return;
+  const label = side === "right" ? "right" : "left";
+  try {
+    await openPath(path, {
+      applyRules: false,
+      location: { startRow: row, startCol: 1, endRow: row, endCol: 1 },
+    });
+    setViewMode("grid");
+    document.body.dataset.diffOpenSource = `${label}:${row}`;
+    status.textContent = tf("diff.status.openedSource", { side: label, row: formatCount(row) });
+  } catch (error) {
+    status.textContent = tf("diff.status.openSourceFailed", { message: error.message });
   }
 }
 

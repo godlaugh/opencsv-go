@@ -374,10 +374,15 @@ func TestDiffViewI18nIsWired(t *testing.T) {
 		`"diff.status.summary"`,
 		`"diff.table.changedCells"`,
 		`"diff.action.applyRightCellToLeft"`,
+		`"diff.action.openLeftRow"`,
+		`"diff.status.openedSource": "已从比较打开`,
 		`"diff.status.summary": "差异`,
 		"applyDiffLocaleStrings",
 		"setSelectOptionLabels(diffStatusFilter",
 		"localizedDiffStatus(row.status)",
+		"appendDiffOpenSourceActions",
+		"openDiffSourceRow(\"left\"",
+		"document.body.dataset.diffOpenSource",
 		"tf(\"diff.status.active\"",
 	} {
 		if !strings.Contains(source, snippet) {
