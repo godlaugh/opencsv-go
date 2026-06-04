@@ -2374,7 +2374,7 @@ function updateCommandState() {
   copyHeadersToggle.disabled = !hasDocument;
   formatPresetSelect.disabled = !hasDocument || formatPresets().length === 0;
   saveFormatPresetButton.disabled = !hasDocument;
-  applyFormatPresetButton.disabled = !hasDocument || !formatPresetSelect.value;
+  applyFormatPresetButton.disabled = !hasDocument || readOnly || !formatPresetSelect.value;
   formatRuleInput.disabled = !hasDocument;
   saveFormatRuleButton.disabled = !hasDocument;
   delimiterSelect.disabled = !hasDocument || readOnly;
@@ -2472,6 +2472,7 @@ function isCommandDisabled(command) {
       command.id === "cell.fillRight" ||
       command.id === "cell.fillUp" ||
       command.id === "cell.fillLeft" ||
+      command.id === "format.applyPreset" ||
       command.id === "format.applyDelimiter" ||
       command.id === "format.applyEncoding" ||
       command.id === "format.applyQuotePolicy" ||
@@ -2969,7 +2970,7 @@ function renderFormatPresetSelect() {
     formatPresetSelect.value = selectedValue;
   }
   formatPresetSelect.disabled = !documentId || presets.length === 0;
-  applyFormatPresetButton.disabled = !documentId || !formatPresetSelect.value;
+  applyFormatPresetButton.disabled = !documentId || readOnly || !formatPresetSelect.value;
   document.body.dataset.formatPresets = String(presets.length);
 }
 
@@ -3020,6 +3021,7 @@ function saveCurrentFormatRule() {
 }
 
 async function applySelectedFormatPreset() {
+  if (!ensureEditable("Apply Format Preset")) return;
   const preset = formatPresets().find((item) => item.id === formatPresetSelect.value);
   if (!preset) {
     status.textContent = "Choose a format preset first.";

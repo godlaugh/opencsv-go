@@ -1,6 +1,13 @@
 package commands
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+)
 
 func TestRegistryHasUniqueIDs(t *testing.T) {
 	seen := make(map[string]bool)
@@ -150,5 +157,31 @@ func TestOfficialFilterShortcutDefault(t *testing.T) {
 	}
 	if command.Shortcut != "Cmd+Shift+F" {
 		t.Fatalf("view.filter shortcut = %q, want Cmd+Shift+F", command.Shortcut)
+	}
+}
+
+func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	handlers := make(map[string]bool)
+	for _, match := range regexp.MustCompile(`case "([^"]+)"\s*:`).FindAllStringSubmatch(source, -1) {
+		handlers[match[1]] = true
+	}
+	for _, match := range regexp.MustCompile(`"(sql\.[^"]+)"\s*:\s*\{\s*action:`).FindAllStringSubmatch(source, -1) {
+		handlers[match[1]] = true
+	}
+
+	var missing []string
+	for _, command := range Registry() {
+		if command.Implemented && !handlers[command.ID] {
+			missing = append(missing, command.ID)
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Fatalf("implemented commands missing frontend dispatch: %s", strings.Join(missing, ", "))
 	}
 }
