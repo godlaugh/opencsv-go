@@ -298,6 +298,40 @@ func TestSQLResultFormatsHaveCommandsAndSelectOptions(t *testing.T) {
 	}
 }
 
+func TestDiffResultFiltersAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, id := range []string{"diffStatusFilter", "diffSearchInput", "diffClearFilterButton"} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Fatalf("missing diff filter control %s", id)
+		}
+		if !strings.Contains(source, `#`+id) {
+			t.Fatalf("missing diff filter selector %s", id)
+		}
+	}
+	for _, snippet := range []string{
+		"filteredDiffRows",
+		"diffRowMatchesStatus",
+		"diffRowSearchText",
+		"diffStatusFilter.addEventListener(\"change\", applyDiffResultFilters)",
+		"diffSearchInput.addEventListener(\"input\", applyDiffResultFilters)",
+		"diffClearFilterButton.addEventListener(\"click\", clearDiffResultFilters)",
+		"document.body.dataset.diffFilteredRows",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing diff filter wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

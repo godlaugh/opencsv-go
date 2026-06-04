@@ -122,6 +122,9 @@ const diffKeyColumn = document.querySelector("#diffKeyColumn");
 const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
 const diffPrevButton = document.querySelector("#diffPrevButton");
 const diffNextButton = document.querySelector("#diffNextButton");
+const diffStatusFilter = document.querySelector("#diffStatusFilter");
+const diffSearchInput = document.querySelector("#diffSearchInput");
+const diffClearFilterButton = document.querySelector("#diffClearFilterButton");
 const diffRightTextMode = document.querySelector("#diffRightTextMode");
 const diffRightText = document.querySelector("#diffRightText");
 const diffPasteClipboardButton = document.querySelector("#diffPasteClipboardButton");
@@ -1071,6 +1074,7 @@ let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
 let diffRows = [];
 let activeDiffIndex = -1;
+let lastDiffResult = null;
 let quotePolicyDraftDirty = false;
 let delimiterDraftDirty = false;
 let encodingDraftDirty = false;
@@ -13982,12 +13986,17 @@ async function runDiffCompare() {
     diffResult.replaceChildren(emptyDiffNode(payload.error ?? "Diff failed"));
     diffRows = [];
     activeDiffIndex = -1;
+    lastDiffResult = null;
     updateDiffNavigationState();
     return;
   }
+  lastDiffResult = payload;
   renderDiffResult(payload);
+  const filterLabel = diffFilterActive()
+    ? `; showing ${document.body.dataset.diffFilteredRows || "0"} rows after filter`
+    : "";
   status.textContent =
-    `Diff: ${payload.summary.changed} changed, ${payload.summary.added} added, ${payload.summary.deleted} deleted`;
+    `Diff: ${payload.summary.changed} changed, ${payload.summary.added} added, ${payload.summary.deleted} deleted${filterLabel}`;
 }
 
 function currentDiffOptions() {
@@ -14057,6 +14066,8 @@ function parseColumnList(value) {
 
 function renderDiffResult(result) {
   const summary = result.summary ?? {};
+  const allRows = Array.isArray(result.rows) ? result.rows : [];
+  const filteredRows = filteredDiffRows(allRows);
   diffRows = [];
   activeDiffIndex = -1;
   diffSummary.replaceChildren(
@@ -14064,9 +14075,18 @@ function renderDiffResult(result) {
     summaryNode("Changed", summary.changed ?? 0),
     summaryNode("Added", summary.added ?? 0),
     summaryNode("Deleted", summary.deleted ?? 0),
+    summaryNode("Shown", filteredRows.length),
   );
-  if (!result.rows?.length) {
+  document.body.dataset.diffFilterStatus = diffStatusFilter?.value || "all";
+  document.body.dataset.diffFilterQuery = diffSearchInput?.value.trim() || "";
+  document.body.dataset.diffFilteredRows = String(filteredRows.length);
+  if (!allRows.length) {
     diffResult.replaceChildren(emptyDiffNode("No diff rows"));
+    updateDiffNavigationState();
+    return;
+  }
+  if (!filteredRows.length) {
+    diffResult.replaceChildren(emptyDiffNode("No diff rows match filters"));
     updateDiffNavigationState();
     return;
   }
@@ -14081,7 +14101,7 @@ function renderDiffResult(result) {
   thead.append(tr);
   table.append(thead);
   const tbody = document.createElement("tbody");
-  result.rows.forEach((row, index) => {
+  filteredRows.forEach(({ row, index }) => {
     const tr = document.createElement("tr");
     tr.className = row.status;
     if (row.status !== "unchanged") {
@@ -14108,6 +14128,68 @@ function renderDiffResult(result) {
   diffResult.replaceChildren(table);
   updateDiffNavigationState();
   if (diffRows.length > 0) activateDiffRow(0, false);
+}
+
+function filteredDiffRows(rows) {
+  const filter = diffStatusFilter?.value || "all";
+  const query = (diffSearchInput?.value || "").trim().toLowerCase();
+  return rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => diffRowMatchesStatus(row, filter))
+    .filter(({ row }) => !query || diffRowSearchText(row).toLowerCase().includes(query));
+}
+
+function diffRowMatchesStatus(row, filter) {
+  const statusValue = String(row?.status || "");
+  switch (filter) {
+    case "differences":
+      return statusValue !== "unchanged";
+    case "changed":
+    case "added":
+    case "deleted":
+    case "unchanged":
+      return statusValue === filter;
+    default:
+      return true;
+  }
+}
+
+function diffRowSearchText(row) {
+  const changed = (row.changedCells ?? [])
+    .map((cell) => [`c${cell.col}`, cell.left, cell.right].join(" "))
+    .join(" ");
+  return [
+    row.status,
+    row.leftRow,
+    row.rightRow,
+    ...(row.leftRecord ?? []),
+    ...(row.rightRecord ?? []),
+    changed,
+  ].join(" ");
+}
+
+function diffFilterActive() {
+  return (diffStatusFilter?.value || "all") !== "all" || Boolean(diffSearchInput?.value.trim());
+}
+
+function applyDiffResultFilters() {
+  if (!lastDiffResult) {
+    document.body.dataset.diffFilterStatus = diffStatusFilter?.value || "all";
+    document.body.dataset.diffFilterQuery = diffSearchInput?.value.trim() || "";
+    return;
+  }
+  renderDiffResult(lastDiffResult);
+  const shown = Number(document.body.dataset.diffFilteredRows || 0);
+  const total = Array.isArray(lastDiffResult.rows) ? lastDiffResult.rows.length : 0;
+  status.textContent = diffFilterActive()
+    ? `Diff filter shows ${formatCount(shown)} of ${formatCount(total)} rows.`
+    : `Diff filter cleared; showing ${formatCount(total)} rows.`;
+}
+
+function clearDiffResultFilters() {
+  if (diffStatusFilter) diffStatusFilter.value = "all";
+  if (diffSearchInput) diffSearchInput.value = "";
+  applyDiffResultFilters();
 }
 
 function updateDiffNavigationState() {
@@ -15200,6 +15282,9 @@ diffButton.addEventListener("click", openDiffPanel);
 runDiffButton.addEventListener("click", runDiffCompare);
 diffPrevButton.addEventListener("click", () => navigateDiff(-1));
 diffNextButton.addEventListener("click", () => navigateDiff(1));
+diffStatusFilter.addEventListener("change", applyDiffResultFilters);
+diffSearchInput.addEventListener("input", applyDiffResultFilters);
+diffClearFilterButton.addEventListener("click", clearDiffResultFilters);
 diffRightTextMode.addEventListener("change", () => {
   setDiffRightTextMode(diffRightTextMode.checked);
   if (diffRightTextMode.checked) diffRightText.focus();

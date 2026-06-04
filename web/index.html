@@ -147,6 +147,18 @@
                   <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
                   <button id="diffNextButton" type="button" title="Next difference">↓</button>
                 </div>
+                <div class="diff-filter-row" aria-label="Diff result filters">
+                  <select id="diffStatusFilter" aria-label="Diff status filter">
+                    <option value="all">All rows</option>
+                    <option value="differences">Differences</option>
+                    <option value="changed">Changed</option>
+                    <option value="added">Added</option>
+                    <option value="deleted">Deleted</option>
+                    <option value="unchanged">Unchanged</option>
+                  </select>
+                  <input id="diffSearchInput" type="text" placeholder="Search diff rows..." aria-label="Search diff rows" />
+                  <button id="diffClearFilterButton" type="button">Clear</button>
+                </div>
                 <div class="diff-text-controls">
                   <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
                   <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
