@@ -431,6 +431,9 @@ type MutationResult struct {
 }
 
 func (manager *Manager) SetHeaderMode(id string, hasHeader bool) (MutationResult, error) {
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	session, ok := manager.sessions[id]

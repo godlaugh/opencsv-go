@@ -922,6 +922,13 @@ func TestServerReadOnlyAndRefresh(t *testing.T) {
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("read-only edit status = %d, want 400", response.Code)
 	}
+	response = postJSONResponse(t, handler, "/api/header-mode", map[string]any{
+		"documentId": documentID,
+		"hasHeader":  false,
+	})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("read-only header-mode status = %d, want 400", response.Code)
+	}
 
 	_ = postJSON(t, handler, "/api/read-only", map[string]any{
 		"documentId": documentID,

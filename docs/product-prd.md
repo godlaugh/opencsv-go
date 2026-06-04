@@ -358,6 +358,7 @@ Acceptance:
 - Editing then saving produces expected CSV.
 - Undo restores prior state.
 - Backup is byte-for-byte original before save.
+- Read-only mode blocks editing, save, undo/redo, structural mutations, and save-affecting format interpretation changes.
 - Save does not silently normalize encoding or line endings.
 
 ### FR-005 Search and Replace

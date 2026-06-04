@@ -2446,6 +2446,7 @@ function isCommandDisabled(command) {
       command.id === "column.moveLeft" ||
       command.id === "column.moveRight" ||
       command.id === "table.transpose" ||
+      command.id === "table.toggleHeaderRow" ||
       command.id === "table.dedupeRows" ||
       command.id === "table.dedupeColumns" ||
       command.id === "text.trim" ||
@@ -2541,6 +2542,7 @@ function updateFormatStatus() {
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
     document.body.dataset.headerColumns = "";
+    document.body.dataset.readOnly = "false";
     document.body.dataset.workbookSheet = "";
     document.body.dataset.workbookSheetCount = "";
     readOnlyStatus.textContent = "Editable";
@@ -2555,9 +2557,10 @@ function updateFormatStatus() {
   delimiterStatus.textContent = delimiterLabel(metadata.dialect);
   quoteStatus.textContent = quotePolicyLabel(metadata.dialect);
   headerStatus.textContent = headerModeLabel(metadata.dialect);
-  headerStatus.disabled = !documentId;
+  headerStatus.disabled = !documentId || readOnly;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
+  document.body.dataset.readOnly = readOnly ? "true" : "false";
   document.body.dataset.workbookSheet = metadata.workbook?.selectedSheetName || "";
   document.body.dataset.workbookSheetCount = String(metadata.workbook?.sheets?.length || "");
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
@@ -11727,6 +11730,7 @@ function sourceRowForDisplayRow(row, action) {
 
 async function toggleHeaderRow() {
   if (!documentId || !metadata) return;
+  if (!ensureEditable("Toggle Header Row")) return;
   const hasHeader = !Boolean(metadata.dialect?.hasHeader);
   const label = hasHeader ? "Header row enabled" : "Header row disabled";
   status.textContent = `${label}...`;

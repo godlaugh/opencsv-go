@@ -1441,6 +1441,9 @@ func TestManagerReadOnlyAndFileStatusRefresh(t *testing.T) {
 	if _, err := manager.Save(session.ID, "", true); err == nil {
 		t.Fatal("read-only save succeeded")
 	}
+	if _, err := manager.SetHeaderMode(session.ID, false); err == nil {
+		t.Fatal("read-only header mode mutation succeeded")
+	}
 	if _, err := manager.InsertRow(session.ID, 1); err == nil {
 		t.Fatal("read-only structural mutation succeeded")
 	}
