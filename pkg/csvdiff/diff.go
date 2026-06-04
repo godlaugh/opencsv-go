@@ -23,6 +23,7 @@ type Options struct {
 	IgnoreWhitespace   bool
 	IgnoreCase         bool
 	IgnoredColumns     []int
+	IgnoredColumnNames []string
 	MatchColumnsByName bool
 	KeyColumn          string
 }
@@ -566,8 +567,9 @@ func buildProjection(left [][]string, right [][]string, options Options) columnP
 	if options.MatchColumnsByName {
 		projection = headerProjection(left, right)
 	}
-	if len(options.IgnoredColumns) > 0 {
-		projection = removeIgnoredProjectionColumns(projection, ignoredColumnSet(options.IgnoredColumns))
+	ignored := ignoredProjectionColumns(left, right, projection, options)
+	if len(ignored) > 0 {
+		projection = removeIgnoredProjectionColumns(projection, ignored)
 	}
 	return projection
 }
@@ -636,6 +638,42 @@ func ignoredColumnSet(columns []int) map[int]bool {
 		}
 	}
 	return ignored
+}
+
+func ignoredProjectionColumns(left [][]string, right [][]string, projection columnProjection, options Options) map[int]bool {
+	ignored := ignoredColumnSet(options.IgnoredColumns)
+	names := ignoredColumnNameSet(options.IgnoredColumnNames)
+	if len(names) == 0 {
+		return ignored
+	}
+	for index := range projection.Left {
+		if headerNameIgnored(left, projection.Left[index], names) || headerNameIgnored(right, projection.Right[index], names) {
+			ignored[index] = true
+		}
+	}
+	return ignored
+}
+
+func ignoredColumnNameSet(names []string) map[string]bool {
+	ignored := make(map[string]bool, len(names))
+	for _, name := range names {
+		normalized := normalizeColumnName(name)
+		if normalized != "" {
+			ignored[normalized] = true
+		}
+	}
+	return ignored
+}
+
+func headerNameIgnored(records [][]string, column int, ignored map[string]bool) bool {
+	if column < 0 || len(records) == 0 || column >= len(records[0]) {
+		return false
+	}
+	return ignored[normalizeColumnName(records[0][column])]
+}
+
+func normalizeColumnName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 func removeIgnoredProjectionColumns(projection columnProjection, ignored map[int]bool) columnProjection {

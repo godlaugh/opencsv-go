@@ -14006,6 +14006,7 @@ function currentDiffOptions() {
     ignoreCase: diffIgnoreCase.checked,
     ignoreWhitespace: diffIgnoreWhitespace.checked,
     ignoredColumns: parseColumnList(diffIgnoredColumns.value),
+    ignoredColumnNames: parseColumnNames(diffIgnoredColumns.value),
     matchColumnsByName: diffMatchHeaders.checked,
     keyColumn: diffKeyColumn.value.trim(),
   };
@@ -14060,10 +14061,25 @@ async function pasteDiffClipboardText() {
 }
 
 function parseColumnList(value) {
-  return String(value ?? "")
-    .split(/[,\s]+/)
+  return parseColumnTokens(value)
+    .filter((item) => /^\d+$/.test(item))
     .map((item) => Number.parseInt(item, 10))
-    .filter((item) => Number.isInteger(item) && item > 0);
+    .filter((item) => item > 0);
+}
+
+function parseColumnNames(value) {
+  return parseColumnTokens(value).filter((item) => !/^\d+$/.test(item));
+}
+
+function parseColumnTokens(value) {
+  return String(value ?? "")
+    .split(",")
+    .flatMap((item) => {
+      const token = item.trim();
+      if (!token) return [];
+      if (/^\d+(?:\s+\d+)*$/.test(token)) return token.split(/\s+/);
+      return [token];
+    });
 }
 
 function renderDiffResult(result) {

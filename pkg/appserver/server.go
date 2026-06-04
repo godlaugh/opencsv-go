@@ -1264,16 +1264,17 @@ func (server *Server) handleViewClear(w http.ResponseWriter, r *http.Request) {
 }
 
 type diffRequest struct {
-	LeftPath           string `json:"leftPath"`
-	RightPath          string `json:"rightPath"`
-	RightText          string `json:"rightText"`
-	RightLabel         string `json:"rightLabel"`
-	MaxRows            int    `json:"maxRows"`
-	IgnoreWhitespace   bool   `json:"ignoreWhitespace"`
-	IgnoreCase         bool   `json:"ignoreCase"`
-	IgnoredColumns     []int  `json:"ignoredColumns"`
-	MatchColumnsByName bool   `json:"matchColumnsByName"`
-	KeyColumn          string `json:"keyColumn"`
+	LeftPath           string   `json:"leftPath"`
+	RightPath          string   `json:"rightPath"`
+	RightText          string   `json:"rightText"`
+	RightLabel         string   `json:"rightLabel"`
+	MaxRows            int      `json:"maxRows"`
+	IgnoreWhitespace   bool     `json:"ignoreWhitespace"`
+	IgnoreCase         bool     `json:"ignoreCase"`
+	IgnoredColumns     []int    `json:"ignoredColumns"`
+	IgnoredColumnNames []string `json:"ignoredColumnNames"`
+	MatchColumnsByName bool     `json:"matchColumnsByName"`
+	KeyColumn          string   `json:"keyColumn"`
 }
 
 type diffMergeRequest struct {
@@ -1306,6 +1307,7 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		IgnoreWhitespace:   request.IgnoreWhitespace,
 		IgnoreCase:         request.IgnoreCase,
 		IgnoredColumns:     request.IgnoredColumns,
+		IgnoredColumnNames: request.IgnoredColumnNames,
 		MatchColumnsByName: request.MatchColumnsByName,
 		KeyColumn:          request.KeyColumn,
 	}
@@ -1342,6 +1344,7 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 			IgnoreWhitespace:   request.IgnoreWhitespace,
 			IgnoreCase:         request.IgnoreCase,
 			IgnoredColumns:     request.IgnoredColumns,
+			IgnoredColumnNames: request.IgnoredColumnNames,
 			MatchColumnsByName: request.MatchColumnsByName,
 			KeyColumn:          request.KeyColumn,
 		},

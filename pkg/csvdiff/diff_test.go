@@ -156,6 +156,31 @@ func TestCompareRecordsCanIgnoreCaseWhitespaceAndColumns(t *testing.T) {
 	}
 }
 
+func TestCompareRecordsCanIgnoreColumnsByHeaderName(t *testing.T) {
+	left := [][]string{
+		{"id", "name", "updated", "Last checked"},
+		{"1", "Ada", "2026-01-01", "ok"},
+	}
+	right := [][]string{
+		{"updated", "Last checked", "id", "name"},
+		{"2026-02-01", "later", "1", "Ada"},
+	}
+
+	result := CompareRecords("left.csv", "right.csv", left, right, Options{
+		MatchColumnsByName: true,
+		IgnoredColumnNames: []string{"UPDATED", "Last checked"},
+	})
+	if result.Summary.Changed != 0 || result.Summary.Unchanged != 2 {
+		t.Fatalf("unexpected summary with named ignored columns: %#v rows=%#v", result.Summary, result.Rows)
+	}
+	if got := result.Rows[0].LeftRecord; len(got) != 2 || got[0] != "id" || got[1] != "name" {
+		t.Fatalf("ignored headers were not removed from left projection: %#v", got)
+	}
+	if got := result.Rows[1].RightRecord; len(got) != 2 || got[0] != "1" || got[1] != "Ada" {
+		t.Fatalf("ignored headers were not removed from right projection: %#v", got)
+	}
+}
+
 func TestCompareRecordsCanMatchColumnsByHeaderName(t *testing.T) {
 	left := [][]string{
 		{"id", "name", "score"},

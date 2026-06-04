@@ -2375,7 +2375,7 @@ func TestServerDiffOptions(t *testing.T) {
 		"ignoreCase":         true,
 		"ignoreWhitespace":   true,
 		"matchColumnsByName": true,
-		"ignoredColumns":     []int{3},
+		"ignoredColumnNames": []string{"updated"},
 	})
 	summary := payload["summary"].(map[string]any)
 	if summary["changed"].(float64) != 0 {
