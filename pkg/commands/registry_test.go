@@ -123,7 +123,13 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"view.importSavedSets",
 		"view.sql",
 		"sql.copyResultCsv",
+		"sql.copyResultTsv",
+		"sql.copyResultMarkdown",
+		"sql.copyResultJson",
 		"sql.exportResultCsv",
+		"sql.exportResultTsv",
+		"sql.exportResultMarkdown",
+		"sql.exportResultJson",
 		"diff.open",
 	} {
 		if _, ok := ByID(required); !ok {

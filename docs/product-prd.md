@@ -438,8 +438,8 @@ The app shall support:
 - Query unsaved/temporary documents.
 - Direct path, `file://`, and `@file:` table references.
 - Results grid.
-- Copy selected ranges from SQL result grid.
-- Export/save query result.
+- Copy selected ranges or full SQL results as CSV, TSV, Markdown, and JSON.
+- Export/save query result as CSV, TSV, Markdown, and JSON.
 - Query history.
 - Per-tab console state and split-pane size persistence.
 - Query errors with useful locations/messages.
@@ -606,7 +606,7 @@ The app shall support:
 - Paste spreadsheet ranges.
 - Parse quoted spreadsheet TSV paste payloads, including embedded tabs, escaped quotes, and embedded line breaks.
 - Export filtered rows.
-- Export SQL result.
+- Copy and export SQL results in common text interchange formats.
 - Open and save `.xlsx` files at least as import/export conversion.
 
 Acceptance:

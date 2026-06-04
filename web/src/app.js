@@ -105,6 +105,7 @@ const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
 const runSqlButton = document.querySelector("#runSqlButton");
+const sqlResultFormatSelect = document.querySelector("#sqlResultFormatSelect");
 const copySqlResultButton = document.querySelector("#copySqlResultButton");
 const exportSqlResultButton = document.querySelector("#exportSqlResultButton");
 const sqlHistoryList = document.querySelector("#sqlHistoryList");
@@ -309,6 +310,36 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const sqlResultFormats = ["csv", "tsv", "markdown", "json"];
+const sqlResultFormatLabels = {
+  csv: "CSV",
+  tsv: "TSV",
+  markdown: "Markdown",
+  json: "JSON",
+};
+const sqlResultFormatExtensions = {
+  csv: "csv",
+  tsv: "tsv",
+  markdown: "md",
+  json: "json",
+};
+const sqlResultFormatContentTypes = {
+  csv: "text/csv;charset=utf-8",
+  tsv: "text/tab-separated-values;charset=utf-8",
+  markdown: "text/markdown;charset=utf-8",
+  json: "application/json;charset=utf-8",
+};
+const sqlResultCommandFormats = {
+  "sql.copyResultCsv": { action: "copy", format: "csv" },
+  "sql.copyResultTsv": { action: "copy", format: "tsv" },
+  "sql.copyResultMarkdown": { action: "copy", format: "markdown" },
+  "sql.copyResultJson": { action: "copy", format: "json" },
+  "sql.exportResultCsv": { action: "export", format: "csv" },
+  "sql.exportResultTsv": { action: "export", format: "tsv" },
+  "sql.exportResultMarkdown": { action: "export", format: "markdown" },
+  "sql.exportResultJson": { action: "export", format: "json" },
+};
+const sqlResultCommandIDs = new Set(Object.keys(sqlResultCommandFormats));
 const findPageSize = 100;
 const profileSchemaStorageKey = "opencsv-profile-schema";
 const profileSchemasStorageKey = "opencsv-profile-schemas";
@@ -2244,7 +2275,7 @@ function updateCommandState() {
 
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
-  const needsSQLResult = command.id === "sql.copyResultCsv" || command.id === "sql.exportResultCsv";
+  const needsSQLResult = sqlResultCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
   const needsAggregate =
     command.id === "selection.copyAggregate" ||
@@ -6467,6 +6498,15 @@ async function executePaletteCommand(commandID) {
 
 async function executeCommand(commandID) {
   rememberCommand(commandID);
+  const sqlResultCommand = sqlResultCommandFormats[commandID];
+  if (sqlResultCommand?.action === "copy") {
+    await copySQLResult(sqlResultCommand.format);
+    return;
+  }
+  if (sqlResultCommand?.action === "export") {
+    await exportSQLResult(sqlResultCommand.format);
+    return;
+  }
   switch (commandID) {
     case "command.palette":
       openCommandPalette();
@@ -6521,12 +6561,6 @@ async function executeCommand(commandID) {
       break;
     case "file.exportXlsx":
       await exportCurrentView("xlsx");
-      break;
-    case "sql.copyResultCsv":
-      await copySQLResultCSV();
-      break;
-    case "sql.exportResultCsv":
-      await exportSQLResultCSV();
       break;
     case "file.toggleReadOnly":
       await toggleReadOnly();
@@ -8663,7 +8697,12 @@ async function exportCurrentView(format = "") {
   status.textContent = `Exported ${formatCount(rows)} rows, ${formatCount(cols)} columns to ${filename}`;
 }
 
-async function copySQLResultCSV() {
+async function copyCurrentSQLResult() {
+  return copySQLResult(sqlResultFormatSelect?.value || "csv");
+}
+
+async function copySQLResult(format = "csv") {
+  format = normalizeSQLResultFormat(format);
   const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
   const matrix = selectedMatrix ?? sqlResultMatrix(lastSQLResult);
   if (!matrix.length) {
@@ -8671,6 +8710,7 @@ async function copySQLResultCSV() {
     return;
   }
   return copySQLMatrix(matrix, selectedMatrix ? "SQL selection" : "SQL result", {
+    format,
     bodyRows: selectedMatrix ? matrix.length : Math.max(0, matrix.length - 1),
   });
 }
@@ -8680,14 +8720,17 @@ async function copySQLMatrix(matrix, label, options = {}) {
     status.textContent = `No ${label.toLowerCase()} to copy.`;
     return false;
   }
-  const text = formatMatrix(matrix, "csv");
+  const format = normalizeSQLResultFormat(options.format || "csv");
+  const text = formatMatrix(matrix, format);
+  const formatLabel = sqlResultFormatLabel(format);
   window.__opencsvLastSQLResultText = text;
   document.body.dataset.sqlResultPreview = text.slice(0, 500);
-  document.body.dataset.sqlResultCopy = label;
+  document.body.dataset.sqlResultCopy = `${label}:${format}`;
+  document.body.dataset.sqlResultFormat = format;
   try {
     await writeClipboardText(text);
     const rows = options.bodyRows ?? matrix.length;
-    status.textContent = `Copied ${label}: ${formatCount(rows)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns`;
+    status.textContent = `Copied ${label}: ${formatCount(rows)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns as ${formatLabel}`;
     return true;
   } catch (error) {
     status.textContent = `${label} copy failed: ${error.message}`;
@@ -8695,18 +8738,24 @@ async function copySQLMatrix(matrix, label, options = {}) {
   }
 }
 
-async function exportSQLResultCSV() {
+async function exportCurrentSQLResult() {
+  return exportSQLResult(sqlResultFormatSelect?.value || "csv");
+}
+
+async function exportSQLResult(format = "csv") {
+  format = normalizeSQLResultFormat(format);
   const matrix = sqlResultMatrix(lastSQLResult);
   if (!matrix.length) {
     status.textContent = "Run a SQL query before exporting results.";
     return;
   }
-  const text = formatMatrix(matrix, "csv");
-  const filename = sqlResultFilename();
+  const text = formatMatrix(matrix, format);
+  const filename = sqlResultFilename(format);
   window.__opencsvLastSQLResultText = text;
   document.body.dataset.sqlResultPreview = text.slice(0, 500);
-  triggerDownload(text, filename, "text/csv;charset=utf-8");
-  status.textContent = `Exported SQL result: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns to ${filename}`;
+  document.body.dataset.sqlResultFormat = format;
+  triggerDownload(text, filename, sqlResultFormatContentTypes[format] || "text/plain;charset=utf-8");
+  status.textContent = `Exported SQL result as ${sqlResultFormatLabel(format)}: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns to ${filename}`;
 }
 
 function sqlResultMatrix(result) {
@@ -8772,14 +8821,31 @@ function sqlResultColumns(result) {
   return Array.from({ length: width }, (_, index) => `Column ${index + 1}`);
 }
 
-function sqlResultFilename() {
+function normalizeSQLResultFormat(format) {
+  return sqlResultFormats.includes(format) ? format : "csv";
+}
+
+function sqlResultFormatLabel(format) {
+  return sqlResultFormatLabels[normalizeSQLResultFormat(format)] || "CSV";
+}
+
+function sqlResultFilename(format = "csv") {
+  format = normalizeSQLResultFormat(format);
   const name = activeFileEntry?.name || fileNameFromPath(metadata?.path ?? "") || "opencsv";
   const base = name.replace(/\.[^.]+$/, "") || "opencsv";
-  return `${base}.sql-result.csv`;
+  const extension = sqlResultFormatExtensions[format] || "txt";
+  return `${base}.sql-result.${extension}`;
 }
 
 function syncSQLResultActions() {
   const available = sqlResultAvailable();
+  const format = normalizeSQLResultFormat(sqlResultFormatSelect?.value || "csv");
+  if (sqlResultFormatSelect) {
+    sqlResultFormatSelect.disabled = !available;
+    document.body.dataset.sqlResultFormat = format;
+  }
+  copySqlResultButton.textContent = "Copy";
+  exportSqlResultButton.textContent = "Export";
   copySqlResultButton.disabled = !available;
   exportSqlResultButton.disabled = !available;
   updateCommandState();
@@ -8897,9 +8963,27 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
   addItem("Copy Column", () => copySQLMatrix(sqlResultColumnMatrix(target.col, false), "SQL column"));
   addItem("Copy Column with Header", () => copySQLMatrix(sqlResultColumnMatrix(target.col, true), "SQL column with header", { bodyRows: lastSQLResult.rows?.length ?? 0 }));
   addSeparator();
-  addItem("Copy Selection as CSV", () => copySQLMatrix(sqlSelectedResultMatrix(lastSQLResult) ?? [], "SQL selection"), { disabled: !selectedMatrix });
-  addItem("Copy Result as CSV", () => copySQLMatrix(sqlResultMatrix(lastSQLResult), "SQL result", { bodyRows: lastSQLResult.rows?.length ?? 0 }));
-  addItem("Export Result CSV", exportSQLResultCSV);
+  for (const format of sqlResultFormats) {
+    const formatLabel = sqlResultFormatLabel(format);
+    addItem(
+      `Copy Selection as ${formatLabel}`,
+      () => copySQLMatrix(sqlSelectedResultMatrix(lastSQLResult) ?? [], "SQL selection", { format }),
+      { disabled: !selectedMatrix },
+    );
+  }
+  addSeparator();
+  for (const format of sqlResultFormats) {
+    const formatLabel = sqlResultFormatLabel(format);
+    addItem(
+      `Copy Result as ${formatLabel}`,
+      () => copySQLMatrix(sqlResultMatrix(lastSQLResult), "SQL result", { format, bodyRows: lastSQLResult.rows?.length ?? 0 }),
+    );
+  }
+  addSeparator();
+  for (const format of sqlResultFormats) {
+    const formatLabel = sqlResultFormatLabel(format);
+    addItem(`Export Result as ${formatLabel}`, () => exportSQLResult(format));
+  }
   addItem("Clear Selection", () => {
     clearSQLResultSelection();
     status.textContent = "Cleared SQL result selection.";
@@ -14288,8 +14372,9 @@ quoteEscapeSelect.addEventListener("change", () => {
   settingsQuoteSummary.textContent = selectedQuotePolicySummary();
 });
 runSqlButton.addEventListener("click", runSQLQuery);
-copySqlResultButton.addEventListener("click", () => executeCommand("sql.copyResultCsv"));
-exportSqlResultButton.addEventListener("click", () => executeCommand("sql.exportResultCsv"));
+sqlResultFormatSelect?.addEventListener("change", syncSQLResultActions);
+copySqlResultButton.addEventListener("click", copyCurrentSQLResult);
+exportSqlResultButton.addEventListener("click", exportCurrentSQLResult);
 clearSqlHistoryButton.addEventListener("click", clearSQLHistory);
 sqlResult.addEventListener("click", (event) => {
   const cell = sqlResultCellFromEvent(event);
@@ -14306,7 +14391,7 @@ sqlResult.addEventListener("contextmenu", (event) => {
 sqlResult.addEventListener("keydown", async (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
     event.preventDefault();
-    await copySQLResultCSV();
+    await copyCurrentSQLResult();
     return;
   }
   if (event.key === "Escape") {
