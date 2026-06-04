@@ -1415,6 +1415,8 @@ const localeCatalog = {
     "command.row.delete.title": "删除行",
     "command.row.cut.title": "剪切行",
     "command.row.paste.title": "粘贴行",
+    "command.row.showAll.title": "显示所有行",
+    "command.row.showAll.description": "恢复当前行视图中隐藏的行。",
     "command.column.insert.title": "插入列",
     "command.column.delete.title": "删除列",
     "command.column.cut.title": "剪切列",
@@ -3376,6 +3378,7 @@ function isCommandDisabled(command) {
     aggregateRowCommandMetrics.has(command.id);
   const needsColumn = command.id === "format.toggleColumnQuote" || needsColumnAction;
   const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
+  const needsMappedRows = command.id === "row.showAll";
   const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
   const needsHiddenColumn = command.id === "column.showAll";
   const needsRowClipboard = command.id === "row.paste";
@@ -3469,6 +3472,7 @@ function isCommandDisabled(command) {
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
     (needsVisibleColumn && columns.length === 0) ||
+    (needsMappedRows && !viewMapped) ||
     (needsHiddenColumn && hiddenSourceColumns.size === 0) ||
     (needsCellLink && !normalizeURL(valueAt(selected.row, selected.col))) ||
     (needsBodyRow && selected.row >= sourceRowCount) ||
@@ -5966,6 +5970,7 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("row.cut");
     addCommand("row.paste");
     addCommand("row.hide");
+    addCommand("row.showAll");
   }
   if (target.kind !== "row") {
     addSeparator();
@@ -8032,6 +8037,9 @@ async function executeCommand(commandID) {
       break;
     case "row.hide":
       await hideSelectedRow();
+      break;
+    case "row.showAll":
+      await showAllRows();
       break;
     case "row.moveUp":
       await moveSelectedRow(-1);
@@ -12615,6 +12623,43 @@ async function hideSelectedRow() {
   windowEnd = 0;
   await maybeLoadWindow(selected.row);
   status.textContent = payload.changed ? "Row hidden" : "Row was already hidden";
+}
+
+async function showAllRows() {
+  if (!documentId) return;
+  const previous = sourceRowCount;
+  const response = await fetch("/api/view-clear", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Show all rows failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  viewMapped = false;
+  sortDescending = false;
+  sortKeys = [];
+  clearActiveFilter();
+  rows = new Map();
+  rowSource = new Map();
+  aggregateRows = [];
+  sourceRowCount = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
+  syncTotalRows();
+  windowStart = 0;
+  windowEnd = 0;
+  selected = { row: Math.max(0, Math.min(sourceRowCount - 1, selected.row)), col: selected.col };
+  selectionAnchor = { ...selected };
+  scrollY = 0;
+  wheelRemainderY = 0;
+  await maybeLoadWindow(0);
+  const restored = Math.max(0, sourceRowCount - previous);
+  document.body.dataset.rowShowAll = `${previous}->${sourceRowCount}`;
+  document.body.dataset.rowShowAllRestored = String(restored);
+  status.textContent = restored > 0
+    ? `Restored ${formatCount(restored)} hidden ${restored === 1 ? "row" : "rows"}`
+    : "All rows already shown";
 }
 
 async function moveSelectedRow(delta) {

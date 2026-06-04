@@ -96,6 +96,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"row.cut",
 		"row.paste",
 		"row.hide",
+		"row.showAll",
 		"row.moveUp",
 		"row.moveDown",
 		"column.cut",
@@ -520,6 +521,35 @@ func TestStableSortOptionIsWired(t *testing.T) {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing stable sort frontend wiring %q", snippet)
 		}
+	}
+}
+
+func TestShowAllRowsCommandIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`case "row.showAll":`,
+		"async function showAllRows()",
+		`fetch("/api/view-clear"`,
+		`document.body.dataset.rowShowAll`,
+		`addCommand("row.showAll")`,
+		`command.id === "row.showAll"`,
+		`"command.row.showAll.title": "显示所有行"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing show-all-rows wiring %q", snippet)
+		}
+	}
+	start := strings.Index(source, "async function showAllRows()")
+	end := strings.Index(source, "async function moveSelectedRow")
+	if start < 0 || end < start {
+		t.Fatal("could not locate showAllRows function body")
+	}
+	if strings.Contains(source[start:end], "hiddenSourceColumns = new Set()") {
+		t.Fatal("showAllRows must not restore hidden columns")
 	}
 }
 
