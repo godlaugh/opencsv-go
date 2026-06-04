@@ -206,14 +206,14 @@ func rootOpen(args []string) error {
 			return err
 		}
 		invocation.Diff = &result
-		route, err := diffRoute(resolvedPaths[0], resolvedPaths[1])
+		route, err := diffRoute(resolvedPaths[0], resolvedPaths[1], options)
 		if err != nil {
 			return err
 		}
 		invocation.Route = route
 		invocation.WebURL = webURLForRoute(route)
 	} else if len(invocation.Files) == 1 && invocation.Files[0].Source == "file" {
-		route, err := openRoute(invocation.Files[0])
+		route, err := openRoute(invocation.Files[0], options)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func rootOpen(args []string) error {
 	return printJSON(invocation)
 }
 
-func diffRoute(leftPath string, rightPath string) (string, error) {
+func diffRoute(leftPath string, rightPath string, options rootOptions) (string, error) {
 	left, err := filepath.Abs(leftPath)
 	if err != nil {
 		return "", err
@@ -237,10 +237,11 @@ func diffRoute(leftPath string, rightPath string) (string, error) {
 	values.Set("diffLeft", left)
 	values.Set("diffRight", right)
 	values.Set("diffRun", "1")
+	addLaunchQuery(values, options)
 	return "/?" + values.Encode(), nil
 }
 
-func openRoute(file cliOpenedFile) (string, error) {
+func openRoute(file cliOpenedFile, options rootOptions) (string, error) {
 	path, err := filepath.Abs(file.Path)
 	if err != nil {
 		return "", err
@@ -251,6 +252,7 @@ func openRoute(file cliOpenedFile) (string, error) {
 		values.Set("goto", location)
 	}
 	addFormatQuery(values, file.Format)
+	addLaunchQuery(values, options)
 	return "/?" + values.Encode(), nil
 }
 
@@ -309,6 +311,18 @@ func addFormatQuery(values url.Values, format protocol.FormatParams) {
 	}
 	if format.NoHeader != nil {
 		values.Set("noheader", strconv.FormatBool(*format.NoHeader))
+	}
+}
+
+func addLaunchQuery(values url.Values, options rootOptions) {
+	if options.newWindow {
+		values.Set("newWindow", "1")
+	}
+	if options.reuseWindow {
+		values.Set("reuseWindow", "1")
+	}
+	if options.wait {
+		values.Set("wait", "1")
 	}
 }
 
@@ -413,6 +427,9 @@ func parseRootOptions(args []string) (rootOptions, error) {
 		default:
 			return rootOptions{}, usageError(fmt.Sprintf("unknown option %s", name))
 		}
+	}
+	if options.newWindow && options.reuseWindow {
+		return rootOptions{}, usageError("--new-window and --reuse-window cannot be used together")
 	}
 	return options, nil
 }

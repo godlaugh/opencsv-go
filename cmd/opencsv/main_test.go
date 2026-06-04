@@ -43,6 +43,12 @@ func TestParseRootOptionsInterspersedFlags(t *testing.T) {
 	}
 }
 
+func TestParseRootOptionsRejectsConflictingWindowFlags(t *testing.T) {
+	if _, err := parseRootOptions([]string{"--new-window", "--reuse-window", "file.csv"}); err == nil {
+		t.Fatal("expected conflicting window flag error")
+	}
+}
+
 func TestOpenOptionsFromFormat(t *testing.T) {
 	headerRows := 1
 	headerColumns := 2
@@ -196,6 +202,76 @@ func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	}
 	if query.Get("headerrows") != "1" || query.Get("headercolumns") != "1" {
 		t.Fatalf("header format route query = %#v", query)
+	}
+}
+
+func TestRootOpenIncludesLaunchFlagsInRoutes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	for _, file := range []struct {
+		path string
+		body string
+	}{
+		{path: path, body: "id,name\n1,Ada\n"},
+		{path: left, body: "id,name\n1,Ada\n"},
+		{path: right, body: "id,name\n1,Grace\n"},
+	} {
+		if err := os.WriteFile(file.path, []byte(file.body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	openOutput, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--new-window", "--wait", path})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var openInvocation cliInvocation
+	if err := json.Unmarshal([]byte(openOutput), &openInvocation); err != nil {
+		t.Fatal(err)
+	}
+	openRoute, err := url.Parse(openInvocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	openQuery := openRoute.Query()
+	if !openInvocation.NewWindow || !openInvocation.Wait || openInvocation.ReuseWindow {
+		t.Fatalf("open launch flags = %#v", openInvocation)
+	}
+	if openQuery.Get("newWindow") != "1" || openQuery.Get("wait") != "1" || openQuery.Get("reuseWindow") != "" {
+		t.Fatalf("open route launch query = %#v", openQuery)
+	}
+	openWebURL, err := url.Parse(openInvocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if openWebURL.Query().Get("newWindow") != "1" || openWebURL.Query().Get("wait") != "1" {
+		t.Fatalf("open web launch query = %#v", openWebURL.Query())
+	}
+
+	diffOutput, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--diff", "--reuse-window", "--wait", left, right})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diffInvocation cliInvocation
+	if err := json.Unmarshal([]byte(diffOutput), &diffInvocation); err != nil {
+		t.Fatal(err)
+	}
+	diffRoute, err := url.Parse(diffInvocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diffQuery := diffRoute.Query()
+	if diffInvocation.NewWindow || !diffInvocation.ReuseWindow || !diffInvocation.Wait {
+		t.Fatalf("diff launch flags = %#v", diffInvocation)
+	}
+	if diffQuery.Get("reuseWindow") != "1" || diffQuery.Get("wait") != "1" || diffQuery.Get("newWindow") != "" {
+		t.Fatalf("diff route launch query = %#v", diffQuery)
 	}
 }
 

@@ -553,6 +553,26 @@ func TestShowAllRowsCommandIsWired(t *testing.T) {
 	}
 }
 
+func TestLaunchURLFlagsAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"applyLaunchParams(params)",
+		"function applyLaunchParams(params)",
+		`params.get("newWindow")`,
+		`params.get("reuseWindow")`,
+		`document.body.dataset.launchFlags`,
+		`document.body.dataset.launchWait`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing launch URL flag wiring %q", snippet)
+		}
+	}
+}
+
 func TestProfileViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

@@ -16040,6 +16040,7 @@ async function openPathInputOrPicker() {
 
 async function openInitialURLTarget() {
   const params = new URLSearchParams(window.location.search);
+  applyLaunchParams(params);
   const diffLeft = params.get("diffLeft");
   const diffRight = params.get("diffRight");
   const diffText = params.get("diffRightText");
@@ -16101,6 +16102,20 @@ async function openInitialURLTarget() {
 
 function truthyParam(value) {
   return value === "1" || value === "true" || value === "yes";
+}
+
+function applyLaunchParams(params) {
+  const newWindow = truthyParam(params.get("newWindow") ?? params.get("new-window"));
+  const reuseWindow = truthyParam(params.get("reuseWindow") ?? params.get("reuse-window"));
+  const wait = truthyParam(params.get("wait"));
+  const flags = [];
+  if (newWindow) flags.push("newWindow");
+  if (reuseWindow) flags.push("reuseWindow");
+  if (wait) flags.push("wait");
+  document.body.dataset.launchFlags = flags.join(",");
+  document.body.dataset.launchNewWindow = String(newWindow);
+  document.body.dataset.launchReuseWindow = String(reuseWindow);
+  document.body.dataset.launchWait = String(wait);
 }
 
 function formatOverrideFromParams(params) {
