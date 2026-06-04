@@ -2,6 +2,7 @@ package appserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -2630,6 +2631,33 @@ func TestServerSQLFileReference(t *testing.T) {
 	textHeaderRows := textHeaderPayload["rows"].([]any)
 	if len(textHeaderRows) != 1 || textHeaderRows[0].([]any)[0] != "Asia Pacific" {
 		t.Fatalf("unexpected SQL text-header rows: %#v", textHeaderRows)
+	}
+}
+
+func TestServerSQLUsesRequestContextCancellation(t *testing.T) {
+	body, err := json.Marshal(map[string]any{
+		"query": `WITH RECURSIVE cnt(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM cnt WHERE x < 100000000) SELECT max(x) FROM cnt`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/sql", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled SQL status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled SQL payload = %#v, want context canceled", payload)
 	}
 }
 

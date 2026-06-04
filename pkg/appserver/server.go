@@ -1,6 +1,7 @@
 package appserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,8 @@ type Server struct {
 	webDir    string
 	documents *docstore.Manager
 }
+
+const statusClientClosedRequest = 499
 
 func New(webDir string) *Server {
 	server := &Server{
@@ -1476,12 +1479,18 @@ func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := sqlconsole.Execute(request.Query, server.sqlResolver(request.DocumentID), sqlconsole.Options{
+	result, err := sqlconsole.ExecuteContext(r.Context(), request.Query, server.sqlResolver(request.DocumentID), sqlconsole.Options{
 		DefaultLimit: max(1, request.Limit),
 		MaxLimit:     5000,
 	})
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		status := http.StatusBadRequest
+		if errors.Is(err, context.Canceled) {
+			status = statusClientClosedRequest
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusGatewayTimeout
+		}
+		writeError(w, status, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

@@ -1,8 +1,10 @@
 package sqlconsole
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestExecuteCurrentSelectWhereOrderLimit(t *testing.T) {
@@ -184,6 +186,23 @@ func TestExecuteReturnsSQLErrorLocation(t *testing.T) {
 	}
 	if queryErr.Detail.Snippet != "scroe FROM current" || queryErr.Detail.Caret != "^" {
 		t.Fatalf("snippet/caret = %q / %q", queryErr.Detail.Snippet, queryErr.Detail.Caret)
+	}
+}
+
+func TestExecuteContextCancelsRecursiveSQLiteQuery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	timer := time.AfterFunc(5*time.Millisecond, cancel)
+	defer timer.Stop()
+	defer cancel()
+
+	_, err := ExecuteContext(
+		ctx,
+		`WITH RECURSIVE cnt(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM cnt WHERE x < 100000000) SELECT max(x) FROM cnt`,
+		fixedResolver(Source{}),
+		Options{DefaultLimit: 1},
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context canceled", err)
 	}
 }
 

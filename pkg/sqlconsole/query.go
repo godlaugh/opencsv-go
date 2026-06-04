@@ -1,6 +1,7 @@
 package sqlconsole
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -81,6 +82,13 @@ type selectExpr struct {
 }
 
 func Execute(query string, resolver Resolver, options Options) (Result, error) {
+	return ExecuteContext(context.Background(), query, resolver, options)
+}
+
+func ExecuteContext(ctx context.Context, query string, resolver Resolver, options Options) (Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if strings.TrimSpace(query) == "" {
 		return Result{}, queryError(query, "validate", errors.New("query is required"))
 	}
@@ -94,6 +102,9 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	if !isReadQuery(sqlText) {
 		return Result{}, queryError(query, "validate", errors.New("only SELECT queries are supported"))
 	}
+	if err := ctx.Err(); err != nil {
+		return Result{}, queryError(query, "execute", err)
+	}
 
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -101,22 +112,25 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA temp_store = MEMORY"); err != nil {
-		return Result{}, queryError(query, "prepare", err)
+	if _, err := db.ExecContext(ctx, "PRAGMA temp_store = MEMORY"); err != nil {
+		return Result{}, queryError(query, "prepare", contextAwareError(ctx, err))
 	}
-	if _, err := db.Exec("PRAGMA journal_mode = MEMORY"); err != nil {
-		return Result{}, queryError(query, "prepare", err)
+	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode = MEMORY"); err != nil {
+		return Result{}, queryError(query, "prepare", contextAwareError(ctx, err))
 	}
 
 	refs := findSourceRefs(sqlText)
 	sourceNames := make([]string, 0, len(refs))
 	for _, ref := range refs {
+		if err := ctx.Err(); err != nil {
+			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
+		}
 		source, err := resolver(normalizeSourceRef(ref))
 		if err != nil {
 			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
 		}
-		if err := loadSource(db, ref, source); err != nil {
-			return Result{}, queryErrorNearToken(query, "load", err, ref)
+		if err := loadSource(ctx, db, ref, source); err != nil {
+			return Result{}, queryErrorNearToken(query, "load", contextAwareError(ctx, err), ref)
 		}
 		sourceNames = append(sourceNames, source.Path)
 	}
@@ -125,15 +139,18 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 	if base, ok := withoutTopLevelLimit(sqlText); ok {
 		countQuery = base
 	}
-	total, countErr := countRows(db, countQuery)
+	total, countErr := countRows(ctx, db, countQuery)
+	if countErr != nil && isContextError(countErr) {
+		return Result{}, queryError(query, "execute", countErr)
+	}
 	limit := options.DefaultLimit
 	if hasTopLevelLimit(sqlText) {
 		limit = options.MaxLimit
 	}
 	limitedQuery := fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", sqlText, limit+1)
-	rows, columns, err := queryRows(db, limitedQuery, limit+1)
+	rows, columns, err := queryRows(ctx, db, limitedQuery, limit+1)
 	if err != nil {
-		return Result{}, queryError(query, "execute", err)
+		return Result{}, queryError(query, "execute", contextAwareError(ctx, err))
 	}
 	if countErr != nil {
 		total = len(rows)
@@ -154,6 +171,17 @@ func Execute(query string, resolver Resolver, options Options) (Result, error) {
 		Truncated:   truncated,
 		ExecutedSQL: strings.TrimSpace(query),
 	}, nil
+}
+
+func contextAwareError(ctx context.Context, err error) error {
+	if err != nil && ctx != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
+}
+
+func isContextError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func trimSQL(query string) string {
@@ -344,7 +372,10 @@ func tokenAtOffset(query string, offset int, fallback string) string {
 	return fallback
 }
 
-func loadSource(db *sql.DB, tableName string, source Source) error {
+func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	headers := sourceHeaders(source)
 	if len(headers) == 0 {
 		return nil
@@ -354,17 +385,17 @@ func loadSource(db *sql.DB, tableName string, source Source) error {
 	for index, column := range columns {
 		defs[index] = quoteIdent(column) + " TEXT"
 	}
-	if _, err := db.Exec("CREATE TABLE " + quoteIdent(tableName) + " (" + strings.Join(defs, ", ") + ")"); err != nil {
-		return err
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+quoteIdent(tableName)+" ("+strings.Join(defs, ", ")+")"); err != nil {
+		return contextAwareError(ctx, err)
 	}
 
 	placeholders := make([]string, len(columns))
 	for index := range placeholders {
 		placeholders[index] = "?"
 	}
-	statement, err := db.Prepare("INSERT INTO " + quoteIdent(tableName) + " VALUES (" + strings.Join(placeholders, ", ") + ")")
+	statement, err := db.PrepareContext(ctx, "INSERT INTO "+quoteIdent(tableName)+" VALUES ("+strings.Join(placeholders, ", ")+")")
 	if err != nil {
-		return err
+		return contextAwareError(ctx, err)
 	}
 	defer statement.Close()
 
@@ -373,12 +404,15 @@ func loadSource(db *sql.DB, tableName string, source Source) error {
 		dataStart = 1
 	}
 	for _, record := range source.Records[dataStart:] {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		values := make([]any, len(columns))
 		for index := range columns {
 			values[index] = cell(record, index)
 		}
-		if _, err := statement.Exec(values...); err != nil {
-			return err
+		if _, err := statement.ExecContext(ctx, values...); err != nil {
+			return contextAwareError(ctx, err)
 		}
 	}
 	return nil
@@ -429,35 +463,38 @@ func uniqueHeaders(headers []string) []string {
 	return columns
 }
 
-func countRows(db *sql.DB, query string) (int, error) {
-	row := db.QueryRow("SELECT COUNT(*) FROM (" + trimSQL(query) + ")")
+func countRows(ctx context.Context, db *sql.DB, query string) (int, error) {
+	row := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+trimSQL(query)+")")
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return 0, err
+		return 0, contextAwareError(ctx, err)
 	}
 	return total, nil
 }
 
-func queryRows(db *sql.DB, query string, limit int) ([][]string, []string, error) {
-	result, err := db.Query(query)
+func queryRows(ctx context.Context, db *sql.DB, query string, limit int) ([][]string, []string, error) {
+	result, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, contextAwareError(ctx, err)
 	}
 	defer result.Close()
 
 	columns, err := result.Columns()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, contextAwareError(ctx, err)
 	}
 	rows := make([][]string, 0)
 	for result.Next() {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		values := make([]sql.NullString, len(columns))
 		dest := make([]any, len(columns))
 		for index := range values {
 			dest[index] = &values[index]
 		}
 		if err := result.Scan(dest...); err != nil {
-			return nil, nil, err
+			return nil, nil, contextAwareError(ctx, err)
 		}
 		row := make([]string, len(columns))
 		for index, value := range values {
@@ -471,7 +508,7 @@ func queryRows(db *sql.DB, query string, limit int) ([][]string, []string, error
 		}
 	}
 	if err := result.Err(); err != nil {
-		return nil, nil, err
+		return nil, nil, contextAwareError(ctx, err)
 	}
 	return rows, columns, nil
 }
