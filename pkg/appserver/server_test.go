@@ -2015,6 +2015,19 @@ func TestServerExportView(t *testing.T) {
 	if got := response.Body.String(); got != "id,score\n1,9\n" {
 		t.Fatalf("export body = %q", got)
 	}
+	fullResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId":   documentID,
+		"fullDocument": true,
+	})
+	if fullResponse.Code != http.StatusOK {
+		t.Fatalf("full export status = %d body=%s", fullResponse.Code, fullResponse.Body.String())
+	}
+	if got := fullResponse.Header().Get("X-Opencsv-Rows"); got != "3" {
+		t.Fatalf("full export rows header = %q, want 3", got)
+	}
+	if got := fullResponse.Body.String(); got != "id,name,score\n1,Ada,9\n2,Linus,7\n3,Grace,10\n" {
+		t.Fatalf("full export body = %q", got)
+	}
 
 	includeHeaders := false
 	rowResponse := postJSONResponse(t, handler, "/api/export-view", map[string]any{
@@ -2068,6 +2081,42 @@ func TestServerExportView(t *testing.T) {
 	}
 	if !bytes.HasPrefix(xlsxResponse.Body.Bytes(), []byte("PK")) {
 		t.Fatalf("xlsx export is not a zip: %q", xlsxResponse.Body.Bytes()[:2])
+	}
+}
+
+func TestServerExportFullDocumentUsesDirtyEditBase(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "conflict.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,9\n2,Linus,7\n3,Grace,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        2,
+		"col":        1,
+		"value":      "LOCAL",
+	})
+	if err := os.WriteFile(path, []byte("id,name,score\n1,DISK,9\n2,Disk,7\n4,Nia,11\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	response := postJSONResponse(t, handler, "/api/export-view", map[string]any{
+		"documentId":   documentID,
+		"fullDocument": true,
+	})
+	if response.Code != http.StatusOK {
+		t.Fatalf("export status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Body.String(); got != "id,name,score\n1,Ada,9\n2,LOCAL,7\n3,Grace,10\n" {
+		t.Fatalf("full dirty export = %q", got)
 	}
 }
 

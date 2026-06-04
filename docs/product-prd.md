@@ -668,6 +668,7 @@ The app shall detect external file changes and support automatic reload.
 Acceptance:
 
 - Dirty local edits are protected from silent overwrite.
+- Dirty external-change conflicts can compare the changed disk file with the unsaved local document before reloading or saving elsewhere.
 - Read-only files can auto-refresh without changing dirty state.
 
 ### FR-019 Internationalization and Accessibility

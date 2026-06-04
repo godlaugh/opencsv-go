@@ -421,6 +421,7 @@ type exportViewRequest struct {
 	Rows           []int  `json:"rows,omitempty"`
 	Format         string `json:"format,omitempty"`
 	IncludeHeaders *bool  `json:"includeHeaders,omitempty"`
+	FullDocument   bool   `json:"fullDocument,omitempty"`
 }
 
 type rowMutationRequest struct {
@@ -1030,6 +1031,7 @@ func (server *Server) handleExportView(w http.ResponseWriter, r *http.Request) {
 		Rows:           request.Rows,
 		Format:         request.Format,
 		IncludeHeaders: request.IncludeHeaders,
+		FullDocument:   request.FullDocument,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

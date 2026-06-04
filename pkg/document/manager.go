@@ -53,6 +53,7 @@ type Session struct {
 	WorkingPath              string            `json:"workingPath"`
 	Document                 csvcore.Document  `json:"document"`
 	Edits                    map[Cell]string   `json:"-"`
+	EditBaseRecords          [][]string        `json:"-"`
 	ViewRows                 []int             `json:"-"`
 	ViewActive               bool              `json:"-"`
 	UndoStack                []historySnapshot `json:"-"`
@@ -226,7 +227,7 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 		count = 80
 	}
 
-	if !session.ViewActive {
+	if !session.ViewActive && session.EditBaseRecords == nil {
 		window, err := csvcore.ReadRecordWindow(session.WorkingPath, session.Document.Metadata, start, count)
 		if err != nil {
 			return csvcore.RecordWindow{}, err
@@ -242,9 +243,21 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 		return window, nil
 	}
 
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return csvcore.RecordWindow{}, err
+	}
+	if !session.ViewActive {
+		if start > len(records) {
+			start = len(records)
+		}
+		end := min(start+count, len(records))
+		rows := cloneRecords(records[start:end])
+		sourceRows := make([]int, len(rows))
+		for i := range rows {
+			sourceRows[i] = start + i
+		}
+		return csvcore.RecordWindow{Start: start, Rows: rows, TotalRows: len(records), SourceRows: sourceRows}, nil
 	}
 	if start > len(session.ViewRows) {
 		start = len(session.ViewRows)
@@ -269,11 +282,10 @@ func (manager *Manager) Records(id string) (*Session, [][]string, error) {
 	if !ok {
 		return nil, nil, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return nil, nil, err
 	}
-	applyEdits(records, 0, session.Edits)
 	return session, records, nil
 }
 
@@ -298,7 +310,7 @@ func (manager *Manager) ExportView(id string, options ExportViewOptions) (Export
 		includeHeaders = hasHeader && *options.IncludeHeaders
 	}
 	viewRows := append([]int(nil), session.ViewRows...)
-	if !session.ViewActive {
+	if options.FullDocument || !session.ViewActive {
 		viewRows = make([]int, 0, max(0, len(records)-start))
 		for row := start; row < len(records); row++ {
 			viewRows = append(viewRows, row)
@@ -394,6 +406,9 @@ func (manager *Manager) EditCells(id string, edits []CellEdit) error {
 	session, ok := manager.sessions[id]
 	if !ok {
 		return errors.New("document not found")
+	}
+	if session.EditBaseRecords == nil && len(session.Edits) == 0 && len(session.UndoStack) > 0 {
+		session.EditBaseRecords = cloneRecords(session.UndoStack[len(session.UndoStack)-1].Records)
 	}
 	for _, edit := range edits {
 		session.Edits[Cell{Row: edit.Row, Col: edit.Col}] = edit.Value
@@ -498,11 +513,10 @@ func (manager *Manager) SetEncoding(id string, encodingName string) (MutationRes
 	if current.Name == encoding.Name && current.HasBOM == encoding.HasBOM {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	metadata := session.Document.Metadata
 	metadata.Encoding = encoding
 	metadata.Dialect.UTF8BOM = encoding.Name == csvcore.EncodingUTF8BOM
@@ -531,11 +545,10 @@ func (manager *Manager) SetDelimiter(id string, delimiterValue string, delimiter
 	if session.Document.Metadata.Dialect.Delimiter == delimiter && session.Document.Metadata.Dialect.DelimiterName == name {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	metadata := session.Document.Metadata
 	metadata.Dialect.Delimiter = delimiter
 	metadata.Dialect.DelimiterName = name
@@ -703,6 +716,7 @@ type ExportViewOptions struct {
 	Rows           []int `json:"rows"`
 	Format         string
 	IncludeHeaders *bool
+	FullDocument   bool
 }
 
 type ExportViewResult struct {
@@ -821,11 +835,10 @@ func (manager *Manager) MoveRow(id string, row int, delta int) (MutationResult, 
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	if row < 0 || row >= len(records) {
 		return MutationResult{}, errors.New("row is out of range")
 	}
@@ -860,11 +873,10 @@ func (manager *Manager) PasteRows(id string, sourceRows []int, targetRow int, cu
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	records = cloneRecords(records)
 	sourceRows = uniqueIndexesInOrder(sourceRows)
 	if len(sourceRows) == 0 {
@@ -932,7 +944,7 @@ func (manager *Manager) HideRow(id string, row int) (MutationResult, error) {
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
@@ -1029,11 +1041,10 @@ func (manager *Manager) MoveColumn(id string, col int, delta int) (MutationResul
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	width := maxRecordWidth(records)
 	if col < 0 || col >= width {
 		return MutationResult{}, errors.New("column is out of range")
@@ -1067,11 +1078,10 @@ func (manager *Manager) PasteColumns(id string, sourceCols []int, targetCol int,
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	records = cloneRecords(records)
 	width := maxRecordWidth(records)
 	sourceCols = uniqueIndexesInOrder(sourceCols)
@@ -1149,11 +1159,10 @@ func (manager *Manager) Transpose(id string, maxCells int) (MutationResult, erro
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	width := maxRecordWidth(records)
 	cellCount := len(records) * width
 	if cellCount > maxCells {
@@ -1197,11 +1206,10 @@ func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	deduped, removed := deduplicateRecords(records, session.Document.Metadata.Dialect.HasHeader)
 	if removed == 0 {
@@ -1225,11 +1233,10 @@ func (manager *Manager) DeduplicateColumns(id string) (MutationResult, error) {
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	deduped, removed := deduplicateColumns(records)
 	if removed == 0 {
@@ -1267,11 +1274,10 @@ func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransfo
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	changed := 0
 	seen := make(map[Cell]bool, len(cells))
@@ -1322,11 +1328,10 @@ func (manager *Manager) SwapCells(id string, cells []Cell) (MutationResult, erro
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	if first.Row >= len(records) || second.Row >= len(records) {
 		return MutationResult{}, errors.New("swap row is out of range")
 	}
@@ -1377,11 +1382,10 @@ func (manager *Manager) joinCells(id string, cells []Cell, separator string, dir
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	changed := joinRecords(records, cells, separator, direction)
 	if changed == 0 {
@@ -1424,11 +1428,10 @@ func (manager *Manager) splitCells(id string, cells []Cell, separator string, di
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	changed := splitRecords(&records, cells, separator, direction)
 	if changed == 0 {
@@ -1454,11 +1457,10 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	if session.ReadOnly {
 		return csvcore.SaveResult{}, errors.New("document is read-only")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return csvcore.SaveResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	outputPath := path
 	if outputPath == "" {
@@ -1511,6 +1513,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	current, ok := manager.sessions[id]
 	if ok {
 		current.Edits = make(map[Cell]string)
+		current.EditBaseRecords = nil
 		current.Dirty = false
 		current.ViewRows = nil
 		current.ViewActive = false
@@ -1741,11 +1744,10 @@ func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult
 		return FindResult{}, err
 	}
 
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return FindResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	var matches []Match
 	total := 0
@@ -1804,11 +1806,10 @@ func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResul
 		return ReplaceResult{}, err
 	}
 
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return ReplaceResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	edits := make(map[Cell]string)
 	var changes []Match
@@ -1913,11 +1914,10 @@ func (manager *Manager) FilterContains(id string, options FilterOptions) (int, e
 	if !ok {
 		return 0, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return 0, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	query := options.Query
 	if !options.CaseSensitive {
@@ -2054,11 +2054,10 @@ func (manager *Manager) ColumnValues(id string, column int, limit int) ([]Column
 	if !ok {
 		return nil, 0, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return nil, 0, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	start := 0
 	if session.Document.Metadata.Dialect.HasHeader {
@@ -2093,11 +2092,10 @@ func (manager *Manager) FilterValues(id string, options ValueFilterOptions) (int
 	if !ok {
 		return 0, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return 0, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	selected := make(map[string]bool, len(options.Values))
 	for _, value := range options.Values {
@@ -2138,11 +2136,10 @@ func (manager *Manager) FilterSQL(id string, expression string) (int, error) {
 	if !ok {
 		return 0, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return 0, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	start := 0
 	headers := []string(nil)
@@ -2212,11 +2209,10 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 	if !ok {
 		return 0, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return 0, err
 	}
-	applyEdits(records, 0, session.Edits)
 
 	start := 0
 	if options.HasHeader || session.Document.Metadata.Dialect.HasHeader {
@@ -2655,6 +2651,7 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 	current.WorkingPath = refreshedWorkingPath
 	current.Document = refreshed
 	current.Edits = make(map[Cell]string)
+	current.EditBaseRecords = nil
 	current.ViewRows = nil
 	current.ViewActive = false
 	current.UndoStack = nil
@@ -2672,11 +2669,10 @@ func (manager *Manager) mutateRecords(id string, mutate func(records [][]string)
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
 	}
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return MutationResult{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	records = cloneRecords(records)
 
 	if err := manager.pushUndo(id); err != nil {
@@ -2717,11 +2713,10 @@ func (manager *Manager) pushUndo(id string) error {
 }
 
 func snapshotFromSession(session *Session) (historySnapshot, error) {
-	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	records, err := recordsForSession(session)
 	if err != nil {
 		return historySnapshot{}, err
 	}
-	applyEdits(records, 0, session.Edits)
 	return historySnapshot{
 		Records:    cloneRecords(records),
 		Metadata:   session.Document.Metadata,
@@ -2794,6 +2789,7 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 	session.WorkingPath = tempPath
 	session.Document = refreshed
 	session.Edits = make(map[Cell]string)
+	session.EditBaseRecords = nil
 	session.ViewRows = nil
 	session.ViewActive = false
 	session.Dirty = dirty
@@ -2852,10 +2848,25 @@ func cloneSession(session *Session) *Session {
 	for key, value := range session.Edits {
 		copy.Edits[key] = value
 	}
+	copy.EditBaseRecords = session.EditBaseRecords
 	copy.ViewRows = append([]int(nil), session.ViewRows...)
 	copy.UndoStack = cloneHistory(session.UndoStack)
 	copy.RedoStack = cloneHistory(session.RedoStack)
 	return &copy
+}
+
+func recordsForSession(session *Session) ([][]string, error) {
+	if session.EditBaseRecords != nil {
+		records := cloneRecords(session.EditBaseRecords)
+		applyEdits(records, 0, session.Edits)
+		return records, nil
+	}
+	records, err := csvcore.ReadAllRecords(session.WorkingPath, session.Document.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	applyEdits(records, 0, session.Edits)
+	return records, nil
 }
 
 func cloneHistory(input []historySnapshot) []historySnapshot {
@@ -2876,6 +2887,9 @@ func cloneHistory(input []historySnapshot) []historySnapshot {
 }
 
 func cloneRecords(records [][]string) [][]string {
+	if records == nil {
+		return nil
+	}
 	output := make([][]string, len(records))
 	for i, record := range records {
 		output[i] = append([]string(nil), record...)

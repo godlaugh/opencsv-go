@@ -448,6 +448,16 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	if string(filtered.Data) != "id,score\n1,9\n3,10\n" {
 		t.Fatalf("filtered export = %q", string(filtered.Data))
 	}
+	full, err := manager.ExportView(session.ID, ExportViewOptions{FullDocument: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full.Rows != 3 || full.Columns != 3 {
+		t.Fatalf("full export counts = rows %d cols %d, want 3/3", full.Rows, full.Columns)
+	}
+	if string(full.Data) != "id,name,score\n1,Ada,9\n2,Linux,7\n3,Grace,10\n" {
+		t.Fatalf("full export = %q", string(full.Data))
+	}
 	if _, err := manager.FilterValues(session.ID, ValueFilterOptions{Column: 1, Values: []string{"Nobody"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -560,6 +570,57 @@ func TestManagerExportViewRespectsFiltersSortsAndColumns(t *testing.T) {
 	}
 	if !strings.Contains(sheet, `<t xml:space="preserve">Grace</t>`) || !strings.Contains(sheet, `<t xml:space="preserve">Linux</t>`) {
 		t.Fatalf("xlsx sheet missing exported values: %s", sheet)
+	}
+}
+
+func TestManagerExportFullDocumentUsesDirtyEditBase(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "conflict.csv")
+	if err := os.WriteFile(path, []byte("id,name,score\n1,Ada,9\n2,Linus,7\n3,Grace,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "conflict.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Edit(session.ID, 2, 1, "LOCAL"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("id,name,score\n1,DISK,9\n2,Disk,7\n4,Nia,11\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	window, err := manager.Window(session.ID, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(window.Rows[1], ","); got != "1,Ada,9" {
+		t.Fatalf("dirty window first data row = %q, want original base", got)
+	}
+	if got := strings.Join(window.Rows[2], ","); got != "2,LOCAL,7" {
+		t.Fatalf("dirty window edited row = %q, want local edit over original base", got)
+	}
+
+	full, err := manager.ExportView(session.ID, ExportViewOptions{FullDocument: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(full.Data); got != "id,name,score\n1,Ada,9\n2,LOCAL,7\n3,Grace,10\n" {
+		t.Fatalf("full dirty export = %q", got)
+	}
+
+	copyPath := filepath.Join(dir, "local-copy.csv")
+	if _, err := manager.Save(session.ID, copyPath, false); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(copyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(saved); got != "id,name,score\n1,Ada,9\n2,LOCAL,7\n3,Grace,10\n" {
+		t.Fatalf("save as dirty local copy = %q", got)
 	}
 }
 

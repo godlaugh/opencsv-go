@@ -262,6 +262,7 @@ const externalChangeTitle = document.querySelector("#externalChangeTitle");
 const externalChangeMessage = document.querySelector("#externalChangeMessage");
 const closeExternalChangeButton = document.querySelector("#closeExternalChangeButton");
 const keepExternalChangeButton = document.querySelector("#keepExternalChangeButton");
+const compareExternalChangeButton = document.querySelector("#compareExternalChangeButton");
 const saveAsExternalChangeButton = document.querySelector("#saveAsExternalChangeButton");
 const reloadExternalChangeButton = document.querySelector("#reloadExternalChangeButton");
 const cellValueDialog = document.querySelector("#cellValueDialog");
@@ -12292,6 +12293,7 @@ function updateExternalChangePanel() {
   externalChangeMessage.textContent = conflict
     ? "The backing file changed on disk while this document has unsaved edits."
     : "The backing file changed on disk and can be refreshed now.";
+  compareExternalChangeButton.hidden = !metadata?.path;
   saveAsExternalChangeButton.hidden = !conflict;
   reloadExternalChangeButton.textContent = conflict ? "Reload from Disk" : "Refresh from Disk";
   reloadExternalChangeButton.title = conflict ? "Discard unsaved edits and load the disk file" : "Load the disk file";
@@ -12313,6 +12315,38 @@ function closeExternalChangePanel() {
 function saveAsExternalChange() {
   externalChangePanel.hidden = true;
   openSaveAsDialog();
+}
+
+async function compareExternalChangeWithDisk() {
+  if (!documentId || !metadata?.path || !externalFileChanged) return;
+  const sourceColumns = (allColumns.length ? allColumns : columns).map((column) => column.sourceCol);
+  status.textContent = "Preparing disk/local compare...";
+  const response = await fetch("/api/export-view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId,
+      columns: sourceColumns,
+      format: "csv",
+      fullDocument: true,
+    }),
+  });
+  const blob = await response.blob();
+  const text = await blob.text();
+  if (!response.ok) {
+    status.textContent = `Compare failed: ${errorFromResponseText(text)}`;
+    return;
+  }
+  leftDiffPath.value = metadata.path;
+  rightDiffPath.value = "";
+  diffRightText.value = text;
+  diffRightText.dataset.source = "local-document";
+  setDiffRightTextMode(true);
+  externalChangePanel.hidden = true;
+  document.body.dataset.externalChangeCompare = dirty ? "dirty" : "clean";
+  document.body.dataset.externalChangeCompareRows = response.headers.get("X-Opencsv-Rows") || "";
+  openDiffPanel();
+  await runDiffCompare();
 }
 
 async function reloadExternalChangeFromDisk() {
@@ -13619,7 +13653,9 @@ function currentDiffOptions() {
 }
 
 function diffRightTextLabel() {
-  return diffRightText.dataset.source === "clipboard" ? "clipboard" : "text";
+  if (diffRightText.dataset.source === "clipboard") return "clipboard";
+  if (diffRightText.dataset.source === "local-document") return "local document";
+  return "text";
 }
 
 function setDiffRightTextMode(enabled) {
@@ -13629,7 +13665,7 @@ function setDiffRightTextMode(enabled) {
     diffRightText.dataset.source = "";
     document.body.dataset.diffTextSource = "";
   } else {
-    document.body.dataset.diffTextSource = diffRightText.dataset.source === "clipboard" ? "clipboard" : "text";
+    document.body.dataset.diffTextSource = diffRightText.dataset.source || "text";
   }
 }
 
@@ -14441,9 +14477,9 @@ async function openInitialURLTarget() {
   if (diffLeft || diffRight || diffText) {
     leftDiffPath.value = diffLeft ?? "";
     rightDiffPath.value = diffRight ?? "";
-    setDiffRightTextMode(diffText != null);
     diffRightText.value = diffText ?? "";
     diffRightText.dataset.source = "";
+    setDiffRightTextMode(diffText != null);
     diffIgnoreCase.checked = truthyParam(params.get("diffIgnoreCase"));
     diffIgnoreWhitespace.checked = truthyParam(params.get("diffIgnoreWhitespace"));
     diffMatchHeaders.checked = truthyParam(params.get("diffMatchHeaders"));
@@ -14895,6 +14931,7 @@ cancelRestoreBackupButton.addEventListener("click", closeRestoreBackupPanel);
 refreshRestoreBackupsButton.addEventListener("click", loadRestoreBackups);
 closeExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
+compareExternalChangeButton.addEventListener("click", compareExternalChangeWithDisk);
 saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
 reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDisk);
 closeCellValueDialogButton.addEventListener("click", closeCellValueDialog);
