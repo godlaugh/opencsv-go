@@ -106,21 +106,47 @@ func TestAnalyzeWithSchemaRules(t *testing.T) {
 	}
 }
 
+func TestAnalyzeWithSchemaStringLengthRules(t *testing.T) {
+	minLength := 2
+	maxLength := 3
+	result := AnalyzeWithSchema([][]string{
+		{"code"},
+		{"A"},
+		{"猫狗"},
+		{"猫狗鸟鱼"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "code", MinLength: &minLength, MaxLength: &maxLength},
+	}})
+	if result.SchemaRules != 1 {
+		t.Fatalf("schema rules = %d, want 1", result.SchemaRules)
+	}
+	if !hasIssue(result.Issues, "schema-min-length") {
+		t.Fatalf("expected schema-min-length issue in %#v", result.Issues)
+	}
+	if !hasIssue(result.Issues, "schema-max-length") {
+		t.Fatalf("expected schema-max-length issue in %#v", result.Issues)
+	}
+	if lengthIssueCount := countIssues(result.Issues, "schema-min-length") + countIssues(result.Issues, "schema-max-length"); lengthIssueCount != 2 {
+		t.Fatalf("length issues = %d, want 2: %#v", lengthIssueCount, result.Issues)
+	}
+}
+
 func TestSchemaUnmarshalAcceptsCSVLintFields(t *testing.T) {
 	var schema Schema
 	err := json.Unmarshal([]byte(`{
 		"fields": [
 			{"name": "id", "type": "integer", "constraints": {"required": true, "unique": true}},
 			{"name": "status", "constraints": {"enum": ["new", "done"]}},
-			{"name": "score", "datatype": {"base": "number", "minimum": "0", "maximum": 100}}
+			{"name": "score", "datatype": {"base": "number", "minimum": "0", "maximum": 100}},
+			{"name": "code", "datatype": "string", "constraints": {"minLength": "2", "max_length": 4}}
 		],
 		"primaryKey": "id"
 	}`), &schema)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(schema.Columns) != 3 {
-		t.Fatalf("columns = %#v, want 3", schema.Columns)
+	if len(schema.Columns) != 4 {
+		t.Fatalf("columns = %#v, want 4", schema.Columns)
 	}
 	id := schema.Columns[0]
 	if id.Name != "id" || id.Type != "integer" || !id.Required || !id.Unique {
@@ -133,6 +159,10 @@ func TestSchemaUnmarshalAcceptsCSVLintFields(t *testing.T) {
 	score := schema.Columns[2]
 	if score.Type != "number" || score.Min == nil || *score.Min != 0 || score.Max == nil || *score.Max != 100 {
 		t.Fatalf("score rule = %#v", score)
+	}
+	code := schema.Columns[3]
+	if code.Type != "string" || code.MinLength == nil || *code.MinLength != 2 || code.MaxLength == nil || *code.MaxLength != 4 {
+		t.Fatalf("code rule = %#v", code)
 	}
 }
 
@@ -183,6 +213,16 @@ func hasIssue(issues []Issue, typ string) bool {
 		}
 	}
 	return false
+}
+
+func countIssues(issues []Issue, typ string) int {
+	count := 0
+	for _, issue := range issues {
+		if issue.Type == typ {
+			count++
+		}
+	}
+	return count
 }
 
 func issueByType(issues []Issue, typ string) *Issue {

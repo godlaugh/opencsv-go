@@ -153,6 +153,8 @@ const profileRuleEnumInput = document.querySelector("#profileRuleEnumInput");
 const profileRulePatternInput = document.querySelector("#profileRulePatternInput");
 const profileRuleMinInput = document.querySelector("#profileRuleMinInput");
 const profileRuleMaxInput = document.querySelector("#profileRuleMaxInput");
+const profileRuleMinLengthInput = document.querySelector("#profileRuleMinLengthInput");
+const profileRuleMaxLengthInput = document.querySelector("#profileRuleMaxLengthInput");
 const saveProfileRuleButton = document.querySelector("#saveProfileRuleButton");
 const clearProfileRuleButton = document.querySelector("#clearProfileRuleButton");
 const profileRuleList = document.querySelector("#profileRuleList");
@@ -12467,6 +12469,36 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   const max = schemaNumber(column.max ?? column.maximum ?? constraints.max ?? constraints.maximum ?? datatypeObject.max ?? datatypeObject.maximum);
   if (min != null) rule.min = min;
   if (max != null) rule.max = max;
+  const minLength = schemaNonNegativeInteger(
+    column.minLength ??
+      column.minimumLength ??
+      column.min_length ??
+      column.minimum_length ??
+      constraints.minLength ??
+      constraints.minimumLength ??
+      constraints.min_length ??
+      constraints.minimum_length ??
+      datatypeObject.minLength ??
+      datatypeObject.minimumLength ??
+      datatypeObject.min_length ??
+      datatypeObject.minimum_length,
+  );
+  const maxLength = schemaNonNegativeInteger(
+    column.maxLength ??
+      column.maximumLength ??
+      column.max_length ??
+      column.maximum_length ??
+      constraints.maxLength ??
+      constraints.maximumLength ??
+      constraints.max_length ??
+      constraints.maximum_length ??
+      datatypeObject.maxLength ??
+      datatypeObject.maximumLength ??
+      datatypeObject.max_length ??
+      datatypeObject.maximum_length,
+  );
+  if (minLength != null) rule.minLength = minLength;
+  if (maxLength != null) rule.maxLength = maxLength;
   return ruleHasValidation(rule) ? rule : null;
 }
 
@@ -12479,6 +12511,12 @@ function schemaNumber(value) {
   if (value == null || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function schemaNonNegativeInteger(value) {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : null;
 }
 
 function schemaArrayValues(value) {
@@ -12813,8 +12851,16 @@ function profileRuleFromBuilder() {
   if (pattern) rule.pattern = pattern;
   const minValue = Number.parseFloat(profileRuleMinInput.value);
   const maxValue = Number.parseFloat(profileRuleMaxInput.value);
+  const minLengthValue = Number.parseInt(profileRuleMinLengthInput.value, 10);
+  const maxLengthValue = Number.parseInt(profileRuleMaxLengthInput.value, 10);
   if (profileRuleMinInput.value.trim() !== "" && Number.isFinite(minValue)) rule.min = minValue;
   if (profileRuleMaxInput.value.trim() !== "" && Number.isFinite(maxValue)) rule.max = maxValue;
+  if (profileRuleMinLengthInput.value.trim() !== "" && Number.isInteger(minLengthValue) && minLengthValue >= 0) {
+    rule.minLength = minLengthValue;
+  }
+  if (profileRuleMaxLengthInput.value.trim() !== "" && Number.isInteger(maxLengthValue) && maxLengthValue >= 0) {
+    rule.maxLength = maxLengthValue;
+  }
   if (!rule.name && !rule.column) {
     throw new Error("Choose a column name or number.");
   }
@@ -12831,6 +12877,8 @@ function ruleHasValidation(rule) {
       rule.pattern ||
       rule.min != null ||
       rule.max != null ||
+      rule.minLength != null ||
+      rule.maxLength != null ||
       (Array.isArray(rule.enum) && rule.enum.length),
   );
 }
@@ -12873,6 +12921,8 @@ function clearProfileRuleBuilder(resetStatus = true) {
   profileRulePatternInput.value = "";
   profileRuleMinInput.value = "";
   profileRuleMaxInput.value = "";
+  profileRuleMinLengthInput.value = "";
+  profileRuleMaxLengthInput.value = "";
   saveProfileRuleButton.textContent = "Save Rule";
   if (resetStatus) status.textContent = "Cleared schema rule editor.";
 }
@@ -12894,6 +12944,8 @@ function editProfileRule(index) {
   profileRulePatternInput.value = rule.pattern || "";
   profileRuleMinInput.value = rule.min ?? "";
   profileRuleMaxInput.value = rule.max ?? "";
+  profileRuleMinLengthInput.value = rule.minLength ?? "";
+  profileRuleMaxLengthInput.value = rule.maxLength ?? "";
   saveProfileRuleButton.textContent = "Update Rule";
   document.body.dataset.profileRuleBuilder = `edit:${index}`;
   status.textContent = `Editing schema rule ${index + 1}.`;
@@ -12969,6 +13021,8 @@ function profileRuleSummary(rule) {
   if (rule.pattern) parts.push(`pattern ${rule.pattern}`);
   if (rule.min != null) parts.push(`min ${rule.min}`);
   if (rule.max != null) parts.push(`max ${rule.max}`);
+  if (rule.minLength != null) parts.push(`min length ${rule.minLength}`);
+  if (rule.maxLength != null) parts.push(`max length ${rule.maxLength}`);
   return parts.length ? parts.join(", ") : "location only";
 }
 

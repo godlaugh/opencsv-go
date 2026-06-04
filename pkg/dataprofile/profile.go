@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type Result struct {
@@ -20,15 +21,17 @@ type Schema struct {
 }
 
 type ColumnRule struct {
-	Name     string   `json:"name,omitempty"`
-	Column   int      `json:"column,omitempty"`
-	Required bool     `json:"required,omitempty"`
-	Type     string   `json:"type,omitempty"`
-	Unique   bool     `json:"unique,omitempty"`
-	Enum     []string `json:"enum,omitempty"`
-	Pattern  string   `json:"pattern,omitempty"`
-	Min      *float64 `json:"min,omitempty"`
-	Max      *float64 `json:"max,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	Column    int      `json:"column,omitempty"`
+	Required  bool     `json:"required,omitempty"`
+	Type      string   `json:"type,omitempty"`
+	Unique    bool     `json:"unique,omitempty"`
+	Enum      []string `json:"enum,omitempty"`
+	Pattern   string   `json:"pattern,omitempty"`
+	Min       *float64 `json:"min,omitempty"`
+	Max       *float64 `json:"max,omitempty"`
+	MinLength *int     `json:"minLength,omitempty"`
+	MaxLength *int     `json:"maxLength,omitempty"`
 }
 
 type ColumnProfile struct {
@@ -258,7 +261,9 @@ func ruleHasChecks(rule ColumnRule) bool {
 		len(rule.Enum) > 0 ||
 		strings.TrimSpace(rule.Pattern) != "" ||
 		rule.Min != nil ||
-		rule.Max != nil
+		rule.Max != nil ||
+		rule.MinLength != nil ||
+		rule.MaxLength != nil
 }
 
 func resolveRuleColumn(rule ColumnRule, headers []string) (int, bool) {
@@ -382,6 +387,7 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 				Message:  fmt.Sprintf("Value %q does not match schema pattern.", raw),
 			})
 		}
+		issues = append(issues, stringLengthIssues(raw, row, col, rule, ruleName)...)
 		issues = append(issues, numericRangeIssues(raw, row, col, rule, ruleName)...)
 	}
 	return issues
@@ -434,6 +440,34 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 			Col:      col + 1,
 			Rule:     ruleName,
 			Message:  fmt.Sprintf("Value %q is above schema maximum %s.", raw, formatRuleNumber(*rule.Max)),
+		}}
+	}
+	return nil
+}
+
+func stringLengthIssues(raw string, row int, col int, rule ColumnRule, ruleName string) []Issue {
+	if rule.MinLength == nil && rule.MaxLength == nil {
+		return nil
+	}
+	length := utf8.RuneCountInString(raw)
+	if rule.MinLength != nil && length < *rule.MinLength {
+		return []Issue{{
+			Type:     "schema-min-length",
+			Severity: "error",
+			Row:      row + 1,
+			Col:      col + 1,
+			Rule:     ruleName,
+			Message:  fmt.Sprintf("Value %q is shorter than schema minimum length %d.", raw, *rule.MinLength),
+		}}
+	}
+	if rule.MaxLength != nil && length > *rule.MaxLength {
+		return []Issue{{
+			Type:     "schema-max-length",
+			Severity: "error",
+			Row:      row + 1,
+			Col:      col + 1,
+			Rule:     ruleName,
+			Message:  fmt.Sprintf("Value %q is longer than schema maximum length %d.", raw, *rule.MaxLength),
 		}}
 	}
 	return nil

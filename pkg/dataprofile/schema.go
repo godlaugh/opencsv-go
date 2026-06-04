@@ -155,6 +155,12 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	if max, ok := firstSchemaNumber([]map[string]json.RawMessage{column, constraints, datatypeObject}, "max", "maximum"); ok {
 		rule.Max = &max
 	}
+	if minLength, ok := firstSchemaInteger([]map[string]json.RawMessage{column, constraints, datatypeObject}, "minLength", "minimumLength", "min_length", "minimum_length"); ok {
+		rule.MinLength = &minLength
+	}
+	if maxLength, ok := firstSchemaInteger([]map[string]json.RawMessage{column, constraints, datatypeObject}, "maxLength", "maximumLength", "max_length", "maximum_length"); ok {
+		rule.MaxLength = &maxLength
+	}
 	return rule, ruleHasChecks(rule), nil
 }
 
@@ -327,6 +333,32 @@ func firstSchemaNumber(sources []map[string]json.RawMessage, keys ...string) (fl
 		}
 	}
 	return 0, false
+}
+
+func firstSchemaInteger(sources []map[string]json.RawMessage, keys ...string) (int, bool) {
+	for _, source := range sources {
+		if source == nil {
+			continue
+		}
+		for _, key := range keys {
+			if value, ok := schemaRawNonNegativeInteger(firstSchemaRaw(source, key)); ok {
+				return value, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func schemaRawNonNegativeInteger(raw json.RawMessage) (int, bool) {
+	value := schemaRawString(raw)
+	if value == "" {
+		return 0, false
+	}
+	number, err := strconv.Atoi(value)
+	if err != nil || number < 0 {
+		return 0, false
+	}
+	return number, true
 }
 
 func schemaRawNumber(raw json.RawMessage) (float64, bool) {

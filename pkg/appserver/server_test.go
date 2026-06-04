@@ -1766,7 +1766,7 @@ func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "csvlint-schema.csv")
-	if err := os.WriteFile(path, []byte("id,status,score\n1,new,10\n1,bad,105\n,done,ok\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,status,score,code\n1,new,10,A\n1,bad,105,OK\n,done,ok,ABCDE\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1785,15 +1785,16 @@ func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 				{"name": "id", "datatype": "integer", "constraints": map[string]any{"required": true, "unique": true}},
 				{"name": "status", "constraints": map[string]any{"enum": []string{"new", "done"}}},
 				{"name": "score", "datatype": map[string]any{"base": "number", "minimum": 0, "maximum": 100}},
+				{"name": "code", "datatype": "string", "constraints": map[string]any{"minLength": 2, "max_length": 4}},
 			},
 			"primaryKey": "id",
 		},
 	})
-	if profilePayload["schemaRules"].(float64) != 3 {
-		t.Fatalf("schemaRules = %#v, want 3", profilePayload["schemaRules"])
+	if profilePayload["schemaRules"].(float64) != 4 {
+		t.Fatalf("schemaRules = %#v, want 4", profilePayload["schemaRules"])
 	}
 	issues := profilePayload["issues"].([]any)
-	for _, typ := range []string{"schema-unique", "schema-required", "schema-enum", "schema-range", "schema-type"} {
+	for _, typ := range []string{"schema-unique", "schema-required", "schema-enum", "schema-range", "schema-type", "schema-min-length", "schema-max-length"} {
 		if !jsonIssuesContainType(issues, typ) {
 			t.Fatalf("expected %s issue in %#v", typ, issues)
 		}
