@@ -247,6 +247,71 @@ func TestServerSaveAsWritesNewPath(t *testing.T) {
 	}
 }
 
+func TestServerNewDocumentSaveAs(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "created.csv")
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/new", map[string]any{
+		"name":    "../Untitled",
+		"rows":    1,
+		"columns": 2,
+	})
+	documentID, ok := openPayload["documentId"].(string)
+	if !ok || documentID == "" {
+		t.Fatalf("missing documentId in %#v", openPayload)
+	}
+	document := openPayload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	if filepath.Base(metadata["path"].(string)) != "Untitled.csv" {
+		t.Fatalf("new document path = %#v", metadata["path"])
+	}
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["hasHeader"] != true {
+		t.Fatalf("new document should default to header row: %#v", dialect)
+	}
+	preview := document["preview"].([]any)
+	if len(preview) < 2 {
+		t.Fatalf("new document preview = %#v", preview)
+	}
+	header := preview[0].([]any)
+	if header[0] != "Column 1" || header[1] != "Column 2" {
+		t.Fatalf("new document header = %#v", header)
+	}
+
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        0,
+		"value":      "Ada",
+	})
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        1,
+		"col":        1,
+		"value":      "90",
+	})
+
+	savePayload := postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"path":       targetPath,
+		"backup":     true,
+	})
+	if savePayload["path"] != targetPath {
+		t.Fatalf("new document save-as path = %#v, want %s", savePayload["path"], targetPath)
+	}
+	if _, hasBackup := savePayload["backupPath"].(string); hasBackup {
+		t.Fatalf("new document save-as target should not create backup: %#v", savePayload)
+	}
+	saved, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saved) != "Column 1,Column 2\nAda,90\n" {
+		t.Fatalf("new document save-as content = %q", string(saved))
+	}
+}
+
 func TestServerOpenXLSXPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.xlsx")

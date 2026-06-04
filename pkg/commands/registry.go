@@ -34,6 +34,7 @@ func Registry() []Command {
 		{ID: "workbench.focusNextGroup", Title: "Focus Next Editor Group", Description: "Move focus between editor groups.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"next group", "focus group", "switch group"}},
 		{ID: "workbench.moveTabToOtherGroup", Title: "Move Tab to Other Group", Description: "Move the current document tab into the other editor group.", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"move tab", "move editor", "tab group"}},
 		{ID: "workbench.closeSplitEditor", Title: "Close Split Editor Group", Description: "Close the secondary editor group.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"close split", "close group", "unsplit"}},
+		{ID: "file.new", Title: "New File", Description: "Create a new unsaved CSV document.", Shortcut: "Cmd+N", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"new csv", "untitled", "blank file"}},
 		{ID: "file.open", Title: "Open", Description: "Open a CSV or delimited text file.", Shortcut: "Cmd+O", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"open file"}},
 		{ID: "file.save", Title: "Save", Description: "Save the current document with backup policy.", Shortcut: "Cmd+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true},
 		{ID: "file.saveAs", Title: "Save As", Description: "Save the current document to a chosen local path.", Shortcut: "Cmd+Shift+S", Scope: ScopeDocument, RequiresDoc: true, Implemented: true, Aliases: []string{"save copy", "save to path"}},

@@ -24,6 +24,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		seen[command.ID] = true
 	}
 	for _, required := range []string{
+		"file.new",
 		"file.open",
 		"settings.open",
 		"settings.keyboardShortcuts",
@@ -582,6 +583,28 @@ func TestShowAllRowsCommandIsWired(t *testing.T) {
 	}
 	if strings.Contains(source[start:end], "hiddenSourceColumns = new Set()") {
 		t.Fatal("showAllRows must not restore hidden columns")
+	}
+}
+
+func TestStartPageNewFileIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`case "file.new":`,
+		"async function createNewFile()",
+		`fetch("/api/new"`,
+		`JSON.stringify({ name, rows: 1, columns: 2 })`,
+		`document.body.dataset.newFile`,
+		`t("start.newFile")`,
+		`t("start.settings")`,
+		`activeFileEntry?.detail === "temporary upload"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing start-page new-file wiring %q", snippet)
+		}
 	}
 }
 

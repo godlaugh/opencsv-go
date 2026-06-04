@@ -46,6 +46,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("GET /api/update-check", server.handleUpdateCheck)
 	server.mux.HandleFunc("POST /api/open", server.handleOpen)
 	server.mux.HandleFunc("POST /api/file-sample", server.handleFileSample)
+	server.mux.HandleFunc("POST /api/new", server.handleNew)
 	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
 	server.mux.HandleFunc("GET /api/window", server.handleWindow)
 	server.mux.HandleFunc("POST /api/edit", server.handleEdit)
@@ -140,6 +141,12 @@ type openRequest struct {
 type openResponse struct {
 	DocumentID string           `json:"documentId"`
 	Document   csvcore.Document `json:"document"`
+}
+
+type newDocumentRequest struct {
+	Name    string `json:"name"`
+	Rows    int    `json:"rows"`
+	Columns int    `json:"columns"`
 }
 
 type fileSampleRequest struct {
@@ -348,6 +355,88 @@ func (server *Server) handleUploadOpen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+}
+
+func (server *Server) handleNew(w http.ResponseWriter, r *http.Request) {
+	var request newDocumentRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	filename := newDocumentFilename(request.Name)
+	rows := clampNewDocumentDimension(request.Rows, 1, 1000)
+	columns := clampNewDocumentDimension(request.Columns, 2, 128)
+	records := newDocumentRecords(rows, columns)
+
+	tempDir, err := os.MkdirTemp("", "opencsv-new-*")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	targetPath := filepath.Join(tempDir, filename)
+	metadata := csvcore.FileMetadata{
+		Path:       targetPath,
+		Encoding:   csvcore.EncodingInfo{Name: csvcore.EncodingUTF8, Confidence: 1},
+		LineEnding: csvcore.LineEndingInfo{Name: csvcore.LineEndingLF, Sequence: "\n", Confidence: 1},
+		Dialect: csvcore.Dialect{
+			Delimiter:        ',',
+			DelimiterName:    "comma",
+			HasHeader:        true,
+			EstimatedColumns: columns,
+		},
+	}
+	if _, err := csvcore.SaveRecords(targetPath, metadata, records, csvcore.SaveOptions{}); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	hasHeader := true
+	session, err := server.documents.OpenPath(targetPath, docstore.SourceUpload, filename, csvcore.OpenOptions{PreviewRows: 160, IndexRows: -1, HasHeader: &hasHeader})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+}
+
+func newDocumentFilename(raw string) string {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		name = "Untitled.csv"
+	}
+	name = filepath.Base(name)
+	if name == "." || name == ".." || name == string(filepath.Separator) {
+		name = "Untitled.csv"
+	}
+	if filepath.Ext(name) == "" {
+		name += ".csv"
+	}
+	return name
+}
+
+func clampNewDocumentDimension(value int, fallback int, limit int) int {
+	if value <= 0 {
+		return fallback
+	}
+	if value > limit {
+		return limit
+	}
+	return value
+}
+
+func newDocumentRecords(rows int, columns int) [][]string {
+	records := make([][]string, 0, rows+1)
+	header := make([]string, columns)
+	for column := range header {
+		header[column] = fmt.Sprintf("Column %d", column+1)
+	}
+	records = append(records, header)
+	for range rows {
+		records = append(records, make([]string, columns))
+	}
+	return records
 }
 
 func (server *Server) handleWindow(w http.ResponseWriter, r *http.Request) {

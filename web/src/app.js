@@ -638,6 +638,7 @@ const localeCatalog = {
     "diff.status.filterCleared": "Diff filter cleared; showing {{total}} rows.",
     "diff.status.active": "Diff {{current}} of {{total}}",
     "file.readOnly": "Read Only",
+    "file.new": "New",
     "file.export": "Export",
     "file.save": "Save",
     "file.saveAs": "Save As",
@@ -660,12 +661,19 @@ const localeCatalog = {
     "settings.linkProtocols": "Link Protocols",
     "settings.editorAppearance": "Editor Appearance",
     "settings.fileFormatPresets": "File Format Presets",
+    "start.newFile": "New File",
+    "start.newHelp": "Create an unsaved CSV",
     "start.openCsv": "Open CSV/TSV",
     "start.openHelp": "Type a path in the toolbar",
     "start.chooseFile": "Choose File",
     "start.chooseHelp": "Open with browser picker",
+    "start.settings": "Settings",
+    "start.settingsHelp": "Adjust app preferences",
     "file.recent": "Recent",
     "file.noOpen": "No file open",
+    "file.status.creatingNew": "Creating new CSV...",
+    "file.status.newReady": "New file ready: {{name}}",
+    "file.status.newFailed": "New file failed: {{message}}",
     "status.ready": "Ready",
     "status.languageChanged": "Language updated.",
     "status.languageReset": "Language reset.",
@@ -1146,6 +1154,7 @@ const localeCatalog = {
     "diff.status.filterCleared": "差异筛选已清除，显示 {{total}} 行。",
     "diff.status.active": "差异 {{current}} / {{total}}",
     "file.readOnly": "只读",
+    "file.new": "新建",
     "file.export": "导出",
     "file.save": "保存",
     "file.saveAs": "另存为",
@@ -1168,12 +1177,19 @@ const localeCatalog = {
     "settings.linkProtocols": "链接协议",
     "settings.editorAppearance": "编辑器外观",
     "settings.fileFormatPresets": "文件格式预设",
+    "start.newFile": "新建文件",
+    "start.newHelp": "创建未保存的 CSV",
     "start.openCsv": "打开 CSV/TSV",
     "start.openHelp": "在工具栏中输入路径",
     "start.chooseFile": "选择文件",
     "start.chooseHelp": "使用浏览器选择器打开",
+    "start.settings": "设置",
+    "start.settingsHelp": "调整应用偏好",
     "file.recent": "最近",
     "file.noOpen": "未打开文件",
+    "file.status.creatingNew": "正在创建新 CSV...",
+    "file.status.newReady": "新文件已就绪：{{name}}",
+    "file.status.newFailed": "新建文件失败：{{message}}",
     "status.ready": "就绪",
     "status.languageChanged": "语言已更新。",
     "status.languageReset": "语言已重置。",
@@ -1342,6 +1358,8 @@ const localeCatalog = {
     "command.settings.open.description": "打开应用设置和文件格式预设管理。",
     "command.settings.keyboardShortcuts.title": "键盘快捷键",
     "command.settings.keyboardShortcuts.description": "自定义命令快捷键。",
+    "command.file.new.title": "新建",
+    "command.file.new.description": "创建新的未保存 CSV 文档。",
     "command.file.open.title": "打开",
     "command.file.open.description": "打开 CSV 或分隔文本文件。",
     "command.file.save.title": "保存",
@@ -8027,6 +8045,9 @@ async function executeCommand(commandID) {
     case "workbench.toggleSplitOrientation":
       toggleSplitOrientation();
       break;
+    case "file.new":
+      await createNewFile();
+      break;
     case "file.open":
       await openPathInputOrPicker();
       break;
@@ -9675,6 +9696,7 @@ async function openPath(path, options = {}) {
   loadDocument(payload.document);
   updateFileList(fileNameFromPath(path), metadata.path, totalRows, { remember: true });
   updateFormatRulePlaceholder(path);
+  delete document.body.dataset.newFile;
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
@@ -9767,10 +9789,44 @@ async function uploadAndOpen(file) {
   pathInput.value = file.name;
   updateFormatRulePlaceholder(file.name);
   updateFileList(file.name, "temporary upload", totalRows);
+  delete document.body.dataset.newFile;
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
   canvas.focus();
+}
+
+async function createNewFile() {
+  saveCurrentScrollPosition();
+  const name = "Untitled.csv";
+  status.textContent = t("file.status.creatingNew");
+  try {
+    const response = await fetch("/api/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, rows: 1, columns: 2 }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "new file failed");
+
+    documentId = payload.documentId;
+    metadata = payload.document.metadata;
+    readOnly = false;
+    externalFileChanged = false;
+    clearStructureClipboard();
+    loadDocument(payload.document);
+    pathInput.value = name;
+    updateFormatRulePlaceholder(name);
+    updateFileList(name, "temporary upload", totalRows);
+    document.body.dataset.newFile = `${totalRows}:${columns.length}`;
+    draw();
+    startFileStatusChecks();
+    await checkFileStatus(false);
+    status.textContent = tf("file.status.newReady", { name });
+    canvas.focus();
+  } catch (error) {
+    status.textContent = tf("file.status.newFailed", { message: error.message });
+  }
 }
 
 function loadDocument(document) {
@@ -10961,6 +11017,14 @@ function renderFileList() {
 }
 
 function renderStartActions() {
+  const newFileButton = document.createElement("button");
+  newFileButton.className = "file-button file-action";
+  newFileButton.type = "button";
+  newFileButton.append(fileText(t("start.newFile"), t("start.newHelp")));
+  newFileButton.addEventListener("click", () => {
+    void createNewFile();
+  });
+
   const openPathButton = document.createElement("button");
   openPathButton.className = "file-button file-action";
   openPathButton.type = "button";
@@ -10976,7 +11040,13 @@ function renderStartActions() {
   chooseButton.append(fileText(t("start.chooseFile"), t("start.chooseHelp")));
   chooseButton.addEventListener("click", () => fileInput.click());
 
-  fileList.append(openPathButton, chooseButton);
+  const settingsButton = document.createElement("button");
+  settingsButton.className = "file-button file-action";
+  settingsButton.type = "button";
+  settingsButton.append(fileText(t("start.settings"), t("start.settingsHelp")));
+  settingsButton.addEventListener("click", () => openSettingsPanel());
+
+  fileList.append(newFileButton, openPathButton, chooseButton, settingsButton);
 }
 
 function fileButton(entry, options = {}) {
@@ -13846,8 +13916,10 @@ async function reloadExternalChangeFromDisk() {
 }
 
 function suggestedSaveAsPath() {
+  if (activeFileEntry?.detail === "temporary upload") {
+    return `/tmp/${activeFileEntry?.name || "opencsv-output.csv"}`;
+  }
   const current = metadata?.path || activeFileEntry?.detail || pathInput.value.trim() || "/tmp/output.csv";
-  if (current === "temporary upload") return `/tmp/${activeFileEntry?.name || "opencsv-output.csv"}`;
   const dot = current.lastIndexOf(".");
   const slash = Math.max(current.lastIndexOf("/"), current.lastIndexOf("\\"));
   if (dot > slash) return `${current.slice(0, dot)} copy${current.slice(dot)}`;
@@ -13888,6 +13960,7 @@ async function saveDocumentToPath(path = "", options = {}) {
     pathInput.value = payload.path;
     updateFileList(fileNameFromPath(payload.path), payload.path, totalRows, { remember: true });
     updateFormatRulePlaceholder(payload.path);
+    delete document.body.dataset.newFile;
   }
   if (options.saveAs) closeSaveAsDialog();
   status.textContent = payload.backupPath
