@@ -157,6 +157,15 @@
                     <option value="unchanged">Unchanged</option>
                   </select>
                   <input id="diffSearchInput" type="text" placeholder="Search diff rows..." aria-label="Search diff rows" />
+                  <select id="diffSortSelect" aria-label="Sort diff rows">
+                    <option value="source">Source order</option>
+                    <option value="status">Status</option>
+                    <option value="leftRow">Left row</option>
+                    <option value="rightRow">Right row</option>
+                    <option value="leftText">Left text</option>
+                    <option value="rightText">Right text</option>
+                  </select>
+                  <button id="diffSortDirectionButton" type="button" data-direction="asc" aria-pressed="false" title="Sort ascending">Asc</button>
                   <button id="diffClearFilterButton" type="button">Clear</button>
                 </div>
                 <div class="diff-text-controls">

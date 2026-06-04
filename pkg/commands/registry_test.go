@@ -309,7 +309,13 @@ func TestDiffResultFiltersAreWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	for _, id := range []string{"diffStatusFilter", "diffSearchInput", "diffClearFilterButton"} {
+	for _, id := range []string{
+		"diffStatusFilter",
+		"diffSearchInput",
+		"diffSortSelect",
+		"diffSortDirectionButton",
+		"diffClearFilterButton",
+	} {
 		if !strings.Contains(html, `id="`+id+`"`) {
 			t.Fatalf("missing diff filter control %s", id)
 		}
@@ -319,12 +325,19 @@ func TestDiffResultFiltersAreWired(t *testing.T) {
 	}
 	for _, snippet := range []string{
 		"filteredDiffRows",
+		"sortedDiffRows",
+		"compareDiffRows",
+		"compareDiffSortMissing",
 		"diffRowMatchesStatus",
 		"diffRowSearchText",
 		"diffStatusFilter.addEventListener(\"change\", applyDiffResultFilters)",
 		"diffSearchInput.addEventListener(\"input\", applyDiffResultFilters)",
+		"diffSortSelect.addEventListener(\"change\", applyDiffResultFilters)",
+		"diffSortDirectionButton.addEventListener(\"click\", toggleDiffSortDirection)",
 		"diffClearFilterButton.addEventListener(\"click\", clearDiffResultFilters)",
 		"document.body.dataset.diffFilteredRows",
+		"document.body.dataset.diffSort",
+		"document.body.dataset.diffSortDirection",
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing diff filter wiring %q", snippet)

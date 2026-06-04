@@ -124,6 +124,8 @@ const diffPrevButton = document.querySelector("#diffPrevButton");
 const diffNextButton = document.querySelector("#diffNextButton");
 const diffStatusFilter = document.querySelector("#diffStatusFilter");
 const diffSearchInput = document.querySelector("#diffSearchInput");
+const diffSortSelect = document.querySelector("#diffSortSelect");
+const diffSortDirectionButton = document.querySelector("#diffSortDirectionButton");
 const diffClearFilterButton = document.querySelector("#diffClearFilterButton");
 const diffRightTextMode = document.querySelector("#diffRightTextMode");
 const diffRightText = document.querySelector("#diffRightText");
@@ -14079,6 +14081,8 @@ function renderDiffResult(result) {
   );
   document.body.dataset.diffFilterStatus = diffStatusFilter?.value || "all";
   document.body.dataset.diffFilterQuery = diffSearchInput?.value.trim() || "";
+  document.body.dataset.diffSort = diffSortSelect?.value || "source";
+  document.body.dataset.diffSortDirection = diffSortDirection();
   document.body.dataset.diffFilteredRows = String(filteredRows.length);
   if (!allRows.length) {
     diffResult.replaceChildren(emptyDiffNode("No diff rows"));
@@ -14133,10 +14137,11 @@ function renderDiffResult(result) {
 function filteredDiffRows(rows) {
   const filter = diffStatusFilter?.value || "all";
   const query = (diffSearchInput?.value || "").trim().toLowerCase();
-  return rows
+  const filtered = rows
     .map((row, index) => ({ row, index }))
     .filter(({ row }) => diffRowMatchesStatus(row, filter))
     .filter(({ row }) => !query || diffRowSearchText(row).toLowerCase().includes(query));
+  return sortedDiffRows(filtered);
 }
 
 function diffRowMatchesStatus(row, filter) {
@@ -14166,6 +14171,109 @@ function diffRowSearchText(row) {
     ...(row.rightRecord ?? []),
     changed,
   ].join(" ");
+}
+
+function sortedDiffRows(items) {
+  const sort = diffSortSelect?.value || "source";
+  const direction = diffSortDirection() === "desc" ? -1 : 1;
+  const next = [...items];
+  next.sort((left, right) => {
+    const missing = compareDiffSortMissing(left, right, sort);
+    if (missing !== 0) return missing;
+    const compared = compareDiffRows(left, right, sort);
+    if (compared !== 0) return compared * direction;
+    return left.index - right.index;
+  });
+  return next;
+}
+
+function compareDiffRows(left, right, sort) {
+  if (sort === "status") {
+    return diffStatusRank(left.row?.status) - diffStatusRank(right.row?.status);
+  }
+  if (sort === "leftRow") {
+    return compareNullableNumbers(left.row?.leftRow, right.row?.leftRow);
+  }
+  if (sort === "rightRow") {
+    return compareNullableNumbers(left.row?.rightRow, right.row?.rightRow);
+  }
+  if (sort === "leftText") {
+    return compareDiffText(diffRecordText(left.row?.leftRecord), diffRecordText(right.row?.leftRecord));
+  }
+  if (sort === "rightText") {
+    return compareDiffText(diffRecordText(left.row?.rightRecord), diffRecordText(right.row?.rightRecord));
+  }
+  return left.index - right.index;
+}
+
+function compareDiffSortMissing(left, right, sort) {
+  let leftMissing = false;
+  let rightMissing = false;
+  if (sort === "leftRow") {
+    leftMissing = !Number.isFinite(Number(left.row?.leftRow));
+    rightMissing = !Number.isFinite(Number(right.row?.leftRow));
+  } else if (sort === "rightRow") {
+    leftMissing = !Number.isFinite(Number(left.row?.rightRow));
+    rightMissing = !Number.isFinite(Number(right.row?.rightRow));
+  } else if (sort === "leftText") {
+    leftMissing = !diffRecordText(left.row?.leftRecord);
+    rightMissing = !diffRecordText(right.row?.leftRecord);
+  } else if (sort === "rightText") {
+    leftMissing = !diffRecordText(left.row?.rightRecord);
+    rightMissing = !diffRecordText(right.row?.rightRecord);
+  }
+  if (leftMissing && rightMissing) return 0;
+  if (leftMissing) return 1;
+  if (rightMissing) return -1;
+  return 0;
+}
+
+function diffStatusRank(statusValue) {
+  switch (statusValue) {
+    case "changed":
+      return 0;
+    case "added":
+      return 1;
+    case "deleted":
+      return 2;
+    case "unchanged":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function compareNullableNumbers(left, right) {
+  return Number(left) - Number(right);
+}
+
+function diffRecordText(record) {
+  return (record ?? []).join(" ");
+}
+
+function compareDiffText(left, right) {
+  return left.localeCompare(right, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function diffSortDirection() {
+  return diffSortDirectionButton?.dataset.direction === "desc" ? "desc" : "asc";
+}
+
+function setDiffSortDirection(direction) {
+  const normalized = direction === "desc" ? "desc" : "asc";
+  if (!diffSortDirectionButton) return;
+  diffSortDirectionButton.dataset.direction = normalized;
+  diffSortDirectionButton.textContent = normalized === "desc" ? "Desc" : "Asc";
+  diffSortDirectionButton.setAttribute("aria-pressed", String(normalized === "desc"));
+  diffSortDirectionButton.title = normalized === "desc" ? "Sort descending" : "Sort ascending";
+}
+
+function toggleDiffSortDirection() {
+  setDiffSortDirection(diffSortDirection() === "desc" ? "asc" : "desc");
+  applyDiffResultFilters();
 }
 
 function diffFilterActive() {
@@ -15284,6 +15392,8 @@ diffPrevButton.addEventListener("click", () => navigateDiff(-1));
 diffNextButton.addEventListener("click", () => navigateDiff(1));
 diffStatusFilter.addEventListener("change", applyDiffResultFilters);
 diffSearchInput.addEventListener("input", applyDiffResultFilters);
+diffSortSelect.addEventListener("change", applyDiffResultFilters);
+diffSortDirectionButton.addEventListener("click", toggleDiffSortDirection);
 diffClearFilterButton.addEventListener("click", clearDiffResultFilters);
 diffRightTextMode.addEventListener("change", () => {
   setDiffRightTextMode(diffRightTextMode.checked);
