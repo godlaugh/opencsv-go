@@ -6030,10 +6030,17 @@ function updateConditionValueInput(operatorInput, valueInput) {
   const noValue = !conditionOperatorNeedsValue(operatorInput.value);
   valueInput.disabled = noValue;
   if (noValue) valueInput.value = "";
+  valueInput.placeholder = noValue ? "" : conditionValuePlaceholder(operatorInput.value);
 }
 
 function conditionOperatorNeedsValue(operator) {
   return !["blank", "notBlank", "booleanTrue", "booleanFalse"].includes(operator);
+}
+
+function conditionValuePlaceholder(operator) {
+  if (operator === "between" || operator === "notBetween") return "min..max";
+  if (String(operator).startsWith("date")) return "YYYY-MM-DD";
+  return "";
 }
 
 async function applyConditionBuilder() {
@@ -6231,10 +6238,34 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
       return `${identifier} < ${sqlComparisonLiteral(value)}`;
     case "lte":
       return `${identifier} <= ${sqlComparisonLiteral(value)}`;
+    case "between":
+      return rangeConditionExpression(identifier, value, valueInput, false);
+    case "notBetween":
+      return rangeConditionExpression(identifier, value, valueInput, true);
     default:
       status.textContent = "Choose a filter operator.";
       return "";
   }
+}
+
+function rangeConditionExpression(identifier, value, valueInput, negate) {
+  const range = conditionRangeParts(value);
+  if (!range) {
+    status.textContent = "Enter a range as min..max.";
+    valueInput.focus();
+    return "";
+  }
+  const expression = `(${identifier} >= ${sqlComparisonLiteral(range[0])} AND ${identifier} <= ${sqlComparisonLiteral(range[1])})`;
+  return negate ? `NOT ${expression}` : expression;
+}
+
+function conditionRangeParts(value) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/^(.+?)(?:\s*\.\.\s*|\s+to\s+|\s*,\s*)(.+)$/i);
+  if (!match) return null;
+  const lower = match[1].trim();
+  const upper = match[2].trim();
+  return lower && upper ? [lower, upper] : null;
 }
 
 function booleanConditionExpression(identifier, expected) {
