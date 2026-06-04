@@ -341,12 +341,42 @@ const sqlResultCommandFormats = {
   "sql.copyResultTsv": { action: "copy", format: "tsv" },
   "sql.copyResultMarkdown": { action: "copy", format: "markdown" },
   "sql.copyResultJson": { action: "copy", format: "json" },
+  "sql.copySelectionCsv": { action: "copySelection", format: "csv" },
+  "sql.copySelectionTsv": { action: "copySelection", format: "tsv" },
+  "sql.copySelectionMarkdown": { action: "copySelection", format: "markdown" },
+  "sql.copySelectionJson": { action: "copySelection", format: "json" },
+  "sql.copyFullResultCsv": { action: "copyFullResult", format: "csv" },
+  "sql.copyFullResultTsv": { action: "copyFullResult", format: "tsv" },
+  "sql.copyFullResultMarkdown": { action: "copyFullResult", format: "markdown" },
+  "sql.copyFullResultJson": { action: "copyFullResult", format: "json" },
   "sql.exportResultCsv": { action: "export", format: "csv" },
   "sql.exportResultTsv": { action: "export", format: "tsv" },
   "sql.exportResultMarkdown": { action: "export", format: "markdown" },
   "sql.exportResultJson": { action: "export", format: "json" },
 };
-const sqlResultCommandIDs = new Set(Object.keys(sqlResultCommandFormats));
+const sqlResultContextCommandIDs = new Set([
+  "sql.copyCell",
+  "sql.copyRow",
+  "sql.copyRowWithHeaders",
+  "sql.copyColumn",
+  "sql.copyColumnWithHeader",
+  "sql.clearSelection",
+]);
+const sqlResultTargetCommandIDs = new Set([
+  "sql.copyCell",
+  "sql.copyRow",
+  "sql.copyRowWithHeaders",
+  "sql.copyColumn",
+  "sql.copyColumnWithHeader",
+]);
+const sqlResultSelectionCommandIDs = new Set([
+  "sql.copySelectionCsv",
+  "sql.copySelectionTsv",
+  "sql.copySelectionMarkdown",
+  "sql.copySelectionJson",
+  "sql.clearSelection",
+]);
+const sqlResultCommandIDs = new Set([...Object.keys(sqlResultCommandFormats), ...sqlResultContextCommandIDs]);
 const findPageSize = 100;
 const profileSchemaStorageKey = "opencsv-profile-schema";
 const profileSchemasStorageKey = "opencsv-profile-schemas";
@@ -973,6 +1003,7 @@ let profileData = null;
 let lastSQLResult = null;
 let sqlResultSelectionAnchor = null;
 let sqlResultSelectionRange = null;
+let sqlResultContextTarget = null;
 let profileLoading = false;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
@@ -2450,6 +2481,8 @@ function updateCommandState() {
 function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = sqlResultCommandIDs.has(command.id);
+  const needsSQLTarget = sqlResultTargetCommandIDs.has(command.id);
+  const needsSQLSelection = sqlResultSelectionCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
   const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
@@ -2548,6 +2581,8 @@ function isCommandDisabled(command) {
     command.implemented === false ||
     (command.requiresDocument && !hasDocument) ||
     (needsSQLResult && !sqlResultAvailable()) ||
+    (needsSQLTarget && !sqlResultTargetForCommand()) ||
+    (needsSQLSelection && !sqlSelectedResultMatrix(lastSQLResult)) ||
     (needsActiveFilter && !activeFilter) ||
     (needsAggregate && selectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
@@ -5088,6 +5123,7 @@ function closeGridContextMenu() {
   document.body.dataset.gridContextTarget = "";
   document.body.dataset.gridContextCommands = "";
   document.body.dataset.sqlResultContext = "";
+  document.body.dataset.sqlResultContextCommands = "";
 }
 
 function normalizedSelection() {
@@ -6865,6 +6901,14 @@ async function executeCommand(commandID) {
     await copySQLResult(sqlResultCommand.format);
     return;
   }
+  if (sqlResultCommand?.action === "copySelection") {
+    await copySQLSelection(sqlResultCommand.format);
+    return;
+  }
+  if (sqlResultCommand?.action === "copyFullResult") {
+    await copySQLFullResult(sqlResultCommand.format);
+    return;
+  }
   if (sqlResultCommand?.action === "export") {
     await exportSQLResult(sqlResultCommand.format);
     return;
@@ -7258,6 +7302,25 @@ async function executeCommand(commandID) {
       break;
     case "view.sql":
       setViewMode("sql");
+      break;
+    case "sql.copyCell":
+      await copySQLContextCell();
+      break;
+    case "sql.copyRow":
+      await copySQLContextRow(false);
+      break;
+    case "sql.copyRowWithHeaders":
+      await copySQLContextRow(true);
+      break;
+    case "sql.copyColumn":
+      await copySQLContextColumn(false);
+      break;
+    case "sql.copyColumnWithHeader":
+      await copySQLContextColumn(true);
+      break;
+    case "sql.clearSelection":
+      clearSQLResultSelection();
+      status.textContent = "Cleared SQL result selection.";
       break;
     case "view.profile":
       await openProfilePanel();
@@ -9114,6 +9177,54 @@ async function copySQLResult(format = "csv") {
   });
 }
 
+async function copySQLSelection(format = "csv") {
+  const matrix = sqlSelectedResultMatrix(lastSQLResult) ?? [];
+  return copySQLMatrix(matrix, "SQL selection", { format });
+}
+
+async function copySQLFullResult(format = "csv") {
+  const matrix = sqlResultMatrix(lastSQLResult);
+  return copySQLMatrix(matrix, "SQL result", {
+    format,
+    bodyRows: Math.max(0, matrix.length - 1),
+  });
+}
+
+async function copySQLContextCell() {
+  const target = sqlResultTargetForCommand();
+  if (!target) {
+    status.textContent = "Select a SQL result cell first.";
+    return false;
+  }
+  return copySQLMatrix(sqlResultCellMatrix(target.row, target.col), "SQL cell");
+}
+
+async function copySQLContextRow(includeHeaders = false) {
+  const target = sqlResultTargetForCommand();
+  if (!target) {
+    status.textContent = "Select a SQL result row first.";
+    return false;
+  }
+  return copySQLMatrix(
+    sqlResultRowMatrix(target.row, includeHeaders),
+    includeHeaders ? "SQL row with headers" : "SQL row",
+    includeHeaders ? { bodyRows: 1 } : {},
+  );
+}
+
+async function copySQLContextColumn(includeHeader = false) {
+  const target = sqlResultTargetForCommand();
+  if (!target) {
+    status.textContent = "Select a SQL result column first.";
+    return false;
+  }
+  return copySQLMatrix(
+    sqlResultColumnMatrix(target.col, includeHeader),
+    includeHeader ? "SQL column with header" : "SQL column",
+    includeHeader ? { bodyRows: lastSQLResult?.rows?.length ?? 0 } : {},
+  );
+}
+
 async function copySQLMatrix(matrix, label, options = {}) {
   if (!matrix.length) {
     status.textContent = `No ${label.toLowerCase()} to copy.`;
@@ -9228,6 +9339,19 @@ function sqlResultFormatLabel(format) {
   return sqlResultFormatLabels[normalizeSQLResultFormat(format)] || "CSV";
 }
 
+function sqlResultFormatCommandSuffix(format) {
+  switch (normalizeSQLResultFormat(format)) {
+    case "tsv":
+      return "Tsv";
+    case "markdown":
+      return "Markdown";
+    case "json":
+      return "Json";
+    default:
+      return "Csv";
+  }
+}
+
 function sqlResultFilename(format = "csv") {
   format = normalizeSQLResultFormat(format);
   const name = activeFileEntry?.name || fileNameFromPath(metadata?.path ?? "") || "opencsv";
@@ -9253,6 +9377,7 @@ function syncSQLResultActions() {
 function clearSQLResultSelection() {
   sqlResultSelectionAnchor = null;
   sqlResultSelectionRange = null;
+  sqlResultContextTarget = null;
   document.body.dataset.sqlResultSelection = "";
   syncSQLResultSelection();
 }
@@ -9302,11 +9427,29 @@ function selectSQLResultCell(row, col, extend = false) {
     endRow: row,
     endCol: col,
   };
+  sqlResultContextTarget = { row, col };
   syncSQLResultSelection();
   const range = normalizedSQLResultSelection();
   const rowsSelected = range ? range.endRow - range.startRow + 1 : 0;
   const colsSelected = range ? range.endCol - range.startCol + 1 : 0;
   status.textContent = `Selected SQL result: ${formatCount(rowsSelected)} rows, ${formatCount(colsSelected)} columns`;
+}
+
+function sqlResultTargetForCommand() {
+  const resultRows = lastSQLResult?.rows ?? [];
+  const resultColumns = sqlResultColumns(lastSQLResult);
+  const range = normalizedSQLResultSelection();
+  const target = sqlResultContextTarget ?? (range ? { row: range.startRow, col: range.startCol } : null);
+  if (
+    !target ||
+    target.row < 0 ||
+    target.col < 0 ||
+    target.row >= resultRows.length ||
+    target.col >= resultColumns.length
+  ) {
+    return null;
+  }
+  return target;
 }
 
 function sqlResultCellFromEvent(event) {
@@ -9331,8 +9474,10 @@ function sqlSelectionContains(row, col) {
 
 function renderSQLResultContextMenu(target, clientX, clientY) {
   if (!lastSQLResult) return;
+  sqlResultContextTarget = { row: target.row, col: target.col };
   if (!sqlSelectionContains(target.row, target.col)) {
     selectSQLResultCell(target.row, target.col, false);
+    sqlResultContextTarget = { row: target.row, col: target.col };
   }
   const resultColumns = sqlResultColumns(lastSQLResult);
   const columnName = resultColumns[target.col] || `Column ${target.col + 1}`;
@@ -9346,6 +9491,7 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
     button.type = "button";
     button.setAttribute("role", "menuitem");
     button.textContent = label;
+    if (options.commandID) button.dataset.command = options.commandID;
     button.disabled = Boolean(options.disabled);
     button.addEventListener("click", async () => {
       closeGridContextMenu();
@@ -9354,39 +9500,40 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
     gridContextMenu.append(button);
     return button;
   };
+  const contextCommandIDs = [];
+  const addCommand = (commandID, label = "", options = {}) => {
+    const command = commandsById.get(commandID);
+    contextCommandIDs.push(commandID);
+    addItem(label || commandTitle(command || { id: commandID }), () => executeCommand(commandID), {
+      commandID,
+      disabled: options.disabled || !command || isCommandDisabled(command),
+    });
+  };
 
   const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
-  addItem("Copy Cell", () => copySQLMatrix(sqlResultCellMatrix(target.row, target.col), "SQL cell"));
-  addItem("Copy Row", () => copySQLMatrix(sqlResultRowMatrix(target.row, false), "SQL row"));
-  addItem("Copy Row with Headers", () => copySQLMatrix(sqlResultRowMatrix(target.row, true), "SQL row with headers", { bodyRows: 1 }));
-  addItem("Copy Column", () => copySQLMatrix(sqlResultColumnMatrix(target.col, false), "SQL column"));
-  addItem("Copy Column with Header", () => copySQLMatrix(sqlResultColumnMatrix(target.col, true), "SQL column with header", { bodyRows: lastSQLResult.rows?.length ?? 0 }));
+  addCommand("sql.copyCell", "Copy Cell");
+  addCommand("sql.copyRow", "Copy Row");
+  addCommand("sql.copyRowWithHeaders", "Copy Row with Headers");
+  addCommand("sql.copyColumn", "Copy Column");
+  addCommand("sql.copyColumnWithHeader", "Copy Column with Header");
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addItem(
-      `Copy Selection as ${formatLabel}`,
-      () => copySQLMatrix(sqlSelectedResultMatrix(lastSQLResult) ?? [], "SQL selection", { format }),
-      { disabled: !selectedMatrix },
-    );
+    addCommand(`sql.copySelection${sqlResultFormatCommandSuffix(format)}`, `Copy Selection as ${formatLabel}`, {
+      disabled: !selectedMatrix,
+    });
   }
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addItem(
-      `Copy Result as ${formatLabel}`,
-      () => copySQLMatrix(sqlResultMatrix(lastSQLResult), "SQL result", { format, bodyRows: lastSQLResult.rows?.length ?? 0 }),
-    );
+    addCommand(`sql.copyFullResult${sqlResultFormatCommandSuffix(format)}`, `Copy Result as ${formatLabel}`);
   }
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addItem(`Export Result as ${formatLabel}`, () => exportSQLResult(format));
+    addCommand(`sql.exportResult${sqlResultFormatCommandSuffix(format)}`, `Export Result as ${formatLabel}`);
   }
-  addItem("Clear Selection", () => {
-    clearSQLResultSelection();
-    status.textContent = "Cleared SQL result selection.";
-  }, { disabled: !selectedMatrix });
+  addCommand("sql.clearSelection", "Clear Selection", { disabled: !selectedMatrix });
 
   gridContextMenu.hidden = false;
   const menuRect = gridContextMenu.getBoundingClientRect();
@@ -9397,6 +9544,8 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
   gridContextMenu.dataset.target = "sql-result";
   document.body.dataset.gridContextTarget = "sql-result";
   document.body.dataset.sqlResultContext = `${target.row}:${target.col}`;
+  document.body.dataset.sqlResultContextCommands = contextCommandIDs.join(",");
+  document.body.dataset.gridContextCommands = contextCommandIDs.join(",");
 }
 
 function errorFromResponseText(text) {
