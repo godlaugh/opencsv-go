@@ -551,6 +551,52 @@ const localeCatalog = {
     "status.ready": "Ready",
     "status.languageChanged": "Language updated.",
     "status.languageReset": "Language reset.",
+    "sql.run": "Run",
+    "sql.copy": "Copy",
+    "sql.export": "Export",
+    "sql.clear": "Clear",
+    "sql.empty.prompt": "Run SQL to inspect results.",
+    "sql.empty.history": "No query history",
+    "sql.empty.rows": "No rows",
+    "sql.error.title": "SQL error",
+    "sql.error.location": "line {{line}}, column {{column}}",
+    "sql.error.token": "token {{token}}",
+    "sql.error.phase": "phase {{phase}}",
+    "sql.status.enterQuery": "Enter a SQL query.",
+    "sql.status.running": "Running SQL...",
+    "sql.status.returned": "SQL returned {{rows}} of {{total}} rows",
+    "sql.status.historySaveFailed": "SQL query history could not be saved.",
+    "sql.status.historyClearFailed": "SQL query history could not be cleared.",
+    "sql.status.historyLoaded": "Loaded SQL query from history.",
+    "sql.status.failed": "SQL failed: {{message}}",
+    "sql.status.failedAt": "SQL failed at line {{line}}, column {{column}}: {{message}}",
+    "sql.status.runBeforeCopy": "Run a SQL query before copying results.",
+    "sql.status.runBeforeExport": "Run a SQL query before exporting results.",
+    "sql.status.selectCell": "Select a SQL result cell first.",
+    "sql.status.selectRow": "Select a SQL result row first.",
+    "sql.status.selectColumn": "Select a SQL result column first.",
+    "sql.status.noCopy": "No {{label}} to copy.",
+    "sql.status.copied": "Copied {{label}}: {{rows}} rows, {{cols}} columns as {{format}}",
+    "sql.status.copyFailed": "{{label}} copy failed: {{message}}",
+    "sql.status.exported": "Exported SQL result as {{format}}: {{rows}} rows, {{cols}} columns to {{filename}}",
+    "sql.status.selected": "Selected SQL result: {{rows}} rows, {{cols}} columns",
+    "sql.status.selectionCleared": "Cleared SQL result selection.",
+    "sql.label.selection": "SQL selection",
+    "sql.label.result": "SQL result",
+    "sql.label.cell": "SQL cell",
+    "sql.label.row": "SQL row",
+    "sql.label.rowWithHeaders": "SQL row with headers",
+    "sql.label.column": "SQL column",
+    "sql.label.columnWithHeader": "SQL column with header",
+    "sql.context.copyCell": "Copy Cell",
+    "sql.context.copyRow": "Copy Row",
+    "sql.context.copyRowWithHeaders": "Copy Row with Headers",
+    "sql.context.copyColumn": "Copy Column",
+    "sql.context.copyColumnWithHeader": "Copy Column with Header",
+    "sql.context.copySelectionAs": "Copy Selection as {{format}}",
+    "sql.context.copyResultAs": "Copy Result as {{format}}",
+    "sql.context.exportResultAs": "Export Result as {{format}}",
+    "sql.context.clearSelection": "Clear Selection",
     "command.selection.insertAverageRow.title": "Add Average Row",
     "command.selection.insertAverageRow.description": "Add a removable average row for the selected numeric cells.",
     "command.selection.insertCountRow.title": "Add Count Row",
@@ -783,6 +829,52 @@ const localeCatalog = {
     "status.ready": "就绪",
     "status.languageChanged": "语言已更新。",
     "status.languageReset": "语言已重置。",
+    "sql.run": "运行",
+    "sql.copy": "复制",
+    "sql.export": "导出",
+    "sql.clear": "清除",
+    "sql.empty.prompt": "运行 SQL 以查看结果。",
+    "sql.empty.history": "没有查询历史",
+    "sql.empty.rows": "没有行",
+    "sql.error.title": "SQL 错误",
+    "sql.error.location": "第 {{line}} 行，第 {{column}} 列",
+    "sql.error.token": "标记 {{token}}",
+    "sql.error.phase": "阶段 {{phase}}",
+    "sql.status.enterQuery": "请输入 SQL 查询。",
+    "sql.status.running": "正在运行 SQL...",
+    "sql.status.returned": "SQL 返回 {{rows}} / {{total}} 行",
+    "sql.status.historySaveFailed": "无法保存 SQL 查询历史。",
+    "sql.status.historyClearFailed": "无法清除 SQL 查询历史。",
+    "sql.status.historyLoaded": "已从历史加载 SQL 查询。",
+    "sql.status.failed": "SQL 失败：{{message}}",
+    "sql.status.failedAt": "SQL 在第 {{line}} 行、第 {{column}} 列失败：{{message}}",
+    "sql.status.runBeforeCopy": "复制结果前请先运行 SQL 查询。",
+    "sql.status.runBeforeExport": "导出结果前请先运行 SQL 查询。",
+    "sql.status.selectCell": "请先选择一个 SQL 结果单元格。",
+    "sql.status.selectRow": "请先选择一个 SQL 结果行。",
+    "sql.status.selectColumn": "请先选择一个 SQL 结果列。",
+    "sql.status.noCopy": "没有可复制的{{label}}。",
+    "sql.status.copied": "已复制{{label}}：{{rows}} 行，{{cols}} 列，格式 {{format}}",
+    "sql.status.copyFailed": "{{label}}复制失败：{{message}}",
+    "sql.status.exported": "已将 SQL 结果导出为 {{format}}：{{rows}} 行，{{cols}} 列，到 {{filename}}",
+    "sql.status.selected": "已选择 SQL 结果：{{rows}} 行，{{cols}} 列",
+    "sql.status.selectionCleared": "已清除 SQL 结果选择。",
+    "sql.label.selection": "SQL 选区",
+    "sql.label.result": "SQL 结果",
+    "sql.label.cell": "SQL 单元格",
+    "sql.label.row": "SQL 行",
+    "sql.label.rowWithHeaders": "带表头的 SQL 行",
+    "sql.label.column": "SQL 列",
+    "sql.label.columnWithHeader": "带表头的 SQL 列",
+    "sql.context.copyCell": "复制单元格",
+    "sql.context.copyRow": "复制行",
+    "sql.context.copyRowWithHeaders": "复制行并带表头",
+    "sql.context.copyColumn": "复制列",
+    "sql.context.copyColumnWithHeader": "复制列并带表头",
+    "sql.context.copySelectionAs": "复制选区为 {{format}}",
+    "sql.context.copyResultAs": "复制结果为 {{format}}",
+    "sql.context.exportResultAs": "导出结果为 {{format}}",
+    "sql.context.clearSelection": "清除选择",
     "command.command.palette.title": "命令面板",
     "command.command.palette.description": "搜索并运行可用命令。",
     "command.settings.open.title": "设置",
@@ -1485,6 +1577,8 @@ function setLocalePreference(locale, persist = true) {
   if (paletteOpen) renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
   if (lastDiffResult) renderDiffResult(lastDiffResult);
+  if (lastSQLResult) renderSQLResult(lastSQLResult);
+  renderSQLHistory();
   renderFileList();
 }
 
@@ -1557,12 +1651,24 @@ function applyLocaleStrings() {
   if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
+  applySQLLocaleStrings();
   applyDiffLocaleStrings();
   const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
   if (!documentId && status && readyLabels.has(status.textContent)) {
     status.textContent = t("status.ready");
   }
   document.body.dataset.localeLabel = localeLabel();
+}
+
+function applySQLLocaleStrings() {
+  const textTargets = [
+    [runSqlButton, "sql.run"],
+    [clearSqlHistoryButton, "sql.clear"],
+  ];
+  for (const [element, key] of textTargets) {
+    if (element) element.textContent = t(key);
+  }
+  syncSQLResultActions();
 }
 
 function applyDiffLocaleStrings() {
@@ -7534,7 +7640,7 @@ async function executeCommand(commandID) {
       break;
     case "sql.clearSelection":
       clearSQLResultSelection();
-      status.textContent = "Cleared SQL result selection.";
+      status.textContent = t("sql.status.selectionCleared");
       break;
     case "view.profile":
       await openProfilePanel();
@@ -8912,7 +9018,7 @@ function loadDocument(document) {
   profileColumns.replaceChildren(emptyProfileNode("Run Profile to inspect columns."));
   profileIssues.replaceChildren(emptyProfileNode("No validation issues loaded."));
   profileSummary.replaceChildren();
-  sqlResult.replaceChildren(emptySQLNode("Run SQL to inspect results."));
+  sqlResult.replaceChildren(emptySQLNode(t("sql.empty.prompt")));
   delete window.document.body.dataset.sqlResultPreview;
   syncSQLResultActions();
   dataStartRow = document.metadata.dialect.hasHeader ? 1 : 0;
@@ -9382,10 +9488,10 @@ async function copySQLResult(format = "csv") {
   const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
   const matrix = selectedMatrix ?? sqlResultMatrix(lastSQLResult);
   if (!matrix.length) {
-    status.textContent = "Run a SQL query before copying results.";
+    status.textContent = t("sql.status.runBeforeCopy");
     return;
   }
-  return copySQLMatrix(matrix, selectedMatrix ? "SQL selection" : "SQL result", {
+  return copySQLMatrix(matrix, selectedMatrix ? t("sql.label.selection") : t("sql.label.result"), {
     format,
     bodyRows: selectedMatrix ? matrix.length : Math.max(0, matrix.length - 1),
   });
@@ -9393,12 +9499,12 @@ async function copySQLResult(format = "csv") {
 
 async function copySQLSelection(format = "csv") {
   const matrix = sqlSelectedResultMatrix(lastSQLResult) ?? [];
-  return copySQLMatrix(matrix, "SQL selection", { format });
+  return copySQLMatrix(matrix, t("sql.label.selection"), { format });
 }
 
 async function copySQLFullResult(format = "csv") {
   const matrix = sqlResultMatrix(lastSQLResult);
-  return copySQLMatrix(matrix, "SQL result", {
+  return copySQLMatrix(matrix, t("sql.label.result"), {
     format,
     bodyRows: Math.max(0, matrix.length - 1),
   });
@@ -9407,21 +9513,21 @@ async function copySQLFullResult(format = "csv") {
 async function copySQLContextCell() {
   const target = sqlResultTargetForCommand();
   if (!target) {
-    status.textContent = "Select a SQL result cell first.";
+    status.textContent = t("sql.status.selectCell");
     return false;
   }
-  return copySQLMatrix(sqlResultCellMatrix(target.row, target.col), "SQL cell");
+  return copySQLMatrix(sqlResultCellMatrix(target.row, target.col), t("sql.label.cell"));
 }
 
 async function copySQLContextRow(includeHeaders = false) {
   const target = sqlResultTargetForCommand();
   if (!target) {
-    status.textContent = "Select a SQL result row first.";
+    status.textContent = t("sql.status.selectRow");
     return false;
   }
   return copySQLMatrix(
     sqlResultRowMatrix(target.row, includeHeaders),
-    includeHeaders ? "SQL row with headers" : "SQL row",
+    includeHeaders ? t("sql.label.rowWithHeaders") : t("sql.label.row"),
     includeHeaders ? { bodyRows: 1 } : {},
   );
 }
@@ -9429,19 +9535,19 @@ async function copySQLContextRow(includeHeaders = false) {
 async function copySQLContextColumn(includeHeader = false) {
   const target = sqlResultTargetForCommand();
   if (!target) {
-    status.textContent = "Select a SQL result column first.";
+    status.textContent = t("sql.status.selectColumn");
     return false;
   }
   return copySQLMatrix(
     sqlResultColumnMatrix(target.col, includeHeader),
-    includeHeader ? "SQL column with header" : "SQL column",
+    includeHeader ? t("sql.label.columnWithHeader") : t("sql.label.column"),
     includeHeader ? { bodyRows: lastSQLResult?.rows?.length ?? 0 } : {},
   );
 }
 
 async function copySQLMatrix(matrix, label, options = {}) {
   if (!matrix.length) {
-    status.textContent = `No ${label.toLowerCase()} to copy.`;
+    status.textContent = tf("sql.status.noCopy", { label });
     return false;
   }
   const format = normalizeSQLResultFormat(options.format || "csv");
@@ -9454,10 +9560,15 @@ async function copySQLMatrix(matrix, label, options = {}) {
   try {
     await writeClipboardText(text);
     const rows = options.bodyRows ?? matrix.length;
-    status.textContent = `Copied ${label}: ${formatCount(rows)} rows, ${formatCount(matrix[0]?.length ?? 0)} columns as ${formatLabel}`;
+    status.textContent = tf("sql.status.copied", {
+      label,
+      rows: formatCount(rows),
+      cols: formatCount(matrix[0]?.length ?? 0),
+      format: formatLabel,
+    });
     return true;
   } catch (error) {
-    status.textContent = `${label} copy failed: ${error.message}`;
+    status.textContent = tf("sql.status.copyFailed", { label, message: error.message });
     return false;
   }
 }
@@ -9470,7 +9581,7 @@ async function exportSQLResult(format = "csv") {
   format = normalizeSQLResultFormat(format);
   const matrix = sqlResultMatrix(lastSQLResult);
   if (!matrix.length) {
-    status.textContent = "Run a SQL query before exporting results.";
+    status.textContent = t("sql.status.runBeforeExport");
     return;
   }
   const text = formatMatrix(matrix, format);
@@ -9479,7 +9590,12 @@ async function exportSQLResult(format = "csv") {
   document.body.dataset.sqlResultPreview = text.slice(0, 500);
   document.body.dataset.sqlResultFormat = format;
   triggerDownload(text, filename, sqlResultFormatContentTypes[format] || "text/plain;charset=utf-8");
-  status.textContent = `Exported SQL result as ${sqlResultFormatLabel(format)}: ${formatCount(Math.max(0, matrix.length - 1))} rows, ${formatCount(matrix[0]?.length ?? 0)} columns to ${filename}`;
+  status.textContent = tf("sql.status.exported", {
+    format: sqlResultFormatLabel(format),
+    rows: formatCount(Math.max(0, matrix.length - 1)),
+    cols: formatCount(matrix[0]?.length ?? 0),
+    filename,
+  });
 }
 
 function sqlResultMatrix(result) {
@@ -9589,8 +9705,8 @@ function syncSQLResultActions() {
     sqlResultFormatSelect.disabled = !available;
     document.body.dataset.sqlResultFormat = format;
   }
-  copySqlResultButton.textContent = "Copy";
-  exportSqlResultButton.textContent = "Export";
+  copySqlResultButton.textContent = t("sql.copy");
+  exportSqlResultButton.textContent = t("sql.export");
   copySqlResultButton.disabled = !available;
   exportSqlResultButton.disabled = !available;
   updateCommandState();
@@ -9654,7 +9770,10 @@ function selectSQLResultCell(row, col, extend = false) {
   const range = normalizedSQLResultSelection();
   const rowsSelected = range ? range.endRow - range.startRow + 1 : 0;
   const colsSelected = range ? range.endCol - range.startCol + 1 : 0;
-  status.textContent = `Selected SQL result: ${formatCount(rowsSelected)} rows, ${formatCount(colsSelected)} columns`;
+  status.textContent = tf("sql.status.selected", {
+    rows: formatCount(rowsSelected),
+    cols: formatCount(colsSelected),
+  });
 }
 
 function sqlResultTargetForCommand() {
@@ -9733,29 +9852,29 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
   };
 
   const selectedMatrix = sqlSelectedResultMatrix(lastSQLResult);
-  addCommand("sql.copyCell", "Copy Cell");
-  addCommand("sql.copyRow", "Copy Row");
-  addCommand("sql.copyRowWithHeaders", "Copy Row with Headers");
-  addCommand("sql.copyColumn", "Copy Column");
-  addCommand("sql.copyColumnWithHeader", "Copy Column with Header");
+  addCommand("sql.copyCell", t("sql.context.copyCell"));
+  addCommand("sql.copyRow", t("sql.context.copyRow"));
+  addCommand("sql.copyRowWithHeaders", t("sql.context.copyRowWithHeaders"));
+  addCommand("sql.copyColumn", t("sql.context.copyColumn"));
+  addCommand("sql.copyColumnWithHeader", t("sql.context.copyColumnWithHeader"));
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addCommand(`sql.copySelection${sqlResultFormatCommandSuffix(format)}`, `Copy Selection as ${formatLabel}`, {
+    addCommand(`sql.copySelection${sqlResultFormatCommandSuffix(format)}`, tf("sql.context.copySelectionAs", { format: formatLabel }), {
       disabled: !selectedMatrix,
     });
   }
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addCommand(`sql.copyFullResult${sqlResultFormatCommandSuffix(format)}`, `Copy Result as ${formatLabel}`);
+    addCommand(`sql.copyFullResult${sqlResultFormatCommandSuffix(format)}`, tf("sql.context.copyResultAs", { format: formatLabel }));
   }
   addSeparator();
   for (const format of sqlResultFormats) {
     const formatLabel = sqlResultFormatLabel(format);
-    addCommand(`sql.exportResult${sqlResultFormatCommandSuffix(format)}`, `Export Result as ${formatLabel}`);
+    addCommand(`sql.exportResult${sqlResultFormatCommandSuffix(format)}`, tf("sql.context.exportResultAs", { format: formatLabel }));
   }
-  addCommand("sql.clearSelection", "Clear Selection", { disabled: !selectedMatrix });
+  addCommand("sql.clearSelection", t("sql.context.clearSelection"), { disabled: !selectedMatrix });
 
   gridContextMenu.hidden = false;
   const menuRect = gridContextMenu.getBoundingClientRect();
@@ -13098,10 +13217,10 @@ async function runSQLQuery() {
   if (!documentId) return;
   const query = sqlInput.value.trim();
   if (!query) {
-    status.textContent = "Enter a SQL query.";
+    status.textContent = t("sql.status.enterQuery");
     return;
   }
-  status.textContent = "Running SQL...";
+  status.textContent = t("sql.status.running");
   lastSQLResult = null;
   clearSQLErrorState();
   clearSQLResultSelection();
@@ -13122,7 +13241,10 @@ async function runSQLQuery() {
   lastSQLResult = payload;
   renderSQLResult(payload);
   rememberSQLQuery(query);
-  status.textContent = `SQL returned ${payload.rows.length.toLocaleString()} of ${payload.totalRows.toLocaleString()} rows`;
+  status.textContent = tf("sql.status.returned", {
+    rows: formatCount(payload.rows.length),
+    total: formatCount(payload.totalRows),
+  });
 }
 
 function sqlHistory() {
@@ -13147,7 +13269,7 @@ function rememberSQLQuery(query) {
   try {
     localStorage.setItem(sqlHistoryStorageKey, JSON.stringify(next));
   } catch {
-    status.textContent = "SQL query history could not be saved.";
+    status.textContent = t("sql.status.historySaveFailed");
   }
   renderSQLHistory();
 }
@@ -13156,7 +13278,7 @@ function clearSQLHistory() {
   try {
     localStorage.removeItem(sqlHistoryStorageKey);
   } catch {
-    status.textContent = "SQL query history could not be cleared.";
+    status.textContent = t("sql.status.historyClearFailed");
   }
   renderSQLHistory();
 }
@@ -13168,7 +13290,7 @@ function renderSQLHistory() {
   if (history.length === 0) {
     const empty = document.createElement("span");
     empty.className = "sql-history-empty";
-    empty.textContent = "No query history";
+    empty.textContent = t("sql.empty.history");
     sqlHistoryList.append(empty);
     return;
   }
@@ -13181,7 +13303,7 @@ function renderSQLHistory() {
     button.addEventListener("click", () => {
       sqlInput.value = query;
       sqlInput.focus();
-      status.textContent = "Loaded SQL query from history.";
+      status.textContent = t("sql.status.historyLoaded");
     });
     sqlHistoryList.append(button);
   }
@@ -13207,8 +13329,8 @@ function renderSQLError(payload = {}) {
   const column = Number(detail.column);
   const hasLocation = Number.isInteger(line) && line > 0 && Number.isInteger(column) && column > 0;
   status.textContent = hasLocation
-    ? `SQL failed at line ${line}, column ${column}: ${message}`
-    : `SQL failed: ${message}`;
+    ? tf("sql.status.failedAt", { line, column, message })
+    : tf("sql.status.failed", { message });
 
   document.body.dataset.sqlErrorMessage = message;
   document.body.dataset.sqlErrorLocation = hasLocation ? `${line}:${column}` : "";
@@ -13222,7 +13344,7 @@ function renderSQLError(payload = {}) {
   panel.setAttribute("role", "alert");
 
   const title = document.createElement("strong");
-  title.textContent = "SQL error";
+  title.textContent = t("sql.error.title");
   const messageNode = document.createElement("p");
   messageNode.textContent = message;
   panel.append(title, messageNode);
@@ -13231,9 +13353,9 @@ function renderSQLError(payload = {}) {
     const meta = document.createElement("span");
     meta.className = "sql-error-meta";
     meta.textContent = [
-      hasLocation ? `line ${line}, column ${column}` : "",
-      detail.token ? `token ${detail.token}` : "",
-      detail.phase ? `phase ${detail.phase}` : "",
+      hasLocation ? tf("sql.error.location", { line, column }) : "",
+      detail.token ? tf("sql.error.token", { token: detail.token }) : "",
+      detail.phase ? tf("sql.error.phase", { phase: detail.phase }) : "",
     ].filter(Boolean).join(" · ");
     panel.append(meta);
   }
@@ -14714,7 +14836,7 @@ function renderSQLResult(result) {
   const resultColumns = sqlResultColumns(result);
   const resultRows = result.rows ?? [];
   if (!resultColumns.length && !resultRows.length) {
-    sqlResult.replaceChildren(emptySQLNode("No rows"));
+    sqlResult.replaceChildren(emptySQLNode(t("sql.empty.rows")));
     clearSQLResultSelection();
     syncSQLResultActions();
     return;
@@ -14749,7 +14871,7 @@ function renderSQLResult(result) {
     const td = document.createElement("td");
     td.colSpan = Math.max(1, resultColumns.length);
     td.className = "sql-empty";
-    td.textContent = "No rows";
+    td.textContent = t("sql.empty.rows");
     tr.append(td);
     tbody.append(tr);
   }
@@ -15586,7 +15708,7 @@ sqlResult.addEventListener("keydown", async (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
     clearSQLResultSelection();
-    status.textContent = "Cleared SQL result selection.";
+    status.textContent = t("sql.status.selectionCleared");
     return;
   }
   if (event.key !== "Enter" && event.key !== " ") return;

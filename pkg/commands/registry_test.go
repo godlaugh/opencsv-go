@@ -385,6 +385,30 @@ func TestDiffViewI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestSQLConsoleI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`"sql.status.returned"`,
+		`"sql.context.copySelectionAs"`,
+		`"sql.status.returned": "SQL 返回`,
+		"applySQLLocaleStrings",
+		"renderSQLHistory()",
+		"renderSQLResult(lastSQLResult)",
+		"tf(\"sql.status.returned\"",
+		"tf(\"sql.status.selected\"",
+		"tf(\"sql.context.copyResultAs\"",
+		"t(\"sql.empty.rows\")",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing SQL i18n wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":
