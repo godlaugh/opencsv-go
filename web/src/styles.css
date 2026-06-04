@@ -1924,17 +1924,29 @@ button:disabled {
   align-self: end;
 }
 
-.condition-row-extra .condition-remove-button {
+.condition-row-actions {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  align-self: end;
+}
+
+.condition-row-actions button {
   align-self: end;
   min-height: 34px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0 10px;
+  padding: 0 8px;
   background: var(--panel);
   color: var(--text);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+.condition-row-actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .condition-grid label {

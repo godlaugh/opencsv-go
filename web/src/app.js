@@ -517,6 +517,8 @@ const localeCatalog = {
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
     "condition.remove": "Remove",
+    "condition.moveUp": "Up",
+    "condition.moveDown": "Down",
     "condition.operator.contains": "contains",
     "condition.operator.notContains": "does not contain",
     "condition.operator.equals": "equals",
@@ -552,8 +554,11 @@ const localeCatalog = {
     "condition.operatorAria": "Condition {{number}} operator",
     "condition.valueAria": "Condition {{number}} value",
     "condition.removeTitle": "Remove condition {{number}}",
+    "condition.moveUpTitle": "Move condition {{number}} up",
+    "condition.moveDownTitle": "Move condition {{number}} down",
     "condition.status.chooseQuick": "Choose a quick filter condition.",
     "condition.status.ready": "Quick condition ready: {{label}}.",
+    "condition.status.reordered": "Moved condition {{from}} to position {{to}}.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
     "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
@@ -1020,6 +1025,8 @@ const localeCatalog = {
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
     "condition.remove": "移除",
+    "condition.moveUp": "上移",
+    "condition.moveDown": "下移",
     "condition.operator.contains": "包含",
     "condition.operator.notContains": "不包含",
     "condition.operator.equals": "等于",
@@ -1055,8 +1062,11 @@ const localeCatalog = {
     "condition.operatorAria": "条件 {{number}} 操作符",
     "condition.valueAria": "条件 {{number}} 值",
     "condition.removeTitle": "移除条件 {{number}}",
+    "condition.moveUpTitle": "上移条件 {{number}}",
+    "condition.moveDownTitle": "下移条件 {{number}}",
     "condition.status.chooseQuick": "请选择快速筛选条件。",
     "condition.status.ready": "快速条件已就绪：{{label}}。",
+    "condition.status.reordered": "已将条件 {{from}} 移到位置 {{to}}。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
     "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
@@ -7226,13 +7236,30 @@ function conditionExtraRowElement(row, index) {
   valueLabel.append(valueInput);
   fieldset.append(valueLabel);
 
+  const actions = document.createElement("div");
+  actions.className = "condition-row-actions";
+
+  const moveUpButton = document.createElement("button");
+  moveUpButton.type = "button";
+  moveUpButton.dataset.conditionAction = "move-up";
+  moveUpButton.textContent = t("condition.moveUp");
+  moveUpButton.title = tf("condition.moveUpTitle", { number });
+
+  const moveDownButton = document.createElement("button");
+  moveDownButton.type = "button";
+  moveDownButton.dataset.conditionAction = "move-down";
+  moveDownButton.textContent = t("condition.moveDown");
+  moveDownButton.title = tf("condition.moveDownTitle", { number });
+  moveDownButton.disabled = index >= conditionExtraRows.length - 1;
+
   const removeButton = document.createElement("button");
   removeButton.className = "condition-remove-button";
   removeButton.type = "button";
   removeButton.dataset.conditionAction = "remove";
   removeButton.textContent = t("condition.remove");
   removeButton.title = tf("condition.removeTitle", { number });
-  fieldset.append(removeButton);
+  actions.append(moveUpButton, moveDownButton, removeButton);
+  fieldset.append(actions);
   return fieldset;
 }
 
@@ -7419,6 +7446,33 @@ function removeConditionRow(index) {
   conditionValue.focus();
 }
 
+function moveConditionRow(extraIndex, direction) {
+  if (!Number.isInteger(extraIndex) || ![-1, 1].includes(direction)) return;
+  const from = extraIndex + 1;
+  const rows = conditionBuilderRowStatesFromDOM();
+  const to = from + direction;
+  if (from < 1 || from >= rows.length || to < 0 || to >= rows.length) return;
+  const connector = rows[from].join || rows[to].join || "AND";
+  [rows[from], rows[to]] = [rows[to], rows[from]];
+  rows[0].join = "";
+  for (let index = 1; index < rows.length; index++) {
+    rows[index].join = rows[index].join || "AND";
+  }
+  if (to === 0 && rows[1]) {
+    rows[1].join = connector;
+  }
+  setConditionBuilderRows(rows);
+  document.body.dataset.conditionReorder = `${from + 1}->${to + 1}`;
+  status.textContent = tf("condition.status.reordered", {
+    from: formatCount(from + 1),
+    to: formatCount(to + 1),
+  });
+  const movedField = to === 0
+    ? conditionValue
+    : conditionRows.querySelector(`.condition-row-extra[data-condition-index="${to - 1}"] .condition-value`);
+  movedField?.focus();
+}
+
 function readConditionExtraRowsFromDOM() {
   conditionExtraRows = Array.from(conditionRows.querySelectorAll(".condition-row-extra")).map((row) => ({
     join: row.querySelector(".condition-join-select")?.value === "OR" ? "OR" : "AND",
@@ -7428,6 +7482,55 @@ function readConditionExtraRowsFromDOM() {
     groupStart: conditionGroupCount(row.querySelector(".condition-group-open")?.value),
     groupEnd: conditionGroupCount(row.querySelector(".condition-group-close")?.value),
   }));
+}
+
+function conditionBuilderRowStatesFromDOM() {
+  readConditionExtraRowsFromDOM();
+  return [
+    {
+      join: "",
+      column: conditionColumn.value,
+      operator: conditionOperator.value,
+      value: conditionValue.value,
+      groupStart: conditionGroupCount(conditionPrimaryOpenGroup?.value),
+      groupEnd: conditionGroupCount(conditionPrimaryCloseGroup?.value),
+    },
+    ...conditionExtraRows.map((row) => ({ ...row })),
+  ];
+}
+
+function setConditionBuilderRows(rows) {
+  const [primary, ...extras] = rows;
+  if (!primary) return;
+  setSelectExistingValue(conditionColumn, primary.column, String(sourceColFor(selected.col)));
+  setSelectExistingValue(conditionOperator, primary.operator, "contains");
+  conditionValue.value = primary.value || "";
+  if (conditionPrimaryOpenGroup) conditionPrimaryOpenGroup.value = String(conditionGroupCount(primary.groupStart));
+  if (conditionPrimaryCloseGroup) conditionPrimaryCloseGroup.value = String(conditionGroupCount(primary.groupEnd));
+  conditionExtraRows = extras.map((row) => ({
+    join: row.join === "OR" ? "OR" : "AND",
+    column: row.column || "",
+    operator: row.operator || "contains",
+    value: row.value || "",
+    groupStart: conditionGroupCount(row.groupStart),
+    groupEnd: conditionGroupCount(row.groupEnd),
+  }));
+  renderConditionExtraRows();
+}
+
+function setSelectExistingValue(select, value, fallback = "") {
+  if (!select) return;
+  const raw = String(value ?? "");
+  if ([...select.options].some((option) => option.value === raw)) {
+    select.value = raw;
+    return;
+  }
+  const fallbackValue = String(fallback ?? "");
+  if (fallbackValue && [...select.options].some((option) => option.value === fallbackValue)) {
+    select.value = fallbackValue;
+    return;
+  }
+  if (select.options.length > 0) select.selectedIndex = 0;
 }
 
 function conditionBuilderRowsFromDOM() {
@@ -16772,10 +16875,17 @@ conditionRows.addEventListener("input", () => {
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
 });
 conditionRows.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-condition-action='remove']");
-  if (!button) return;
+  const button = event.target.closest("[data-condition-action]");
+  if (!button || button.disabled) return;
   const row = button.closest(".condition-row-extra");
-  removeConditionRow(Number(row?.dataset.conditionIndex ?? -1));
+  const index = Number(row?.dataset.conditionIndex ?? -1);
+  if (button.dataset.conditionAction === "remove") {
+    removeConditionRow(index);
+  } else if (button.dataset.conditionAction === "move-up") {
+    moveConditionRow(index, -1);
+  } else if (button.dataset.conditionAction === "move-down") {
+    moveConditionRow(index, 1);
+  }
 });
 applyConditionButton.addEventListener("click", applyConditionBuilder);
 clearConditionButton.addEventListener("click", async () => {
