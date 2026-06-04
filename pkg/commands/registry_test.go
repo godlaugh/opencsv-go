@@ -409,6 +409,46 @@ func TestSQLConsoleI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestFindReplaceI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, id := range []string{
+		"commandInput",
+		"replaceInput",
+		"findCaseButton",
+		"findSelectionButton",
+		"replacePreviewButton",
+	} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Fatalf("missing find/replace control %s", id)
+		}
+	}
+	for _, snippet := range []string{
+		`"find.placeholder"`,
+		`"find.placeholder": "查找/筛选`,
+		`"replace.status.preview": "预览`,
+		"applyFindLocaleStrings",
+		`commandInput.placeholder = t("find.placeholder")`,
+		`findSelectionButton.textContent = t("find.selectionShort")`,
+		`t("find.status.enterQuery")`,
+		`tf("find.status.found"`,
+		`tf("replace.status.noReplacements"`,
+		`tf("replace.status.preview"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing find/replace i18n wiring %q", snippet)
+		}
+	}
+}
+
 func TestProfileViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

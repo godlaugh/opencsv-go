@@ -460,6 +460,35 @@ const localeCatalog = {
     "edit.preview": "Preview",
     "edit.replace": "Replace",
     "edit.all": "All",
+    "find.placeholder": "Find/filter...",
+    "find.replacePlaceholder": "Replace...",
+    "find.matchCase": "Match case",
+    "find.wholeCell": "Match whole cell",
+    "find.regex": "Use regular expression",
+    "find.selection": "Search in selection",
+    "find.selectionShort": "Sel",
+    "find.previous": "Previous match",
+    "find.next": "Next match",
+    "find.previewTitle": "Preview replacements",
+    "find.replaceTitle": "Replace first match",
+    "find.replaceAllTitle": "Replace all matches",
+    "find.status.enterQuery": "Type text to find.",
+    "find.status.noMatches": "No matches for {{query}}",
+    "find.status.failed": "Find failed: {{message}}",
+    "find.status.page": " (showing matches {{start}}-{{end}})",
+    "find.status.found": "Found {{current}} of {{total}} for {{query}} at row {{row}}, column {{column}}{{page}}",
+    "find.status.selectionLimit": "Selection has {{count}} cells; search-in-selection limit is {{limit}}.",
+    "find.status.loadSelection": "Load the selected filtered rows before searching within selection.",
+    "replace.status.enterQuery": "Type text to replace.",
+    "replace.status.enterPreviewQuery": "Type text to preview replacements.",
+    "replace.status.failed": "Replace failed: {{message}}",
+    "replace.status.previewFailed": "Replace preview failed: {{message}}",
+    "replace.status.noReplacements": "No replacements for {{query}}",
+    "replace.status.replacedCells": "Replaced {{count}} cells",
+    "replace.status.replacedCurrent": "Replaced current match",
+    "replace.status.replacedOne": "Replaced 1 cell",
+    "replace.status.previewFirst": "; first row {{row}}, column {{column}}",
+    "replace.status.preview": "Preview: {{count}} cells would change{{rowLabel}}: {{before}} -> {{after}}",
     "diff.compare": "Compare",
     "diff.run": "Run",
     "diff.ignoreCase": "Ignore case",
@@ -850,6 +879,35 @@ const localeCatalog = {
     "edit.preview": "预览",
     "edit.replace": "替换",
     "edit.all": "全部",
+    "find.placeholder": "查找/筛选...",
+    "find.replacePlaceholder": "替换...",
+    "find.matchCase": "区分大小写",
+    "find.wholeCell": "匹配整个单元格",
+    "find.regex": "使用正则表达式",
+    "find.selection": "在选区中搜索",
+    "find.selectionShort": "选",
+    "find.previous": "上一个匹配",
+    "find.next": "下一个匹配",
+    "find.previewTitle": "预览替换",
+    "find.replaceTitle": "替换第一个匹配",
+    "find.replaceAllTitle": "替换全部匹配",
+    "find.status.enterQuery": "请输入要查找的文本。",
+    "find.status.noMatches": "没有找到 {{query}} 的匹配项",
+    "find.status.failed": "查找失败：{{message}}",
+    "find.status.page": "（显示第 {{start}}-{{end}} 个匹配）",
+    "find.status.found": "找到 {{current}} / {{total}} 个 {{query}}，第 {{row}} 行，第 {{column}} 列{{page}}",
+    "find.status.selectionLimit": "选区有 {{count}} 个单元格；选区内搜索上限是 {{limit}}。",
+    "find.status.loadSelection": "请先加载所选筛选行，再在选区中搜索。",
+    "replace.status.enterQuery": "请输入要替换的文本。",
+    "replace.status.enterPreviewQuery": "请输入要预览替换的文本。",
+    "replace.status.failed": "替换失败：{{message}}",
+    "replace.status.previewFailed": "替换预览失败：{{message}}",
+    "replace.status.noReplacements": "没有 {{query}} 的可替换项",
+    "replace.status.replacedCells": "已替换 {{count}} 个单元格",
+    "replace.status.replacedCurrent": "已替换当前匹配",
+    "replace.status.replacedOne": "已替换 1 个单元格",
+    "replace.status.previewFirst": "；首个在第 {{row}} 行，第 {{column}} 列",
+    "replace.status.preview": "预览：{{count}} 个单元格将变更{{rowLabel}}：{{before}} -> {{after}}",
     "diff.compare": "比较",
     "diff.run": "运行",
     "diff.ignoreCase": "忽略大小写",
@@ -1878,6 +1936,7 @@ function applyLocaleStrings() {
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
+  applyFindLocaleStrings();
   applyProfileLocaleStrings();
   applySQLLocaleStrings();
   applyDiffLocaleStrings();
@@ -1895,6 +1954,24 @@ function applyDataI18n(root = document) {
   root.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
   });
+}
+
+function applyFindLocaleStrings() {
+  if (commandInput) commandInput.placeholder = t("find.placeholder");
+  if (replaceInput) replaceInput.placeholder = t("find.replacePlaceholder");
+  if (findButton) findButton.title = t("edit.find");
+  if (findCaseButton) findCaseButton.title = t("find.matchCase");
+  if (findWholeButton) findWholeButton.title = t("find.wholeCell");
+  if (findRegexButton) findRegexButton.title = t("find.regex");
+  if (findSelectionButton) {
+    findSelectionButton.title = t("find.selection");
+    findSelectionButton.textContent = t("find.selectionShort");
+  }
+  if (findPrevButton) findPrevButton.title = t("find.previous");
+  if (findNextButton) findNextButton.title = t("find.next");
+  if (replacePreviewButton) replacePreviewButton.title = t("find.previewTitle");
+  if (replaceButton) replaceButton.title = t("find.replaceTitle");
+  if (replaceAllButton) replaceAllButton.title = t("find.replaceAllTitle");
 }
 
 function applyProfileLocaleStrings() {
@@ -10684,7 +10761,7 @@ async function runFind(direction, forceRefresh) {
   const search = parseSearchQuery(commandInput.value);
   const query = search.query;
   if (!query) {
-    status.textContent = "Type text to find.";
+    status.textContent = t("find.status.enterQuery");
     findState = emptyFindState();
     updateFindMatchCount();
     return;
@@ -10703,7 +10780,7 @@ async function runFind(direction, forceRefresh) {
     if (!ok) return;
   }
   if (findState.matches.length === 0) {
-    status.textContent = `No matches for ${query}`;
+    status.textContent = tf("find.status.noMatches", { query });
     updateFindMatchCount();
     return;
   }
@@ -10761,7 +10838,7 @@ async function refreshFindState(search, key, options = {}) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Find failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("find.status.failed", { message: payload.error ?? "unknown error" });
     return false;
   }
   findState = {
@@ -10802,15 +10879,22 @@ async function selectFindMatch(match, query) {
   const pageStart = findState.matches.length ? findState.offset + 1 : 0;
   const pageEnd = findState.offset + findState.matches.length;
   const loadedNote = findState.truncated || findState.offset > 0
-    ? ` (showing matches ${pageStart.toLocaleString()}-${pageEnd.toLocaleString()})`
+    ? tf("find.status.page", { start: formatCount(pageStart), end: formatCount(pageEnd) })
     : "";
-  status.textContent = `Found ${ordinal.toLocaleString()} of ${total.toLocaleString()} for ${query} at row ${displayRow + 1}, column ${match.col + 1}${loadedNote}`;
+  status.textContent = tf("find.status.found", {
+    current: formatCount(ordinal),
+    total: formatCount(total),
+    query,
+    row: formatCount(displayRow + 1),
+    column: formatCount(match.col + 1),
+    page: loadedNote,
+  });
 }
 
 async function replaceCurrentQuery(all, options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Replace")) return;
-  const search = searchQueryOrSeed(options.target, "Type text to replace.");
+  const search = searchQueryOrSeed(options.target, t("replace.status.enterQuery"));
   if (!search) return;
   const query = search.query;
   const cells = replaceScopeCells(search, all);
@@ -10831,11 +10915,11 @@ async function replaceCurrentQuery(all, options = {}) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Replace failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("replace.status.failed", { message: payload.error ?? "unknown error" });
     return;
   }
   if (!payload.count) {
-    status.textContent = `No replacements for ${query}`;
+    status.textContent = tf("replace.status.noReplacements", { query });
     return;
   }
   dirty = payload.dirty ?? true;
@@ -10856,10 +10940,10 @@ async function replaceCurrentQuery(all, options = {}) {
   }
   draw();
   status.textContent = all
-    ? `Replaced ${payload.count.toLocaleString()} cells`
+    ? tf("replace.status.replacedCells", { count: formatCount(payload.count) })
     : document.body.dataset.replaceScope.startsWith("current:")
-      ? "Replaced current match"
-      : "Replaced 1 cell";
+      ? t("replace.status.replacedCurrent")
+      : t("replace.status.replacedOne");
   clearReplacePreview();
 }
 
@@ -10886,7 +10970,7 @@ function activeFindMatchCell(search) {
 
 async function previewReplace(options = {}) {
   if (!documentId) return;
-  const search = searchQueryOrSeed(options.target, "Type text to preview replacements.");
+  const search = searchQueryOrSeed(options.target, t("replace.status.enterPreviewQuery"));
   if (!search) return;
   const query = search.query;
   const cells = search.inSelection ? cellsForReplaceScope(search) : [];
@@ -10908,12 +10992,12 @@ async function previewReplace(options = {}) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Replace preview failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("replace.status.previewFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   if (!payload.count) {
     clearReplacePreview();
-    status.textContent = `No replacements for ${query}`;
+    status.textContent = tf("replace.status.noReplacements", { query });
     return;
   }
   const first = payload.changes?.[0];
@@ -10932,12 +11016,22 @@ async function previewReplace(options = {}) {
     ? valueAt(Math.max(0, first.row - dataStartRow), firstVisibleCol)
     : "";
   const after = first?.value ?? "";
-  const rowLabel = first ? `; first row ${Math.max(0, first.row - dataStartRow) + 1}, column ${first.col + 1}` : "";
+  const rowLabel = first
+    ? tf("replace.status.previewFirst", {
+        row: formatCount(Math.max(0, first.row - dataStartRow) + 1),
+        column: formatCount(first.col + 1),
+      })
+    : "";
   document.body.dataset.replacePreviewCount = String(payload.count);
   document.body.dataset.replacePreview = first
     ? `${first.row}:${first.col}:${before}->${after}`
     : String(payload.count);
-  status.textContent = `Preview: ${payload.count.toLocaleString()} cells would change${rowLabel}: ${truncateMenuValue(before)} -> ${truncateMenuValue(after)}`;
+  status.textContent = tf("replace.status.preview", {
+    count: formatCount(payload.count),
+    rowLabel,
+    before: truncateMenuValue(before),
+    after: truncateMenuValue(after),
+  });
 }
 
 function clearReplacePreview() {
@@ -10993,7 +11087,7 @@ function selectedCellsForSearch(maxCells = 100_000) {
   if (count <= 1 && !findInSelection) return [];
   if (count === 0) return [];
   if (count > maxCells) {
-    status.textContent = `Selection has ${formatCount(count)} cells; search-in-selection limit is ${formatCount(maxCells)}.`;
+    status.textContent = tf("find.status.selectionLimit", { count: formatCount(count), limit: formatCount(maxCells) });
     return null;
   }
   const cells = [];
@@ -11001,7 +11095,7 @@ function selectedCellsForSearch(maxCells = 100_000) {
     for (let row = range.startRow; row <= range.endRow; row++) {
       const sourceRow = rowSource.get(row);
       if (viewMapped && sourceRow == null) {
-        status.textContent = "Load the selected filtered rows before searching within selection.";
+        status.textContent = t("find.status.loadSelection");
         return null;
       }
       const recordRow = sourceRow ?? row + dataStartRow;
