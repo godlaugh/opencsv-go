@@ -489,6 +489,40 @@ func TestConditionBuilderI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestStableSortOptionIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="columnStableSortToggle"`,
+		`Stable sort`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing stable sort html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`let sortStable = true`,
+		`const stable = options.stable ?? sortStable`,
+		`stable,`,
+		`payload.stable !== false`,
+		`document.body.dataset.sortStable`,
+		`columnStableSortToggle.addEventListener("change"`,
+		`stable: savedSort.stable !== false`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing stable sort frontend wiring %q", snippet)
+		}
+	}
+}
+
 func TestProfileViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

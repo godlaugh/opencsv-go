@@ -1663,9 +1663,24 @@ func TestServerFindFilterSort(t *testing.T) {
 		"numeric":    true,
 		"descending": true,
 		"hasHeader":  true,
+		"stable":     true,
 	})
 	if sortPayload["totalRows"].(float64) != 2 {
 		t.Fatalf("filtered sort totalRows = %#v, want 2", sortPayload["totalRows"])
+	}
+	if sortPayload["stable"] != true {
+		t.Fatalf("filtered sort stable = %#v, want true", sortPayload["stable"])
+	}
+	unstableSortPayload := postJSON(t, handler, "/api/sort", map[string]any{
+		"documentId": documentID,
+		"column":     2,
+		"numeric":    true,
+		"descending": false,
+		"hasHeader":  true,
+		"stable":     false,
+	})
+	if unstableSortPayload["stable"] != false {
+		t.Fatalf("unstable sort stable = %#v, want false", unstableSortPayload["stable"])
 	}
 
 	clearPayload := postJSON(t, handler, "/api/view-clear", map[string]any{

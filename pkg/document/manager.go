@@ -2237,6 +2237,7 @@ type SortOptions struct {
 	Mode       SortMode  `json:"mode,omitempty"`
 	HasHeader  bool      `json:"hasHeader"`
 	Keys       []SortKey `json:"keys"`
+	Stable     *bool     `json:"stable,omitempty"`
 }
 
 type SortMode string
@@ -2283,9 +2284,14 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 			viewRows = append(viewRows, row)
 		}
 	}
-	sort.SliceStable(viewRows, func(i, j int) bool {
+	less := func(i, j int) bool {
 		return compareSortRecords(records[viewRows[i]], records[viewRows[j]], keys) < 0
-	})
+	}
+	if sortStable(options.Stable) {
+		sort.SliceStable(viewRows, less)
+	} else {
+		sort.Slice(viewRows, less)
+	}
 
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -2296,6 +2302,10 @@ func (manager *Manager) Sort(id string, options SortOptions) (int, error) {
 	current.ViewRows = viewRows
 	current.ViewActive = true
 	return len(viewRows), nil
+}
+
+func sortStable(stable *bool) bool {
+	return stable == nil || *stable
 }
 
 func normalizeSortKeys(options SortOptions) ([]SortKey, error) {

@@ -1222,6 +1222,7 @@ type sortRequest struct {
 	Mode       docstore.SortMode  `json:"mode,omitempty"`
 	HasHeader  bool               `json:"hasHeader"`
 	Keys       []docstore.SortKey `json:"keys"`
+	Stable     *bool              `json:"stable,omitempty"`
 }
 
 func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
@@ -1230,6 +1231,7 @@ func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	stable := request.Stable == nil || *request.Stable
 	count, err := server.documents.Sort(request.DocumentID, docstore.SortOptions{
 		Column:     request.Column,
 		Descending: request.Descending,
@@ -1237,12 +1239,13 @@ func (server *Server) handleSort(w http.ResponseWriter, r *http.Request) {
 		Mode:       request.Mode,
 		HasHeader:  request.HasHeader,
 		Keys:       request.Keys,
+		Stable:     &stable,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count, "stable": stable})
 }
 
 type viewClearRequest struct {

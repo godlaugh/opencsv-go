@@ -669,6 +669,41 @@ func TestManagerSortMultipleColumns(t *testing.T) {
 	}
 }
 
+func TestManagerSortDefaultsToStableOrder(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "stable-sort.csv")
+	if err := os.WriteFile(path, []byte("id,group\n1,A\n2,B\n3,A\n4,B\n5,A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "stable-sort.csv", csvcore.OpenOptions{PreviewRows: 6, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Sort(session.ID, SortOptions{Column: 1, HasHeader: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	window, err := manager.Window(session.ID, 0, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, row := range window.Rows {
+		got = append(got, row[0])
+	}
+	want := []string{"1", "3", "5", "2", "4"}
+	if len(got) != len(want) {
+		t.Fatalf("stable sorted ids = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("stable sorted ids = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestManagerSmartSortModes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "smart-sort.csv")

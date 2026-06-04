@@ -302,6 +302,7 @@ const columnSortLengthAsc = document.querySelector("#columnSortLengthAsc");
 const columnSortLengthDesc = document.querySelector("#columnSortLengthDesc");
 const columnAddSortAsc = document.querySelector("#columnAddSortAsc");
 const columnAddSortDesc = document.querySelector("#columnAddSortDesc");
+const columnStableSortToggle = document.querySelector("#columnStableSortToggle");
 const columnFilterValue = document.querySelector("#columnFilterValue");
 const columnFilterBlank = document.querySelector("#columnFilterBlank");
 const columnFilterFilled = document.querySelector("#columnFilterFilled");
@@ -1677,6 +1678,7 @@ let dataStartRow = 0;
 let viewMapped = false;
 let sortDescending = false;
 let sortKeys = [];
+let sortStable = true;
 let commandsById = new Map();
 let viewMode = "grid";
 let editorGroupsSplit = false;
@@ -9147,6 +9149,10 @@ function openColumnMenu(col, clientX, clientY) {
   columnFilterValue.disabled = selectedValue === "";
   columnTransformApply.disabled = readOnly;
   syncColumnTransformCommand();
+  if (columnStableSortToggle) {
+    columnStableSortToggle.checked = sortStable;
+  }
+  document.body.dataset.columnMenuStableSort = String(sortStable);
   columnShowAll.disabled = hiddenSourceColumns.size === 0;
   renderColumnValuesLoading();
   columnMenu.hidden = false;
@@ -11801,6 +11807,7 @@ function savedSorts() {
           name: sort.name || savedSortName(display),
           display,
           keys,
+          stable: sort.stable !== false,
           createdAt: sort.createdAt || new Date().toISOString(),
         };
       })
@@ -11856,6 +11863,7 @@ function saveActiveSort() {
     name: savedSortName(display),
     display,
     keys,
+    stable: sortStable,
     createdAt: new Date().toISOString(),
   };
   const next = [saved, ...savedSorts().filter((sort) => savedSortSignature(sort.keys) !== savedSortSignature(saved.keys))];
@@ -11885,6 +11893,7 @@ async function applySavedSort(sortID) {
     resolvedKeys,
     primaryVisibleCol,
     `Saved sort ${savedSort.name} applied: ${formatSortKeys(resolvedKeys)}`,
+    { stable: savedSort.stable !== false },
   );
 }
 
@@ -12004,6 +12013,7 @@ function normalizeSavedSortImport(sort) {
     name: typeof sort.name === "string" && sort.name.trim() ? sort.name.trim() : savedSortName(display),
     display,
     keys,
+    stable: sort.stable !== false,
     createdAt: typeof sort.createdAt === "string" && sort.createdAt ? sort.createdAt : new Date().toISOString(),
   };
 }
@@ -12238,9 +12248,10 @@ async function sortColumn(column, descending, append, modeOverride = "") {
   await applySortKeys(nextKeys, column);
 }
 
-async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
+async function applySortKeys(nextKeys, selectedColumn, successMessage = "", options = {}) {
   if (!documentId || columns.length === 0 || nextKeys.length === 0) return false;
   const primaryKey = nextKeys[0];
+  const stable = options.stable ?? sortStable;
   const response = await fetch("/api/sort", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -12252,6 +12263,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
       mode: primaryKey.mode,
       keys: nextKeys,
       hasHeader: metadata?.dialect?.hasHeader ?? false,
+      stable,
     }),
   });
   const payload = await response.json();
@@ -12261,6 +12273,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
   }
   viewMapped = true;
   sortKeys = nextKeys;
+  sortStable = payload.stable !== false;
   sortDescending = Boolean(primaryKey.descending);
   rows = new Map();
   rowSource = new Map();
@@ -12275,6 +12288,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "") {
   windowEnd = 0;
   await maybeLoadWindow(0);
   renderViewChips();
+  document.body.dataset.sortStable = String(sortStable);
   status.textContent = successMessage || `Sorted ${formatSortKeys(sortKeys)}`;
   return true;
 }
@@ -13759,6 +13773,7 @@ function captureViewSnapshot() {
   return {
     filter: activeFilter ? { ...activeFilter } : null,
     sortKeys: sortKeys.map((key) => ({ ...key })),
+    sortStable,
     selectedSourceCol: columns[selected.col]?.sourceCol ?? selected.col,
   };
 }
@@ -13798,6 +13813,7 @@ async function restoreViewSnapshot(snapshot) {
       resolvedSortKeys,
       visibleCol >= 0 ? visibleCol : Math.max(0, Math.min(columns.length - 1, selected.col)),
       "Restored sort",
+      { stable: snapshot.sortStable !== false },
     );
     if (sortRestored) restored.push("sort");
   }
@@ -16508,6 +16524,11 @@ columnSortLengthAsc.addEventListener("click", () => executeCommand("column.sortL
 columnSortLengthDesc.addEventListener("click", () => executeCommand("column.sortLengthDescending"));
 columnAddSortAsc.addEventListener("click", () => executeCommand("column.addSortAscending"));
 columnAddSortDesc.addEventListener("click", () => executeCommand("column.addSortDescending"));
+columnStableSortToggle.addEventListener("change", () => {
+  sortStable = columnStableSortToggle.checked;
+  document.body.dataset.sortStable = String(sortStable);
+  document.body.dataset.columnMenuStableSort = String(sortStable);
+});
 columnFilterValue.addEventListener("click", () => executeCommand("column.filterBySelectedValue"));
 columnFilterBlank.addEventListener("click", () => executeCommand("column.filterBlanks"));
 columnFilterFilled.addEventListener("click", () => executeCommand("column.filterNonBlanks"));
