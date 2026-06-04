@@ -5949,13 +5949,12 @@ function conditionExtraRowElement(row, index) {
 
   const groupLabel = document.createElement("label");
   groupLabel.className = "condition-group-control";
-  groupLabel.title = number > 2 ? "Group this condition with the previous condition" : "Add another condition before grouping";
+  groupLabel.title = "Group this condition with the previous condition";
   const groupCheckbox = document.createElement("input");
   groupCheckbox.className = "condition-group-previous";
   groupCheckbox.dataset.conditionField = "groupPrevious";
   groupCheckbox.type = "checkbox";
-  groupCheckbox.checked = Boolean(row.groupPrevious) && number > 2;
-  groupCheckbox.disabled = number <= 2;
+  groupCheckbox.checked = Boolean(row.groupPrevious);
   groupCheckbox.setAttribute("aria-label", `Group condition ${number} with previous`);
   groupLabel.append(groupCheckbox, conditionLabelText("Group"));
   fieldset.append(groupLabel);
