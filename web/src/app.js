@@ -52,6 +52,7 @@ const recentFilterSelect = document.querySelector("#recentFilterSelect");
 const filterBuilderButton = document.querySelector("#filterBuilderButton");
 const sortButton = document.querySelector("#sortButton");
 const findButton = document.querySelector("#findButton");
+const cancelFindButton = document.querySelector("#cancelFindButton");
 const findPrevButton = document.querySelector("#findPrevButton");
 const findNextButton = document.querySelector("#findNextButton");
 const findMatchCount = document.querySelector("#findMatchCount");
@@ -105,6 +106,7 @@ const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
 const runSqlButton = document.querySelector("#runSqlButton");
+const cancelSqlButton = document.querySelector("#cancelSqlButton");
 const sqlResultFormatSelect = document.querySelector("#sqlResultFormatSelect");
 const copySqlResultButton = document.querySelector("#copySqlResultButton");
 const exportSqlResultButton = document.querySelector("#exportSqlResultButton");
@@ -458,6 +460,7 @@ const localeCatalog = {
     "nav.settings": "Settings",
     "nav.command": "Cmd",
     "common.close": "Close",
+    "common.cancel": "Cancel",
     "file.open": "Open",
     "edit.copy": "Copy",
     "edit.headers": "Headers",
@@ -482,6 +485,8 @@ const localeCatalog = {
     "find.replaceTitle": "Replace first match",
     "find.replaceAllTitle": "Replace all matches",
     "find.status.enterQuery": "Type text to find.",
+    "find.status.running": "Finding {{query}}...",
+    "find.status.canceled": "Find canceled.",
     "find.status.noMatches": "No matches for {{query}}",
     "find.status.failed": "Find failed: {{message}}",
     "find.status.page": " (showing matches {{start}}-{{end}})",
@@ -709,6 +714,7 @@ const localeCatalog = {
     "sql.error.phase": "phase {{phase}}",
     "sql.status.enterQuery": "Enter a SQL query.",
     "sql.status.running": "Running SQL...",
+    "sql.status.canceled": "SQL canceled.",
     "sql.status.returned": "SQL returned {{rows}} of {{total}} rows",
     "sql.status.historySaveFailed": "SQL query history could not be saved.",
     "sql.status.historyClearFailed": "SQL query history could not be cleared.",
@@ -986,6 +992,7 @@ const localeCatalog = {
     "nav.profile": "概况",
     "nav.settings": "设置",
     "common.close": "关闭",
+    "common.cancel": "取消",
     "file.open": "打开",
     "edit.copy": "复制",
     "edit.headers": "表头",
@@ -1010,6 +1017,8 @@ const localeCatalog = {
     "find.replaceTitle": "替换第一个匹配",
     "find.replaceAllTitle": "替换全部匹配",
     "find.status.enterQuery": "请输入要查找的文本。",
+    "find.status.running": "正在查找 {{query}}...",
+    "find.status.canceled": "查找已取消。",
     "find.status.noMatches": "没有找到 {{query}} 的匹配项",
     "find.status.failed": "查找失败：{{message}}",
     "find.status.page": "（显示第 {{start}}-{{end}} 个匹配）",
@@ -1237,6 +1246,7 @@ const localeCatalog = {
     "sql.error.phase": "阶段 {{phase}}",
     "sql.status.enterQuery": "请输入 SQL 查询。",
     "sql.status.running": "正在运行 SQL...",
+    "sql.status.canceled": "SQL 已取消。",
     "sql.status.returned": "SQL 返回 {{rows}} / {{total}} 行",
     "sql.status.historySaveFailed": "无法保存 SQL 查询历史。",
     "sql.status.historyClearFailed": "无法清除 SQL 查询历史。",
@@ -1800,6 +1810,8 @@ let findWholeCell = false;
 let findRegex = false;
 let findInSelection = false;
 let findState = emptyFindState();
+let activeFindController = null;
+let activeSQLController = null;
 let activeFilter = null;
 let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
@@ -2198,6 +2210,7 @@ function applyFindLocaleStrings() {
   if (commandInput) commandInput.placeholder = t("find.placeholder");
   if (replaceInput) replaceInput.placeholder = t("find.replacePlaceholder");
   if (findButton) findButton.title = t("edit.find");
+  if (cancelFindButton) cancelFindButton.title = t("common.cancel");
   if (findCaseButton) findCaseButton.title = t("find.matchCase");
   if (findWholeButton) findWholeButton.title = t("find.wholeCell");
   if (findRegexButton) findRegexButton.title = t("find.regex");
@@ -2306,11 +2319,13 @@ function applyProfileLocaleStrings() {
 function applySQLLocaleStrings() {
   const textTargets = [
     [runSqlButton, "sql.run"],
+    [cancelSqlButton, "common.cancel"],
     [clearSqlHistoryButton, "sql.clear"],
   ];
   for (const [element, key] of textTargets) {
     if (element) element.textContent = t(key);
   }
+  if (cancelSqlButton) cancelSqlButton.title = t("common.cancel");
   syncSQLResultActions();
 }
 
@@ -11262,6 +11277,45 @@ async function findCurrentQuery() {
   await runFind(0, true);
 }
 
+function startFindProgress(query) {
+  if (activeFindController) activeFindController.abort();
+  activeFindController = new AbortController();
+  cancelFindButton.hidden = false;
+  cancelFindButton.disabled = false;
+  findButton.disabled = true;
+  findPrevButton.disabled = true;
+  findNextButton.disabled = true;
+  document.body.dataset.findProgress = "running";
+  status.textContent = tf("find.status.running", { query });
+  return activeFindController;
+}
+
+function finishFindProgress(controller) {
+  if (activeFindController !== controller) return;
+  activeFindController = null;
+  cancelFindButton.hidden = true;
+  cancelFindButton.disabled = true;
+  findButton.disabled = false;
+  findPrevButton.disabled = false;
+  findNextButton.disabled = false;
+  if (document.body.dataset.findProgress === "running") {
+    document.body.dataset.findProgress = "idle";
+  }
+}
+
+function cancelFindRequest() {
+  if (!activeFindController) return;
+  activeFindController.abort();
+  activeFindController = null;
+  cancelFindButton.hidden = true;
+  cancelFindButton.disabled = true;
+  findButton.disabled = false;
+  findPrevButton.disabled = false;
+  findNextButton.disabled = false;
+  document.body.dataset.findProgress = "canceled";
+  status.textContent = t("find.status.canceled");
+}
+
 async function focusFindInput(options = {}) {
   const seeded = applyFindSeed(options.target ?? document.activeElement);
   commandInput.focus();
@@ -11398,24 +11452,41 @@ async function refreshFindState(search, key, options = {}) {
   const offset = Math.max(0, options.offset ?? 0);
   const cells = options.scopeCells ?? (search.inSelection ? selectedCellsForSearch() : []);
   if (cells == null) return false;
-  const response = await fetch("/api/find", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      documentId,
-      query: search.query,
-      regex: search.regex,
-      caseSensitive: search.caseSensitive,
-      wholeCell: search.wholeCell,
-      cells,
-      limit: findPageSize,
-      offset,
-    }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    status.textContent = tf("find.status.failed", { message: payload.error ?? "unknown error" });
+  const controller = startFindProgress(search.query);
+  let payload = null;
+  try {
+    const response = await fetch("/api/find", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        documentId,
+        query: search.query,
+        regex: search.regex,
+        caseSensitive: search.caseSensitive,
+        wholeCell: search.wholeCell,
+        cells,
+        limit: findPageSize,
+        offset,
+      }),
+    });
+    payload = await response.json();
+    if (!response.ok) {
+      status.textContent = tf("find.status.failed", { message: payload.error ?? "unknown error" });
+      return false;
+    }
+  } catch (error) {
+    if (error.name === "AbortError") {
+      if (!activeFindController || activeFindController === controller) {
+        document.body.dataset.findProgress = "canceled";
+        status.textContent = t("find.status.canceled");
+      }
+      return false;
+    }
+    status.textContent = tf("find.status.failed", { message: error.message });
     return false;
+  } finally {
+    finishFindProgress(controller);
   }
   findState = {
     key,
@@ -14194,6 +14265,39 @@ function startFileStatusChecks() {
   fileStatusTimer = window.setInterval(() => checkFileStatus(true), 5000);
 }
 
+function startSQLProgress() {
+  if (activeSQLController) activeSQLController.abort();
+  activeSQLController = new AbortController();
+  runSqlButton.disabled = true;
+  cancelSqlButton.hidden = false;
+  cancelSqlButton.disabled = false;
+  document.body.dataset.sqlProgress = "running";
+  status.textContent = t("sql.status.running");
+  return activeSQLController;
+}
+
+function finishSQLProgress(controller) {
+  if (activeSQLController !== controller) return;
+  activeSQLController = null;
+  runSqlButton.disabled = false;
+  cancelSqlButton.hidden = true;
+  cancelSqlButton.disabled = true;
+  if (document.body.dataset.sqlProgress === "running") {
+    document.body.dataset.sqlProgress = "idle";
+  }
+}
+
+function cancelSQLRequest() {
+  if (!activeSQLController) return;
+  activeSQLController.abort();
+  activeSQLController = null;
+  runSqlButton.disabled = false;
+  cancelSqlButton.hidden = true;
+  cancelSqlButton.disabled = true;
+  document.body.dataset.sqlProgress = "canceled";
+  status.textContent = t("sql.status.canceled");
+}
+
 async function runSQLQuery() {
   if (!documentId) return;
   const query = sqlInput.value.trim();
@@ -14201,22 +14305,40 @@ async function runSQLQuery() {
     status.textContent = t("sql.status.enterQuery");
     return;
   }
-  status.textContent = t("sql.status.running");
   lastSQLResult = null;
   clearSQLErrorState();
   clearSQLResultSelection();
   syncSQLResultActions();
-  const response = await fetch("/api/sql", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, query, limit: 500 }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    renderSQLError(payload);
+  const controller = startSQLProgress();
+  let payload = null;
+  try {
+    const response = await fetch("/api/sql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ documentId, query, limit: 500 }),
+    });
+    payload = await response.json();
+    if (!response.ok) {
+      renderSQLError(payload);
+      clearSQLResultSelection();
+      syncSQLResultActions();
+      return;
+    }
+  } catch (error) {
+    if (error.name === "AbortError") {
+      if (!activeSQLController || activeSQLController === controller) {
+        document.body.dataset.sqlProgress = "canceled";
+        status.textContent = t("sql.status.canceled");
+      }
+      return;
+    }
+    renderSQLError({ error: error.message });
     clearSQLResultSelection();
     syncSQLResultActions();
     return;
+  } finally {
+    finishSQLProgress(controller);
   }
   clearSQLErrorState();
   lastSQLResult = payload;
@@ -16800,6 +16922,7 @@ quoteEscapeSelect.addEventListener("change", () => {
   settingsQuoteSummary.textContent = selectedQuotePolicySummary();
 });
 runSqlButton.addEventListener("click", runSQLQuery);
+cancelSqlButton.addEventListener("click", cancelSQLRequest);
 sqlResultFormatSelect?.addEventListener("change", syncSQLResultActions);
 copySqlResultButton.addEventListener("click", copyCurrentSQLResult);
 exportSqlResultButton.addEventListener("click", exportCurrentSQLResult);
@@ -17072,6 +17195,7 @@ openCellLink.addEventListener("click", (event) => {
   executeCommand("cell.openLink");
 });
 findButton.addEventListener("click", (event) => focusFindInput({ run: true, target: event.target }));
+cancelFindButton.addEventListener("click", cancelFindRequest);
 findPrevButton.addEventListener("click", () => findNextMatch(-1));
 findNextButton.addEventListener("click", () => findNextMatch(1));
 replacePreviewButton.addEventListener("click", (event) => previewReplace({ target: event.target }));

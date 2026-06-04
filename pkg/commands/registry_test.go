@@ -480,6 +480,44 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestLongOperationCancellationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, id := range []string{
+		"cancelFindButton",
+		"cancelSqlButton",
+	} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Fatalf("missing cancellation control %s", id)
+		}
+	}
+	for _, snippet := range []string{
+		"let activeFindController = null",
+		"let activeSQLController = null",
+		"function startFindProgress",
+		"function cancelFindRequest",
+		"function startSQLProgress",
+		"function cancelSQLRequest",
+		"signal: controller.signal",
+		`document.body.dataset.findProgress = "canceled"`,
+		`document.body.dataset.sqlProgress = "canceled"`,
+		`"find.status.running": "正在查找`,
+		`"sql.status.canceled": "SQL 已取消。"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing long-operation cancellation wiring %q", snippet)
+		}
+	}
+}
+
 func TestConditionBuilderI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

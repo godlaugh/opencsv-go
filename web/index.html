@@ -63,6 +63,7 @@
             <button id="filterBuilderButton" type="button" title="Filter Builder" data-command="view.filterBuilder">Builder</button>
             <button id="sortButton" type="button" title="Sort selected column" data-command="view.sort">Sort</button>
             <button id="findButton" type="button" title="Find" data-command="edit.find">Find</button>
+            <button id="cancelFindButton" type="button" title="Cancel find" data-i18n="common.cancel" hidden>Cancel</button>
             <button id="findPrevButton" type="button" title="Previous match">↑</button>
             <span id="findMatchCount" class="find-match-count" aria-live="polite">0/0</span>
             <button id="findNextButton" type="button" title="Next match">↓</button>
@@ -113,6 +114,7 @@
                 <div class="sql-editor-row">
                   <textarea id="sqlInput" spellcheck="false" aria-label="SQL query">SELECT * FROM current LIMIT 25</textarea>
                   <button id="runSqlButton" type="button">Run</button>
+                  <button id="cancelSqlButton" type="button" data-i18n="common.cancel" hidden>Cancel</button>
                   <select id="sqlResultFormatSelect" class="copy-format-select" aria-label="SQL result format" disabled>
                     <option value="csv">CSV</option>
                     <option value="tsv">TSV</option>
