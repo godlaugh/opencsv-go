@@ -1998,6 +1998,24 @@ button:disabled {
   text-align: left;
 }
 
+.column-menu-control {
+  display: grid;
+  gap: 4px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.column-menu-control select {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
 .column-menu button:hover:not(:disabled),
 .grid-context-menu button:hover:not(:disabled) {
   background: var(--accent-quiet);

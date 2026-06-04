@@ -1346,6 +1346,38 @@ func TestServerDedupeAndTextTransform(t *testing.T) {
 	}
 }
 
+func TestServerTextTransformColumn(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-transform.csv")
+	if err := os.WriteFile(path, []byte("id,name,note\n1,Ada, keep \n2,Grace\n3,Linus, later \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	columnPayload := postJSON(t, handler, "/api/text-transform", map[string]any{
+		"documentId": documentID,
+		"mode":       "upper",
+		"column":     1,
+	})
+	if columnPayload["changed"].(float64) != 3 {
+		t.Fatalf("column transform payload = %#v", columnPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
+	rows := windowPayload["rows"].([]any)
+	if rows[0].([]any)[1] != "name" || rows[1].([]any)[1] != "ADA" || rows[2].([]any)[1] != "GRACE" || rows[3].([]any)[1] != "LINUS" {
+		t.Fatalf("rows after column transform = %#v", rows)
+	}
+	if len(rows[2].([]any)) != 2 {
+		t.Fatalf("column transform should not materialize missing ragged cells: %#v", rows[2])
+	}
+}
+
 func TestServerWidthTextTransforms(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "width.csv")

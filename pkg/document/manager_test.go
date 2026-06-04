@@ -1261,6 +1261,47 @@ func TestManagerTextTransforms(t *testing.T) {
 	}
 }
 
+func TestManagerTransformColumnSkipsHeaderAndMissingCells(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-text.csv")
+	if err := os.WriteFile(path, []byte("id,name,note\n1,Ada, keep \n2,Grace\n3,Linus, later \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "column-text.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformColumn(session.ID, 1, TransformUpper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 3 {
+		t.Fatalf("upper column changed = %d, want 3", result.Changed)
+	}
+	result, err = manager.TransformColumn(session.ID, 2, TransformTrim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("trim ragged column changed = %d, want 2", result.Changed)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[0][1] != "name" || records[1][1] != "ADA" || records[2][1] != "GRACE" || records[3][1] != "LINUS" {
+		t.Fatalf("column transform records = %#v", records)
+	}
+	if len(records[2]) != 2 {
+		t.Fatalf("missing ragged cell should not be materialized: %#v", records[2])
+	}
+	if records[1][2] != "keep" || records[3][2] != "later" {
+		t.Fatalf("trimmed notes = %#v", records)
+	}
+}
+
 func TestManagerJoinAndSplitCells(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "join-split.csv")
@@ -1443,6 +1484,9 @@ func TestManagerReadOnlyAndFileStatusRefresh(t *testing.T) {
 	}
 	if _, err := manager.SetHeaderMode(session.ID, false); err == nil {
 		t.Fatal("read-only header mode mutation succeeded")
+	}
+	if _, err := manager.TransformColumn(session.ID, 1, TransformUpper); err == nil {
+		t.Fatal("read-only column transform succeeded")
 	}
 	if _, err := manager.InsertRow(session.ID, 1); err == nil {
 		t.Fatal("read-only structural mutation succeeded")

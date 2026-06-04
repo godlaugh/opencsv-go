@@ -843,6 +843,22 @@
       <button id="columnFilterValue" type="button" role="menuitem">Filter by selected value</button>
       <button id="columnFilterBlank" type="button" role="menuitem">Show blanks</button>
       <button id="columnFilterFilled" type="button" role="menuitem">Show non-blanks</button>
+      <label class="column-menu-control">
+        <span>Text transform</span>
+        <select id="columnTransformMode" aria-label="Column text transform">
+          <option value="trim">Trim</option>
+          <option value="upper">Uppercase</option>
+          <option value="lower">Lowercase</option>
+          <option value="snake">Snake Case</option>
+          <option value="kebab">Kebab Case</option>
+          <option value="camel">Camel Case</option>
+          <option value="pascal">Pascal Case</option>
+          <option value="title">Title Case</option>
+          <option value="wide">Full Width</option>
+          <option value="narrow">Half Width</option>
+        </select>
+      </label>
+      <button id="columnTransformApply" type="button" role="menuitem">Apply transform to column</button>
       <div id="columnMenuValues" class="column-menu-values" aria-label="Column values"></div>
       <button id="columnApplyValues" type="button" role="menuitem" disabled>Apply selected values</button>
       <button id="columnHide" type="button" role="menuitem">Hide column</button>

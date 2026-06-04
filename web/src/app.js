@@ -296,6 +296,8 @@ const columnAddSortDesc = document.querySelector("#columnAddSortDesc");
 const columnFilterValue = document.querySelector("#columnFilterValue");
 const columnFilterBlank = document.querySelector("#columnFilterBlank");
 const columnFilterFilled = document.querySelector("#columnFilterFilled");
+const columnTransformMode = document.querySelector("#columnTransformMode");
+const columnTransformApply = document.querySelector("#columnTransformApply");
 const columnMenuValues = document.querySelector("#columnMenuValues");
 const columnApplyValues = document.querySelector("#columnApplyValues");
 const columnHide = document.querySelector("#columnHide");
@@ -8093,6 +8095,7 @@ function openColumnMenu(col, clientX, clientY) {
       ? "Filter by selected value"
       : `Filter: ${truncateMenuValue(selectedValue)}`;
   columnFilterValue.disabled = selectedValue === "";
+  columnTransformApply.disabled = readOnly;
   columnShowAll.disabled = hiddenSourceColumns.size === 0;
   renderColumnValuesLoading();
   columnMenu.hidden = false;
@@ -11821,6 +11824,40 @@ async function transformSelectedText(mode, label) {
   );
 }
 
+async function transformCurrentColumnText() {
+  const column = columnMenuColumn;
+  const mode = columnTransformMode?.value || "trim";
+  const label = columnTransformLabel(mode);
+  closeColumnMenu();
+  if (!documentId || !columns[column]) return;
+  if (!ensureEditable(`${label} Column`)) return;
+  const sourceCol = sourceColFor(column);
+  status.textContent = `${label} Column...`;
+  const response = await fetch("/api/text-transform", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, mode, column: sourceCol }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} Column failed: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const changed = payload.changed ?? 0;
+  document.body.dataset.columnTransform = `${sourceCol}:${mode}:${changed}`;
+  applyMutationPayload(
+    payload,
+    changed > 0
+      ? `${label} Column: ${formatCount(changed)} cells changed`
+      : `${label} Column: no cells changed`,
+  );
+}
+
+function columnTransformLabel(mode) {
+  const option = Array.from(columnTransformMode?.options || []).find((item) => item.value === mode);
+  return option?.textContent || "Text Transform";
+}
+
 async function swapSelectedCells() {
   if (!documentId) return;
   if (!ensureEditable("Swap Cells")) return;
@@ -15028,6 +15065,7 @@ columnAddSortDesc.addEventListener("click", async () => {
 columnFilterValue.addEventListener("click", filterColumnBySelectedValue);
 columnFilterBlank.addEventListener("click", () => filterColumnBlank(true));
 columnFilterFilled.addEventListener("click", () => filterColumnBlank(false));
+columnTransformApply.addEventListener("click", transformCurrentColumnText);
 columnApplyValues.addEventListener("click", applyColumnValueChecklist);
 columnHide.addEventListener("click", () => {
   const column = columnMenuColumn;

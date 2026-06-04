@@ -882,6 +882,7 @@ func (server *Server) handleDedupeColumns(w http.ResponseWriter, r *http.Request
 type textTransformRequest struct {
 	DocumentID string          `json:"documentId"`
 	Cells      []docstore.Cell `json:"cells"`
+	Column     *int            `json:"column,omitempty"`
 	Mode       string          `json:"mode"`
 }
 
@@ -896,6 +897,19 @@ func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request
 	var request textTransformRequest
 	if err := readJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.Column != nil {
+		result, err := server.documents.TransformColumn(
+			request.DocumentID,
+			*request.Column,
+			docstore.TextTransformMode(request.Mode),
+		)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 		return
 	}
 	result, err := server.documents.TransformCells(

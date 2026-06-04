@@ -1318,6 +1318,53 @@ func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransfo
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
 }
 
+func (manager *Manager) TransformColumn(id string, col int, mode TextTransformMode) (MutationResult, error) {
+	if col < 0 {
+		return MutationResult{}, errors.New("column must be non-negative")
+	}
+	transform, err := textTransformFunc(mode)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if err := manager.ensureWritable(id); err != nil {
+		return MutationResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return MutationResult{}, errors.New("document not found")
+	}
+	records, err := recordsForSession(session)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	startRow := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		startRow = 1
+	}
+	changed := 0
+	for row := startRow; row < len(records); row++ {
+		if col >= len(records[row]) {
+			continue
+		}
+		next := transform(records[row][col])
+		if next != records[row][col] {
+			changed++
+			records[row][col] = next
+		}
+	}
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.materializeRecords(id, records, session.Document.Metadata, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
+}
+
 func (manager *Manager) SwapCells(id string, cells []Cell) (MutationResult, error) {
 	if len(cells) != 2 {
 		return MutationResult{}, errors.New("select exactly two cells to swap")
