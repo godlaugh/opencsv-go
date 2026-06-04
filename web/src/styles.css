@@ -630,7 +630,10 @@ button:disabled {
 }
 
 .profile-panel {
-  grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) minmax(110px, 0.38fr);
+  grid-template-rows: none;
+  grid-auto-rows: auto;
+  align-content: start;
+  overflow: auto;
 }
 
 .settings-panel {
@@ -1148,6 +1151,16 @@ button:disabled {
   background: var(--panel);
 }
 
+.profile-columns {
+  min-height: 160px;
+  max-height: min(34vh, 280px);
+}
+
+.profile-issues {
+  min-height: 128px;
+  max-height: min(30vh, 240px);
+}
+
 .profile-toolbar,
 .profile-schema-manager {
   display: flex;
@@ -1407,7 +1420,14 @@ button:disabled {
   cursor: pointer;
 }
 
+.profile-issues td:last-child {
+  max-width: none;
+  overflow: visible;
+}
+
 .profile-issues button {
+  position: relative;
+  z-index: 1;
   min-height: 24px;
   border-radius: 5px;
   font-size: 12px;

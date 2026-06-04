@@ -596,6 +596,7 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		`"profile.status.complete"`,
 		`"profile.status.complete": "概况`,
+		`"profile.quickFix.header.unique": "设为唯一"`,
 		`"profile.schema.savedAs": "验证架构已保存为`,
 		"applyProfileLocaleStrings",
 		"renderProfile(profileData)",
@@ -604,6 +605,7 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`t("profile.empty.noColumns")`,
 		"profileSeverityLabel(issue.severity)",
 		"profileQuickFixLabel(fix)",
+		"uniqueHeaderNameForSourceCol",
 		`tf("profile.quickFix.applied"`,
 	} {
 		if !strings.Contains(source, snippet) {

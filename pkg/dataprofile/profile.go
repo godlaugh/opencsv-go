@@ -195,6 +195,9 @@ func headerIssues(header []string) []Issue {
 				Row:      1,
 				Col:      col + 1,
 				Message:  fmt.Sprintf("Header %q duplicates column %d.", trimmed, first+1),
+				QuickFixes: []QuickFix{
+					{ID: "header.unique", Label: "Make header unique"},
+				},
 			})
 		}
 		seen[key] = col

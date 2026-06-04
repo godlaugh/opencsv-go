@@ -757,6 +757,7 @@ const localeCatalog = {
     "profile.severity.error": "Error",
     "profile.severity.warning": "Warning",
     "profile.quickFix.header.fill": "Fill Header",
+    "profile.quickFix.header.unique": "Make Unique",
     "profile.quickFix.row.pad": "Pad Row",
     "profile.summary.status": "Status",
     "profile.summary.rows": "Rows",
@@ -1253,6 +1254,7 @@ const localeCatalog = {
     "profile.severity.error": "错误",
     "profile.severity.warning": "警告",
     "profile.quickFix.header.fill": "填充表头",
+    "profile.quickFix.header.unique": "设为唯一",
     "profile.quickFix.row.pad": "补齐行",
     "profile.summary.status": "状态",
     "profile.summary.rows": "行",
@@ -14891,6 +14893,10 @@ function profileQuickFixEdits(issue, fixID) {
     const col = Number(issue.col) - 1;
     return [{ row: 0, col, value: `Column ${Number(issue.col)}` }];
   }
+  if (fixID === "header.unique" && issue?.col) {
+    const col = Number(issue.col) - 1;
+    return [{ row: 0, col, value: uniqueHeaderNameForSourceCol(col) }];
+  }
   if (fixID === "row.pad" && issue?.row && issue?.expected && issue.actual < issue.expected) {
     const row = Number(issue.row) - 1;
     const edits = [];
@@ -14900,6 +14906,31 @@ function profileQuickFixEdits(issue, fixID) {
     return edits;
   }
   return [];
+}
+
+function uniqueHeaderNameForSourceCol(sourceCol) {
+  const current = String(columnNameForSource(sourceCol)).trim() || `Column ${sourceCol + 1}`;
+  const taken = new Set(
+    allColumns
+      .filter((column) => column.sourceCol !== sourceCol)
+      .map((column) => String(column.name || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  if (!taken.has(current.toLowerCase())) return current;
+  for (let index = 2; index < 10000; index++) {
+    const candidate = `${current} ${index}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${current} ${sourceCol + 1}`;
+}
+
+function renameSourceColumn(sourceCol, name) {
+  for (const column of allColumns) {
+    if (column.sourceCol === sourceCol) column.name = name;
+  }
+  for (const column of columns) {
+    if (column.sourceCol === sourceCol) column.name = name;
+  }
 }
 
 async function applyProfileQuickFix(issue, fixID) {
@@ -14930,15 +14961,9 @@ async function applyProfileQuickFix(issue, fixID) {
     const row = issueDisplayRow(issue);
     await maybeLoadWindow(row);
     applyEditsToLoadedRows(edits);
-    if (fixID === "header.fill" && issue?.col) {
+    if ((fixID === "header.fill" || fixID === "header.unique") && issue?.col) {
       const sourceCol = Number(issue.col) - 1;
-      const name = `Column ${Number(issue.col)}`;
-      for (const column of allColumns) {
-        if (column.sourceCol === sourceCol) column.name = name;
-      }
-      for (const column of columns) {
-        if (column.sourceCol === sourceCol) column.name = name;
-      }
+      renameSourceColumn(sourceCol, edits[0]?.value ?? columnNameForSource(sourceCol));
     }
     draw();
     document.body.dataset.profileQuickFix = `${fixID}:${edits.length}`;

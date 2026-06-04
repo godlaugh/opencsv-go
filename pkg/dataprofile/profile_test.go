@@ -80,6 +80,14 @@ func TestAnalyzeAddsQuickFixesForSafeStructureIssues(t *testing.T) {
 	if len(ragged.QuickFixes) != 1 || ragged.QuickFixes[0].ID != "row.pad" {
 		t.Fatalf("ragged quick fix = %#v", ragged.QuickFixes)
 	}
+	duplicates := Analyze([][]string{
+		{"id", "score", "score"},
+		{"1", "9", "10"},
+	}, true)
+	duplicateHeader := issueByType(duplicates.Issues, "duplicate-header")
+	if duplicateHeader == nil || len(duplicateHeader.QuickFixes) != 1 || duplicateHeader.QuickFixes[0].ID != "header.unique" {
+		t.Fatalf("duplicate header quick fix = %#v", duplicateHeader)
+	}
 }
 
 func TestAnalyzeWithSchemaRules(t *testing.T) {
