@@ -158,6 +158,10 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"sql.copyResultTsv",
 		"sql.copyResultMarkdown",
 		"sql.copyResultJson",
+		"sql.copyResultHtml",
+		"sql.copyResultSql",
+		"sql.copyResultLatex",
+		"sql.copyResultRaw",
 		"sql.copyCell",
 		"sql.copyRow",
 		"sql.copyRowWithHeaders",
@@ -167,14 +171,26 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"sql.copySelectionTsv",
 		"sql.copySelectionMarkdown",
 		"sql.copySelectionJson",
+		"sql.copySelectionHtml",
+		"sql.copySelectionSql",
+		"sql.copySelectionLatex",
+		"sql.copySelectionRaw",
 		"sql.copyFullResultCsv",
 		"sql.copyFullResultTsv",
 		"sql.copyFullResultMarkdown",
 		"sql.copyFullResultJson",
+		"sql.copyFullResultHtml",
+		"sql.copyFullResultSql",
+		"sql.copyFullResultLatex",
+		"sql.copyFullResultRaw",
 		"sql.exportResultCsv",
 		"sql.exportResultTsv",
 		"sql.exportResultMarkdown",
 		"sql.exportResultJson",
+		"sql.exportResultHtml",
+		"sql.exportResultSql",
+		"sql.exportResultLatex",
+		"sql.exportResultRaw",
 		"sql.clearSelection",
 		"diff.open",
 	} {
@@ -217,6 +233,91 @@ func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		t.Fatalf("implemented commands missing frontend dispatch: %s", strings.Join(missing, ", "))
+	}
+}
+
+func TestSQLResultFormatsHaveCommandsAndSelectOptions(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source := string(appJS)
+	formatMatch := regexp.MustCompile(`const sqlResultFormats = \[([^\]]+)\];`).FindStringSubmatch(source)
+	if len(formatMatch) != 2 {
+		t.Fatal("missing sqlResultFormats declaration")
+	}
+	formats := regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(formatMatch[1], -1)
+	if len(formats) == 0 {
+		t.Fatal("sqlResultFormats is empty")
+	}
+
+	commandMap := regexp.MustCompile(`"(sql\.[^"]+)"\s*:\s*\{\s*action:\s*"([^"]+)",\s*format:\s*"([^"]+)"`).FindAllStringSubmatch(source, -1)
+	frontendCommands := make(map[string]bool)
+	frontendActions := make(map[string]string)
+	for _, match := range commandMap {
+		frontendCommands[match[1]] = true
+		frontendActions[match[1]] = match[2]
+	}
+	sqlSelect := regexp.MustCompile(`(?s)<select id="sqlResultFormatSelect"[^>]*>(.*?)</select>`).FindStringSubmatch(string(indexHTML))
+	if len(sqlSelect) != 2 {
+		t.Fatal("missing SQL result format select")
+	}
+	selectOptions := make(map[string]bool)
+	for _, match := range regexp.MustCompile(`<option value="([^"]+)">`).FindAllStringSubmatch(sqlSelect[1], -1) {
+		selectOptions[match[1]] = true
+	}
+
+	var missing []string
+	for _, match := range formats {
+		format := match[1]
+		suffix := sqlResultCommandSuffixForTest(format)
+		for _, prefix := range []string{"sql.copyResult", "sql.copySelection", "sql.copyFullResult", "sql.exportResult"} {
+			id := prefix + suffix
+			if _, ok := ByID(id); !ok {
+				missing = append(missing, id+" registry")
+			}
+			if !frontendCommands[id] {
+				missing = append(missing, id+" frontend")
+			}
+		}
+		if !selectOptions[format] {
+			missing = append(missing, format+" select option")
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Fatalf("SQL result format coverage missing: %s", strings.Join(missing, ", "))
+	}
+	if frontendActions["sql.copyFullResultSql"] != "copyFullResult" {
+		t.Fatalf("sql.copyFullResultSql action = %q", frontendActions["sql.copyFullResultSql"])
+	}
+}
+
+func sqlResultCommandSuffixForTest(format string) string {
+	switch format {
+	case "csv":
+		return "Csv"
+	case "tsv":
+		return "Tsv"
+	case "markdown":
+		return "Markdown"
+	case "json":
+		return "Json"
+	case "html":
+		return "Html"
+	case "sql":
+		return "Sql"
+	case "latex":
+		return "Latex"
+	case "raw":
+		return "Raw"
+	default:
+		return strings.Title(format)
 	}
 }
 

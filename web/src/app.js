@@ -317,42 +317,70 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
-const sqlResultFormats = ["csv", "tsv", "markdown", "json"];
+const sqlResultFormats = ["csv", "tsv", "markdown", "json", "html", "sql", "latex", "raw"];
 const sqlResultFormatLabels = {
   csv: "CSV",
   tsv: "TSV",
   markdown: "Markdown",
   json: "JSON",
+  html: "HTML",
+  sql: "SQL",
+  latex: "LaTeX",
+  raw: "Raw",
 };
 const sqlResultFormatExtensions = {
   csv: "csv",
   tsv: "tsv",
   markdown: "md",
   json: "json",
+  html: "html",
+  sql: "sql",
+  latex: "tex",
+  raw: "txt",
 };
 const sqlResultFormatContentTypes = {
   csv: "text/csv;charset=utf-8",
   tsv: "text/tab-separated-values;charset=utf-8",
   markdown: "text/markdown;charset=utf-8",
   json: "application/json;charset=utf-8",
+  html: "text/html;charset=utf-8",
+  sql: "application/sql;charset=utf-8",
+  latex: "application/x-latex;charset=utf-8",
+  raw: "text/plain;charset=utf-8",
 };
 const sqlResultCommandFormats = {
   "sql.copyResultCsv": { action: "copy", format: "csv" },
   "sql.copyResultTsv": { action: "copy", format: "tsv" },
   "sql.copyResultMarkdown": { action: "copy", format: "markdown" },
   "sql.copyResultJson": { action: "copy", format: "json" },
+  "sql.copyResultHtml": { action: "copy", format: "html" },
+  "sql.copyResultSql": { action: "copy", format: "sql" },
+  "sql.copyResultLatex": { action: "copy", format: "latex" },
+  "sql.copyResultRaw": { action: "copy", format: "raw" },
   "sql.copySelectionCsv": { action: "copySelection", format: "csv" },
   "sql.copySelectionTsv": { action: "copySelection", format: "tsv" },
   "sql.copySelectionMarkdown": { action: "copySelection", format: "markdown" },
   "sql.copySelectionJson": { action: "copySelection", format: "json" },
+  "sql.copySelectionHtml": { action: "copySelection", format: "html" },
+  "sql.copySelectionSql": { action: "copySelection", format: "sql" },
+  "sql.copySelectionLatex": { action: "copySelection", format: "latex" },
+  "sql.copySelectionRaw": { action: "copySelection", format: "raw" },
   "sql.copyFullResultCsv": { action: "copyFullResult", format: "csv" },
   "sql.copyFullResultTsv": { action: "copyFullResult", format: "tsv" },
   "sql.copyFullResultMarkdown": { action: "copyFullResult", format: "markdown" },
   "sql.copyFullResultJson": { action: "copyFullResult", format: "json" },
+  "sql.copyFullResultHtml": { action: "copyFullResult", format: "html" },
+  "sql.copyFullResultSql": { action: "copyFullResult", format: "sql" },
+  "sql.copyFullResultLatex": { action: "copyFullResult", format: "latex" },
+  "sql.copyFullResultRaw": { action: "copyFullResult", format: "raw" },
   "sql.exportResultCsv": { action: "export", format: "csv" },
   "sql.exportResultTsv": { action: "export", format: "tsv" },
   "sql.exportResultMarkdown": { action: "export", format: "markdown" },
   "sql.exportResultJson": { action: "export", format: "json" },
+  "sql.exportResultHtml": { action: "export", format: "html" },
+  "sql.exportResultSql": { action: "export", format: "sql" },
+  "sql.exportResultLatex": { action: "export", format: "latex" },
+  "sql.exportResultRaw": { action: "export", format: "raw" },
 };
 const sqlResultContextCommandIDs = new Set([
   "sql.copyCell",
@@ -374,6 +402,10 @@ const sqlResultSelectionCommandIDs = new Set([
   "sql.copySelectionTsv",
   "sql.copySelectionMarkdown",
   "sql.copySelectionJson",
+  "sql.copySelectionHtml",
+  "sql.copySelectionSql",
+  "sql.copySelectionLatex",
+  "sql.copySelectionRaw",
   "sql.clearSelection",
 ]);
 const sqlResultCommandIDs = new Set([...Object.keys(sqlResultCommandFormats), ...sqlResultContextCommandIDs]);
@@ -9347,6 +9379,14 @@ function sqlResultFormatCommandSuffix(format) {
       return "Markdown";
     case "json":
       return "Json";
+    case "html":
+      return "Html";
+    case "sql":
+      return "Sql";
+    case "latex":
+      return "Latex";
+    case "raw":
+      return "Raw";
     default:
       return "Csv";
   }
