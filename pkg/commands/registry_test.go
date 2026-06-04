@@ -140,6 +140,15 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"view.filterBuilder",
 		"view.saveFilter",
 		"view.sort",
+		"column.sortAscending",
+		"column.sortDescending",
+		"column.sortLengthAscending",
+		"column.sortLengthDescending",
+		"column.addSortAscending",
+		"column.addSortDescending",
+		"column.filterBySelectedValue",
+		"column.filterBlanks",
+		"column.filterNonBlanks",
 		"view.saveSort",
 		"view.exportSavedSets",
 		"view.importSavedSets",
@@ -193,5 +202,28 @@ func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		t.Fatalf("implemented commands missing frontend dispatch: %s", strings.Join(missing, ", "))
+	}
+}
+
+func TestHTMLDataCommandsAreRegistered(t *testing.T) {
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[string]bool)
+	var missing []string
+	for _, match := range regexp.MustCompile(`data-command="([^"]+)"`).FindAllStringSubmatch(string(indexHTML), -1) {
+		id := match[1]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		if _, ok := ByID(id); !ok {
+			missing = append(missing, id)
+		}
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Fatalf("html data-command ids missing registry entries: %s", strings.Join(missing, ", "))
 	}
 }

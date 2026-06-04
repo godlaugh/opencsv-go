@@ -834,15 +834,15 @@
 
     <section id="columnMenu" class="column-menu" role="menu" aria-label="Column menu" hidden>
       <strong id="columnMenuTitle">Column</strong>
-      <button id="columnSortAsc" type="button" role="menuitem">Sort ascending</button>
-      <button id="columnSortDesc" type="button" role="menuitem">Sort descending</button>
-      <button id="columnSortLengthAsc" type="button" role="menuitem">Sort length ascending</button>
-      <button id="columnSortLengthDesc" type="button" role="menuitem">Sort length descending</button>
-      <button id="columnAddSortAsc" type="button" role="menuitem">Then sort ascending</button>
-      <button id="columnAddSortDesc" type="button" role="menuitem">Then sort descending</button>
-      <button id="columnFilterValue" type="button" role="menuitem">Filter by selected value</button>
-      <button id="columnFilterBlank" type="button" role="menuitem">Show blanks</button>
-      <button id="columnFilterFilled" type="button" role="menuitem">Show non-blanks</button>
+      <button id="columnSortAsc" type="button" role="menuitem" data-command="column.sortAscending">Sort ascending</button>
+      <button id="columnSortDesc" type="button" role="menuitem" data-command="column.sortDescending">Sort descending</button>
+      <button id="columnSortLengthAsc" type="button" role="menuitem" data-command="column.sortLengthAscending">Sort length ascending</button>
+      <button id="columnSortLengthDesc" type="button" role="menuitem" data-command="column.sortLengthDescending">Sort length descending</button>
+      <button id="columnAddSortAsc" type="button" role="menuitem" data-command="column.addSortAscending">Then sort ascending</button>
+      <button id="columnAddSortDesc" type="button" role="menuitem" data-command="column.addSortDescending">Then sort descending</button>
+      <button id="columnFilterValue" type="button" role="menuitem" data-command="column.filterBySelectedValue">Filter by selected value</button>
+      <button id="columnFilterBlank" type="button" role="menuitem" data-command="column.filterBlanks">Show blanks</button>
+      <button id="columnFilterFilled" type="button" role="menuitem" data-command="column.filterNonBlanks">Show non-blanks</button>
       <label class="column-menu-control">
         <span>Text transform</span>
         <select id="columnTransformMode" aria-label="Column text transform">

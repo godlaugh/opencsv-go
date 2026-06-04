@@ -626,6 +626,15 @@ const localeCatalog = {
     "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
     "command.view.sort.title": "排序",
     "command.view.sort.description": "排序选中的列。",
+    "command.column.sortAscending.title": "按列升序排序",
+    "command.column.sortDescending.title": "按列降序排序",
+    "command.column.sortLengthAscending.title": "按列长度升序排序",
+    "command.column.sortLengthDescending.title": "按列长度降序排序",
+    "command.column.addSortAscending.title": "追加列升序排序",
+    "command.column.addSortDescending.title": "追加列降序排序",
+    "command.column.filterBySelectedValue.title": "按选中值筛选",
+    "command.column.filterBlanks.title": "只显示空值",
+    "command.column.filterNonBlanks.title": "只显示非空值",
     "command.edit.copy.title": "复制",
     "command.edit.copy.description": "以制表符分隔文本复制选中单元格。",
     "command.edit.copyWithHeaders.title": "复制并带表头",
@@ -892,6 +901,19 @@ const columnTextTransformSpecs = [
 ];
 const columnTextTransformCommands = new Map(columnTextTransformSpecs.map((spec) => [spec.id, spec]));
 const columnTextTransformCommandByMode = new Map(columnTextTransformSpecs.map((spec) => [spec.mode, spec.id]));
+const columnSortCommands = new Map([
+  ["column.sortAscending", { descending: false, append: false, mode: "" }],
+  ["column.sortDescending", { descending: true, append: false, mode: "" }],
+  ["column.sortLengthAscending", { descending: false, append: false, mode: "length" }],
+  ["column.sortLengthDescending", { descending: true, append: false, mode: "length" }],
+  ["column.addSortAscending", { descending: false, append: true, mode: "" }],
+  ["column.addSortDescending", { descending: true, append: true, mode: "" }],
+]);
+const columnFilterCommands = new Map([
+  ["column.filterBySelectedValue", { kind: "value" }],
+  ["column.filterBlanks", { kind: "blank" }],
+  ["column.filterNonBlanks", { kind: "nonblank" }],
+]);
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -2428,12 +2450,13 @@ function isCommandDisabled(command) {
   const needsSQLResult = sqlResultCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
+  const needsColumnAction = needsColumnTextTransform || columnSortCommands.has(command.id) || columnFilterCommands.has(command.id);
   const needsAggregate =
     command.id === "selection.copyAggregate" ||
     command.id === "selection.cycleAggregate" ||
     command.id === "selection.insertAggregateRow" ||
     aggregateRowCommandMetrics.has(command.id);
-  const needsColumn = command.id === "format.toggleColumnQuote" || needsColumnTextTransform;
+  const needsColumn = command.id === "format.toggleColumnQuote" || needsColumnAction;
   const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
   const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
   const needsHiddenColumn = command.id === "column.showAll";
@@ -4992,9 +5015,9 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("table.transpose", "Transpose");
     addCommand("table.dedupeRows", "Remove Duplicate Rows");
     addCommand("table.dedupeColumns", "Remove Duplicate Columns");
-    addItem("Filter by Cell", () => filterSelectedCellValue());
-    addItem("Sort Column Ascending", () => sortColumn(selected.col, false, false));
-    addItem("Sort Column Descending", () => sortColumn(selected.col, true, false));
+    addCommand("column.filterBySelectedValue", "Filter by Cell");
+    addCommand("column.sortAscending", "Sort Column Ascending");
+    addCommand("column.sortDescending", "Sort Column Descending");
   } else if (target.kind === "column") {
     addSeparator();
     addCommand("format.toggleColumnQuote", "Toggle Column Quote");
@@ -5003,9 +5026,16 @@ function renderGridContextMenu(target, clientX, clientY) {
       addCommand(spec.id, spec.label);
     }
     addSeparator();
-    addItem("Sort Ascending", () => sortColumn(selected.col, false, false));
-    addItem("Sort Descending", () => sortColumn(selected.col, true, false));
-    addItem("Filter Builder", () => openConditionBuilder());
+    addCommand("column.sortAscending", "Sort Ascending");
+    addCommand("column.sortDescending", "Sort Descending");
+    addCommand("column.sortLengthAscending", "Sort Length Ascending");
+    addCommand("column.sortLengthDescending", "Sort Length Descending");
+    addCommand("column.addSortAscending", "Then Sort Ascending");
+    addCommand("column.addSortDescending", "Then Sort Descending");
+    addCommand("column.filterBySelectedValue", "Filter by Selected Value");
+    addCommand("column.filterBlanks", "Show Blanks");
+    addCommand("column.filterNonBlanks", "Show Non-Blanks");
+    addCommand("view.filterBuilder", "Filter Builder");
   }
 
   if (target.kind !== "column") {
@@ -7202,6 +7232,19 @@ async function executeCommand(commandID) {
       break;
     case "view.sort":
       await sortSelectedColumn();
+      break;
+    case "column.sortAscending":
+    case "column.sortDescending":
+    case "column.sortLengthAscending":
+    case "column.sortLengthDescending":
+    case "column.addSortAscending":
+    case "column.addSortDescending":
+      await sortActiveColumnForCommand(commandID);
+      break;
+    case "column.filterBySelectedValue":
+    case "column.filterBlanks":
+    case "column.filterNonBlanks":
+      await filterActiveColumnForCommand(commandID);
       break;
     case "view.clear":
       await clearView();
@@ -11087,6 +11130,14 @@ async function sortSelectedColumn() {
   await sortColumn(selected.col, !sortDescending, false);
 }
 
+async function sortActiveColumnForCommand(commandID) {
+  const spec = columnSortCommands.get(commandID);
+  if (!spec) return;
+  const column = activeCommandColumn();
+  closeColumnMenu();
+  await sortColumn(column, spec.descending, spec.append, spec.mode);
+}
+
 async function sortColumn(column, descending, append, modeOverride = "") {
   if (!documentId || columns.length === 0 || !columns[column]) return;
   const nextKeys = nextSortKeys(column, descending, append, modeOverride);
@@ -11201,12 +11252,24 @@ function normalizeNumericForSort(value) {
     .replace(/[，,]/g, "");
 }
 
-async function filterColumnBySelectedValue() {
-  const column = columnMenuColumn;
+async function filterActiveColumnForCommand(commandID) {
+  const spec = columnFilterCommands.get(commandID);
+  if (!spec) return;
+  if (spec.kind === "value") {
+    await filterColumnBySelectedValue();
+    return;
+  }
+  await filterColumnBlank(spec.kind === "blank");
+}
+
+async function filterColumnBySelectedValue(column = activeCommandColumn()) {
   closeColumnMenu();
   if (!documentId || !columns[column]) return;
   const value = valueAt(selected.row, column);
-  if (value === "") return;
+  if (value === "") {
+    status.textContent = "Selected cell is blank.";
+    return;
+  }
   commandInput.value = value;
   await applyFilterRequest(
     { documentId, query: value, column: sourceColFor(column) },
@@ -11217,21 +11280,10 @@ async function filterColumnBySelectedValue() {
 
 async function filterSelectedCellValue() {
   if (!documentId || !columns[selected.col]) return;
-  const value = valueAt(selected.row, selected.col);
-  if (value === "") {
-    status.textContent = "Selected cell is blank.";
-    return;
-  }
-  commandInput.value = value;
-  await applyFilterRequest(
-    { documentId, query: value, column: sourceColFor(selected.col) },
-    `Filtered ${columns[selected.col].name}`,
-    selected.col,
-  );
+  await filterColumnBySelectedValue(selected.col);
 }
 
-async function filterColumnBlank(showBlank) {
-  const column = columnMenuColumn;
+async function filterColumnBlank(showBlank, column = activeCommandColumn()) {
   closeColumnMenu();
   if (!documentId || !columns[column]) return;
   const expression = `c${sourceColFor(column) + 1} ${showBlank ? "=" : "<>"} ''`;
@@ -11901,6 +11953,10 @@ async function transformColumnText(mode, label, column = activeTransformColumn()
 }
 
 function activeTransformColumn() {
+  return activeCommandColumn();
+}
+
+function activeCommandColumn() {
   return columnMenuColumn >= 0 ? columnMenuColumn : selected.col;
 }
 
@@ -15085,39 +15141,15 @@ window.addEventListener("mousedown", (event) => {
     closeGridContextMenu();
   }
 });
-columnSortAsc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, false, false);
-});
-columnSortDesc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, true, false);
-});
-columnSortLengthAsc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, false, false, "length");
-});
-columnSortLengthDesc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, true, false, "length");
-});
-columnAddSortAsc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, false, true);
-});
-columnAddSortDesc.addEventListener("click", async () => {
-  const column = columnMenuColumn;
-  closeColumnMenu();
-  await sortColumn(column, true, true);
-});
-columnFilterValue.addEventListener("click", filterColumnBySelectedValue);
-columnFilterBlank.addEventListener("click", () => filterColumnBlank(true));
-columnFilterFilled.addEventListener("click", () => filterColumnBlank(false));
+columnSortAsc.addEventListener("click", () => executeCommand("column.sortAscending"));
+columnSortDesc.addEventListener("click", () => executeCommand("column.sortDescending"));
+columnSortLengthAsc.addEventListener("click", () => executeCommand("column.sortLengthAscending"));
+columnSortLengthDesc.addEventListener("click", () => executeCommand("column.sortLengthDescending"));
+columnAddSortAsc.addEventListener("click", () => executeCommand("column.addSortAscending"));
+columnAddSortDesc.addEventListener("click", () => executeCommand("column.addSortDescending"));
+columnFilterValue.addEventListener("click", () => executeCommand("column.filterBySelectedValue"));
+columnFilterBlank.addEventListener("click", () => executeCommand("column.filterBlanks"));
+columnFilterFilled.addEventListener("click", () => executeCommand("column.filterNonBlanks"));
 columnTransformMode.addEventListener("change", syncColumnTransformCommand);
 columnTransformApply.addEventListener("click", () => executeCommand(syncColumnTransformCommand()));
 columnApplyValues.addEventListener("click", applyColumnValueChecklist);
