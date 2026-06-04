@@ -417,6 +417,10 @@ const localeCatalog = {
     "status.ready": "Ready",
     "status.languageChanged": "Language updated.",
     "status.languageReset": "Language reset.",
+    "command.selection.insertAverageRow.title": "Add Average Row",
+    "command.selection.insertAverageRow.description": "Add a removable average row for the selected numeric cells.",
+    "command.selection.insertCountRow.title": "Add Count Row",
+    "command.selection.insertCountRow.description": "Add a removable count row for the selected cells.",
   },
   ja: {
     "nav.grid": "グリッド",
@@ -587,6 +591,93 @@ const localeCatalog = {
     "status.ready": "就绪",
     "status.languageChanged": "语言已更新。",
     "status.languageReset": "语言已重置。",
+    "command.command.palette.title": "命令面板",
+    "command.command.palette.description": "搜索并运行可用命令。",
+    "command.settings.open.title": "设置",
+    "command.settings.open.description": "打开应用设置和文件格式预设管理。",
+    "command.settings.keyboardShortcuts.title": "键盘快捷键",
+    "command.settings.keyboardShortcuts.description": "自定义命令快捷键。",
+    "command.file.open.title": "打开",
+    "command.file.open.description": "打开 CSV 或分隔文本文件。",
+    "command.file.save.title": "保存",
+    "command.file.save.description": "按备份策略保存当前文档。",
+    "command.file.saveAs.title": "另存为",
+    "command.file.saveAs.description": "将当前文档保存到指定本地路径。",
+    "command.file.exportView.title": "导出视图",
+    "command.file.exportView.description": "下载当前筛选、排序和可见列视图。",
+    "command.file.exportXlsx.title": "导出 XLSX",
+    "command.file.exportXlsx.description": "将当前视图下载为 Excel 工作簿。",
+    "command.file.toggleReadOnly.title": "切换只读",
+    "command.file.toggleReadOnly.description": "阻止或允许编辑当前文档。",
+    "command.diff.open.title": "比较",
+    "command.diff.open.description": "并排比较两个 CSV 文件。",
+    "command.view.sql.title": "SQL 控制台",
+    "command.view.sql.description": "打开当前工作区的 SQL 控制台。",
+    "command.view.profile.title": "概况",
+    "command.view.profile.description": "显示列概况和数据质量指标。",
+    "command.view.filter.title": "筛选",
+    "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
+    "command.view.filterBuilder.title": "筛选构建器",
+    "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
+    "command.view.sort.title": "排序",
+    "command.view.sort.description": "排序选中的列。",
+    "command.edit.copy.title": "复制",
+    "command.edit.copy.description": "以制表符分隔文本复制选中单元格。",
+    "command.edit.copyWithHeaders.title": "复制并带表头",
+    "command.edit.copyWithHeaders.description": "复制选中单元格并包含表头行。",
+    "command.edit.copyCsv.title": "复制为 CSV",
+    "command.edit.copyMarkdown.title": "复制为 Markdown",
+    "command.edit.copyJson.title": "复制为 JSON",
+    "command.edit.copyHtml.title": "复制为 HTML",
+    "command.edit.copySql.title": "复制为 SQL",
+    "command.edit.copyLatex.title": "复制为 LaTeX",
+    "command.edit.copyRaw.title": "复制原始值",
+    "command.edit.find.title": "查找",
+    "command.edit.find.description": "查找匹配查询的单元格。",
+    "command.edit.replacePreview.title": "预览替换",
+    "command.edit.replacePreview.description": "替换文本前预览会变更的单元格。",
+    "command.edit.replace.title": "替换",
+    "command.edit.replace.description": "替换当前匹配项。",
+    "command.edit.replaceAll.title": "全部替换",
+    "command.edit.replaceAll.description": "替换当前文档中的所有匹配项。",
+    "command.selection.cycleAggregate.title": "切换选区聚合",
+    "command.selection.cycleAggregate.description": "切换当前选区的状态栏聚合值。",
+    "command.selection.copyAggregate.title": "复制选区聚合",
+    "command.selection.copyAggregate.description": "复制当前状态栏聚合值。",
+    "command.selection.insertAggregateRow.title": "添加聚合行",
+    "command.selection.insertAggregateRow.description": "为当前选区添加一行可移除的聚合行，不修改文件数据。",
+    "command.selection.insertSumRow.title": "添加求和行",
+    "command.selection.insertSumRow.description": "为选中的数值单元格添加可移除的求和行。",
+    "command.selection.insertAverageRow.title": "添加平均行",
+    "command.selection.insertAverageRow.description": "为选中的数值单元格添加可移除的平均值行。",
+    "command.selection.insertMinRow.title": "添加最小值行",
+    "command.selection.insertMinRow.description": "为选中的数值单元格添加可移除的最小值行。",
+    "command.selection.insertMaxRow.title": "添加最大值行",
+    "command.selection.insertMaxRow.description": "为选中的数值单元格添加可移除的最大值行。",
+    "command.selection.insertCountRow.title": "添加计数行",
+    "command.selection.insertCountRow.description": "为选中的单元格添加可移除的计数行。",
+    "command.table.transpose.title": "转置",
+    "command.table.transpose.description": "转置当前表格或选中的矩形区域。",
+    "command.table.dedupeRows.title": "删除重复行",
+    "command.table.dedupeColumns.title": "删除重复列",
+    "command.text.trim.title": "修剪文本",
+    "command.text.uppercase.title": "转大写",
+    "command.text.lowercase.title": "转小写",
+    "command.text.fullWidth.title": "转全角",
+    "command.text.halfWidth.title": "转半角",
+    "command.cell.joinHorizontal.title": "合并单元格",
+    "command.cell.splitHorizontal.title": "拆分单元格",
+    "command.cell.joinVertical.title": "纵向合并单元格",
+    "command.cell.splitVertical.title": "纵向拆分单元格",
+    "command.row.insert.title": "插入行",
+    "command.row.delete.title": "删除行",
+    "command.row.cut.title": "剪切行",
+    "command.row.paste.title": "粘贴行",
+    "command.column.insert.title": "插入列",
+    "command.column.delete.title": "删除列",
+    "command.column.cut.title": "剪切列",
+    "command.column.paste.title": "粘贴列",
+    "command.view.clear.title": "清除视图",
   },
   pt: {
     "nav.grid": "Grade",
@@ -1117,6 +1208,21 @@ function t(key) {
   return localeCatalog[localePreference]?.[key] || localeCatalog[defaultLocale][key] || key;
 }
 
+function translationOrEmpty(key) {
+  const value = t(key);
+  return value === key ? "" : value;
+}
+
+function localizedCommandTitle(command) {
+  if (!command) return "";
+  return translationOrEmpty(`command.${command.id}.title`) || command.title || command.id || "";
+}
+
+function localizedCommandDescription(command) {
+  if (!command) return "";
+  return translationOrEmpty(`command.${command.id}.description`) || command.description || "";
+}
+
 function setLocalePreference(locale, persist = true) {
   localePreference = normalizeLocalePreference(locale);
   if (persist) {
@@ -1125,7 +1231,13 @@ function setLocalePreference(locale, persist = true) {
   document.documentElement.lang = localeLanguageTag();
   document.body.dataset.locale = localePreference;
   syncLocaleControls();
-  applyLocaleStrings();
+  if (commandsById.size) {
+    applyCommandMetadata();
+  } else {
+    applyLocaleStrings();
+  }
+  if (paletteOpen) renderCommandPalette();
+  if (shortcutEditorOpen) renderKeyboardShortcuts();
   renderFileList();
 }
 
@@ -2161,8 +2273,8 @@ function applyCommandMetadata() {
     if (!command) continue;
     const shortcut = effectiveShortcut(command);
     button.title = shortcut
-      ? `${command.description} (${shortcut})`
-      : command.description;
+      ? `${localizedCommandDescription(command)} (${shortcut})`
+      : localizedCommandDescription(command);
     if (button.dataset.command === "edit.replaceAll") {
       button.textContent = "All";
     } else if (button.dataset.command === "command.palette") {
@@ -2232,7 +2344,7 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "view.importSavedSets") {
       button.textContent = "Import Views";
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
-      button.textContent = command.title.replace("Replace All", "All");
+      button.textContent = localizedCommandTitle(command).replace("Replace All", t("edit.all"));
     }
   }
   applyLocaleStrings();
@@ -4770,7 +4882,11 @@ function renderGridContextMenu(target, clientX, clientY) {
   const addCommand = (commandID, label = "") => {
     const command = commandsById.get(commandID);
     contextCommandIDs.push(commandID);
-    addItem(label || commandTitle(command || { id: commandID }), () => executeCommand(commandID), {
+    const fallbackLabel = label || commandTitle(command || { id: commandID });
+    const localizedLabel = command && label === command.title
+      ? localizedCommandTitle(command)
+      : (translationOrEmpty(`context.${commandID}`) || (label ? fallbackLabel : commandTitle(command || { id: commandID })));
+    addItem(localizedLabel, () => executeCommand(commandID), {
       commandID,
       disabled: !command || isCommandDisabled(command),
     });
@@ -5267,9 +5383,9 @@ function renderKeyboardShortcuts() {
 
     const meta = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = command.title;
+    title.textContent = localizedCommandTitle(command);
     const description = document.createElement("span");
-    description.textContent = command.description;
+    description.textContent = localizedCommandDescription(command);
     meta.append(title, description);
 
     const binding = effectiveShortcutBinding(command);
@@ -5281,7 +5397,7 @@ function renderKeyboardShortcuts() {
 
     const contextSelect = document.createElement("select");
     contextSelect.className = "shortcut-context";
-    contextSelect.setAttribute("aria-label", `${command.title} shortcut context`);
+    contextSelect.setAttribute("aria-label", `${localizedCommandTitle(command)} shortcut context`);
     for (const optionValue of shortcutContextOptions) {
       const option = document.createElement("option");
       option.value = optionValue.id;
@@ -5318,7 +5434,7 @@ function renderKeyboardShortcuts() {
       const conflictNote = document.createElement("span");
       conflictNote.className = "shortcut-conflict";
       conflictNote.textContent = conflictCommand
-        ? `${pendingShortcutConflict.shortcut} is assigned to ${conflictCommand.title}`
+        ? `${pendingShortcutConflict.shortcut} is assigned to ${localizedCommandTitle(conflictCommand)}`
         : `${pendingShortcutConflict.shortcut} is already assigned`;
       const replaceButton = document.createElement("button");
       replaceButton.type = "button";
@@ -5543,7 +5659,7 @@ function updateShortcutContext(command, whenValue) {
   if (!next.shortcut) {
     customShortcuts.delete(command.id);
     saveCustomShortcuts();
-    status.textContent = `Reset shortcut context for ${command.title}`;
+    status.textContent = `Reset shortcut context for ${localizedCommandTitle(command)}`;
     return;
   }
   const conflict = commandForShortcutWithMap(next.shortcut, next.when, command.id, customShortcuts);
@@ -5559,7 +5675,7 @@ function updateShortcutContext(command, whenValue) {
   }
   document.body.dataset.shortcutContext = `${command.id}:${next.when || "always"}`;
   saveCustomShortcuts();
-  status.textContent = `${command.title} shortcut context: ${shortcutContextLabel(next.when)}.`;
+  status.textContent = `${localizedCommandTitle(command)} shortcut context: ${shortcutContextLabel(next.when)}.`;
 }
 
 function mergeImportedShortcuts(imported) {
@@ -5614,7 +5730,7 @@ function resetCustomShortcut(commandID) {
   pendingShortcutConflict = null;
   customShortcuts.delete(commandID);
   saveCustomShortcuts();
-  status.textContent = `Reset shortcut for ${command.title}`;
+  status.textContent = `Reset shortcut for ${localizedCommandTitle(command)}`;
 }
 
 function handleShortcutEditorKeydown(event) {
@@ -5654,7 +5770,7 @@ function handleShortcutEditorKeydown(event) {
   recordingShortcutID = "";
   pendingShortcutConflict = null;
   saveCustomShortcuts();
-  status.textContent = `Shortcut for ${command.title}: ${shortcut}`;
+  status.textContent = `Shortcut for ${localizedCommandTitle(command)}: ${shortcut}`;
   return true;
 }
 
@@ -5901,7 +6017,7 @@ function runCustomShortcut(event) {
   if (!command) return false;
   event.preventDefault();
   if (isCommandDisabled(command)) {
-    status.textContent = `${command.title} is unavailable.`;
+    status.textContent = `${localizedCommandTitle(command)} is unavailable.`;
     return true;
   }
   executeCommand(command.id);
@@ -6463,9 +6579,9 @@ function renderCommandPalette() {
     button.setAttribute("aria-selected", String(index === paletteIndex));
 
     const title = document.createElement("strong");
-    title.textContent = command.title;
+    title.textContent = localizedCommandTitle(command);
     const description = document.createElement("span");
-    description.textContent = command.description;
+    description.textContent = localizedCommandDescription(command);
     const shortcut = document.createElement("kbd");
     shortcut.textContent = effectiveShortcut(command);
     button.append(title, description, shortcut);
@@ -6501,6 +6617,8 @@ function commandFuzzyScore(command, query) {
     command.id,
     command.title,
     command.description,
+    localizedCommandTitle(command),
+    localizedCommandDescription(command),
     ...(command.aliases ?? []),
   ].filter(Boolean);
   let best = 0;
@@ -6532,7 +6650,7 @@ function fuzzyScore(value, query) {
 }
 
 function commandTitle(command) {
-  return command.title || command.id || "";
+  return localizedCommandTitle(command);
 }
 
 function commandHistory() {
@@ -6570,7 +6688,7 @@ function emptyPaletteNode(message) {
 async function executePaletteCommand(commandID) {
   const command = commandsById.get(commandID);
   if (!command || isCommandDisabled(command)) {
-    status.textContent = command ? `${command.title} is unavailable.` : "Command unavailable.";
+    status.textContent = command ? `${localizedCommandTitle(command)} is unavailable.` : "Command unavailable.";
     return;
   }
   closeCommandPalette();
