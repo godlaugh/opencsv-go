@@ -277,6 +277,8 @@ const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
+const conditionPrimaryOpenGroup = document.querySelector("#conditionPrimaryOpenGroup");
+const conditionPrimaryCloseGroup = document.querySelector("#conditionPrimaryCloseGroup");
 const conditionRows = document.querySelector("#conditionRows");
 const closeConditionButton = document.querySelector("#closeConditionButton");
 const addConditionButton = document.querySelector("#addConditionButton");
@@ -6102,8 +6104,29 @@ function conditionOperatorOptionsFragment() {
 }
 
 function renderConditionExtraRows() {
+  conditionExtraRows = normalizeConditionExtraRowsForGroups(conditionExtraRows);
   conditionRows.replaceChildren(...conditionExtraRows.map((row, index) => conditionExtraRowElement(row, index)));
   updateConditionValueState();
+}
+
+function normalizeConditionExtraRowsForGroups(rows) {
+  const normalized = rows.map((row) => ({
+    ...row,
+    groupStart: conditionGroupCount(row.groupStart),
+    groupEnd: conditionGroupCount(row.groupEnd),
+  }));
+  rows.forEach((row, index) => {
+    if (!row?.groupPrevious || row.groupStart != null || row.groupEnd != null) return;
+    if (index === 0) {
+      if (conditionPrimaryOpenGroup && conditionGroupCount(conditionPrimaryOpenGroup.value) === 0) {
+        conditionPrimaryOpenGroup.value = "1";
+      }
+    } else {
+      normalized[index - 1].groupStart = Math.max(1, normalized[index - 1].groupStart);
+    }
+    normalized[index].groupEnd = Math.max(1, normalized[index].groupEnd);
+  });
+  return normalized;
 }
 
 function conditionExtraRowElement(row, index) {
@@ -6133,17 +6156,21 @@ function conditionExtraRowElement(row, index) {
   joinLabel.append(joinSelect);
   fieldset.append(joinLabel);
 
-  const groupLabel = document.createElement("label");
-  groupLabel.className = "condition-group-control";
-  groupLabel.title = "Group this condition with the previous condition";
-  const groupCheckbox = document.createElement("input");
-  groupCheckbox.className = "condition-group-previous";
-  groupCheckbox.dataset.conditionField = "groupPrevious";
-  groupCheckbox.type = "checkbox";
-  groupCheckbox.checked = Boolean(row.groupPrevious);
-  groupCheckbox.setAttribute("aria-label", `Group condition ${number} with previous`);
-  groupLabel.append(groupCheckbox, conditionLabelText("Group"));
-  fieldset.append(groupLabel);
+  const openLabel = document.createElement("label");
+  openLabel.className = "condition-group-open-control";
+  openLabel.title = "Open a group before this condition";
+  openLabel.append(conditionLabelText("("));
+  const openSelect = conditionGroupCountSelect("groupStart", Number(row.groupStart ?? 0), "(", `Open group before condition ${number}`);
+  openLabel.append(openSelect);
+  fieldset.append(openLabel);
+
+  const closeLabel = document.createElement("label");
+  closeLabel.className = "condition-group-close-control";
+  closeLabel.title = "Close a group after this condition";
+  closeLabel.append(conditionLabelText(")"));
+  const closeSelect = conditionGroupCountSelect("groupEnd", Number(row.groupEnd ?? 0), ")", `Close group after condition ${number}`);
+  closeLabel.append(closeSelect);
+  fieldset.append(closeLabel);
 
   const columnLabel = document.createElement("label");
   columnLabel.append(conditionLabelText("Column"));
@@ -6195,6 +6222,27 @@ function conditionLabelText(text) {
   return span;
 }
 
+function conditionGroupCountSelect(field, value, symbol, label) {
+  const select = document.createElement("select");
+  select.className = `condition-group-${field === "groupStart" ? "open" : "close"}`;
+  select.dataset.conditionField = field;
+  select.setAttribute("aria-label", label);
+  for (let count = 0; count <= 3; count++) {
+    const option = document.createElement("option");
+    option.value = String(count);
+    option.textContent = count === 0 ? "0" : symbol.repeat(count);
+    select.append(option);
+  }
+  select.value = String(conditionGroupCount(value));
+  return select;
+}
+
+function conditionGroupCount(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(3, Math.trunc(number)));
+}
+
 function updateConditionValueState() {
   updateConditionValueInput(conditionOperator, conditionValue);
   for (const row of conditionRows.querySelectorAll(".condition-row-extra")) {
@@ -6204,8 +6252,14 @@ function updateConditionValueState() {
     );
   }
   const joins = Array.from(conditionRows.querySelectorAll(".condition-join-select")).map((select) => select.value);
-  const nestedCount = conditionRows.querySelectorAll(".condition-group-previous:checked").length;
+  const groupStarts = [conditionPrimaryOpenGroup, ...conditionRows.querySelectorAll(".condition-group-open")]
+    .map((select) => conditionGroupCount(select?.value));
+  const groupEnds = [conditionPrimaryCloseGroup, ...conditionRows.querySelectorAll(".condition-group-close")]
+    .map((select) => conditionGroupCount(select?.value));
+  const nestedCount = groupStarts.reduce((sum, count) => sum + count, 0);
   document.body.dataset.conditionGrouped = joins.join(",");
+  document.body.dataset.conditionGroupOpen = groupStarts.join(",");
+  document.body.dataset.conditionGroupClose = groupEnds.join(",");
   document.body.dataset.conditionNestedGroupCount = String(nestedCount);
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
 }
@@ -6232,45 +6286,27 @@ function conditionValuePlaceholder(operator) {
 async function applyConditionBuilder() {
   if (!documentId) return;
   readConditionExtraRowsFromDOM();
-  const builders = [
-    {
-      sourceCol: Number(conditionColumn.value),
-      operator: conditionOperator.value,
-      value: conditionValue.value,
-      valueInput: conditionValue,
-    },
-    ...Array.from(conditionRows.querySelectorAll(".condition-row-extra")).map((row) => ({
-      join: row.querySelector(".condition-join-select")?.value === "OR" ? "OR" : "AND",
-      sourceCol: Number(row.querySelector(".condition-column")?.value),
-      operator: row.querySelector(".condition-operator")?.value,
-      value: row.querySelector(".condition-value")?.value ?? "",
-      valueInput: row.querySelector(".condition-value"),
-      groupPrevious: row.querySelector(".condition-group-previous")?.checked ?? false,
-    })),
-  ];
+  const builders = conditionBuilderRowsFromDOM();
   const nodes = [];
+  const groupedTerms = [];
   for (const [index, builder] of builders.entries()) {
     const next = conditionExpression(builder.sourceCol, builder.operator, builder.value, builder.valueInput);
     if (!next) return;
-    const node = {
+    nodes.push({
       join: index === 0 ? "" : builder.join,
       expression: next,
-    };
-    if (builder.groupPrevious && nodes.length > 0) {
-      const previous = nodes.pop();
-      nodes.push({
-        join: previous.join,
-        expression: `(${previous.expression}) ${builder.join} (${node.expression})`,
-        grouped: true,
-      });
-    } else {
-      nodes.push(node);
-    }
+    });
+    groupedTerms.push({ ...builder, join: index === 0 ? "" : builder.join, expression: next });
   }
-  const expression = conditionNodesExpression(nodes);
+  const hasExplicitGroups = groupedTerms.some((term) => term.groupStart > 0 || term.groupEnd > 0);
+  const expression = hasExplicitGroups
+    ? conditionGroupedExpression(groupedTerms)
+    : conditionNodesExpression(nodes);
+  if (!expression) return;
   document.body.dataset.conditionPreview = expression;
-  document.body.dataset.conditionNestedGroupCount = String(nodes.filter((node) => node.grouped).length);
+  document.body.dataset.conditionNestedGroupCount = String(groupedTerms.reduce((sum, term) => sum + term.groupStart, 0));
   document.body.dataset.conditionRowCount = String(builders.length);
+  document.body.dataset.conditionGroupingMode = hasExplicitGroups ? "explicit" : "implicit";
   commandInput.value = `where ${expression}`;
   closeConditionBuilder();
   const visibleCol = visibleColForSource(Number(conditionColumn.value));
@@ -6288,7 +6324,8 @@ function addConditionRow() {
     column: conditionColumn.value || String(sourceColFor(selected.col)),
     operator: "contains",
     value: "",
-    groupPrevious: false,
+    groupStart: 0,
+    groupEnd: 0,
   });
   renderConditionExtraRows();
   const valueInput = conditionRows.querySelector(".condition-row-extra:last-child .condition-value");
@@ -6364,8 +6401,61 @@ function readConditionExtraRowsFromDOM() {
     column: row.querySelector(".condition-column")?.value || "",
     operator: row.querySelector(".condition-operator")?.value || "contains",
     value: row.querySelector(".condition-value")?.value || "",
-    groupPrevious: row.querySelector(".condition-group-previous")?.checked ?? false,
+    groupStart: conditionGroupCount(row.querySelector(".condition-group-open")?.value),
+    groupEnd: conditionGroupCount(row.querySelector(".condition-group-close")?.value),
   }));
+}
+
+function conditionBuilderRowsFromDOM() {
+  return [
+    {
+      join: "",
+      sourceCol: Number(conditionColumn.value),
+      operator: conditionOperator.value,
+      value: conditionValue.value,
+      valueInput: conditionValue,
+      groupStart: conditionGroupCount(conditionPrimaryOpenGroup?.value),
+      groupEnd: conditionGroupCount(conditionPrimaryCloseGroup?.value),
+    },
+    ...Array.from(conditionRows.querySelectorAll(".condition-row-extra")).map((row) => conditionExtraBuilderFromElement(row)),
+  ];
+}
+
+function conditionExtraBuilderFromElement(row) {
+  return {
+    join: row.querySelector(".condition-join-select")?.value === "OR" ? "OR" : "AND",
+    sourceCol: Number(row.querySelector(".condition-column")?.value),
+    operator: row.querySelector(".condition-operator")?.value,
+    value: row.querySelector(".condition-value")?.value ?? "",
+    valueInput: row.querySelector(".condition-value"),
+    groupStart: conditionGroupCount(row.querySelector(".condition-group-open")?.value),
+    groupEnd: conditionGroupCount(row.querySelector(".condition-group-close")?.value),
+  };
+}
+
+function conditionGroupedExpression(terms) {
+  let depth = 0;
+  const parts = [];
+  for (const [index, term] of terms.entries()) {
+    const open = conditionGroupCount(term.groupStart);
+    const close = conditionGroupCount(term.groupEnd);
+    depth += open;
+    if (close > depth) {
+      status.textContent = `Condition ${index + 1} closes more groups than are open.`;
+      term.valueInput?.focus();
+      return "";
+    }
+    const condition = `${"(".repeat(open)}${term.expression}${")".repeat(close)}`;
+    parts.push(index === 0 ? condition : `${term.join} ${condition}`);
+    depth -= close;
+  }
+  if (depth !== 0) {
+    status.textContent = "Close every condition group before applying.";
+    const lastInput = terms[terms.length - 1]?.valueInput;
+    lastInput?.focus();
+    return "";
+  }
+  return parts.join(" ");
 }
 
 function conditionNodesExpression(nodes) {
@@ -14926,6 +15016,8 @@ filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
 conditionOperator.addEventListener("change", updateConditionValueState);
+conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
+conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 conditionRows.addEventListener("change", updateConditionValueState);

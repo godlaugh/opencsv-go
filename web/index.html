@@ -766,6 +766,24 @@
           </div>
           <fieldset class="condition-row" data-condition-row="primary">
             <legend>Condition 1</legend>
+            <label class="condition-group-open-control">
+              <span>(</span>
+              <select id="conditionPrimaryOpenGroup" aria-label="Open group before condition 1">
+                <option value="0">0</option>
+                <option value="1">(</option>
+                <option value="2">((</option>
+                <option value="3">(((</option>
+              </select>
+            </label>
+            <label class="condition-group-close-control">
+              <span>)</span>
+              <select id="conditionPrimaryCloseGroup" aria-label="Close group after condition 1">
+                <option value="0">0</option>
+                <option value="1">)</option>
+                <option value="2">))</option>
+                <option value="3">)))</option>
+              </select>
+            </label>
             <label>
               <span>Column</span>
               <select id="conditionColumn" aria-label="Filter column"></select>

@@ -1683,7 +1683,7 @@ button:disabled {
 
 .condition-panel {
   display: grid;
-  width: min(720px, calc(100vw - 32px));
+  width: min(860px, calc(100vw - 32px));
   grid-template-rows: auto auto auto;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1820,7 +1820,7 @@ button:disabled {
 
 .condition-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
+  grid-template-columns: 62px 62px minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
   gap: 10px;
   min-width: 0;
   margin: 0;
@@ -1837,7 +1837,7 @@ button:disabled {
 }
 
 .condition-row-extra {
-  grid-template-columns: 82px 86px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) auto;
+  grid-template-columns: 82px 62px 62px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) auto;
 }
 
 .condition-row-extra legend {
@@ -1848,16 +1848,9 @@ button:disabled {
   align-self: end;
 }
 
-.condition-row-extra .condition-group-control {
-  align-items: center;
+.condition-group-open-control,
+.condition-group-close-control {
   align-self: end;
-  min-height: 34px;
-  flex-direction: row;
-  gap: 6px;
-}
-
-.condition-row-extra .condition-group-control input {
-  width: auto;
 }
 
 .condition-row-extra .condition-remove-button {
