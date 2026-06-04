@@ -670,6 +670,16 @@ const localeCatalog = {
     "command.text.lowercase.title": "转小写",
     "command.text.fullWidth.title": "转全角",
     "command.text.halfWidth.title": "转半角",
+    "command.text.column.trim.title": "修剪整列文本",
+    "command.text.column.uppercase.title": "整列转大写",
+    "command.text.column.lowercase.title": "整列转小写",
+    "command.text.column.snakeCase.title": "整列转蛇形命名",
+    "command.text.column.kebabCase.title": "整列转短横线命名",
+    "command.text.column.camelCase.title": "整列转驼峰命名",
+    "command.text.column.pascalCase.title": "整列转帕斯卡命名",
+    "command.text.column.titleCase.title": "整列转标题大小写",
+    "command.text.column.fullWidth.title": "整列转全角",
+    "command.text.column.halfWidth.title": "整列转半角",
     "command.cell.joinHorizontal.title": "合并单元格",
     "command.cell.splitHorizontal.title": "拆分单元格",
     "command.cell.joinVertical.title": "纵向合并单元格",
@@ -868,6 +878,20 @@ const aggregateRowCommandMetrics = new Map([
   ["selection.insertMaxRow", "max"],
   ["selection.insertCountRow", "count"],
 ]);
+const columnTextTransformSpecs = [
+  { id: "text.column.trim", mode: "trim", label: "Trim Column" },
+  { id: "text.column.uppercase", mode: "upper", label: "Uppercase Column" },
+  { id: "text.column.lowercase", mode: "lower", label: "Lowercase Column" },
+  { id: "text.column.snakeCase", mode: "snake", label: "Snake Case Column" },
+  { id: "text.column.kebabCase", mode: "kebab", label: "Kebab Case Column" },
+  { id: "text.column.camelCase", mode: "camel", label: "Camel Case Column" },
+  { id: "text.column.pascalCase", mode: "pascal", label: "Pascal Case Column" },
+  { id: "text.column.titleCase", mode: "title", label: "Title Case Column" },
+  { id: "text.column.fullWidth", mode: "wide", label: "Full Width Column" },
+  { id: "text.column.halfWidth", mode: "narrow", label: "Half Width Column" },
+];
+const columnTextTransformCommands = new Map(columnTextTransformSpecs.map((spec) => [spec.id, spec]));
+const columnTextTransformCommandByMode = new Map(columnTextTransformSpecs.map((spec) => [spec.mode, spec.id]));
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -2403,12 +2427,13 @@ function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = sqlResultCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
+  const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
   const needsAggregate =
     command.id === "selection.copyAggregate" ||
     command.id === "selection.cycleAggregate" ||
     command.id === "selection.insertAggregateRow" ||
     aggregateRowCommandMetrics.has(command.id);
-  const needsColumn = command.id === "format.toggleColumnQuote";
+  const needsColumn = command.id === "format.toggleColumnQuote" || needsColumnTextTransform;
   const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
   const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
   const needsHiddenColumn = command.id === "column.showAll";
@@ -2461,6 +2486,7 @@ function isCommandDisabled(command) {
       command.id === "text.titleCase" ||
       command.id === "text.fullWidth" ||
       command.id === "text.halfWidth" ||
+      needsColumnTextTransform ||
       command.id === "cell.swap" ||
       command.id === "cell.swapUp" ||
       command.id === "cell.swapDown" ||
@@ -4972,6 +4998,11 @@ function renderGridContextMenu(target, clientX, clientY) {
   } else if (target.kind === "column") {
     addSeparator();
     addCommand("format.toggleColumnQuote", "Toggle Column Quote");
+    addSeparator();
+    for (const spec of columnTextTransformSpecs) {
+      addCommand(spec.id, spec.label);
+    }
+    addSeparator();
     addItem("Sort Ascending", () => sortColumn(selected.col, false, false));
     addItem("Sort Descending", () => sortColumn(selected.col, true, false));
     addItem("Filter Builder", () => openConditionBuilder());
@@ -7100,6 +7131,18 @@ async function executeCommand(commandID) {
     case "text.halfWidth":
       await transformSelectedText("narrow", "Half Width");
       break;
+    case "text.column.trim":
+    case "text.column.uppercase":
+    case "text.column.lowercase":
+    case "text.column.snakeCase":
+    case "text.column.kebabCase":
+    case "text.column.camelCase":
+    case "text.column.pascalCase":
+    case "text.column.titleCase":
+    case "text.column.fullWidth":
+    case "text.column.halfWidth":
+      await transformColumnTextForCommand(commandID);
+      break;
     case "cell.swap":
       await swapSelectedCells();
       break;
@@ -8096,6 +8139,7 @@ function openColumnMenu(col, clientX, clientY) {
       : `Filter: ${truncateMenuValue(selectedValue)}`;
   columnFilterValue.disabled = selectedValue === "";
   columnTransformApply.disabled = readOnly;
+  syncColumnTransformCommand();
   columnShowAll.disabled = hiddenSourceColumns.size === 0;
   renderColumnValuesLoading();
   columnMenu.hidden = false;
@@ -11824,15 +11868,18 @@ async function transformSelectedText(mode, label) {
   );
 }
 
-async function transformCurrentColumnText() {
-  const column = columnMenuColumn;
-  const mode = columnTransformMode?.value || "trim";
-  const label = columnTransformLabel(mode);
+async function transformColumnTextForCommand(commandID) {
+  const spec = columnTextTransformCommands.get(commandID);
+  if (!spec) return;
+  await transformColumnText(spec.mode, spec.label);
+}
+
+async function transformColumnText(mode, label, column = activeTransformColumn()) {
   closeColumnMenu();
   if (!documentId || !columns[column]) return;
-  if (!ensureEditable(`${label} Column`)) return;
+  if (!ensureEditable(label)) return;
   const sourceCol = sourceColFor(column);
-  status.textContent = `${label} Column...`;
+  status.textContent = `${label}...`;
   const response = await fetch("/api/text-transform", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -11840,7 +11887,7 @@ async function transformCurrentColumnText() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} Column failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
     return;
   }
   const changed = payload.changed ?? 0;
@@ -11848,14 +11895,20 @@ async function transformCurrentColumnText() {
   applyMutationPayload(
     payload,
     changed > 0
-      ? `${label} Column: ${formatCount(changed)} cells changed`
-      : `${label} Column: no cells changed`,
+      ? `${label}: ${formatCount(changed)} cells changed`
+      : `${label}: no cells changed`,
   );
 }
 
-function columnTransformLabel(mode) {
-  const option = Array.from(columnTransformMode?.options || []).find((item) => item.value === mode);
-  return option?.textContent || "Text Transform";
+function activeTransformColumn() {
+  return columnMenuColumn >= 0 ? columnMenuColumn : selected.col;
+}
+
+function syncColumnTransformCommand() {
+  const mode = columnTransformMode?.value || "trim";
+  const commandID = columnTextTransformCommandByMode.get(mode) || "text.column.trim";
+  if (columnTransformApply) columnTransformApply.dataset.command = commandID;
+  return commandID;
 }
 
 async function swapSelectedCells() {
@@ -15065,7 +15118,8 @@ columnAddSortDesc.addEventListener("click", async () => {
 columnFilterValue.addEventListener("click", filterColumnBySelectedValue);
 columnFilterBlank.addEventListener("click", () => filterColumnBlank(true));
 columnFilterFilled.addEventListener("click", () => filterColumnBlank(false));
-columnTransformApply.addEventListener("click", transformCurrentColumnText);
+columnTransformMode.addEventListener("change", syncColumnTransformCommand);
+columnTransformApply.addEventListener("click", () => executeCommand(syncColumnTransformCommand()));
 columnApplyValues.addEventListener("click", applyColumnValueChecklist);
 columnHide.addEventListener("click", () => {
   const column = columnMenuColumn;
