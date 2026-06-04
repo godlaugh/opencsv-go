@@ -619,7 +619,7 @@ The app shall support:
 
 - Selection summary in status bar: sum, average, minimum, maximum, count.
 - Switch/copy the active status-bar aggregate value.
-- Add aggregate rows to the grid.
+- Add aggregate rows to the grid for sum, average, minimum, maximum, and count.
 - Column profile basics: type, null ratio, distinct count, min/max for numeric/date-like values.
 
 Acceptance:

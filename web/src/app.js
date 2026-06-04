@@ -765,6 +765,13 @@ const defaultEditorAppearance = {
   editorFont: "mono",
   editorSize: 13,
 };
+const aggregateRowCommandMetrics = new Map([
+  ["selection.insertSumRow", "sum"],
+  ["selection.insertAverageRow", "avg"],
+  ["selection.insertMinRow", "min"],
+  ["selection.insertMaxRow", "max"],
+  ["selection.insertCountRow", "count"],
+]);
 
 let totalRows = 0;
 let sourceRowCount = 0;
@@ -2282,7 +2289,8 @@ function isCommandDisabled(command) {
   const needsAggregate =
     command.id === "selection.copyAggregate" ||
     command.id === "selection.cycleAggregate" ||
-    command.id === "selection.insertAggregateRow";
+    command.id === "selection.insertAggregateRow" ||
+    aggregateRowCommandMetrics.has(command.id);
   const needsColumn = command.id === "format.toggleColumnQuote";
   const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
   const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
@@ -4822,6 +4830,13 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("cell.joinVertical", "Join Cells Vertically");
     addCommand("cell.splitVertical", "Split Cell Vertically");
     addSeparator();
+    addCommand("selection.insertAggregateRow", "Add Aggregate Row");
+    addCommand("selection.insertSumRow", "Add Sum Row");
+    addCommand("selection.insertAverageRow", "Add Average Row");
+    addCommand("selection.insertMinRow", "Add Min Row");
+    addCommand("selection.insertMaxRow", "Add Max Row");
+    addCommand("selection.insertCountRow", "Add Count Row");
+    addSeparator();
     addCommand("table.transpose", "Transpose");
     addCommand("table.dedupeRows", "Remove Duplicate Rows");
     addCommand("table.dedupeColumns", "Remove Duplicate Columns");
@@ -5097,7 +5112,7 @@ async function copyActiveAggregate() {
   }
 }
 
-function insertAggregateRow() {
+function insertAggregateRow(metricOverride = "") {
   if (!documentId) return;
   const range = normalizedSelection();
   if (range.endRow >= sourceRowCount) {
@@ -5105,9 +5120,19 @@ function insertAggregateRow() {
     return;
   }
   const stats = selectionAggregateStats();
-  const metric = normalizeAggregateMetric(stats);
+  const options = aggregateMetricOptions(stats);
+  let metric = "";
+  if (metricOverride) {
+    if (!options.includes(metricOverride)) {
+      status.textContent = metricOverride === "count" ? "Select cells to add a count row." : "Select numeric cells to add an aggregate row.";
+      return;
+    }
+    metric = metricOverride;
+  } else {
+    metric = normalizeAggregateMetric(stats);
+  }
   if (!metric) {
-    status.textContent = "Select numeric cells to add an aggregate row.";
+    status.textContent = metricOverride === "count" ? "Select cells to add a count row." : "Select numeric cells to add an aggregate row.";
     return;
   }
   const row = aggregateRowForSelection(range, metric);
@@ -6728,6 +6753,13 @@ async function executeCommand(commandID) {
       break;
     case "selection.insertAggregateRow":
       insertAggregateRow();
+      break;
+    case "selection.insertSumRow":
+    case "selection.insertAverageRow":
+    case "selection.insertMinRow":
+    case "selection.insertMaxRow":
+    case "selection.insertCountRow":
+      insertAggregateRow(aggregateRowCommandMetrics.get(commandID));
       break;
     case "edit.copyCsv":
       await copySelection("csv");
