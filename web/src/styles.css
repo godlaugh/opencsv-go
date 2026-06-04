@@ -1774,6 +1774,77 @@ button:disabled {
   box-shadow: 0 18px 48px var(--shadow);
 }
 
+.about-support-panel {
+  display: grid;
+  width: min(560px, calc(100vw - 32px));
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.about-support-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.about-support-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.about-support-status div {
+  min-width: 0;
+}
+
+.about-support-status dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.about-support-status dd {
+  margin: 3px 0 0;
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.about-support-result {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.about-support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.about-support-actions button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--panel-subtle);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.about-support-actions button:hover,
+.about-support-actions button:focus-visible {
+  border-color: var(--accent-border);
+  background: var(--accent-quiet);
+  outline: none;
+}
+
 .restore-backup-panel {
   max-height: min(520px, calc(100vh - 120px));
   grid-template-rows: auto minmax(0, 1fr) auto;

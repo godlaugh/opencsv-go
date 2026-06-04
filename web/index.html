@@ -698,6 +698,41 @@
       </section>
     </div>
 
+    <div id="aboutSupportPanel" class="command-palette-backdrop" hidden>
+      <section class="about-support-panel" role="dialog" aria-modal="true" aria-label="About and support">
+        <header class="condition-panel-header">
+          <strong data-i18n="about.title">About & Support</strong>
+          <button id="closeAboutSupportButton" type="button" data-i18n="common.close">Close</button>
+        </header>
+        <div class="about-support-body">
+          <dl class="about-support-status">
+            <div>
+              <dt data-i18n="about.product">Product</dt>
+              <dd>opencsv</dd>
+            </div>
+            <div>
+              <dt data-i18n="about.license">License</dt>
+              <dd data-i18n="about.licenseValue">Free local editor</dd>
+            </div>
+            <div>
+              <dt data-i18n="about.network">Network</dt>
+              <dd data-i18n="about.networkValue">Offline by default</dd>
+            </div>
+            <div>
+              <dt data-i18n="about.updates">Updates</dt>
+              <dd id="aboutUpdateSummary">Manual only</dd>
+            </div>
+          </dl>
+          <p id="aboutUpdateResult" class="about-support-result">No update check has run.</p>
+          <div class="about-support-actions">
+            <button id="aboutOpenSettingsButton" type="button" data-i18n="nav.settings">Settings</button>
+            <button id="aboutKeyboardShortcutsButton" type="button" data-i18n="settings.keyboardShortcuts">Keyboard Shortcuts</button>
+            <button id="aboutCheckUpdatesButton" type="button" data-i18n="settings.checkForUpdates">Check for Updates</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <div id="saveAsPanel" class="command-palette-backdrop" hidden>
       <section class="save-as-panel" role="dialog" aria-modal="true" aria-label="Save As">
         <header class="condition-panel-header">

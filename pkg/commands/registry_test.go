@@ -31,6 +31,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"settings.exportShortcuts",
 		"settings.importShortcuts",
 		"settings.checkForUpdates",
+		"help.aboutSupport",
 		"workbench.splitEditor",
 		"workbench.toggleSplitOrientation",
 		"workbench.focusNextGroup",
@@ -604,6 +605,43 @@ func TestStartPageNewFileIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing start-page new-file wiring %q", snippet)
+		}
+	}
+}
+
+func TestStartPageSupportSurfaceIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="aboutSupportPanel"`,
+		`id="aboutUpdateSummary"`,
+		`id="aboutCheckUpdatesButton"`,
+		`data-i18n="about.licenseValue"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing about/support html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`case "help.aboutSupport":`,
+		"function openAboutSupportPanel()",
+		"function syncAboutSupportPanel()",
+		"function runAboutSupportUpdateCheck()",
+		`t("start.support")`,
+		`document.body.dataset.aboutSupportPanel`,
+		`document.body.dataset.aboutSupportStatus`,
+		`"command.help.aboutSupport.title": "关于与支持"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing about/support frontend wiring %q", snippet)
 		}
 	}
 }

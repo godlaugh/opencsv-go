@@ -256,6 +256,13 @@ const shortcutImportPanel = document.querySelector("#shortcutImportPanel");
 const shortcutImportText = document.querySelector("#shortcutImportText");
 const applyShortcutImportButton = document.querySelector("#applyShortcutImportButton");
 const cancelShortcutImportButton = document.querySelector("#cancelShortcutImportButton");
+const aboutSupportPanel = document.querySelector("#aboutSupportPanel");
+const closeAboutSupportButton = document.querySelector("#closeAboutSupportButton");
+const aboutUpdateSummary = document.querySelector("#aboutUpdateSummary");
+const aboutUpdateResult = document.querySelector("#aboutUpdateResult");
+const aboutOpenSettingsButton = document.querySelector("#aboutOpenSettingsButton");
+const aboutKeyboardShortcutsButton = document.querySelector("#aboutKeyboardShortcutsButton");
+const aboutCheckUpdatesButton = document.querySelector("#aboutCheckUpdatesButton");
 const saveAsPanel = document.querySelector("#saveAsPanel");
 const saveAsPath = document.querySelector("#saveAsPath");
 const closeSaveAsButton = document.querySelector("#closeSaveAsButton");
@@ -450,6 +457,7 @@ const localeCatalog = {
     "nav.profile": "Profile",
     "nav.settings": "Settings",
     "nav.command": "Cmd",
+    "common.close": "Close",
     "file.open": "Open",
     "edit.copy": "Copy",
     "edit.headers": "Headers",
@@ -651,6 +659,8 @@ const localeCatalog = {
     "settings.title": "Settings",
     "settings.modified": "Modified",
     "settings.defaults": "Defaults",
+    "settings.keyboardShortcuts": "Keyboard Shortcuts",
+    "settings.checkForUpdates": "Check for Updates",
     "settings.language": "Language",
     "settings.resetLanguage": "Reset Language",
     "settings.searchPlaceholder": "Search settings",
@@ -669,6 +679,15 @@ const localeCatalog = {
     "start.chooseHelp": "Open with browser picker",
     "start.settings": "Settings",
     "start.settingsHelp": "Adjust app preferences",
+    "start.support": "Support",
+    "start.supportHelp": "About, updates, and help",
+    "about.title": "About & Support",
+    "about.product": "Product",
+    "about.license": "License",
+    "about.licenseValue": "Free local editor",
+    "about.network": "Network",
+    "about.networkValue": "Offline by default",
+    "about.updates": "Updates",
     "file.recent": "Recent",
     "file.noOpen": "No file open",
     "file.status.creatingNew": "Creating new CSV...",
@@ -966,6 +985,7 @@ const localeCatalog = {
     "nav.grid": "网格",
     "nav.profile": "概况",
     "nav.settings": "设置",
+    "common.close": "关闭",
     "file.open": "打开",
     "edit.copy": "复制",
     "edit.headers": "表头",
@@ -1167,6 +1187,8 @@ const localeCatalog = {
     "settings.title": "设置",
     "settings.modified": "已修改",
     "settings.defaults": "默认",
+    "settings.keyboardShortcuts": "键盘快捷键",
+    "settings.checkForUpdates": "检查更新",
     "settings.language": "语言",
     "settings.resetLanguage": "重置语言",
     "settings.searchPlaceholder": "搜索设置",
@@ -1185,6 +1207,15 @@ const localeCatalog = {
     "start.chooseHelp": "使用浏览器选择器打开",
     "start.settings": "设置",
     "start.settingsHelp": "调整应用偏好",
+    "start.support": "支持",
+    "start.supportHelp": "关于、更新和帮助",
+    "about.title": "关于与支持",
+    "about.product": "产品",
+    "about.license": "许可",
+    "about.licenseValue": "免费的本地编辑器",
+    "about.network": "网络",
+    "about.networkValue": "默认离线",
+    "about.updates": "更新",
     "file.recent": "最近",
     "file.noOpen": "未打开文件",
     "file.status.creatingNew": "正在创建新 CSV...",
@@ -1358,6 +1389,8 @@ const localeCatalog = {
     "command.settings.open.description": "打开应用设置和文件格式预设管理。",
     "command.settings.keyboardShortcuts.title": "键盘快捷键",
     "command.settings.keyboardShortcuts.description": "自定义命令快捷键。",
+    "command.help.aboutSupport.title": "关于与支持",
+    "command.help.aboutSupport.description": "打开本地关于、支持和更新入口。",
     "command.file.new.title": "新建",
     "command.file.new.description": "创建新的未保存 CSV 文档。",
     "command.file.open.title": "打开",
@@ -2139,6 +2172,7 @@ function applyLocaleStrings() {
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
+  syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
   applyProfileLocaleStrings();
@@ -2492,6 +2526,37 @@ function syncUpdateCheckControls() {
   document.body.dataset.updateCheckLastSource = updateCheckState?.source || "";
   document.body.dataset.updateCheckLastStatus = updateCheckState?.status || "";
   document.body.dataset.updateCheckCount = String(Number(document.body.dataset.updateCheckCount || "0"));
+  syncAboutSupportPanel();
+}
+
+function syncAboutSupportPanel() {
+  if (!aboutSupportPanel) return;
+  if (aboutUpdateSummary) aboutUpdateSummary.textContent = settingsUpdateSummary?.textContent || updateCheckModeLabel();
+  if (aboutUpdateResult) aboutUpdateResult.textContent = updateCheckState?.message || "No update check has run.";
+  if (aboutCheckUpdatesButton) {
+    const disabled = updateCheckMode === "off";
+    aboutCheckUpdatesButton.disabled = disabled;
+    aboutCheckUpdatesButton.setAttribute("aria-disabled", String(disabled));
+  }
+  document.body.dataset.aboutSupportStatus = `${updateCheckMode}:${updateCheckState?.status || "none"}`;
+}
+
+function openAboutSupportPanel() {
+  syncAboutSupportPanel();
+  aboutSupportPanel.hidden = false;
+  document.body.dataset.aboutSupportPanel = "open";
+  closeAboutSupportButton?.focus();
+}
+
+function closeAboutSupportPanel() {
+  aboutSupportPanel.hidden = true;
+  document.body.dataset.aboutSupportPanel = "closed";
+  canvas.focus();
+}
+
+async function runAboutSupportUpdateCheck() {
+  await checkForUpdates("manual");
+  syncAboutSupportPanel();
 }
 
 function updateUpdateCheckModeFromSettings() {
@@ -8027,6 +8092,9 @@ async function executeCommand(commandID) {
     case "settings.checkForUpdates":
       await checkForUpdates("manual");
       break;
+    case "help.aboutSupport":
+      openAboutSupportPanel();
+      break;
     case "workbench.toggleTheme":
       cycleTheme();
       break;
@@ -11046,7 +11114,13 @@ function renderStartActions() {
   settingsButton.append(fileText(t("start.settings"), t("start.settingsHelp")));
   settingsButton.addEventListener("click", () => openSettingsPanel());
 
-  fileList.append(newFileButton, openPathButton, chooseButton, settingsButton);
+  const supportButton = document.createElement("button");
+  supportButton.className = "file-button file-action";
+  supportButton.type = "button";
+  supportButton.append(fileText(t("start.support"), t("start.supportHelp")));
+  supportButton.addEventListener("click", () => openAboutSupportPanel());
+
+  fileList.append(newFileButton, openPathButton, chooseButton, settingsButton, supportButton);
 }
 
 function fileButton(entry, options = {}) {
@@ -16243,6 +16317,11 @@ function handleGlobalShortcut(event) {
     closeCellValueDialog();
     return true;
   }
+  if (event.key === "Escape" && aboutSupportPanel && !aboutSupportPanel.hidden) {
+    event.preventDefault();
+    closeAboutSupportPanel();
+    return true;
+  }
   if (event.key === "Escape" && !externalChangePanel.hidden) {
     event.preventDefault();
     closeExternalChangePanel();
@@ -16605,6 +16684,16 @@ cancelProfileSchemaImportButton.addEventListener("click", cancelProfileSchemaImp
 saveProfileRuleButton.addEventListener("click", saveProfileRuleFromBuilder);
 clearProfileRuleButton.addEventListener("click", () => clearProfileRuleBuilder());
 settingsTabButton.addEventListener("click", openSettingsPanel);
+closeAboutSupportButton.addEventListener("click", closeAboutSupportPanel);
+aboutOpenSettingsButton.addEventListener("click", () => {
+  closeAboutSupportPanel();
+  openSettingsPanel();
+});
+aboutKeyboardShortcutsButton.addEventListener("click", () => {
+  closeAboutSupportPanel();
+  openKeyboardShortcuts();
+});
+aboutCheckUpdatesButton.addEventListener("click", runAboutSupportUpdateCheck);
 paletteButton.addEventListener("click", openCommandPalette);
 copyFormatButton.addEventListener("click", () => executeCommand("edit.copySelectedFormat"));
 copyFormatSelect.addEventListener("change", () => {
