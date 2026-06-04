@@ -206,6 +206,7 @@ const resetCustomLinkProtocolsButton = document.querySelector("#resetCustomLinkP
 const settingsAppearanceSummary = document.querySelector("#settingsAppearanceSummary");
 const gridFontSelect = document.querySelector("#gridFontSelect");
 const gridFontSizeInput = document.querySelector("#gridFontSizeInput");
+const gridRowHeightSelect = document.querySelector("#gridRowHeightSelect");
 const textEditorFontSelect = document.querySelector("#textEditorFontSelect");
 const textEditorFontSizeInput = document.querySelector("#textEditorFontSizeInput");
 const resetEditorAppearanceButton = document.querySelector("#resetEditorAppearanceButton");
@@ -295,7 +296,7 @@ const columnHide = document.querySelector("#columnHide");
 const columnShowAll = document.querySelector("#columnShowAll");
 const columnClearView = document.querySelector("#columnClearView");
 
-const rowHeight = 28;
+let rowHeight = 28;
 const headerHeight = cssPixelValue("--grid-header-height", 48);
 const rowNumberWidth = 58;
 const windowSize = 160;
@@ -727,6 +728,7 @@ const editorFontFamilies = {
 const defaultEditorAppearance = {
   gridFont: "mono",
   gridSize: 13,
+  gridRowHeight: 28,
   editorFont: "mono",
   editorSize: 13,
 };
@@ -1549,6 +1551,7 @@ function normalizeEditorAppearance(value) {
   return {
     gridFont: fontValue(value?.gridFont, defaultEditorAppearance.gridFont),
     gridSize: clampFontSize(value?.gridSize, defaultEditorAppearance.gridSize),
+    gridRowHeight: clampGridRowHeight(value?.gridRowHeight, defaultEditorAppearance.gridRowHeight),
     editorFont: fontValue(value?.editorFont, defaultEditorAppearance.editorFont),
     editorSize: clampFontSize(value?.editorSize, defaultEditorAppearance.editorSize),
   };
@@ -1557,6 +1560,11 @@ function normalizeEditorAppearance(value) {
 function clampFontSize(value, fallback) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) ? Math.max(11, Math.min(18, parsed)) : fallback;
+}
+
+function clampGridRowHeight(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? Math.max(22, Math.min(44, parsed)) : fallback;
 }
 
 function applyEditorAppearance(next, persist = true) {
@@ -1569,7 +1577,9 @@ function applyEditorAppearance(next, persist = true) {
   root.style.setProperty("--grid-font-size", `${editorAppearance.gridSize}px`);
   root.style.setProperty("--editor-font-family", editorFontFamilies[editorAppearance.editorFont]);
   root.style.setProperty("--editor-font-size", `${editorAppearance.editorSize}px`);
-  document.body.dataset.editorAppearance = `${editorAppearance.gridFont}:${editorAppearance.gridSize}/${editorAppearance.editorFont}:${editorAppearance.editorSize}`;
+  rowHeight = editorAppearance.gridRowHeight;
+  scrollY = Math.max(0, Math.min(maxVerticalScroll(), scrollY));
+  document.body.dataset.editorAppearance = `${editorAppearance.gridFont}:${editorAppearance.gridSize}:row${editorAppearance.gridRowHeight}/${editorAppearance.editorFont}:${editorAppearance.editorSize}`;
   syncEditorAppearanceControls();
   draw();
 }
@@ -1578,9 +1588,10 @@ function syncEditorAppearanceControls() {
   if (!gridFontSelect) return;
   gridFontSelect.value = editorAppearance.gridFont;
   gridFontSizeInput.value = String(editorAppearance.gridSize);
+  gridRowHeightSelect.value = String(editorAppearance.gridRowHeight);
   textEditorFontSelect.value = editorAppearance.editorFont;
   textEditorFontSizeInput.value = String(editorAppearance.editorSize);
-  settingsAppearanceSummary.textContent = `Grid ${editorAppearance.gridSize}px · Editor ${editorAppearance.editorSize}px`;
+  settingsAppearanceSummary.textContent = `Grid ${editorAppearance.gridSize}px · Row ${editorAppearance.gridRowHeight}px · Editor ${editorAppearance.editorSize}px`;
   resetEditorAppearanceButton.disabled = !editorAppearanceModified();
 }
 
@@ -1592,6 +1603,7 @@ function updateEditorAppearanceFromControls() {
   applyEditorAppearance({
     gridFont: gridFontSelect.value,
     gridSize: gridFontSizeInput.value,
+    gridRowHeight: gridRowHeightSelect.value,
     editorFont: textEditorFontSelect.value,
     editorSize: textEditorFontSizeInput.value,
   });
@@ -14225,8 +14237,11 @@ applyCustomLinkProtocolsButton.addEventListener("click", updateCustomLinkProtoco
 resetCustomLinkProtocolsButton.addEventListener("click", resetCustomLinkProtocols);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 gridFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
+gridFontSizeInput.addEventListener("input", updateEditorAppearanceFromControls);
+gridRowHeightSelect.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
 textEditorFontSizeInput.addEventListener("change", updateEditorAppearanceFromControls);
+textEditorFontSizeInput.addEventListener("input", updateEditorAppearanceFromControls);
 resetEditorAppearanceButton.addEventListener("click", resetEditorAppearance);
 applyDelimiterButton.addEventListener("click", () => executeCommand("format.applyDelimiter"));
 delimiterSelect.addEventListener("change", () => {

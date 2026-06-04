@@ -640,6 +640,7 @@ The app shall support:
 - Persistent window size, position, and maximized state.
 - Title/menu entry points for Settings and Keyboard Shortcuts.
 - Settings search, modified indicators, and reset-to-default controls.
+- Grid/text editor appearance controls, including grid font, grid row height, and text editor font settings.
 - Automatic update checks plus a manual update mode.
 - Offline operation for all editing features.
 
@@ -754,7 +755,7 @@ Primary surfaces:
 - Problems panel: validation issues.
 - SQL console: query editor and results.
 - Diff view: side-by-side comparison.
-- Settings: app, files, grid editor, text editor, keybindings, update, theme, and file-format presets.
+- Settings: app, files, grid editor, text editor, keybindings, update, theme, appearance, and file-format presets.
 
 ## 10. Key User Flows
 

@@ -457,7 +457,7 @@
             <section class="settings-section settings-appearance-section" aria-label="Editor appearance">
               <header>
                 <strong>Editor Appearance</strong>
-                <span id="settingsAppearanceSummary">Default fonts</span>
+                <span id="settingsAppearanceSummary">Default appearance</span>
               </header>
               <div class="settings-appearance-grid">
                 <label>
@@ -473,6 +473,16 @@
                   <input id="gridFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Grid font size" />
                 </label>
                 <label>
+                  <span>Row Height</span>
+                  <select id="gridRowHeightSelect" aria-label="Grid row height">
+                    <option value="24">Compact · 24px</option>
+                    <option value="28">Default · 28px</option>
+                    <option value="32">Roomy · 32px</option>
+                    <option value="36">Comfortable · 36px</option>
+                    <option value="44">Spacious · 44px</option>
+                  </select>
+                </label>
+                <label>
                   <span>Editor Font</span>
                   <select id="textEditorFontSelect" aria-label="Text editor font">
                     <option value="mono">Mono</option>
@@ -484,7 +494,7 @@
                   <span>Editor Size</span>
                   <input id="textEditorFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Text editor font size" />
                 </label>
-                <button id="resetEditorAppearanceButton" type="button">Reset Fonts</button>
+                <button id="resetEditorAppearanceButton" type="button">Reset Appearance</button>
               </div>
             </section>
             <section class="settings-section" aria-label="File format presets">
@@ -805,6 +815,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=leading-condition-group-1"></script>
+    <script type="module" src="./src/app.js?v=grid-row-height-appearance-3"></script>
   </body>
 </html>
