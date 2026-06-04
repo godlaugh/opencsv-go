@@ -791,6 +791,38 @@ func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
 	}
 }
 
+func TestManagerFindDetailedStreamsCleanFileOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-stream.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n3,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find-stream.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FindDetailed(session.ID, FindOptions{Query: "Ada", Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed || result.Total != 2 || len(result.Matches) != 1 || !result.Truncated {
+		t.Fatalf("streamed find result = %#v, want streamed total 2 with one visible match", result)
+	}
+
+	if err := manager.Edit(session.ID, 1, 1, "Adele"); err != nil {
+		t.Fatal(err)
+	}
+	edited, err := manager.FindDetailed(session.ID, FindOptions{Query: "Adele", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Streamed || edited.Total != 1 || edited.Matches[0].Value != "Adele" {
+		t.Fatalf("edited find result = %#v, want materialized edited match", edited)
+	}
+}
+
 func TestManagerFindDetailedContextCancelsDuringScan(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "find-cancel.csv")

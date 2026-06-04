@@ -1772,6 +1772,7 @@ type FindResult struct {
 	Total     int     `json:"total"`
 	Offset    int     `json:"offset"`
 	Truncated bool    `json:"truncated"`
+	Streamed  bool    `json:"streamed,omitempty"`
 }
 
 func (manager *Manager) Find(id string, options FindOptions) ([]Match, error) {
@@ -1810,6 +1811,9 @@ func (manager *Manager) FindDetailedContext(ctx context.Context, id string, opti
 	if err != nil {
 		return FindResult{}, err
 	}
+	if canStreamFind(session) {
+		return findDetailedInStream(ctx, session, options, matcher)
+	}
 
 	records, err := recordsForSession(session)
 	if err != nil {
@@ -1845,6 +1849,46 @@ func (manager *Manager) FindDetailedContext(ctx context.Context, id string, opti
 		}
 	}
 	return FindResult{Matches: matches, Total: total, Offset: options.Offset, Truncated: total > options.Offset+len(matches)}, nil
+}
+
+func canStreamFind(session *Session) bool {
+	return session.EditBaseRecords == nil &&
+		!session.ViewActive &&
+		len(session.Edits) == 0 &&
+		csvcore.CanStreamRecords(session.Document.Metadata)
+}
+
+func findDetailedInStream(ctx context.Context, session *Session, options FindOptions, matcher matcher) (FindResult, error) {
+	var matches []Match
+	total := 0
+	scope := cellScope(options.Cells)
+	_, err := csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, func(row int, record []string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for col, value := range record {
+			if options.Column != nil && col != *options.Column {
+				continue
+			}
+			if !cellInScope(scope, row, col) {
+				continue
+			}
+			if matcher.matches(value) {
+				total++
+				if total <= options.Offset {
+					continue
+				}
+				if len(matches) < options.Limit {
+					matches = append(matches, Match{Row: row, Col: col, Value: value})
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return FindResult{}, err
+	}
+	return FindResult{Matches: matches, Total: total, Offset: options.Offset, Truncated: total > options.Offset+len(matches), Streamed: true}, nil
 }
 
 type ReplaceOptions struct {

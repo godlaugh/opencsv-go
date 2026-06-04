@@ -1625,6 +1625,9 @@ func TestServerFindFilterSort(t *testing.T) {
 	if findPayload["total"].(float64) != 1 || findPayload["truncated"].(bool) {
 		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
 	}
+	if findPayload["streamed"] != true {
+		t.Fatalf("find streamed = %#v, want true for clean file", findPayload["streamed"])
+	}
 
 	findPayload = postJSON(t, handler, "/api/find", map[string]any{
 		"documentId": documentID,

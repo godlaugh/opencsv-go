@@ -1,6 +1,8 @@
 package csvcore
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,6 +33,50 @@ func TestOpenDocumentDetectsMetadata(t *testing.T) {
 	}
 	if document.RowsScanned != 2 {
 		t.Fatalf("rows scanned = %d, want 2", document.RowsScanned)
+	}
+}
+
+func TestForEachRecordContextStreamsUTF8BOM(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stream.csv")
+	if err := os.WriteFile(path, []byte("\ufeffid,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows [][]string
+	count, err := ForEachRecordContext(context.Background(), path, document.Metadata, func(row int, record []string) error {
+		rows = append(rows, append([]string(nil), record...))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 || len(rows) != 3 {
+		t.Fatalf("streamed count/rows = %d/%#v, want 3 rows", count, rows)
+	}
+	if rows[0][0] != "id" || rows[2][1] != "Grace" {
+		t.Fatalf("streamed rows = %#v", rows)
+	}
+}
+
+func TestForEachRecordContextCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stream-cancel.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = ForEachRecordContext(ctx, path, document.Metadata, func(row int, record []string) error {
+		cancel()
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("stream cancellation error = %v, want context canceled", err)
 	}
 }
 

@@ -1,7 +1,9 @@
 package csvcore
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/csv"
 	"errors"
 	"io"
@@ -37,6 +39,8 @@ type Document struct {
 	RowsScanned int          `json:"rowsScanned"`
 	RowIndex    RowIndex     `json:"rowIndex"`
 }
+
+var ErrStreamingUnsupported = errors.New("streaming records unsupported for this file metadata")
 
 type OpenOptions struct {
 	PreviewRows int `json:"previewRows"`
@@ -204,6 +208,59 @@ func ReadAllRecords(path string, metadata FileMetadata) ([][]string, error) {
 		records = append(records, record)
 	}
 	return records, nil
+}
+
+func CanStreamRecords(metadata FileMetadata) bool {
+	switch metadata.Encoding.Name {
+	case "", EncodingUTF8, EncodingUTF8BOM:
+	default:
+		return false
+	}
+	if DialectQuoteChar(metadata.Dialect) != `"` || DialectQuoteEscape(metadata.Dialect) == QuoteEscapeBackslash {
+		return false
+	}
+	return true
+}
+
+func ForEachRecordContext(ctx context.Context, path string, metadata FileMetadata, handle func(row int, record []string) error) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if !CanStreamRecords(metadata) {
+		return 0, ErrStreamingUnsupported
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(bufio.NewReader(file))
+	reader.Comma = metadata.Dialect.Delimiter
+	reader.FieldsPerRecord = -1
+	reader.LazyQuotes = true
+
+	rowIndex := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return rowIndex, err
+		}
+		record, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return rowIndex, err
+		}
+		if rowIndex == 0 && len(record) > 0 && metadata.Encoding.Name == EncodingUTF8BOM {
+			record[0] = strings.TrimPrefix(record[0], "\ufeff")
+		}
+		if err := handle(rowIndex, record); err != nil {
+			return rowIndex, err
+		}
+		rowIndex++
+	}
+	return rowIndex, nil
 }
 
 func ParseRecordsFromUTF8(input []byte, dialect Dialect) ([][]string, error) {
