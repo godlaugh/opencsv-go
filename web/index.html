@@ -139,9 +139,9 @@
                   <button id="runDiffButton" type="button">Run</button>
                 </div>
                 <div class="diff-options" aria-label="Compare options">
-                  <label><input id="diffIgnoreCase" type="checkbox" /> Ignore case</label>
-                  <label><input id="diffIgnoreWhitespace" type="checkbox" /> Ignore whitespace</label>
-                  <label><input id="diffMatchHeaders" type="checkbox" /> Match headers</label>
+                  <label><input id="diffIgnoreCase" type="checkbox" /> <span id="diffIgnoreCaseLabel">Ignore case</span></label>
+                  <label><input id="diffIgnoreWhitespace" type="checkbox" /> <span id="diffIgnoreWhitespaceLabel">Ignore whitespace</span></label>
+                  <label><input id="diffMatchHeaders" type="checkbox" /> <span id="diffMatchHeadersLabel">Match headers</span></label>
                   <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" />
                   <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3, updated" aria-label="Ignored diff columns" />
                   <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
@@ -169,7 +169,7 @@
                   <button id="diffClearFilterButton" type="button">Clear</button>
                 </div>
                 <div class="diff-text-controls">
-                  <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> Compare right side as text</label>
+                  <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> <span id="diffRightTextModeLabel">Compare right side as text</span></label>
                   <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
                 </div>
                 <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" hidden></textarea>

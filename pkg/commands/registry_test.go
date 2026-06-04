@@ -345,6 +345,46 @@ func TestDiffResultFiltersAreWired(t *testing.T) {
 	}
 }
 
+func TestDiffViewI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, id := range []string{
+		"diffIgnoreCaseLabel",
+		"diffIgnoreWhitespaceLabel",
+		"diffMatchHeadersLabel",
+		"diffRightTextModeLabel",
+	} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Fatalf("missing diff i18n label anchor %s", id)
+		}
+		if !strings.Contains(source, `#`+id) {
+			t.Fatalf("missing diff i18n selector %s", id)
+		}
+	}
+	for _, snippet := range []string{
+		`"diff.status.summary"`,
+		`"diff.table.changedCells"`,
+		`"diff.action.applyRightCellToLeft"`,
+		`"diff.status.summary": "差异`,
+		"applyDiffLocaleStrings",
+		"setSelectOptionLabels(diffStatusFilter",
+		"localizedDiffStatus(row.status)",
+		"tf(\"diff.status.active\"",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing diff i18n wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

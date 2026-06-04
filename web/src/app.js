@@ -116,8 +116,11 @@ const leftDiffPath = document.querySelector("#leftDiffPath");
 const rightDiffPath = document.querySelector("#rightDiffPath");
 const runDiffButton = document.querySelector("#runDiffButton");
 const diffIgnoreCase = document.querySelector("#diffIgnoreCase");
+const diffIgnoreCaseLabel = document.querySelector("#diffIgnoreCaseLabel");
 const diffIgnoreWhitespace = document.querySelector("#diffIgnoreWhitespace");
+const diffIgnoreWhitespaceLabel = document.querySelector("#diffIgnoreWhitespaceLabel");
 const diffMatchHeaders = document.querySelector("#diffMatchHeaders");
+const diffMatchHeadersLabel = document.querySelector("#diffMatchHeadersLabel");
 const diffKeyColumn = document.querySelector("#diffKeyColumn");
 const diffIgnoredColumns = document.querySelector("#diffIgnoredColumns");
 const diffPrevButton = document.querySelector("#diffPrevButton");
@@ -128,6 +131,7 @@ const diffSortSelect = document.querySelector("#diffSortSelect");
 const diffSortDirectionButton = document.querySelector("#diffSortDirectionButton");
 const diffClearFilterButton = document.querySelector("#diffClearFilterButton");
 const diffRightTextMode = document.querySelector("#diffRightTextMode");
+const diffRightTextModeLabel = document.querySelector("#diffRightTextModeLabel");
 const diffRightText = document.querySelector("#diffRightText");
 const diffPasteClipboardButton = document.querySelector("#diffPasteClipboardButton");
 const diffSummary = document.querySelector("#diffSummary");
@@ -457,6 +461,64 @@ const localeCatalog = {
     "edit.replace": "Replace",
     "edit.all": "All",
     "diff.compare": "Compare",
+    "diff.run": "Run",
+    "diff.ignoreCase": "Ignore case",
+    "diff.ignoreWhitespace": "Ignore whitespace",
+    "diff.matchHeaders": "Match headers",
+    "diff.keyColumnPlaceholder": "Key column e.g. id or 1",
+    "diff.ignoredColumnsPlaceholder": "Ignore columns e.g. 3, updated",
+    "diff.previousDifference": "Previous difference",
+    "diff.nextDifference": "Next difference",
+    "diff.status.all": "All rows",
+    "diff.status.differences": "Differences",
+    "diff.status.changed": "Changed",
+    "diff.status.added": "Added",
+    "diff.status.deleted": "Deleted",
+    "diff.status.unchanged": "Unchanged",
+    "diff.searchPlaceholder": "Search diff rows...",
+    "diff.sort.source": "Source order",
+    "diff.sort.status": "Status",
+    "diff.sort.leftRow": "Left row",
+    "diff.sort.rightRow": "Right row",
+    "diff.sort.leftText": "Left text",
+    "diff.sort.rightText": "Right text",
+    "diff.sort.asc": "Asc",
+    "diff.sort.desc": "Desc",
+    "diff.sortAscending": "Sort ascending",
+    "diff.sortDescending": "Sort descending",
+    "diff.clear": "Clear",
+    "diff.rightTextMode": "Compare right side as text",
+    "diff.pasteClipboard": "Paste Clipboard",
+    "diff.rightTextPlaceholder": "Paste CSV text here",
+    "diff.summary.unchanged": "Unchanged",
+    "diff.summary.changed": "Changed",
+    "diff.summary.added": "Added",
+    "diff.summary.deleted": "Deleted",
+    "diff.summary.shown": "Shown",
+    "diff.table.status": "Status",
+    "diff.table.leftRow": "Left Row",
+    "diff.table.left": "Left",
+    "diff.table.rightRow": "Right Row",
+    "diff.table.right": "Right",
+    "diff.table.changedCells": "Changed Cells",
+    "diff.table.actions": "Actions",
+    "diff.empty.none": "No diff rows",
+    "diff.empty.filtered": "No diff rows match filters",
+    "diff.action.insertRow": "Insert row",
+    "diff.action.deleteLeft": "Delete left",
+    "diff.action.applyRow": "Apply row",
+    "diff.action.deleteRight": "Delete right",
+    "diff.action.insertRight": "Insert right",
+    "diff.action.applyLeftRow": "Apply left row",
+    "diff.action.applyRightRowToLeft": "Apply right row to left file",
+    "diff.action.applyLeftRowToRight": "Apply left row to right file",
+    "diff.action.applyRightCellToLeft": "Apply right cell c{{col}} to left",
+    "diff.action.applyLeftCellToRight": "Apply left cell c{{col}} to right",
+    "diff.status.summary": "Diff: {{changed}} changed, {{added}} added, {{deleted}} deleted",
+    "diff.status.filteredSuffix": "; showing {{shown}} rows after filter",
+    "diff.status.filterShown": "Diff filter shows {{shown}} of {{total}} rows.",
+    "diff.status.filterCleared": "Diff filter cleared; showing {{total}} rows.",
+    "diff.status.active": "Diff {{current}} of {{total}}",
     "file.readOnly": "Read Only",
     "file.export": "Export",
     "file.save": "Save",
@@ -631,6 +693,64 @@ const localeCatalog = {
     "edit.replace": "替换",
     "edit.all": "全部",
     "diff.compare": "比较",
+    "diff.run": "运行",
+    "diff.ignoreCase": "忽略大小写",
+    "diff.ignoreWhitespace": "忽略空白",
+    "diff.matchHeaders": "按表头匹配",
+    "diff.keyColumnPlaceholder": "键列，例如 id 或 1",
+    "diff.ignoredColumnsPlaceholder": "忽略列，例如 3, updated",
+    "diff.previousDifference": "上一个差异",
+    "diff.nextDifference": "下一个差异",
+    "diff.status.all": "全部行",
+    "diff.status.differences": "差异",
+    "diff.status.changed": "已更改",
+    "diff.status.added": "已添加",
+    "diff.status.deleted": "已删除",
+    "diff.status.unchanged": "未更改",
+    "diff.searchPlaceholder": "搜索差异行...",
+    "diff.sort.source": "源顺序",
+    "diff.sort.status": "状态",
+    "diff.sort.leftRow": "左行",
+    "diff.sort.rightRow": "右行",
+    "diff.sort.leftText": "左侧文本",
+    "diff.sort.rightText": "右侧文本",
+    "diff.sort.asc": "升序",
+    "diff.sort.desc": "降序",
+    "diff.sortAscending": "升序排序",
+    "diff.sortDescending": "降序排序",
+    "diff.clear": "清除",
+    "diff.rightTextMode": "将右侧作为文本比较",
+    "diff.pasteClipboard": "粘贴剪贴板",
+    "diff.rightTextPlaceholder": "在此粘贴 CSV 文本",
+    "diff.summary.unchanged": "未更改",
+    "diff.summary.changed": "已更改",
+    "diff.summary.added": "已添加",
+    "diff.summary.deleted": "已删除",
+    "diff.summary.shown": "显示",
+    "diff.table.status": "状态",
+    "diff.table.leftRow": "左行",
+    "diff.table.left": "左侧",
+    "diff.table.rightRow": "右行",
+    "diff.table.right": "右侧",
+    "diff.table.changedCells": "更改单元格",
+    "diff.table.actions": "操作",
+    "diff.empty.none": "没有差异行",
+    "diff.empty.filtered": "没有匹配筛选的差异行",
+    "diff.action.insertRow": "插入行",
+    "diff.action.deleteLeft": "删除左侧",
+    "diff.action.applyRow": "应用行",
+    "diff.action.deleteRight": "删除右侧",
+    "diff.action.insertRight": "插入右侧",
+    "diff.action.applyLeftRow": "应用左侧行",
+    "diff.action.applyRightRowToLeft": "将右侧行应用到左文件",
+    "diff.action.applyLeftRowToRight": "将左侧行应用到右文件",
+    "diff.action.applyRightCellToLeft": "将右侧单元格 c{{col}} 应用到左侧",
+    "diff.action.applyLeftCellToRight": "将左侧单元格 c{{col}} 应用到右侧",
+    "diff.status.summary": "差异：{{changed}} 个更改，{{added}} 个添加，{{deleted}} 个删除",
+    "diff.status.filteredSuffix": "；筛选后显示 {{shown}} 行",
+    "diff.status.filterShown": "差异筛选显示 {{shown}} / {{total}} 行。",
+    "diff.status.filterCleared": "差异筛选已清除，显示 {{total}} 行。",
+    "diff.status.active": "差异 {{current}} / {{total}}",
     "file.readOnly": "只读",
     "file.export": "导出",
     "file.save": "保存",
@@ -1330,6 +1450,10 @@ function t(key) {
   return localeCatalog[localePreference]?.[key] || localeCatalog[defaultLocale][key] || key;
 }
 
+function tf(key, values = {}) {
+  return t(key).replace(/\{\{(\w+)\}\}/g, (_match, name) => values[name] ?? "");
+}
+
 function translationOrEmpty(key) {
   const value = t(key);
   return value === key ? "" : value;
@@ -1360,6 +1484,7 @@ function setLocalePreference(locale, persist = true) {
   }
   if (paletteOpen) renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
+  if (lastDiffResult) renderDiffResult(lastDiffResult);
   renderFileList();
 }
 
@@ -1432,11 +1557,62 @@ function applyLocaleStrings() {
   if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
+  applyDiffLocaleStrings();
   const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
   if (!documentId && status && readyLabels.has(status.textContent)) {
     status.textContent = t("status.ready");
   }
   document.body.dataset.localeLabel = localeLabel();
+}
+
+function applyDiffLocaleStrings() {
+  const textTargets = [
+    [runDiffButton, "diff.run"],
+    [diffIgnoreCaseLabel, "diff.ignoreCase"],
+    [diffIgnoreWhitespaceLabel, "diff.ignoreWhitespace"],
+    [diffMatchHeadersLabel, "diff.matchHeaders"],
+    [diffClearFilterButton, "diff.clear"],
+    [diffRightTextModeLabel, "diff.rightTextMode"],
+    [diffPasteClipboardButton, "diff.pasteClipboard"],
+  ];
+  for (const [element, key] of textTargets) {
+    if (element) element.textContent = t(key);
+  }
+  setDiffPlaceholder(diffKeyColumn, "diff.keyColumnPlaceholder");
+  setDiffPlaceholder(diffIgnoredColumns, "diff.ignoredColumnsPlaceholder");
+  setDiffPlaceholder(diffSearchInput, "diff.searchPlaceholder");
+  setDiffPlaceholder(diffRightText, "diff.rightTextPlaceholder");
+  if (diffPrevButton) diffPrevButton.title = t("diff.previousDifference");
+  if (diffNextButton) diffNextButton.title = t("diff.nextDifference");
+  setSelectOptionLabels(diffStatusFilter, {
+    all: "diff.status.all",
+    differences: "diff.status.differences",
+    changed: "diff.status.changed",
+    added: "diff.status.added",
+    deleted: "diff.status.deleted",
+    unchanged: "diff.status.unchanged",
+  });
+  setSelectOptionLabels(diffSortSelect, {
+    source: "diff.sort.source",
+    status: "diff.sort.status",
+    leftRow: "diff.sort.leftRow",
+    rightRow: "diff.sort.rightRow",
+    leftText: "diff.sort.leftText",
+    rightText: "diff.sort.rightText",
+  });
+  setDiffSortDirection(diffSortDirection());
+}
+
+function setDiffPlaceholder(element, key) {
+  if (element) element.placeholder = t(key);
+}
+
+function setSelectOptionLabels(select, labels) {
+  if (!select) return;
+  for (const option of select.options) {
+    const key = labels[option.value];
+    if (key) option.textContent = t(key);
+  }
 }
 
 function normalizeThemePreference(preference) {
@@ -13995,10 +14171,14 @@ async function runDiffCompare() {
   lastDiffResult = payload;
   renderDiffResult(payload);
   const filterLabel = diffFilterActive()
-    ? `; showing ${document.body.dataset.diffFilteredRows || "0"} rows after filter`
+    ? tf("diff.status.filteredSuffix", { shown: document.body.dataset.diffFilteredRows || "0" })
     : "";
   status.textContent =
-    `Diff: ${payload.summary.changed} changed, ${payload.summary.added} added, ${payload.summary.deleted} deleted${filterLabel}`;
+    `${tf("diff.status.summary", {
+      changed: payload.summary.changed,
+      added: payload.summary.added,
+      deleted: payload.summary.deleted,
+    })}${filterLabel}`;
 }
 
 function currentDiffOptions() {
@@ -14089,11 +14269,11 @@ function renderDiffResult(result) {
   diffRows = [];
   activeDiffIndex = -1;
   diffSummary.replaceChildren(
-    summaryNode("Unchanged", summary.unchanged ?? 0),
-    summaryNode("Changed", summary.changed ?? 0),
-    summaryNode("Added", summary.added ?? 0),
-    summaryNode("Deleted", summary.deleted ?? 0),
-    summaryNode("Shown", filteredRows.length),
+    summaryNode(t("diff.summary.unchanged"), summary.unchanged ?? 0),
+    summaryNode(t("diff.summary.changed"), summary.changed ?? 0),
+    summaryNode(t("diff.summary.added"), summary.added ?? 0),
+    summaryNode(t("diff.summary.deleted"), summary.deleted ?? 0),
+    summaryNode(t("diff.summary.shown"), filteredRows.length),
   );
   document.body.dataset.diffFilterStatus = diffStatusFilter?.value || "all";
   document.body.dataset.diffFilterQuery = diffSearchInput?.value.trim() || "";
@@ -14101,21 +14281,29 @@ function renderDiffResult(result) {
   document.body.dataset.diffSortDirection = diffSortDirection();
   document.body.dataset.diffFilteredRows = String(filteredRows.length);
   if (!allRows.length) {
-    diffResult.replaceChildren(emptyDiffNode("No diff rows"));
+    diffResult.replaceChildren(emptyDiffNode(t("diff.empty.none")));
     updateDiffNavigationState();
     return;
   }
   if (!filteredRows.length) {
-    diffResult.replaceChildren(emptyDiffNode("No diff rows match filters"));
+    diffResult.replaceChildren(emptyDiffNode(t("diff.empty.filtered")));
     updateDiffNavigationState();
     return;
   }
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const tr = document.createElement("tr");
-  for (const label of ["Status", "Left Row", "Left", "Right Row", "Right", "Changed Cells", "Actions"]) {
+  for (const key of [
+    "diff.table.status",
+    "diff.table.leftRow",
+    "diff.table.left",
+    "diff.table.rightRow",
+    "diff.table.right",
+    "diff.table.changedCells",
+    "diff.table.actions",
+  ]) {
     const th = document.createElement("th");
-    th.textContent = label;
+    th.textContent = t(key);
     tr.append(th);
   }
   thead.append(tr);
@@ -14129,7 +14317,7 @@ function renderDiffResult(result) {
       tr.dataset.resultIndex = String(index);
       diffRows.push(tr);
     }
-    appendCell(tr, row.status);
+    appendCell(tr, localizedDiffStatus(row.status));
     appendCell(tr, row.leftRow ?? "");
     appendCell(tr, (row.leftRecord ?? []).join(" | "));
     appendCell(tr, row.rightRow ?? "");
@@ -14181,6 +14369,7 @@ function diffRowSearchText(row) {
     .join(" ");
   return [
     row.status,
+    localizedDiffStatus(row.status),
     row.leftRow,
     row.rightRow,
     ...(row.leftRecord ?? []),
@@ -14259,6 +14448,10 @@ function diffStatusRank(statusValue) {
   }
 }
 
+function localizedDiffStatus(statusValue) {
+  return translationOrEmpty(`diff.status.${statusValue}`) || String(statusValue || "");
+}
+
 function compareNullableNumbers(left, right) {
   return Number(left) - Number(right);
 }
@@ -14282,9 +14475,9 @@ function setDiffSortDirection(direction) {
   const normalized = direction === "desc" ? "desc" : "asc";
   if (!diffSortDirectionButton) return;
   diffSortDirectionButton.dataset.direction = normalized;
-  diffSortDirectionButton.textContent = normalized === "desc" ? "Desc" : "Asc";
+  diffSortDirectionButton.textContent = normalized === "desc" ? t("diff.sort.desc") : t("diff.sort.asc");
   diffSortDirectionButton.setAttribute("aria-pressed", String(normalized === "desc"));
-  diffSortDirectionButton.title = normalized === "desc" ? "Sort descending" : "Sort ascending";
+  diffSortDirectionButton.title = normalized === "desc" ? t("diff.sortDescending") : t("diff.sortAscending");
 }
 
 function toggleDiffSortDirection() {
@@ -14306,8 +14499,8 @@ function applyDiffResultFilters() {
   const shown = Number(document.body.dataset.diffFilteredRows || 0);
   const total = Array.isArray(lastDiffResult.rows) ? lastDiffResult.rows.length : 0;
   status.textContent = diffFilterActive()
-    ? `Diff filter shows ${formatCount(shown)} of ${formatCount(total)} rows.`
-    : `Diff filter cleared; showing ${formatCount(total)} rows.`;
+    ? tf("diff.status.filterShown", { shown: formatCount(shown), total: formatCount(total) })
+    : tf("diff.status.filterCleared", { total: formatCount(total) });
 }
 
 function clearDiffResultFilters() {
@@ -14337,7 +14530,7 @@ function activateDiffRow(index, scroll = true) {
     row.scrollIntoView({ block: "nearest" });
   }
   updateDiffNavigationState();
-  status.textContent = `Diff ${activeDiffIndex + 1} of ${diffRows.length}`;
+  status.textContent = tf("diff.status.active", { current: activeDiffIndex + 1, total: diffRows.length });
 }
 
 function navigateDiff(direction) {
@@ -14352,11 +14545,11 @@ function appendDiffActions(container, row, resultIndex) {
   rowButton.type = "button";
   rowButton.textContent =
     row.status === "added"
-      ? "Insert row"
+      ? t("diff.action.insertRow")
       : row.status === "deleted"
-        ? "Delete left"
-        : "Apply row";
-  rowButton.title = "Apply right row to left file";
+        ? t("diff.action.deleteLeft")
+        : t("diff.action.applyRow");
+  rowButton.title = t("diff.action.applyRightRowToLeft");
   rowButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0, "right-to-left"));
   container.append(rowButton);
 
@@ -14365,11 +14558,11 @@ function appendDiffActions(container, row, resultIndex) {
     leftButton.type = "button";
     leftButton.textContent =
       row.status === "added"
-        ? "Delete right"
+        ? t("diff.action.deleteRight")
         : row.status === "deleted"
-          ? "Insert right"
-          : "Apply left row";
-    leftButton.title = "Apply left row to right file";
+          ? t("diff.action.insertRight")
+          : t("diff.action.applyLeftRow");
+    leftButton.title = t("diff.action.applyLeftRowToRight");
     leftButton.addEventListener("click", () => mergeDiffChange(resultIndex, "row", 0, "left-to-right"));
     container.append(leftButton);
   }
@@ -14379,14 +14572,14 @@ function appendDiffActions(container, row, resultIndex) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = `c${cell.col}`;
-    button.title = `Apply right cell c${cell.col} to left`;
+    button.title = tf("diff.action.applyRightCellToLeft", { col: cell.col });
     button.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col, "right-to-left"));
     container.append(button);
     if (!diffRightTextMode.checked) {
       const leftButton = document.createElement("button");
       leftButton.type = "button";
       leftButton.textContent = `L c${cell.col}`;
-      leftButton.title = `Apply left cell c${cell.col} to right`;
+      leftButton.title = tf("diff.action.applyLeftCellToRight", { col: cell.col });
       leftButton.addEventListener("click", () => mergeDiffChange(resultIndex, "cell", cell.col, "left-to-right"));
       container.append(leftButton);
     }
