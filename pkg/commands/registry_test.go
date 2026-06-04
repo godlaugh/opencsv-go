@@ -132,6 +132,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"cell.swapDown",
 		"cell.swapLeft",
 		"cell.swapRight",
+		"cell.openLink",
 		"cell.joinHorizontal",
 		"cell.splitHorizontal",
 		"cell.joinVertical",

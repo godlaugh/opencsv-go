@@ -689,6 +689,8 @@ const localeCatalog = {
     "command.text.column.titleCase.title": "整列转标题大小写",
     "command.text.column.fullWidth.title": "整列转全角",
     "command.text.column.halfWidth.title": "整列转半角",
+    "command.cell.openLink.title": "打开链接",
+    "command.cell.openLink.description": "打开当前单元格中通过安全审计的链接。",
     "command.cell.joinHorizontal.title": "合并单元格",
     "command.cell.splitHorizontal.title": "拆分单元格",
     "command.cell.joinVertical.title": "纵向合并单元格",
@@ -2449,6 +2451,7 @@ function isCommandDisabled(command) {
   const hasDocument = Boolean(documentId);
   const needsSQLResult = sqlResultCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
+  const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
   const needsColumnAction = needsColumnTextTransform || columnSortCommands.has(command.id) || columnFilterCommands.has(command.id);
   const needsAggregate =
@@ -2550,6 +2553,7 @@ function isCommandDisabled(command) {
     (needsColumn && columns.length === 0) ||
     (needsVisibleColumn && columns.length === 0) ||
     (needsHiddenColumn && hiddenSourceColumns.size === 0) ||
+    (needsCellLink && !normalizeURL(valueAt(selected.row, selected.col))) ||
     (needsBodyRow && selected.row >= sourceRowCount) ||
     (needsRowClipboard && !structureClipboardFor("row")) ||
     (needsColumnClipboard && !structureClipboardFor("column")) ||
@@ -4971,7 +4975,7 @@ function renderGridContextMenu(target, clientX, clientY) {
 
   const url = target.kind === "cell" ? normalizeURL(valueAt(selected.row, selected.col)) : "";
   if (url) {
-    addItem("Open Link", () => openSelectedCellLink(), { disabled: false });
+    addCommand("cell.openLink", "Open Link");
   }
 
   if (target.kind === "cell") {
@@ -7187,6 +7191,9 @@ async function executeCommand(commandID) {
       break;
     case "cell.swapRight":
       await swapCellWithNeighbor("right");
+      break;
+    case "cell.openLink":
+      openSelectedCellLink();
       break;
     case "cell.joinHorizontal":
       await joinSelectedCells("horizontal");
@@ -15217,13 +15224,15 @@ cellValueDialogInput.addEventListener("keydown", (event) => {
   }
 });
 openCellLink.addEventListener("click", (event) => {
+  event.preventDefault();
   if (openCellLink.getAttribute("aria-disabled") === "true") {
-    event.preventDefault();
     status.textContent = linkUnavailableMessage({
       status: document.body.dataset.cellLinkStatus,
       protocol: document.body.dataset.cellLinkProtocol,
     });
+    return;
   }
+  executeCommand("cell.openLink");
 });
 findButton.addEventListener("click", (event) => focusFindInput({ run: true, target: event.target }));
 findPrevButton.addEventListener("click", () => findNextMatch(-1));
