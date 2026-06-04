@@ -389,7 +389,7 @@ The app shall support:
 - SQL WHERE style filter.
 - Excel-like value checklist filter.
 - Natural sort of value checklist entries.
-- Visual condition-builder filter with operators such as equals, contains, starts with, blank/non-blank, and between/not-between.
+- Visual condition-builder filter with operators such as equals, contains, does-not-contain, starts with, blank/non-blank, in/not-in list, and between/not-between.
 - Visual condition-builder grouping for adjacent conditions, including groups that start from the first two conditions.
 - Selected-cell quick condition templates for common filter predicates.
 - Empty/non-empty filters.

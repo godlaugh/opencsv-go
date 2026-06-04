@@ -6081,6 +6081,7 @@ function conditionOperatorNeedsValue(operator) {
 
 function conditionValuePlaceholder(operator) {
   if (operator === "between" || operator === "notBetween") return "min..max";
+  if (operator === "inList" || operator === "notInList") return "value1, value2";
   if (String(operator).startsWith("date")) return "YYYY-MM-DD";
   return "";
 }
@@ -6183,6 +6184,8 @@ function conditionTemplateDraft(template) {
       return { column: activeColumn, operator: "equals", value };
     case "selectedContains":
       return { column: activeColumn, operator: "contains", value };
+    case "selectedNotContains":
+      return { column: activeColumn, operator: "notContains", value };
     case "selectedNotEquals":
       return { column: activeColumn, operator: "notEquals", value };
     case "activeBlank":
@@ -6246,10 +6249,16 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
   switch (operator) {
     case "contains":
       return `${identifier} LIKE ${sqlStringLiteral(`%${value}%`)}`;
+    case "notContains":
+      return `${identifier} NOT LIKE ${sqlStringLiteral(`%${value}%`)}`;
     case "equals":
       return `${identifier} = ${sqlStringLiteral(value)}`;
     case "notEquals":
       return `${identifier} <> ${sqlStringLiteral(value)}`;
+    case "inList":
+      return listConditionExpression(identifier, value, valueInput, false);
+    case "notInList":
+      return listConditionExpression(identifier, value, valueInput, true);
     case "startsWith":
       return `${identifier} LIKE ${sqlStringLiteral(`${value}%`)}`;
     case "endsWith":
@@ -6299,6 +6308,51 @@ function rangeConditionExpression(identifier, value, valueInput, negate) {
   }
   const expression = `(${identifier} >= ${sqlComparisonLiteral(range[0])} AND ${identifier} <= ${sqlComparisonLiteral(range[1])})`;
   return negate ? `NOT ${expression}` : expression;
+}
+
+function listConditionExpression(identifier, value, valueInput, negate) {
+  const values = conditionListValues(value);
+  if (!values.length) {
+    status.textContent = "Enter list values separated by commas or new lines.";
+    valueInput.focus();
+    return "";
+  }
+  const operator = negate ? "<>" : "=";
+  const join = negate ? " AND " : " OR ";
+  return `(${values.map((item) => `${identifier} ${operator} ${sqlStringLiteral(item)}`).join(join)})`;
+}
+
+function conditionListValues(value) {
+  const values = [];
+  let current = "";
+  let quoted = false;
+  const raw = String(value ?? "");
+  for (let index = 0; index < raw.length; index++) {
+    const char = raw[index];
+    if (quoted) {
+      if (char === '"' && raw[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === '"') {
+      quoted = true;
+    } else if (char === "," || char === "\n") {
+      const next = current.trim();
+      if (next) values.push(next);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  const last = current.trim();
+  if (last) values.push(last);
+  return values;
 }
 
 function conditionRangeParts(value) {
