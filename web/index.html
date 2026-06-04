@@ -769,29 +769,29 @@
     <div id="conditionPanel" class="command-palette-backdrop" hidden>
       <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder">
         <header class="condition-panel-header">
-          <strong>Filter Builder</strong>
-          <button id="closeConditionButton" type="button">Close</button>
+          <strong data-i18n="condition.title">Filter Builder</strong>
+          <button id="closeConditionButton" type="button" data-i18n="condition.close">Close</button>
         </header>
         <div class="condition-grid">
           <div class="condition-template-bar" aria-label="Quick filter conditions">
             <label>
-              <span>Quick Condition</span>
+              <span data-i18n="condition.quick">Quick Condition</span>
               <select id="conditionTemplateSelect" aria-label="Quick filter condition">
-                <option value="">Choose template</option>
-                <option value="selectedEquals">Selected cell equals</option>
-                <option value="selectedContains">Selected cell contains</option>
-                <option value="selectedNotContains">Selected cell does not contain</option>
-                <option value="selectedNotEquals">Selected cell not equal</option>
-                <option value="activeBlank">Active column blank</option>
-                <option value="activeNotBlank">Active column not blank</option>
-                <option value="activeTrue">Active column true</option>
-                <option value="activeFalse">Active column false</option>
+                <option value="" data-i18n="condition.template.choose">Choose template</option>
+                <option value="selectedEquals" data-i18n="condition.template.selectedEquals">Selected cell equals</option>
+                <option value="selectedContains" data-i18n="condition.template.selectedContains">Selected cell contains</option>
+                <option value="selectedNotContains" data-i18n="condition.template.selectedNotContains">Selected cell does not contain</option>
+                <option value="selectedNotEquals" data-i18n="condition.template.selectedNotEquals">Selected cell not equal</option>
+                <option value="activeBlank" data-i18n="condition.template.activeBlank">Active column blank</option>
+                <option value="activeNotBlank" data-i18n="condition.template.activeNotBlank">Active column not blank</option>
+                <option value="activeTrue" data-i18n="condition.template.activeTrue">Active column true</option>
+                <option value="activeFalse" data-i18n="condition.template.activeFalse">Active column false</option>
               </select>
             </label>
-            <button id="useConditionTemplateButton" type="button">Use Template</button>
+            <button id="useConditionTemplateButton" type="button" data-i18n="condition.useTemplate">Use Template</button>
           </div>
           <fieldset class="condition-row" data-condition-row="primary">
-            <legend>Condition 1</legend>
+            <legend data-i18n="condition.legendOne">Condition 1</legend>
             <label class="condition-group-open-control">
               <span>(</span>
               <select id="conditionPrimaryOpenGroup" aria-label="Open group before condition 1">
@@ -811,48 +811,48 @@
               </select>
             </label>
             <label>
-              <span>Column</span>
+              <span data-i18n="condition.column">Column</span>
               <select id="conditionColumn" aria-label="Filter column"></select>
             </label>
             <label>
-              <span>Operator</span>
+              <span data-i18n="condition.operator">Operator</span>
               <select id="conditionOperator" aria-label="Filter operator">
-                <option value="contains">contains</option>
-                <option value="notContains">does not contain</option>
-                <option value="equals">equals</option>
-                <option value="notEquals">not equals</option>
-                <option value="inList">in list</option>
-                <option value="notInList">not in list</option>
-                <option value="startsWith">starts with</option>
-                <option value="endsWith">ends with</option>
-                <option value="blank">is blank</option>
-                <option value="notBlank">is not blank</option>
-                <option value="booleanTrue">is true</option>
-                <option value="booleanFalse">is false</option>
-                <option value="dateEquals">date equals</option>
-                <option value="dateBefore">date before</option>
-                <option value="dateAfter">date after</option>
-                <option value="dateOnOrBefore">date on/before</option>
-                <option value="dateOnOrAfter">date on/after</option>
-                <option value="gt">greater than</option>
-                <option value="gte">greater or equal</option>
-                <option value="lt">less than</option>
-                <option value="lte">less or equal</option>
-                <option value="between">between</option>
-                <option value="notBetween">not between</option>
+                <option value="contains" data-i18n="condition.operator.contains">contains</option>
+                <option value="notContains" data-i18n="condition.operator.notContains">does not contain</option>
+                <option value="equals" data-i18n="condition.operator.equals">equals</option>
+                <option value="notEquals" data-i18n="condition.operator.notEquals">not equals</option>
+                <option value="inList" data-i18n="condition.operator.inList">in list</option>
+                <option value="notInList" data-i18n="condition.operator.notInList">not in list</option>
+                <option value="startsWith" data-i18n="condition.operator.startsWith">starts with</option>
+                <option value="endsWith" data-i18n="condition.operator.endsWith">ends with</option>
+                <option value="blank" data-i18n="condition.operator.blank">is blank</option>
+                <option value="notBlank" data-i18n="condition.operator.notBlank">is not blank</option>
+                <option value="booleanTrue" data-i18n="condition.operator.booleanTrue">is true</option>
+                <option value="booleanFalse" data-i18n="condition.operator.booleanFalse">is false</option>
+                <option value="dateEquals" data-i18n="condition.operator.dateEquals">date equals</option>
+                <option value="dateBefore" data-i18n="condition.operator.dateBefore">date before</option>
+                <option value="dateAfter" data-i18n="condition.operator.dateAfter">date after</option>
+                <option value="dateOnOrBefore" data-i18n="condition.operator.dateOnOrBefore">date on/before</option>
+                <option value="dateOnOrAfter" data-i18n="condition.operator.dateOnOrAfter">date on/after</option>
+                <option value="gt" data-i18n="condition.operator.gt">greater than</option>
+                <option value="gte" data-i18n="condition.operator.gte">greater or equal</option>
+                <option value="lt" data-i18n="condition.operator.lt">less than</option>
+                <option value="lte" data-i18n="condition.operator.lte">less or equal</option>
+                <option value="between" data-i18n="condition.operator.between">between</option>
+                <option value="notBetween" data-i18n="condition.operator.notBetween">not between</option>
               </select>
             </label>
             <label>
-              <span>Value</span>
+              <span data-i18n="condition.value">Value</span>
               <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" />
             </label>
           </fieldset>
           <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
         </div>
         <footer class="condition-actions">
-          <button id="addConditionButton" type="button">Add Condition</button>
-          <button id="applyConditionButton" type="button">Apply</button>
-          <button id="clearConditionButton" type="button">Clear View</button>
+          <button id="addConditionButton" type="button" data-i18n="condition.add">Add Condition</button>
+          <button id="applyConditionButton" type="button" data-i18n="condition.apply">Apply</button>
+          <button id="clearConditionButton" type="button" data-i18n="condition.clearView">Clear View</button>
         </footer>
       </section>
     </div>

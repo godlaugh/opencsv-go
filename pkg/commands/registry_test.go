@@ -449,6 +449,46 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestConditionBuilderI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-i18n="condition.title"`,
+		`data-i18n="condition.template.selectedEquals"`,
+		`data-i18n="condition.operator.contains"`,
+		`data-i18n="condition.add"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing condition builder i18n html anchor %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"condition.operator.contains"`,
+		`"condition.operator.contains": "包含"`,
+		`"condition.status.ready": "快速条件已就绪`,
+		"applyConditionLocaleStrings",
+		"setSelectOptionLabels(conditionOperator",
+		"setSelectOptionLabels(conditionTemplateSelect",
+		`tf("condition.status.ready"`,
+		`t("condition.status.enterValue")`,
+		`t("condition.status.enterDate")`,
+		`matched: "condition.status.matched"`,
+		"statusKeys.matched",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing condition builder i18n wiring %q", snippet)
+		}
+	}
+}
+
 func TestProfileViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

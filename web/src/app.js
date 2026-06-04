@@ -489,6 +489,83 @@ const localeCatalog = {
     "replace.status.replacedOne": "Replaced 1 cell",
     "replace.status.previewFirst": "; first row {{row}}, column {{column}}",
     "replace.status.preview": "Preview: {{count}} cells would change{{rowLabel}}: {{before}} -> {{after}}",
+    "condition.title": "Filter Builder",
+    "condition.close": "Close",
+    "condition.quick": "Quick Condition",
+    "condition.quickConditions": "Quick filter conditions",
+    "condition.additional": "Additional filter conditions",
+    "condition.template.choose": "Choose template",
+    "condition.template.selectedEquals": "Selected cell equals",
+    "condition.template.selectedContains": "Selected cell contains",
+    "condition.template.selectedNotContains": "Selected cell does not contain",
+    "condition.template.selectedNotEquals": "Selected cell not equal",
+    "condition.template.activeBlank": "Active column blank",
+    "condition.template.activeNotBlank": "Active column not blank",
+    "condition.template.activeTrue": "Active column true",
+    "condition.template.activeFalse": "Active column false",
+    "condition.useTemplate": "Use Template",
+    "condition.legendOne": "Condition 1",
+    "condition.legend": "Condition {{number}}",
+    "condition.join": "Join",
+    "condition.join.and": "AND",
+    "condition.join.or": "OR",
+    "condition.column": "Column",
+    "condition.operator": "Operator",
+    "condition.value": "Value",
+    "condition.add": "Add Condition",
+    "condition.apply": "Apply",
+    "condition.clearView": "Clear View",
+    "condition.remove": "Remove",
+    "condition.operator.contains": "contains",
+    "condition.operator.notContains": "does not contain",
+    "condition.operator.equals": "equals",
+    "condition.operator.notEquals": "not equals",
+    "condition.operator.inList": "in list",
+    "condition.operator.notInList": "not in list",
+    "condition.operator.startsWith": "starts with",
+    "condition.operator.endsWith": "ends with",
+    "condition.operator.blank": "is blank",
+    "condition.operator.notBlank": "is not blank",
+    "condition.operator.booleanTrue": "is true",
+    "condition.operator.booleanFalse": "is false",
+    "condition.operator.dateEquals": "date equals",
+    "condition.operator.dateBefore": "date before",
+    "condition.operator.dateAfter": "date after",
+    "condition.operator.dateOnOrBefore": "date on/before",
+    "condition.operator.dateOnOrAfter": "date on/after",
+    "condition.operator.gt": "greater than",
+    "condition.operator.gte": "greater or equal",
+    "condition.operator.lt": "less than",
+    "condition.operator.lte": "less or equal",
+    "condition.operator.between": "between",
+    "condition.operator.notBetween": "not between",
+    "condition.placeholder.range": "min..max",
+    "condition.placeholder.list": "value1, value2",
+    "condition.placeholder.date": "YYYY-MM-DD",
+    "condition.group.openTitle": "Open a group before this condition",
+    "condition.group.closeTitle": "Close a group after this condition",
+    "condition.group.openAria": "Open group before condition {{number}}",
+    "condition.group.closeAria": "Close group after condition {{number}}",
+    "condition.joinAria": "Condition {{number}} join",
+    "condition.columnAria": "Condition {{number}} column",
+    "condition.operatorAria": "Condition {{number}} operator",
+    "condition.valueAria": "Condition {{number}} value",
+    "condition.removeTitle": "Remove condition {{number}}",
+    "condition.status.chooseQuick": "Choose a quick filter condition.",
+    "condition.status.ready": "Quick condition ready: {{label}}.",
+    "condition.status.selectCell": "Select a cell before using a quick condition.",
+    "condition.status.unsupportedQuick": "Choose a supported quick condition.",
+    "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
+    "condition.status.closeGroups": "Close every condition group before applying.",
+    "condition.status.chooseColumn": "Choose a column to filter.",
+    "condition.status.enterValue": "Enter a filter value.",
+    "condition.status.chooseOperator": "Choose a filter operator.",
+    "condition.status.enterRange": "Enter a range as min..max.",
+    "condition.status.enterList": "Enter list values separated by commas or new lines.",
+    "condition.status.enterDate": "Enter a date as YYYY-MM-DD.",
+    "condition.status.matched": "Condition filter matched {{count}} rows",
+    "condition.status.failed": "Condition filter failed: {{message}}",
+    "condition.filterLabel": "Condition filter",
     "diff.compare": "Compare",
     "diff.run": "Run",
     "diff.ignoreCase": "Ignore case",
@@ -908,6 +985,83 @@ const localeCatalog = {
     "replace.status.replacedOne": "已替换 1 个单元格",
     "replace.status.previewFirst": "；首个在第 {{row}} 行，第 {{column}} 列",
     "replace.status.preview": "预览：{{count}} 个单元格将变更{{rowLabel}}：{{before}} -> {{after}}",
+    "condition.title": "筛选构建器",
+    "condition.close": "关闭",
+    "condition.quick": "快速条件",
+    "condition.quickConditions": "快速筛选条件",
+    "condition.additional": "附加筛选条件",
+    "condition.template.choose": "选择模板",
+    "condition.template.selectedEquals": "选中单元格等于",
+    "condition.template.selectedContains": "选中单元格包含",
+    "condition.template.selectedNotContains": "选中单元格不包含",
+    "condition.template.selectedNotEquals": "选中单元格不等于",
+    "condition.template.activeBlank": "当前列为空",
+    "condition.template.activeNotBlank": "当前列非空",
+    "condition.template.activeTrue": "当前列为真",
+    "condition.template.activeFalse": "当前列为假",
+    "condition.useTemplate": "使用模板",
+    "condition.legendOne": "条件 1",
+    "condition.legend": "条件 {{number}}",
+    "condition.join": "连接",
+    "condition.join.and": "且",
+    "condition.join.or": "或",
+    "condition.column": "列",
+    "condition.operator": "操作符",
+    "condition.value": "值",
+    "condition.add": "添加条件",
+    "condition.apply": "应用",
+    "condition.clearView": "清除视图",
+    "condition.remove": "移除",
+    "condition.operator.contains": "包含",
+    "condition.operator.notContains": "不包含",
+    "condition.operator.equals": "等于",
+    "condition.operator.notEquals": "不等于",
+    "condition.operator.inList": "在列表中",
+    "condition.operator.notInList": "不在列表中",
+    "condition.operator.startsWith": "开头为",
+    "condition.operator.endsWith": "结尾为",
+    "condition.operator.blank": "为空",
+    "condition.operator.notBlank": "非空",
+    "condition.operator.booleanTrue": "为真",
+    "condition.operator.booleanFalse": "为假",
+    "condition.operator.dateEquals": "日期等于",
+    "condition.operator.dateBefore": "日期早于",
+    "condition.operator.dateAfter": "日期晚于",
+    "condition.operator.dateOnOrBefore": "日期不晚于",
+    "condition.operator.dateOnOrAfter": "日期不早于",
+    "condition.operator.gt": "大于",
+    "condition.operator.gte": "大于或等于",
+    "condition.operator.lt": "小于",
+    "condition.operator.lte": "小于或等于",
+    "condition.operator.between": "介于",
+    "condition.operator.notBetween": "不介于",
+    "condition.placeholder.range": "最小值..最大值",
+    "condition.placeholder.list": "值1, 值2",
+    "condition.placeholder.date": "YYYY-MM-DD",
+    "condition.group.openTitle": "在此条件前打开分组",
+    "condition.group.closeTitle": "在此条件后关闭分组",
+    "condition.group.openAria": "在条件 {{number}} 前打开分组",
+    "condition.group.closeAria": "在条件 {{number}} 后关闭分组",
+    "condition.joinAria": "条件 {{number}} 连接方式",
+    "condition.columnAria": "条件 {{number}} 列",
+    "condition.operatorAria": "条件 {{number}} 操作符",
+    "condition.valueAria": "条件 {{number}} 值",
+    "condition.removeTitle": "移除条件 {{number}}",
+    "condition.status.chooseQuick": "请选择快速筛选条件。",
+    "condition.status.ready": "快速条件已就绪：{{label}}。",
+    "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
+    "condition.status.unsupportedQuick": "请选择支持的快速条件。",
+    "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
+    "condition.status.closeGroups": "应用前请关闭所有条件分组。",
+    "condition.status.chooseColumn": "请选择要筛选的列。",
+    "condition.status.enterValue": "请输入筛选值。",
+    "condition.status.chooseOperator": "请选择筛选操作符。",
+    "condition.status.enterRange": "请输入范围，格式为 最小值..最大值。",
+    "condition.status.enterList": "请输入用逗号或换行分隔的列表值。",
+    "condition.status.enterDate": "请输入 YYYY-MM-DD 格式的日期。",
+    "condition.status.matched": "筛选条件匹配 {{count}} 行",
+    "condition.status.failed": "筛选条件失败：{{message}}",
+    "condition.filterLabel": "筛选条件",
     "diff.compare": "比较",
     "diff.run": "运行",
     "diff.ignoreCase": "忽略大小写",
@@ -1937,6 +2091,7 @@ function applyLocaleStrings() {
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
   applyFindLocaleStrings();
+  applyConditionLocaleStrings();
   applyProfileLocaleStrings();
   applySQLLocaleStrings();
   applyDiffLocaleStrings();
@@ -1972,6 +2127,79 @@ function applyFindLocaleStrings() {
   if (replacePreviewButton) replacePreviewButton.title = t("find.previewTitle");
   if (replaceButton) replaceButton.title = t("find.replaceTitle");
   if (replaceAllButton) replaceAllButton.title = t("find.replaceAllTitle");
+}
+
+function conditionOperatorLabelKeys() {
+  return {
+    contains: "condition.operator.contains",
+    notContains: "condition.operator.notContains",
+    equals: "condition.operator.equals",
+    notEquals: "condition.operator.notEquals",
+    inList: "condition.operator.inList",
+    notInList: "condition.operator.notInList",
+    startsWith: "condition.operator.startsWith",
+    endsWith: "condition.operator.endsWith",
+    blank: "condition.operator.blank",
+    notBlank: "condition.operator.notBlank",
+    booleanTrue: "condition.operator.booleanTrue",
+    booleanFalse: "condition.operator.booleanFalse",
+    dateEquals: "condition.operator.dateEquals",
+    dateBefore: "condition.operator.dateBefore",
+    dateAfter: "condition.operator.dateAfter",
+    dateOnOrBefore: "condition.operator.dateOnOrBefore",
+    dateOnOrAfter: "condition.operator.dateOnOrAfter",
+    gt: "condition.operator.gt",
+    gte: "condition.operator.gte",
+    lt: "condition.operator.lt",
+    lte: "condition.operator.lte",
+    between: "condition.operator.between",
+    notBetween: "condition.operator.notBetween",
+  };
+}
+
+function conditionTemplateLabelKeys() {
+  return {
+    "": "condition.template.choose",
+    selectedEquals: "condition.template.selectedEquals",
+    selectedContains: "condition.template.selectedContains",
+    selectedNotContains: "condition.template.selectedNotContains",
+    selectedNotEquals: "condition.template.selectedNotEquals",
+    activeBlank: "condition.template.activeBlank",
+    activeNotBlank: "condition.template.activeNotBlank",
+    activeTrue: "condition.template.activeTrue",
+    activeFalse: "condition.template.activeFalse",
+  };
+}
+
+function applyConditionLocaleStrings() {
+  const dialog = conditionPanel?.querySelector(".condition-panel");
+  const templateBar = conditionPanel?.querySelector(".condition-template-bar");
+  if (filterBuilderButton) filterBuilderButton.title = t("condition.title");
+  if (dialog) dialog.setAttribute("aria-label", t("condition.title"));
+  if (templateBar) templateBar.setAttribute("aria-label", t("condition.quickConditions"));
+  if (conditionTemplateSelect) conditionTemplateSelect.setAttribute("aria-label", t("condition.quickConditions"));
+  if (conditionPrimaryOpenGroup) {
+    conditionPrimaryOpenGroup.setAttribute("aria-label", tf("condition.group.openAria", { number: 1 }));
+    const label = conditionPrimaryOpenGroup.closest("label");
+    if (label) label.title = t("condition.group.openTitle");
+  }
+  if (conditionPrimaryCloseGroup) {
+    conditionPrimaryCloseGroup.setAttribute("aria-label", tf("condition.group.closeAria", { number: 1 }));
+    const label = conditionPrimaryCloseGroup.closest("label");
+    if (label) label.title = t("condition.group.closeTitle");
+  }
+  if (conditionColumn) conditionColumn.setAttribute("aria-label", tf("condition.columnAria", { number: 1 }));
+  if (conditionOperator) conditionOperator.setAttribute("aria-label", tf("condition.operatorAria", { number: 1 }));
+  if (conditionValue) conditionValue.setAttribute("aria-label", tf("condition.valueAria", { number: 1 }));
+  if (conditionRows) conditionRows.setAttribute("aria-label", t("condition.additional"));
+  setSelectOptionLabels(conditionTemplateSelect, conditionTemplateLabelKeys());
+  setSelectOptionLabels(conditionOperator, conditionOperatorLabelKeys());
+  if (conditionRows?.querySelector(".condition-row-extra")) {
+    readConditionExtraRowsFromDOM();
+    renderConditionExtraRows();
+  } else {
+    updateConditionValueState();
+  }
 }
 
 function applyProfileLocaleStrings() {
@@ -6897,20 +7125,20 @@ function conditionExtraRowElement(row, index) {
   fieldset.dataset.conditionIndex = String(index);
 
   const legend = document.createElement("legend");
-  legend.textContent = `Condition ${number}`;
+  legend.textContent = tf("condition.legend", { number });
   fieldset.append(legend);
 
   const joinLabel = document.createElement("label");
   joinLabel.className = "condition-join-control";
-  joinLabel.append(conditionLabelText("Join"));
+  joinLabel.append(conditionLabelText("condition.join"));
   const joinSelect = document.createElement("select");
   joinSelect.className = "condition-join-select";
   joinSelect.dataset.conditionField = "join";
-  joinSelect.setAttribute("aria-label", `Condition ${number} join`);
+  joinSelect.setAttribute("aria-label", tf("condition.joinAria", { number }));
   for (const value of ["AND", "OR"]) {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = value;
+    option.textContent = t(value === "OR" ? "condition.join.or" : "condition.join.and");
     joinSelect.append(option);
   }
   joinSelect.value = row.join === "OR" ? "OR" : "AND";
@@ -6919,50 +7147,60 @@ function conditionExtraRowElement(row, index) {
 
   const openLabel = document.createElement("label");
   openLabel.className = "condition-group-open-control";
-  openLabel.title = "Open a group before this condition";
+  openLabel.title = t("condition.group.openTitle");
   openLabel.append(conditionLabelText("("));
-  const openSelect = conditionGroupCountSelect("groupStart", Number(row.groupStart ?? 0), "(", `Open group before condition ${number}`);
+  const openSelect = conditionGroupCountSelect(
+    "groupStart",
+    Number(row.groupStart ?? 0),
+    "(",
+    tf("condition.group.openAria", { number }),
+  );
   openLabel.append(openSelect);
   fieldset.append(openLabel);
 
   const closeLabel = document.createElement("label");
   closeLabel.className = "condition-group-close-control";
-  closeLabel.title = "Close a group after this condition";
+  closeLabel.title = t("condition.group.closeTitle");
   closeLabel.append(conditionLabelText(")"));
-  const closeSelect = conditionGroupCountSelect("groupEnd", Number(row.groupEnd ?? 0), ")", `Close group after condition ${number}`);
+  const closeSelect = conditionGroupCountSelect(
+    "groupEnd",
+    Number(row.groupEnd ?? 0),
+    ")",
+    tf("condition.group.closeAria", { number }),
+  );
   closeLabel.append(closeSelect);
   fieldset.append(closeLabel);
 
   const columnLabel = document.createElement("label");
-  columnLabel.append(conditionLabelText("Column"));
+  columnLabel.append(conditionLabelText("condition.column"));
   const columnSelect = document.createElement("select");
   columnSelect.className = "condition-column";
   columnSelect.dataset.conditionField = "column";
-  columnSelect.setAttribute("aria-label", `Condition ${number} column`);
+  columnSelect.setAttribute("aria-label", tf("condition.columnAria", { number }));
   populateConditionColumnSelect(columnSelect, row.column || conditionColumn.value || String(sourceColFor(selected.col)));
   columnLabel.append(columnSelect);
   fieldset.append(columnLabel);
 
   const operatorLabel = document.createElement("label");
-  operatorLabel.append(conditionLabelText("Operator"));
+  operatorLabel.append(conditionLabelText("condition.operator"));
   const operatorSelect = document.createElement("select");
   operatorSelect.className = "condition-operator";
   operatorSelect.dataset.conditionField = "operator";
-  operatorSelect.setAttribute("aria-label", `Condition ${number} operator`);
+  operatorSelect.setAttribute("aria-label", tf("condition.operatorAria", { number }));
   operatorSelect.append(conditionOperatorOptionsFragment());
   operatorSelect.value = row.operator || "contains";
   operatorLabel.append(operatorSelect);
   fieldset.append(operatorLabel);
 
   const valueLabel = document.createElement("label");
-  valueLabel.append(conditionLabelText("Value"));
+  valueLabel.append(conditionLabelText("condition.value"));
   const valueInput = document.createElement("input");
   valueInput.className = "condition-value";
   valueInput.dataset.conditionField = "value";
   valueInput.type = "text";
   valueInput.autocomplete = "off";
   valueInput.spellcheck = false;
-  valueInput.setAttribute("aria-label", `Condition ${number} value`);
+  valueInput.setAttribute("aria-label", tf("condition.valueAria", { number }));
   valueInput.value = row.value || "";
   valueLabel.append(valueInput);
   fieldset.append(valueLabel);
@@ -6971,15 +7209,15 @@ function conditionExtraRowElement(row, index) {
   removeButton.className = "condition-remove-button";
   removeButton.type = "button";
   removeButton.dataset.conditionAction = "remove";
-  removeButton.textContent = "Remove";
-  removeButton.title = `Remove condition ${number}`;
+  removeButton.textContent = t("condition.remove");
+  removeButton.title = tf("condition.removeTitle", { number });
   fieldset.append(removeButton);
   return fieldset;
 }
 
-function conditionLabelText(text) {
+function conditionLabelText(key) {
   const span = document.createElement("span");
-  span.textContent = text;
+  span.textContent = key.startsWith("condition.") ? t(key) : key;
   return span;
 }
 
@@ -7038,9 +7276,9 @@ function conditionOperatorNeedsValue(operator) {
 }
 
 function conditionValuePlaceholder(operator) {
-  if (operator === "between" || operator === "notBetween") return "min..max";
-  if (operator === "inList" || operator === "notInList") return "value1, value2";
-  if (String(operator).startsWith("date")) return "YYYY-MM-DD";
+  if (operator === "between" || operator === "notBetween") return t("condition.placeholder.range");
+  if (operator === "inList" || operator === "notInList") return t("condition.placeholder.list");
+  if (String(operator).startsWith("date")) return t("condition.placeholder.date");
   return "";
 }
 
@@ -7073,8 +7311,12 @@ async function applyConditionBuilder() {
   const visibleCol = visibleColForSource(Number(conditionColumn.value));
   await applyFilterRequest(
     { documentId, mode: "sql", expression },
-    "Condition filter",
+    t("condition.filterLabel"),
     visibleCol >= 0 ? visibleCol : selected.col,
+    {
+      matched: "condition.status.matched",
+      failed: "condition.status.failed",
+    },
   );
 }
 
@@ -7097,7 +7339,7 @@ function useConditionTemplate() {
   if (!documentId) return;
   const template = conditionTemplateSelect.value;
   if (!template) {
-    status.textContent = "Choose a quick filter condition.";
+    status.textContent = t("condition.status.chooseQuick");
     return;
   }
   const draft = conditionTemplateDraft(template);
@@ -7108,7 +7350,7 @@ function useConditionTemplate() {
   updateConditionValueState();
   document.body.dataset.conditionTemplate = `${template}:${columns.find((column) => column.sourceCol === draft.column)?.name || draft.column}:${draft.operator}:${String(draft.value ?? "").slice(0, 80)}`;
   document.body.dataset.conditionPreview = conditionExpression(draft.column, draft.operator, draft.value ?? "", conditionValue);
-  status.textContent = `Quick condition ready: ${conditionTemplateLabel(template)}.`;
+  status.textContent = tf("condition.status.ready", { label: conditionTemplateLabel(template) });
   conditionValue.focus();
   if (conditionOperatorNeedsValue(draft.operator)) conditionValue.select();
 }
@@ -7116,7 +7358,7 @@ function useConditionTemplate() {
 function conditionTemplateDraft(template) {
   const activeColumn = sourceColFor(selected.col);
   if (!Number.isInteger(activeColumn) || activeColumn < 0) {
-    status.textContent = "Select a cell before using a quick condition.";
+    status.textContent = t("condition.status.selectCell");
     return null;
   }
   const value = String(valueAt(selected.row, selected.col) ?? "");
@@ -7138,7 +7380,7 @@ function conditionTemplateDraft(template) {
     case "activeFalse":
       return { column: activeColumn, operator: "booleanFalse", value: "" };
     default:
-      status.textContent = "Choose a supported quick condition.";
+      status.textContent = t("condition.status.unsupportedQuick");
       return null;
   }
 }
@@ -7202,7 +7444,7 @@ function conditionGroupedExpression(terms) {
     const close = conditionGroupCount(term.groupEnd);
     depth += open;
     if (close > depth) {
-      status.textContent = `Condition ${index + 1} closes more groups than are open.`;
+      status.textContent = tf("condition.status.tooManyCloses", { number: index + 1 });
       term.valueInput?.focus();
       return "";
     }
@@ -7211,7 +7453,7 @@ function conditionGroupedExpression(terms) {
     depth -= close;
   }
   if (depth !== 0) {
-    status.textContent = "Close every condition group before applying.";
+    status.textContent = t("condition.status.closeGroups");
     const lastInput = terms[terms.length - 1]?.valueInput;
     lastInput?.focus();
     return "";
@@ -7230,13 +7472,13 @@ function conditionNodesExpression(nodes) {
 
 function conditionExpression(sourceCol, operator, value, valueInput = conditionValue) {
   if (!Number.isInteger(sourceCol) || sourceCol < 0) {
-    status.textContent = "Choose a column to filter.";
+    status.textContent = t("condition.status.chooseColumn");
     return "";
   }
   const identifier = sqlColumnIdentifier(sourceCol);
   const needsValue = conditionOperatorNeedsValue(operator);
   if (needsValue && value === "") {
-    status.textContent = "Enter a filter value.";
+    status.textContent = t("condition.status.enterValue");
     valueInput.focus();
     return "";
   }
@@ -7288,7 +7530,7 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
     case "notBetween":
       return rangeConditionExpression(identifier, value, valueInput, true);
     default:
-      status.textContent = "Choose a filter operator.";
+      status.textContent = t("condition.status.chooseOperator");
       return "";
   }
 }
@@ -7296,7 +7538,7 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
 function rangeConditionExpression(identifier, value, valueInput, negate) {
   const range = conditionRangeParts(value);
   if (!range) {
-    status.textContent = "Enter a range as min..max.";
+    status.textContent = t("condition.status.enterRange");
     valueInput.focus();
     return "";
   }
@@ -7307,7 +7549,7 @@ function rangeConditionExpression(identifier, value, valueInput, negate) {
 function listConditionExpression(identifier, value, valueInput, negate) {
   const values = conditionListValues(value);
   if (!values.length) {
-    status.textContent = "Enter list values separated by commas or new lines.";
+    status.textContent = t("condition.status.enterList");
     valueInput.focus();
     return "";
   }
@@ -7370,7 +7612,7 @@ function booleanConditionExpression(identifier, expected) {
 function dateConditionExpression(identifier, operator, value, valueInput) {
   const date = normalizedDateLiteral(value);
   if (!date) {
-    status.textContent = "Enter a date as YYYY-MM-DD.";
+    status.textContent = t("condition.status.enterDate");
     valueInput.focus();
     return "";
   }
@@ -11925,7 +12167,7 @@ async function filterCurrentQuery() {
   );
 }
 
-async function applyFilterRequest(body, label, preserveCol = selected.col) {
+async function applyFilterRequest(body, label, preserveCol = selected.col, statusKeys = {}) {
   const response = await fetch("/api/filter", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -11933,7 +12175,10 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    const message = payload.error ?? "unknown error";
+    status.textContent = statusKeys.failed
+      ? tf(statusKeys.failed, { message })
+      : `${label} failed: ${message}`;
     return false;
   }
   viewMapped = true;
@@ -11954,7 +12199,10 @@ async function applyFilterRequest(body, label, preserveCol = selected.col) {
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `${label} matched ${sourceRowCount.toLocaleString()} rows`;
+  const count = sourceRowCount.toLocaleString(localeLanguageTag());
+  status.textContent = statusKeys.matched
+    ? tf(statusKeys.matched, { count })
+    : `${label} matched ${count} rows`;
   return true;
 }
 
