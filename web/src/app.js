@@ -16591,6 +16591,15 @@ async function openInitialURLTarget() {
         await runSQLQuery();
       }
     } else {
+      const findQuery = params.get("find");
+      if (findQuery != null) {
+        commandInput.value = findQuery;
+        invalidateFindState();
+        document.body.dataset.findUrlBoot = truthyParam(params.get("findRun")) ? "run" : "loaded";
+        if (truthyParam(params.get("findRun"))) {
+          await findCurrentQuery();
+        }
+      }
       const profileSchemaParam = params.get("profileSchema");
       if (profileSchemaParam != null) {
         profileSchemaText = profileSchemaParam;

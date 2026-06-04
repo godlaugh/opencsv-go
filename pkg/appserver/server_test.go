@@ -1828,6 +1828,34 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerFindUsesRequestContextCancellation(t *testing.T) {
+	body, err := json.Marshal(map[string]any{
+		"query": "Ada",
+		"limit": 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/find", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled find status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled find payload = %#v, want context canceled", payload)
+	}
+}
+
 func TestServerReplaceSingleScopedCell(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "replace-current.csv")

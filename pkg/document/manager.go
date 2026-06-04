@@ -1,6 +1,7 @@
 package document
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -1782,6 +1783,16 @@ func (manager *Manager) Find(id string, options FindOptions) ([]Match, error) {
 }
 
 func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult, error) {
+	return manager.FindDetailedContext(context.Background(), id, options)
+}
+
+func (manager *Manager) FindDetailedContext(ctx context.Context, id string, options FindOptions) (FindResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return FindResult{}, err
+	}
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return FindResult{}, errors.New("document not found")
@@ -1804,11 +1815,17 @@ func (manager *Manager) FindDetailed(id string, options FindOptions) (FindResult
 	if err != nil {
 		return FindResult{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return FindResult{}, err
+	}
 
 	var matches []Match
 	total := 0
 	scope := cellScope(options.Cells)
 	for row, record := range records {
+		if err := ctx.Err(); err != nil {
+			return FindResult{}, err
+		}
 		for col, value := range record {
 			if options.Column != nil && col != *options.Column {
 				continue

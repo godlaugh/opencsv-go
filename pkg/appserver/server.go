@@ -1172,7 +1172,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := server.documents.FindDetailed(request.DocumentID, docstore.FindOptions{
+	result, err := server.documents.FindDetailedContext(r.Context(), request.DocumentID, docstore.FindOptions{
 		Query:         request.Query,
 		Column:        request.Column,
 		Cells:         request.Cells,
@@ -1183,7 +1183,7 @@ func (server *Server) handleFind(w http.ResponseWriter, r *http.Request) {
 		Offset:        request.Offset,
 	})
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -1484,13 +1484,7 @@ func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 		MaxLimit:     5000,
 	})
 	if err != nil {
-		status := http.StatusBadRequest
-		if errors.Is(err, context.Canceled) {
-			status = statusClientClosedRequest
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			status = http.StatusGatewayTimeout
-		}
-		writeError(w, status, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -1593,6 +1587,16 @@ func writeError(w http.ResponseWriter, status int, err error) {
 		payload["sqlError"] = queryErr.Detail
 	}
 	writeJSON(w, status, payload)
+}
+
+func requestContextStatus(err error, fallback int) int {
+	if errors.Is(err, context.Canceled) {
+		return statusClientClosedRequest
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return http.StatusGatewayTimeout
+	}
+	return fallback
 }
 
 func queryInt(r *http.Request, name string, fallback int) int {

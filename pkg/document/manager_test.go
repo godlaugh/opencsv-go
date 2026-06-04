@@ -3,11 +3,14 @@ package document
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/xlsx"
@@ -788,6 +791,25 @@ func TestManagerFindDetailedCountsBeyondLimit(t *testing.T) {
 	}
 }
 
+func TestManagerFindDetailedContextCancelsDuringScan(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-cancel.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n3,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find-cancel.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := &cancelAfterErrContext{cancelAt: 4}
+	_, err = manager.FindDetailedContext(ctx, session.ID, FindOptions{Query: "a", Limit: 10})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("find error = %v, want context canceled", err)
+	}
+}
+
 func TestManagerFindAndReplaceSelectionScope(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "find-selection.csv")
@@ -838,6 +860,32 @@ func TestManagerFindAndReplaceSelectionScope(t *testing.T) {
 	if window.Rows[0][1] != "Ada" || window.Rows[0][2] != "Grace" || window.Rows[1][2] != "Ada" {
 		t.Fatalf("unexpected scoped replace window: %#v", window.Rows)
 	}
+}
+
+type cancelAfterErrContext struct {
+	context.Context
+	calls    int
+	cancelAt int
+}
+
+func (ctx *cancelAfterErrContext) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+func (ctx *cancelAfterErrContext) Done() <-chan struct{} {
+	return nil
+}
+
+func (ctx *cancelAfterErrContext) Err() error {
+	ctx.calls++
+	if ctx.calls >= ctx.cancelAt {
+		return context.Canceled
+	}
+	return nil
+}
+
+func (ctx *cancelAfterErrContext) Value(key any) any {
+	return nil
 }
 
 func TestManagerStructuralMutationsUndoRedo(t *testing.T) {
