@@ -409,6 +409,45 @@ func TestSQLConsoleI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestProfileViewI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-i18n="profile.run"`,
+		`data-i18n="profile.rule.columnName"`,
+		`data-i18n-placeholder="profile.schemaNamePlaceholder"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing profile i18n html anchor %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"profile.status.complete"`,
+		`"profile.status.complete": "概况`,
+		`"profile.schema.savedAs": "验证架构已保存为`,
+		"applyProfileLocaleStrings",
+		"renderProfile(profileData)",
+		"syncProfileSchemaControls()",
+		`summaryNode(t("profile.summary.rows")`,
+		`t("profile.empty.noColumns")`,
+		"profileSeverityLabel(issue.severity)",
+		"profileQuickFixLabel(fix)",
+		`tf("profile.quickFix.applied"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing profile i18n wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

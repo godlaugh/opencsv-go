@@ -178,27 +178,27 @@
               </section>
               <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile">
                 <div class="profile-toolbar" aria-label="Validation schema">
-                  <button id="runProfileButton" type="button">Run Profile</button>
-                  <button id="toggleProfileSchemaButton" type="button" aria-expanded="false">Schema</button>
-                  <button id="saveProfileSchemaButton" type="button">Save Schema</button>
-                  <button id="resetProfileSchemaButton" type="button">Reset Schema</button>
+                  <button id="runProfileButton" type="button" data-i18n="profile.run">Run Profile</button>
+                  <button id="toggleProfileSchemaButton" type="button" aria-expanded="false" data-i18n="profile.schema">Schema</button>
+                  <button id="saveProfileSchemaButton" type="button" data-i18n="profile.saveSchema">Save Schema</button>
+                  <button id="resetProfileSchemaButton" type="button" data-i18n="profile.resetSchema">Reset Schema</button>
                   <span id="profileSchemaStatus">No schema</span>
                 </div>
                 <div class="profile-schema-manager" aria-label="Saved validation schemas">
-                  <input id="profileSchemaNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="Schema name" aria-label="Schema name" />
+                  <input id="profileSchemaNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="Schema name" aria-label="Schema name" data-i18n-placeholder="profile.schemaNamePlaceholder" />
                   <select id="savedProfileSchemaSelect" aria-label="Saved validation schemas">
                     <option value="">Saved schemas</option>
                   </select>
-                  <button id="applyProfileSchemaButton" type="button">Apply</button>
-                  <button id="deleteProfileSchemaButton" type="button">Delete</button>
-                  <button id="exportProfileSchemasButton" type="button">Export</button>
-                  <button id="showImportProfileSchemasButton" type="button">Import</button>
+                  <button id="applyProfileSchemaButton" type="button" data-i18n="profile.apply">Apply</button>
+                  <button id="deleteProfileSchemaButton" type="button" data-i18n="profile.delete">Delete</button>
+                  <button id="exportProfileSchemasButton" type="button" data-i18n="profile.export">Export</button>
+                  <button id="showImportProfileSchemasButton" type="button" data-i18n="profile.import">Import</button>
                 </div>
                 <div id="profileSchemaImportPanel" class="profile-schema-import-panel" hidden>
                   <textarea id="profileSchemaImportText" spellcheck="false" aria-label="Profile schema import JSON" placeholder='{"kind":"opencsv-profile-schemas","schemas":[]}'></textarea>
                   <div class="profile-schema-import-actions">
-                    <button id="applyProfileSchemaImportButton" type="button">Import</button>
-                    <button id="cancelProfileSchemaImportButton" type="button">Cancel</button>
+                    <button id="applyProfileSchemaImportButton" type="button" data-i18n="profile.import">Import</button>
+                    <button id="cancelProfileSchemaImportButton" type="button" data-i18n="profile.cancel">Cancel</button>
                   </div>
                 </div>
                 <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" hidden>{
@@ -208,15 +208,15 @@
 }</textarea>
                 <div id="profileRuleBuilder" class="profile-rule-builder" aria-label="Schema rule builder">
                   <label>
-                    <span>Column name</span>
+                    <span data-i18n="profile.rule.columnName">Column name</span>
                     <input id="profileRuleNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="id" />
                   </label>
                   <label>
-                    <span>Column #</span>
+                    <span data-i18n="profile.rule.columnNumber">Column #</span>
                     <input id="profileRuleColumnInput" type="number" min="1" step="1" placeholder="1" />
                   </label>
                   <label>
-                    <span>Type</span>
+                    <span data-i18n="profile.rule.type">Type</span>
                     <select id="profileRuleTypeSelect">
                       <option value="">Any</option>
                       <option value="string">String</option>
@@ -227,35 +227,35 @@
                       <option value="date">Date</option>
                     </select>
                   </label>
-                  <label class="profile-rule-toggle"><input id="profileRuleRequiredToggle" type="checkbox" /> Required</label>
-                  <label class="profile-rule-toggle"><input id="profileRuleUniqueToggle" type="checkbox" /> Unique</label>
+                  <label class="profile-rule-toggle"><input id="profileRuleRequiredToggle" type="checkbox" /> <span data-i18n="profile.rule.required">Required</span></label>
+                  <label class="profile-rule-toggle"><input id="profileRuleUniqueToggle" type="checkbox" /> <span data-i18n="profile.rule.unique">Unique</span></label>
                   <label>
-                    <span>Enum</span>
+                    <span data-i18n="profile.rule.enum">Enum</span>
                     <input id="profileRuleEnumInput" type="text" autocomplete="off" spellcheck="false" placeholder="new, done" />
                   </label>
                   <label>
-                    <span>Pattern</span>
+                    <span data-i18n="profile.rule.pattern">Pattern</span>
                     <input id="profileRulePatternInput" type="text" autocomplete="off" spellcheck="false" placeholder="^[A-Z0-9]+$" />
                   </label>
                   <label>
-                    <span>Min</span>
+                    <span data-i18n="profile.rule.min">Min</span>
                     <input id="profileRuleMinInput" type="number" step="any" />
                   </label>
                   <label>
-                    <span>Max</span>
+                    <span data-i18n="profile.rule.max">Max</span>
                     <input id="profileRuleMaxInput" type="number" step="any" />
                   </label>
                   <label>
-                    <span>Min Length</span>
+                    <span data-i18n="profile.rule.minLength">Min Length</span>
                     <input id="profileRuleMinLengthInput" type="number" min="0" step="1" />
                   </label>
                   <label>
-                    <span>Max Length</span>
+                    <span data-i18n="profile.rule.maxLength">Max Length</span>
                     <input id="profileRuleMaxLengthInput" type="number" min="0" step="1" />
                   </label>
                   <div class="profile-rule-actions">
-                    <button id="saveProfileRuleButton" type="button">Save Rule</button>
-                    <button id="clearProfileRuleButton" type="button">Clear Rule</button>
+                    <button id="saveProfileRuleButton" type="button" data-i18n="profile.rule.save">Save Rule</button>
+                    <button id="clearProfileRuleButton" type="button" data-i18n="profile.rule.clear">Clear Rule</button>
                   </div>
                 </div>
                 <div id="profileRuleList" class="profile-rule-list" aria-label="Schema rules"></div>

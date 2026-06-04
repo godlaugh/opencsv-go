@@ -597,6 +597,118 @@ const localeCatalog = {
     "sql.context.copyResultAs": "Copy Result as {{format}}",
     "sql.context.exportResultAs": "Export Result as {{format}}",
     "sql.context.clearSelection": "Clear Selection",
+    "profile.run": "Run Profile",
+    "profile.schema": "Schema",
+    "profile.saveSchema": "Save Schema",
+    "profile.resetSchema": "Reset Schema",
+    "profile.apply": "Apply",
+    "profile.delete": "Delete",
+    "profile.export": "Export",
+    "profile.import": "Import",
+    "profile.cancel": "Cancel",
+    "profile.schemaNamePlaceholder": "Schema name",
+    "profile.savedSchemas": "Saved schemas",
+    "profile.noSchema": "No schema",
+    "profile.schemaRules": "{{count}} schema rules",
+    "profile.invalidSchema": "Invalid schema JSON",
+    "profile.rule.columnName": "Column name",
+    "profile.rule.columnNumber": "Column #",
+    "profile.rule.type": "Type",
+    "profile.rule.required": "Required",
+    "profile.rule.unique": "Unique",
+    "profile.rule.enum": "Enum",
+    "profile.rule.pattern": "Pattern",
+    "profile.rule.min": "Min",
+    "profile.rule.max": "Max",
+    "profile.rule.minLength": "Min Length",
+    "profile.rule.maxLength": "Max Length",
+    "profile.rule.save": "Save Rule",
+    "profile.rule.update": "Update Rule",
+    "profile.rule.clear": "Clear Rule",
+    "profile.rule.none": "No schema rules.",
+    "profile.rule.edit": "Edit",
+    "profile.rule.remove": "Remove",
+    "profile.rule.rule": "Rule {{index}}",
+    "profile.rule.locationOnly": "location only",
+    "profile.rule.requiredSummary": "required",
+    "profile.rule.uniqueSummary": "unique",
+    "profile.rule.typeSummary": "type {{type}}",
+    "profile.rule.enumSummary": "enum {{values}}",
+    "profile.rule.patternSummary": "pattern {{pattern}}",
+    "profile.rule.minSummary": "min {{value}}",
+    "profile.rule.maxSummary": "max {{value}}",
+    "profile.rule.minLengthSummary": "min length {{value}}",
+    "profile.rule.maxLengthSummary": "max length {{value}}",
+    "profile.type.any": "Any",
+    "profile.type.string": "String",
+    "profile.type.number": "Number",
+    "profile.type.integer": "Integer",
+    "profile.type.decimal": "Decimal",
+    "profile.type.boolean": "Boolean",
+    "profile.type.date": "Date",
+    "profile.type.unknown": "Unknown",
+    "profile.severity.error": "Error",
+    "profile.severity.warning": "Warning",
+    "profile.quickFix.header.fill": "Fill Header",
+    "profile.quickFix.row.pad": "Pad Row",
+    "profile.summary.status": "Status",
+    "profile.summary.rows": "Rows",
+    "profile.summary.columns": "Columns",
+    "profile.summary.errors": "Errors",
+    "profile.summary.warnings": "Warnings",
+    "profile.summary.rules": "Rules",
+    "profile.loading": "loading",
+    "profile.columns.loading": "Profiling columns...",
+    "profile.issues.loading": "Checking data quality...",
+    "profile.status.running": "Profiling data...",
+    "profile.status.complete": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues",
+    "profile.status.failed": "Profile failed: {{message}}",
+    "profile.status.initialColumns": "Run Profile to inspect columns.",
+    "profile.status.initialIssues": "No validation issues loaded.",
+    "profile.empty.noValidation": "No validation result.",
+    "profile.empty.noColumns": "No columns found.",
+    "profile.empty.noIssues": "No validation issues.",
+    "profile.columns.column": "Column",
+    "profile.columns.type": "Type",
+    "profile.columns.rows": "Rows",
+    "profile.columns.nulls": "Nulls",
+    "profile.columns.distinct": "Distinct",
+    "profile.columns.min": "Min",
+    "profile.columns.max": "Max",
+    "profile.columns.average": "Average",
+    "profile.columns.topValues": "Top Values",
+    "profile.value.empty": "(empty)",
+    "profile.issues.severity": "Severity",
+    "profile.issues.type": "Type",
+    "profile.issues.row": "Row",
+    "profile.issues.column": "Column",
+    "profile.issues.message": "Message",
+    "profile.issues.fix": "Fix",
+    "profile.issues.defaultFix": "Fix",
+    "profile.status.selectedIssue": "Selected {{type}} at row {{row}}, column {{column}}.",
+    "profile.schema.statusInvalid": "Schema invalid: {{message}}",
+    "profile.schema.saved": "Validation schema saved.",
+    "profile.schema.savedAs": "Validation schema saved as {{name}}.",
+    "profile.schema.reset": "Validation schema reset.",
+    "profile.schema.notFound": "Saved schema not found.",
+    "profile.schema.applied": "Applied schema {{name}}.",
+    "profile.schema.deleted": "Deleted saved schema.",
+    "profile.schema.exported": "Exported {{count}} profile schemas.",
+    "profile.schema.imported": "Imported {{count}} profile schemas.",
+    "profile.schema.importFailed": "Profile schema import failed: {{message}}",
+    "profile.rule.chooseColumn": "Choose a column name or number.",
+    "profile.rule.invalid": "Rule invalid: {{message}}",
+    "profile.rule.added": "Added schema rule.",
+    "profile.rule.updated": "Updated schema rule.",
+    "profile.rule.cleared": "Cleared schema rule editor.",
+    "profile.rule.notFound": "Schema rule not found.",
+    "profile.rule.editing": "Editing schema rule {{index}}.",
+    "profile.rule.removed": "Removed schema rule.",
+    "profile.quickFix.readOnly": "Read-only mode blocks quick fixes.",
+    "profile.quickFix.noFile": "Open a file before applying fixes.",
+    "profile.quickFix.unavailable": "No safe quick fix is available for this issue.",
+    "profile.quickFix.applied": "Applied quick fix to {{count}} cells.",
+    "profile.quickFix.failed": "Quick fix failed: {{message}}",
     "command.selection.insertAverageRow.title": "Add Average Row",
     "command.selection.insertAverageRow.description": "Add a removable average row for the selected numeric cells.",
     "command.selection.insertCountRow.title": "Add Count Row",
@@ -875,6 +987,118 @@ const localeCatalog = {
     "sql.context.copyResultAs": "复制结果为 {{format}}",
     "sql.context.exportResultAs": "导出结果为 {{format}}",
     "sql.context.clearSelection": "清除选择",
+    "profile.run": "运行概况",
+    "profile.schema": "架构",
+    "profile.saveSchema": "保存架构",
+    "profile.resetSchema": "重置架构",
+    "profile.apply": "应用",
+    "profile.delete": "删除",
+    "profile.export": "导出",
+    "profile.import": "导入",
+    "profile.cancel": "取消",
+    "profile.schemaNamePlaceholder": "架构名称",
+    "profile.savedSchemas": "已保存架构",
+    "profile.noSchema": "没有架构",
+    "profile.schemaRules": "{{count}} 条架构规则",
+    "profile.invalidSchema": "架构 JSON 无效",
+    "profile.rule.columnName": "列名",
+    "profile.rule.columnNumber": "列号",
+    "profile.rule.type": "类型",
+    "profile.rule.required": "必填",
+    "profile.rule.unique": "唯一",
+    "profile.rule.enum": "枚举",
+    "profile.rule.pattern": "模式",
+    "profile.rule.min": "最小值",
+    "profile.rule.max": "最大值",
+    "profile.rule.minLength": "最小长度",
+    "profile.rule.maxLength": "最大长度",
+    "profile.rule.save": "保存规则",
+    "profile.rule.update": "更新规则",
+    "profile.rule.clear": "清除规则",
+    "profile.rule.none": "没有架构规则。",
+    "profile.rule.edit": "编辑",
+    "profile.rule.remove": "移除",
+    "profile.rule.rule": "规则 {{index}}",
+    "profile.rule.locationOnly": "仅定位",
+    "profile.rule.requiredSummary": "必填",
+    "profile.rule.uniqueSummary": "唯一",
+    "profile.rule.typeSummary": "类型 {{type}}",
+    "profile.rule.enumSummary": "枚举 {{values}}",
+    "profile.rule.patternSummary": "模式 {{pattern}}",
+    "profile.rule.minSummary": "最小值 {{value}}",
+    "profile.rule.maxSummary": "最大值 {{value}}",
+    "profile.rule.minLengthSummary": "最小长度 {{value}}",
+    "profile.rule.maxLengthSummary": "最大长度 {{value}}",
+    "profile.type.any": "任意",
+    "profile.type.string": "字符串",
+    "profile.type.number": "数字",
+    "profile.type.integer": "整数",
+    "profile.type.decimal": "小数",
+    "profile.type.boolean": "布尔",
+    "profile.type.date": "日期",
+    "profile.type.unknown": "未知",
+    "profile.severity.error": "错误",
+    "profile.severity.warning": "警告",
+    "profile.quickFix.header.fill": "填充表头",
+    "profile.quickFix.row.pad": "补齐行",
+    "profile.summary.status": "状态",
+    "profile.summary.rows": "行",
+    "profile.summary.columns": "列",
+    "profile.summary.errors": "错误",
+    "profile.summary.warnings": "警告",
+    "profile.summary.rules": "规则",
+    "profile.loading": "加载中",
+    "profile.columns.loading": "正在分析列...",
+    "profile.issues.loading": "正在检查数据质量...",
+    "profile.status.running": "正在分析数据...",
+    "profile.status.complete": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题",
+    "profile.status.failed": "概况失败：{{message}}",
+    "profile.status.initialColumns": "运行概况以检查列。",
+    "profile.status.initialIssues": "没有加载验证问题。",
+    "profile.empty.noValidation": "没有验证结果。",
+    "profile.empty.noColumns": "没有找到列。",
+    "profile.empty.noIssues": "没有验证问题。",
+    "profile.columns.column": "列",
+    "profile.columns.type": "类型",
+    "profile.columns.rows": "行",
+    "profile.columns.nulls": "空值",
+    "profile.columns.distinct": "唯一值",
+    "profile.columns.min": "最小值",
+    "profile.columns.max": "最大值",
+    "profile.columns.average": "平均值",
+    "profile.columns.topValues": "高频值",
+    "profile.value.empty": "（空）",
+    "profile.issues.severity": "级别",
+    "profile.issues.type": "类型",
+    "profile.issues.row": "行",
+    "profile.issues.column": "列",
+    "profile.issues.message": "消息",
+    "profile.issues.fix": "修复",
+    "profile.issues.defaultFix": "修复",
+    "profile.status.selectedIssue": "已选择 {{type}}：第 {{row}} 行，第 {{column}} 列。",
+    "profile.schema.statusInvalid": "架构无效：{{message}}",
+    "profile.schema.saved": "验证架构已保存。",
+    "profile.schema.savedAs": "验证架构已保存为 {{name}}。",
+    "profile.schema.reset": "验证架构已重置。",
+    "profile.schema.notFound": "未找到已保存架构。",
+    "profile.schema.applied": "已应用架构 {{name}}。",
+    "profile.schema.deleted": "已删除保存的架构。",
+    "profile.schema.exported": "已导出 {{count}} 个 Profile 架构。",
+    "profile.schema.imported": "已导入 {{count}} 个 Profile 架构。",
+    "profile.schema.importFailed": "Profile 架构导入失败：{{message}}",
+    "profile.rule.chooseColumn": "请选择列名或列号。",
+    "profile.rule.invalid": "规则无效：{{message}}",
+    "profile.rule.added": "已添加架构规则。",
+    "profile.rule.updated": "已更新架构规则。",
+    "profile.rule.cleared": "已清除架构规则编辑器。",
+    "profile.rule.notFound": "未找到架构规则。",
+    "profile.rule.editing": "正在编辑架构规则 {{index}}。",
+    "profile.rule.removed": "已移除架构规则。",
+    "profile.quickFix.readOnly": "只读模式会阻止快速修复。",
+    "profile.quickFix.noFile": "请先打开文件再应用修复。",
+    "profile.quickFix.unavailable": "这个问题没有安全的快速修复。",
+    "profile.quickFix.applied": "已将快速修复应用到 {{count}} 个单元格。",
+    "profile.quickFix.failed": "快速修复失败：{{message}}",
     "command.command.palette.title": "命令面板",
     "command.command.palette.description": "搜索并运行可用命令。",
     "command.settings.open.title": "设置",
@@ -1578,6 +1802,8 @@ function setLocalePreference(locale, persist = true) {
   if (shortcutEditorOpen) renderKeyboardShortcuts();
   if (lastDiffResult) renderDiffResult(lastDiffResult);
   if (lastSQLResult) renderSQLResult(lastSQLResult);
+  if (profileData) renderProfile(profileData);
+  syncProfileSchemaControls();
   renderSQLHistory();
   renderFileList();
 }
@@ -1651,6 +1877,8 @@ function applyLocaleStrings() {
   if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
+  applyDataI18n();
+  applyProfileLocaleStrings();
   applySQLLocaleStrings();
   applyDiffLocaleStrings();
   const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
@@ -1658,6 +1886,33 @@ function applyLocaleStrings() {
     status.textContent = t("status.ready");
   }
   document.body.dataset.localeLabel = localeLabel();
+}
+
+function applyDataI18n(root = document) {
+  root.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  root.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.placeholder = t(element.dataset.i18nPlaceholder);
+  });
+}
+
+function applyProfileLocaleStrings() {
+  setSelectOptionLabels(profileRuleTypeSelect, {
+    "": "profile.type.any",
+    string: "profile.type.string",
+    number: "profile.type.number",
+    integer: "profile.type.integer",
+    decimal: "profile.type.decimal",
+    boolean: "profile.type.boolean",
+    date: "profile.type.date",
+  });
+  if (savedProfileSchemaSelect?.options?.[0]) {
+    savedProfileSchemaSelect.options[0].textContent = t("profile.savedSchemas");
+  }
+  if (editingProfileRuleIndex >= 0) {
+    saveProfileRuleButton.textContent = t("profile.rule.update");
+  }
 }
 
 function applySQLLocaleStrings() {
@@ -9015,8 +9270,8 @@ function loadDocument(document) {
   rowSource = new Map();
   profileData = null;
   lastSQLResult = null;
-  profileColumns.replaceChildren(emptyProfileNode("Run Profile to inspect columns."));
-  profileIssues.replaceChildren(emptyProfileNode("No validation issues loaded."));
+  profileColumns.replaceChildren(emptyProfileNode(t("profile.status.initialColumns")));
+  profileIssues.replaceChildren(emptyProfileNode(t("profile.status.initialIssues")));
   profileSummary.replaceChildren();
   sqlResult.replaceChildren(emptySQLNode(t("sql.empty.prompt")));
   delete window.document.body.dataset.sqlResultPreview;
@@ -13535,7 +13790,7 @@ function syncProfileSchemaControls() {
   resetProfileSchemaButton.disabled = !text && !localStorage.getItem(profileSchemaStorageKey);
   saveProfileSchemaButton.disabled = !text;
   if (!text) {
-    profileSchemaStatus.textContent = "No schema";
+    profileSchemaStatus.textContent = t("profile.noSchema");
     document.body.dataset.profileSchemaRules = "0";
     renderProfileRuleList([]);
     syncSavedProfileSchemaControls();
@@ -13544,11 +13799,11 @@ function syncProfileSchemaControls() {
   try {
     const schema = parseProfileSchemaText(text);
     const rules = schema.columns.length;
-    profileSchemaStatus.textContent = `${formatCount(rules)} schema rules`;
+    profileSchemaStatus.textContent = tf("profile.schemaRules", { count: formatCount(rules) });
     document.body.dataset.profileSchemaRules = String(rules);
     renderProfileRuleList(schema.columns);
   } catch (error) {
-    profileSchemaStatus.textContent = "Invalid schema JSON";
+    profileSchemaStatus.textContent = t("profile.invalidSchema");
     document.body.dataset.profileSchemaRules = "invalid";
     renderProfileRuleList([]);
   }
@@ -13571,17 +13826,17 @@ function saveProfileSchema() {
   try {
     schema = parseProfileSchemaText(profileSchemaText);
   } catch (error) {
-    status.textContent = `Schema invalid: ${error.message}`;
+    status.textContent = tf("profile.schema.statusInvalid", { message: error.message });
     syncProfileSchemaControls();
     return;
   }
   profileSchemaText = JSON.stringify(schema, null, 2);
   localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
   const name = profileSchemaNameInput.value.trim();
-  let message = "Validation schema saved.";
+  let message = t("profile.schema.saved");
   if (name) {
     const saved = saveNamedProfileSchema(name, profileSchemaText);
-    message = `Validation schema saved as ${saved.name}.`;
+    message = tf("profile.schema.savedAs", { name: saved.name });
   }
   profileData = null;
   syncProfileSchemaControls();
@@ -13594,7 +13849,7 @@ function resetProfileSchema() {
   profileSchemaText = "";
   profileData = null;
   syncProfileSchemaControls();
-  status.textContent = "Validation schema reset.";
+  status.textContent = t("profile.schema.reset");
   void loadProfile(true);
 }
 
@@ -13689,7 +13944,7 @@ function saveNamedProfileSchema(name, schemaText) {
 function syncSavedProfileSchemaControls(preferredID = "") {
   if (!savedProfileSchemaSelect) return;
   const selectedID = preferredID || savedProfileSchemaSelect.value;
-  savedProfileSchemaSelect.replaceChildren(profileSchemaOption("", "Saved schemas"));
+  savedProfileSchemaSelect.replaceChildren(profileSchemaOption("", t("profile.savedSchemas")));
   for (const schema of savedProfileSchemasState) {
     savedProfileSchemaSelect.append(profileSchemaOption(schema.id, schema.name));
   }
@@ -13714,7 +13969,7 @@ function profileSchemaOption(value, label) {
 function applySavedProfileSchema() {
   const schema = savedProfileSchemasState.find((item) => item.id === savedProfileSchemaSelect.value);
   if (!schema) {
-    status.textContent = "Saved schema not found.";
+    status.textContent = t("profile.schema.notFound");
     syncSavedProfileSchemaControls();
     return;
   }
@@ -13725,7 +13980,7 @@ function applySavedProfileSchema() {
   profileData = null;
   document.body.dataset.profileSchemaApplied = schema.name;
   syncProfileSchemaControls();
-  status.textContent = `Applied schema ${schema.name}.`;
+  status.textContent = tf("profile.schema.applied", { name: schema.name });
   void loadProfile(true);
 }
 
@@ -13736,7 +13991,9 @@ function deleteSavedProfileSchema() {
   persistSavedProfileSchemas();
   savedProfileSchemaSelect.value = "";
   syncSavedProfileSchemaControls();
-  status.textContent = before === savedProfileSchemasState.length ? "Saved schema not found." : "Deleted saved schema.";
+  status.textContent = before === savedProfileSchemasState.length
+    ? t("profile.schema.notFound")
+    : t("profile.schema.deleted");
 }
 
 function exportProfileSchemas() {
@@ -13751,7 +14008,7 @@ function exportProfileSchemas() {
   document.body.dataset.profileSchemaExport = String(savedProfileSchemasState.length);
   document.body.dataset.profileSchemaExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-profile-schemas.json", "application/json;charset=utf-8");
-  status.textContent = `Exported ${formatCount(savedProfileSchemasState.length)} profile schemas.`;
+  status.textContent = tf("profile.schema.exported", { count: formatCount(savedProfileSchemasState.length) });
 }
 
 function showProfileSchemaImportPanel() {
@@ -13779,9 +14036,9 @@ function applyProfileSchemaImport() {
     document.body.dataset.profileSchemaImport = String(imported.length);
     document.body.dataset.profileSchemaImportPanel = "closed";
     syncSavedProfileSchemaControls();
-    status.textContent = `Imported ${formatCount(imported.length)} profile schemas.`;
+    status.textContent = tf("profile.schema.imported", { count: formatCount(imported.length) });
   } catch (error) {
-    status.textContent = `Profile schema import failed: ${error.message}`;
+    status.textContent = tf("profile.schema.importFailed", { message: error.message });
     document.body.dataset.profileSchemaImport = "error";
   }
 }
@@ -13846,7 +14103,7 @@ function profileRuleFromBuilder() {
     rule.maxLength = maxLengthValue;
   }
   if (!rule.name && !rule.column) {
-    throw new Error("Choose a column name or number.");
+    throw new Error(t("profile.rule.chooseColumn"));
   }
   return rule;
 }
@@ -13872,7 +14129,7 @@ function saveProfileRuleFromBuilder() {
   try {
     rule = profileRuleFromBuilder();
   } catch (error) {
-    status.textContent = `Rule invalid: ${error.message}`;
+    status.textContent = tf("profile.rule.invalid", { message: error.message });
     return;
   }
   const schema = schemaDraftFromText();
@@ -13887,7 +14144,7 @@ function saveProfileRuleFromBuilder() {
   localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
   profileData = null;
   document.body.dataset.profileRuleBuilder = `${editingProfileRuleIndex >= 0 ? "update" : "add"}:${schema.columns.length}`;
-  const message = editingProfileRuleIndex >= 0 ? "Updated schema rule." : "Added schema rule.";
+  const message = editingProfileRuleIndex >= 0 ? t("profile.rule.updated") : t("profile.rule.added");
   clearProfileRuleBuilder(false);
   syncProfileSchemaControls();
   status.textContent = message;
@@ -13907,15 +14164,15 @@ function clearProfileRuleBuilder(resetStatus = true) {
   profileRuleMaxInput.value = "";
   profileRuleMinLengthInput.value = "";
   profileRuleMaxLengthInput.value = "";
-  saveProfileRuleButton.textContent = "Save Rule";
-  if (resetStatus) status.textContent = "Cleared schema rule editor.";
+  saveProfileRuleButton.textContent = t("profile.rule.save");
+  if (resetStatus) status.textContent = t("profile.rule.cleared");
 }
 
 function editProfileRule(index) {
   const schema = schemaDraftFromText();
   const rule = schema.columns?.[index];
   if (!rule) {
-    status.textContent = "Schema rule not found.";
+    status.textContent = t("profile.rule.notFound");
     return;
   }
   editingProfileRuleIndex = index;
@@ -13930,16 +14187,16 @@ function editProfileRule(index) {
   profileRuleMaxInput.value = rule.max ?? "";
   profileRuleMinLengthInput.value = rule.minLength ?? "";
   profileRuleMaxLengthInput.value = rule.maxLength ?? "";
-  saveProfileRuleButton.textContent = "Update Rule";
+  saveProfileRuleButton.textContent = t("profile.rule.update");
   document.body.dataset.profileRuleBuilder = `edit:${index}`;
-  status.textContent = `Editing schema rule ${index + 1}.`;
+  status.textContent = tf("profile.rule.editing", { index: index + 1 });
 }
 
 function removeProfileRule(index) {
   const schema = schemaDraftFromText();
   const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
   if (index < 0 || index >= rules.length) {
-    status.textContent = "Schema rule not found.";
+    status.textContent = t("profile.rule.notFound");
     return;
   }
   rules.splice(index, 1);
@@ -13950,7 +14207,7 @@ function removeProfileRule(index) {
   clearProfileRuleBuilder(false);
   document.body.dataset.profileRuleBuilder = `remove:${rules.length}`;
   syncProfileSchemaControls();
-  status.textContent = "Removed schema rule.";
+  status.textContent = t("profile.rule.removed");
   void loadProfile(true);
 }
 
@@ -13960,7 +14217,7 @@ function renderProfileRuleList(rules) {
   if (!rules.length) {
     const empty = document.createElement("div");
     empty.className = "profile-rule-empty";
-    empty.textContent = "No schema rules.";
+    empty.textContent = t("profile.rule.none");
     profileRuleList.append(empty);
     document.body.dataset.profileRuleListCount = "0";
     return;
@@ -13977,11 +14234,11 @@ function renderProfileRuleList(rules) {
     actions.className = "profile-rule-item-actions";
     const editButton = document.createElement("button");
     editButton.type = "button";
-    editButton.textContent = "Edit";
+    editButton.textContent = t("profile.rule.edit");
     editButton.addEventListener("click", () => editProfileRule(index));
     const removeButton = document.createElement("button");
     removeButton.type = "button";
-    removeButton.textContent = "Remove";
+    removeButton.textContent = t("profile.rule.remove");
     removeButton.addEventListener("click", () => removeProfileRule(index));
     actions.append(editButton, removeButton);
     item.append(label, detail, actions);
@@ -13992,22 +14249,26 @@ function renderProfileRuleList(rules) {
 
 function profileRuleTitle(rule, index) {
   if (rule.name) return rule.name;
-  if (rule.column) return `Column ${rule.column}`;
-  return `Rule ${index + 1}`;
+  if (rule.column) return `${t("profile.columns.column")} ${rule.column}`;
+  return tf("profile.rule.rule", { index: index + 1 });
 }
 
 function profileRuleSummary(rule) {
   const parts = [];
-  if (rule.required) parts.push("required");
-  if (rule.unique) parts.push("unique");
-  if (rule.type) parts.push(`type ${rule.type}`);
-  if (Array.isArray(rule.enum) && rule.enum.length) parts.push(`enum ${rule.enum.join("|")}`);
-  if (rule.pattern) parts.push(`pattern ${rule.pattern}`);
-  if (rule.min != null) parts.push(`min ${rule.min}`);
-  if (rule.max != null) parts.push(`max ${rule.max}`);
-  if (rule.minLength != null) parts.push(`min length ${rule.minLength}`);
-  if (rule.maxLength != null) parts.push(`max length ${rule.maxLength}`);
-  return parts.length ? parts.join(", ") : "location only";
+  if (rule.required) parts.push(t("profile.rule.requiredSummary"));
+  if (rule.unique) parts.push(t("profile.rule.uniqueSummary"));
+  if (rule.type) parts.push(tf("profile.rule.typeSummary", { type: profileTypeLabel(rule.type) }));
+  if (Array.isArray(rule.enum) && rule.enum.length) parts.push(tf("profile.rule.enumSummary", { values: rule.enum.join("|") }));
+  if (rule.pattern) parts.push(tf("profile.rule.patternSummary", { pattern: rule.pattern }));
+  if (rule.min != null) parts.push(tf("profile.rule.minSummary", { value: rule.min }));
+  if (rule.max != null) parts.push(tf("profile.rule.maxSummary", { value: rule.max }));
+  if (rule.minLength != null) parts.push(tf("profile.rule.minLengthSummary", { value: rule.minLength }));
+  if (rule.maxLength != null) parts.push(tf("profile.rule.maxLengthSummary", { value: rule.maxLength }));
+  return parts.length ? parts.join(", ") : t("profile.rule.locationOnly");
+}
+
+function profileTypeLabel(type) {
+  return translationOrEmpty(`profile.type.${type}`) || String(type || "");
 }
 
 async function loadProfile(force = false) {
@@ -14017,10 +14278,10 @@ async function loadProfile(force = false) {
     return;
   }
   profileLoading = true;
-  profileSummary.replaceChildren(summaryNode("Status", "loading"));
-  profileColumns.replaceChildren(emptyProfileNode("Profiling columns..."));
-  profileIssues.replaceChildren(emptyProfileNode("Checking data quality..."));
-  status.textContent = "Profiling data...";
+  profileSummary.replaceChildren(summaryNode(t("profile.summary.status"), t("profile.loading")));
+  profileColumns.replaceChildren(emptyProfileNode(t("profile.columns.loading")));
+  profileIssues.replaceChildren(emptyProfileNode(t("profile.issues.loading")));
+  status.textContent = t("profile.status.running");
   try {
     const schema = activeProfileSchema();
     syncProfileSchemaControls();
@@ -14034,12 +14295,15 @@ async function loadProfile(force = false) {
     profileData = payload;
     renderProfile(payload);
     updateInspector();
-    status.textContent =
-      `Profile: ${formatCount(payload.rows ?? 0)} rows, ${formatCount(payload.columns?.length ?? 0)} columns, ${formatCount(payload.issues?.length ?? 0)} issues`;
+    status.textContent = tf("profile.status.complete", {
+      rows: formatCount(payload.rows ?? 0),
+      columns: formatCount(payload.columns?.length ?? 0),
+      issues: formatCount(payload.issues?.length ?? 0),
+    });
   } catch (error) {
-    status.textContent = `Profile failed: ${error.message}`;
+    status.textContent = tf("profile.status.failed", { message: error.message });
     profileColumns.replaceChildren(emptyProfileNode(error.message));
-    profileIssues.replaceChildren(emptyProfileNode("No validation result."));
+    profileIssues.replaceChildren(emptyProfileNode(t("profile.empty.noValidation")));
   } finally {
     profileLoading = false;
   }
@@ -14051,12 +14315,12 @@ function renderProfile(result) {
   const errorCount = issues.filter((issue) => issue.severity === "error").length;
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;
   const summaryNodes = [
-    summaryNode("Rows", result.rows ?? 0),
-    summaryNode("Columns", result.columns?.length ?? 0),
-    summaryNode("Errors", errorCount),
-    summaryNode("Warnings", warningCount),
+    summaryNode(t("profile.summary.rows"), result.rows ?? 0),
+    summaryNode(t("profile.summary.columns"), result.columns?.length ?? 0),
+    summaryNode(t("profile.summary.errors"), errorCount),
+    summaryNode(t("profile.summary.warnings"), warningCount),
   ];
-  if (result.schemaRules) summaryNodes.push(summaryNode("Rules", result.schemaRules));
+  if (result.schemaRules) summaryNodes.push(summaryNode(t("profile.summary.rules"), result.schemaRules));
   profileSummary.replaceChildren(...summaryNodes);
   document.body.dataset.profileIssueCount = String(issues.length);
   document.body.dataset.profileSchemaIssueCount = String(issues.filter((issue) => String(issue.type || "").startsWith("schema-")).length);
@@ -14066,15 +14330,25 @@ function renderProfile(result) {
 
 function renderProfileColumns(columnsProfile) {
   if (!columnsProfile.length) {
-    profileColumns.replaceChildren(emptyProfileNode("No columns found."));
+    profileColumns.replaceChildren(emptyProfileNode(t("profile.empty.noColumns")));
     return;
   }
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  for (const label of ["Column", "Type", "Rows", "Nulls", "Distinct", "Min", "Max", "Average", "Top Values"]) {
+  for (const key of [
+    "profile.columns.column",
+    "profile.columns.type",
+    "profile.columns.rows",
+    "profile.columns.nulls",
+    "profile.columns.distinct",
+    "profile.columns.min",
+    "profile.columns.max",
+    "profile.columns.average",
+    "profile.columns.topValues",
+  ]) {
     const th = document.createElement("th");
-    th.textContent = label;
+    th.textContent = t(key);
     headerRow.append(th);
   }
   thead.append(headerRow);
@@ -14086,7 +14360,7 @@ function renderProfileColumns(columnsProfile) {
     tr.dataset.columnIndex = String(profile.index);
     if (profile.index === sourceColFor(selected.col)) tr.className = "selected-profile-column";
     appendCell(tr, profile.name || `c${profile.index + 1}`);
-    appendCell(tr, profile.type ?? "unknown");
+    appendCell(tr, profileTypeLabel(profile.type) || t("profile.type.unknown"));
     appendCell(tr, formatCount(profile.rows ?? 0));
     appendCell(tr, `${formatCount(profile.nulls ?? 0)} (${formatPercent(profile.nullRatio ?? 0)})`);
     appendCell(tr, formatCount(profile.distinct ?? 0));
@@ -14096,7 +14370,7 @@ function renderProfileColumns(columnsProfile) {
     appendCell(
       tr,
       (profile.topValues ?? [])
-        .map((item) => `${item.value || "(empty)"} x${formatCount(item.count)}`)
+        .map((item) => `${item.value || t("profile.value.empty")} x${formatCount(item.count)}`)
         .join("; "),
     );
     tr.addEventListener("click", () => {
@@ -14113,15 +14387,22 @@ function renderProfileColumns(columnsProfile) {
 
 function renderProfileIssues(issues) {
   if (!issues.length) {
-    profileIssues.replaceChildren(emptyProfileNode("No validation issues."));
+    profileIssues.replaceChildren(emptyProfileNode(t("profile.empty.noIssues")));
     return;
   }
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  for (const label of ["Severity", "Type", "Row", "Column", "Message", "Fix"]) {
+  for (const key of [
+    "profile.issues.severity",
+    "profile.issues.type",
+    "profile.issues.row",
+    "profile.issues.column",
+    "profile.issues.message",
+    "profile.issues.fix",
+  ]) {
     const th = document.createElement("th");
-    th.textContent = label;
+    th.textContent = t(key);
     headerRow.append(th);
   }
   thead.append(headerRow);
@@ -14131,7 +14412,7 @@ function renderProfileIssues(issues) {
   for (const issue of issues) {
     const tr = document.createElement("tr");
     tr.className = issue.severity === "error" ? "issue-error" : "issue-warning";
-    appendCell(tr, issue.severity ?? "warning");
+    appendCell(tr, profileSeverityLabel(issue.severity));
     appendCell(tr, issue.type ?? "");
     appendCell(tr, issue.row || "");
     appendCell(tr, issue.col || "");
@@ -14140,7 +14421,7 @@ function renderProfileIssues(issues) {
     for (const fix of issue.quickFixes ?? []) {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = fix.label ?? "Fix";
+      button.textContent = profileQuickFixLabel(fix);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         void applyProfileQuickFix(issue, fix.id);
@@ -14171,6 +14452,18 @@ function issueVisibleCol(issue) {
   return Math.max(0, Math.min(columns.length - 1, visibleCol >= 0 ? visibleCol : selected.col));
 }
 
+function profileSeverityLabel(severity) {
+  return translationOrEmpty(`profile.severity.${severity}`) || String(severity || "warning");
+}
+
+function profileQuickFixLabel(fix = {}) {
+  if (fix.id) {
+    const localized = translationOrEmpty(`profile.quickFix.${fix.id}`);
+    if (localized) return localized;
+  }
+  return fix.label ?? t("profile.issues.defaultFix");
+}
+
 async function navigateToProfileIssue(issue) {
   if (!documentId || sourceRowCount <= 0 || columns.length === 0) return;
   const row = issueDisplayRow(issue);
@@ -14183,7 +14476,11 @@ async function navigateToProfileIssue(issue) {
   await maybeLoadWindow(row);
   draw();
   document.body.dataset.profileIssueSelection = `${issue.type ?? "issue"}:${issue.row || ""}:${issue.col || ""}`;
-  status.textContent = `Selected ${issue.type ?? "issue"} at row ${issue.row || "-"}, column ${issue.col || "-"}.`;
+  status.textContent = tf("profile.status.selectedIssue", {
+    type: issue.type ?? "issue",
+    row: issue.row || "-",
+    column: issue.col || "-",
+  });
 }
 
 function profileQuickFixEdits(issue, fixID) {
@@ -14204,12 +14501,12 @@ function profileQuickFixEdits(issue, fixID) {
 
 async function applyProfileQuickFix(issue, fixID) {
   if (!documentId || readOnly) {
-    status.textContent = readOnly ? "Read-only mode blocks quick fixes." : "Open a file before applying fixes.";
+    status.textContent = readOnly ? t("profile.quickFix.readOnly") : t("profile.quickFix.noFile");
     return;
   }
   const edits = profileQuickFixEdits(issue, fixID);
   if (!edits.length) {
-    status.textContent = "No safe quick fix is available for this issue.";
+    status.textContent = t("profile.quickFix.unavailable");
     return;
   }
   try {
@@ -14242,10 +14539,10 @@ async function applyProfileQuickFix(issue, fixID) {
     }
     draw();
     document.body.dataset.profileQuickFix = `${fixID}:${edits.length}`;
-    status.textContent = `Applied quick fix to ${formatCount(edits.length)} cells.`;
+    status.textContent = tf("profile.quickFix.applied", { count: formatCount(edits.length) });
     await loadProfile(true);
   } catch (error) {
-    status.textContent = `Quick fix failed: ${error.message}`;
+    status.textContent = tf("profile.quickFix.failed", { message: error.message });
   }
 }
 
