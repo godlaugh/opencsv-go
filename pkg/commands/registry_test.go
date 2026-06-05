@@ -744,10 +744,10 @@ func TestCLIStdinURLBootIsWired(t *testing.T) {
 	source := string(appJS)
 	for _, snippet := range []string{
 		`params.get("stdin")`,
-		`params.get("source") === "stdin"`,
-		`displayName: stdinSource ? "stdin"`,
-		`remember: !stdinSource`,
-		`sourceKind: stdinSource ? "stdin"`,
+		`source === "stdin"`,
+		`displayName: stdinSource ? (openNames[index] || "stdin")`,
+		`remember: !entry.stdinSource`,
+		`sourceKind: entry.stdinSource ? "stdin"`,
 		`body.sourceKind = options.sourceKind`,
 		`body.displayName = options.displayName`,
 		`document.body.dataset.stdinUrlBoot = "1"`,
@@ -755,6 +755,29 @@ func TestCLIStdinURLBootIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing CLI stdin URL boot wiring %q", snippet)
+		}
+	}
+}
+
+func TestMultiOpenURLBootIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`params.getAll("open").filter(Boolean)`,
+		`params.getAll("openSource")`,
+		`params.getAll("openName")`,
+		`params.getAll("openGoto")`,
+		`for (const entry of openEntries)`,
+		`document.body.dataset.multiOpenCount`,
+		`document.body.dataset.multiOpenActive`,
+		`document.body.dataset.multiOpenFiles`,
+		`Opened ${openEntries.length} files`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing multi-open URL boot wiring %q", snippet)
 		}
 	}
 }

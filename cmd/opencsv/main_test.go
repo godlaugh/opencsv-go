@@ -205,6 +205,63 @@ func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	}
 }
 
+func TestRootOpenMultipleFilesIncludesWebRoute(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.csv")
+	second := filepath.Join(dir, "second.csv")
+	if err := os.WriteFile(first, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("id,name\n1,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--goto", first + ":2:1", first, second})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if invocation.Mode != "open" || len(invocation.Files) != 2 || invocation.Route == "" || invocation.WebURL == "" {
+		t.Fatalf("multi-open invocation = %#v", invocation)
+	}
+	route, err := url.Parse(invocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := route.Query()
+	opens := query["open"]
+	sources := query["openSource"]
+	names := query["openName"]
+	gotos := query["openGoto"]
+	if query.Get("multiOpen") != "1" {
+		t.Fatalf("multiOpen = %q, want 1", query.Get("multiOpen"))
+	}
+	if len(opens) != 2 || opens[0] != second || opens[1] != first {
+		t.Fatalf("multi-open order = %#v, want second then goto target first", opens)
+	}
+	if len(sources) != 2 || sources[0] != "file" || sources[1] != "file" {
+		t.Fatalf("multi-open sources = %#v", sources)
+	}
+	if len(names) != 2 || names[0] != "second.csv" || names[1] != "first.csv" {
+		t.Fatalf("multi-open names = %#v", names)
+	}
+	if len(gotos) != 2 || gotos[0] != "" || gotos[1] != "2:1" {
+		t.Fatalf("multi-open gotos = %#v", gotos)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := webURL.Query()["open"]; len(got) != 2 || got[0] != second || got[1] != first {
+		t.Fatalf("multi-open web URL query = %#v", webURL.Query())
+	}
+}
+
 func TestRootOpenIncludesLaunchFlagsInRoutes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")

@@ -16701,19 +16701,47 @@ async function openInitialURLTarget() {
     }
     return;
   }
-  const path = params.get("open");
-  if (!path) return;
-  const stdinSource = truthyParam(params.get("stdin")) || params.get("source") === "stdin";
-  pathInput.value = stdinSource ? "stdin" : path;
+  const openPaths = params.getAll("open").filter(Boolean);
+  if (!openPaths.length) return;
+  const formatOverride = formatOverrideFromParams(params);
+  const globalLocation = locationFromParams(params);
+  const openSources = params.getAll("openSource");
+  const openNames = params.getAll("openName");
+  const openGotos = params.getAll("openGoto");
+  const openEntries = openPaths.map((path, index) => {
+    const source = String(openSources[index] || (openPaths.length === 1 ? params.get("source") : "") || "").toLowerCase();
+    const stdinSource = source === "stdin" || (openPaths.length === 1 && truthyParam(params.get("stdin")));
+    const goto = openGotos[index] ? parseURLLocation(openGotos[index]) : (index === openPaths.length - 1 ? globalLocation : null);
+    return {
+      path,
+      stdinSource,
+      displayName: stdinSource ? (openNames[index] || "stdin") : (openNames[index] || ""),
+      location: goto,
+    };
+  });
   try {
-    await openPath(path, {
-      formatOverride: formatOverrideFromParams(params),
-      location: locationFromParams(params),
-      displayName: stdinSource ? "stdin" : undefined,
-      remember: !stdinSource,
-      sourceKind: stdinSource ? "stdin" : "",
-    });
-    if (stdinSource) {
+    for (const entry of openEntries) {
+      pathInput.value = entry.stdinSource ? "stdin" : entry.path;
+      await openPath(entry.path, {
+        formatOverride,
+        location: entry.location,
+        displayName: entry.displayName || undefined,
+        remember: !entry.stdinSource,
+        sourceKind: entry.stdinSource ? "stdin" : "",
+      });
+    }
+    if (openEntries.length > 1) {
+      const active = openEntries[openEntries.length - 1];
+      document.body.dataset.multiOpenCount = String(openEntries.length);
+      document.body.dataset.multiOpenActive = active.stdinSource ? "stdin" : active.path;
+      document.body.dataset.multiOpenFiles = openEntries.map((entry) => entry.stdinSource ? "stdin" : entry.path).join("|");
+      status.textContent = `Opened ${openEntries.length} files; active ${active.stdinSource ? "stdin" : fileNameFromPath(active.path)}.`;
+    } else {
+      delete document.body.dataset.multiOpenCount;
+      delete document.body.dataset.multiOpenActive;
+      delete document.body.dataset.multiOpenFiles;
+    }
+    if (openEntries.some((entry) => entry.stdinSource)) {
       document.body.dataset.stdinUrlBoot = "1";
     } else {
       delete document.body.dataset.stdinUrlBoot;

@@ -214,8 +214,14 @@ func rootOpen(args []string) error {
 		}
 		invocation.Route = route
 		invocation.WebURL = webURLForRoute(route)
-	} else if len(invocation.Files) == 1 && invocation.Files[0].RoutePath != "" {
-		route, err := openRoute(invocation.Files[0], options)
+	} else if routeableOpenFiles(invocation.Files) {
+		var route string
+		var err error
+		if len(invocation.Files) == 1 {
+			route, err = openRoute(invocation.Files[0], options)
+		} else {
+			route, err = multiOpenRoute(invocation.Files, options)
+		}
 		if err != nil {
 			return err
 		}
@@ -224,6 +230,18 @@ func rootOpen(args []string) error {
 	}
 
 	return printJSON(invocation)
+}
+
+func routeableOpenFiles(files []cliOpenedFile) bool {
+	if len(files) == 0 {
+		return false
+	}
+	for _, file := range files {
+		if file.RoutePath == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func diffRoute(leftPath string, rightPath string, options rootOptions) (string, error) {
@@ -264,6 +282,59 @@ func openRoute(file cliOpenedFile, options rootOptions) (string, error) {
 	addFormatQuery(values, file.Format)
 	addLaunchQuery(values, options)
 	return "/?" + values.Encode(), nil
+}
+
+func multiOpenRoute(files []cliOpenedFile, options rootOptions) (string, error) {
+	values := url.Values{}
+	values.Set("multiOpen", "1")
+	for _, file := range orderedOpenFiles(files) {
+		openPath := file.RoutePath
+		if openPath == "" {
+			openPath = file.Path
+		}
+		path, err := filepath.Abs(openPath)
+		if err != nil {
+			return "", err
+		}
+		values.Add("open", path)
+		values.Add("openSource", file.Source)
+		values.Add("openName", routeDisplayName(file))
+		values.Add("openGoto", locationParam(file.Location))
+	}
+	addFormatQuery(values, files[0].Format)
+	addLaunchQuery(values, options)
+	return "/?" + values.Encode(), nil
+}
+
+func orderedOpenFiles(files []cliOpenedFile) []cliOpenedFile {
+	if len(files) < 2 {
+		return files
+	}
+	active := -1
+	for index, file := range files {
+		if !file.Location.IsZero() {
+			active = index
+		}
+	}
+	if active < 0 || active == len(files)-1 {
+		return files
+	}
+	ordered := make([]cliOpenedFile, 0, len(files))
+	ordered = append(ordered, files[:active]...)
+	ordered = append(ordered, files[active+1:]...)
+	ordered = append(ordered, files[active])
+	return ordered
+}
+
+func routeDisplayName(file cliOpenedFile) string {
+	if file.Source == "stdin" {
+		return "stdin"
+	}
+	name := filepath.Base(file.Path)
+	if name == "." || name == string(filepath.Separator) || name == "" {
+		return "opencsv.csv"
+	}
+	return name
 }
 
 func webURLForRoute(route string) string {
