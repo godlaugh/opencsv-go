@@ -584,7 +584,7 @@ The app shall validate:
 - Empty headers.
 - Type-profile anomalies.
 - User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, numeric ranges, and string length ranges.
-- CSVLint/JSON Table Schema/Frictionless Data Package style field definitions with common `fields`, `constraints`, `datatype`, `tableSchema`, `schema`, `tables`, and `resources` shapes.
+- CSVLint/JSON Table Schema/Frictionless Data Package style field definitions with common `fields`, `constraints`, `datatype`, `default`, `tableSchema`, `schema`, `tables`, and `resources` shapes.
 - Validation schemas supplied through the Profile UI, URL boot parameters, saved-schema import, or profile API requests.
 - Saved schema/rule sets with JSON import and export.
 - Visual rule editing for common schema checks without hand-writing JSON.
@@ -594,7 +594,7 @@ Acceptance:
 - Problems panel lists issue type, row, column, message.
 - Clicking issue navigates to location.
 - Safe quick fixes can repair straightforward structural issues such as empty generated headers and short ragged rows without guessing semantic data changes.
-- Safe semantic quick fixes may repair deterministic schema violations when the schema itself supplies the replacement target, such as clamping a numeric range violation to the declared minimum or maximum or replacing an enum violation when exactly one allowed value exists.
+- Safe semantic quick fixes may repair deterministic schema violations when the schema itself supplies the replacement target, such as clamping a numeric range violation to the declared minimum or maximum, replacing an enum violation when exactly one allowed value exists, or filling a required blank with a declared default.
 
 ### FR-015 Clipboard and Export
 

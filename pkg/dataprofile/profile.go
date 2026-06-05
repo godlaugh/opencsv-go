@@ -35,6 +35,7 @@ type ColumnRule struct {
 	Max       *float64 `json:"max,omitempty"`
 	MinLength *int     `json:"minLength,omitempty"`
 	MaxLength *int     `json:"maxLength,omitempty"`
+	Default   string   `json:"default,omitempty"`
 }
 
 type ColumnProfile struct {
@@ -512,12 +513,13 @@ func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumn
 	if raw == "" {
 		if compiled.rule.Required {
 			return []Issue{{
-				Type:     "schema-required",
-				Severity: "error",
-				Row:      row + 1,
-				Col:      compiled.col + 1,
-				Rule:     compiled.ruleName,
-				Message:  fmt.Sprintf("%q is required.", compiled.ruleName),
+				Type:       "schema-required",
+				Severity:   "error",
+				Row:        row + 1,
+				Col:        compiled.col + 1,
+				Rule:       compiled.ruleName,
+				Message:    fmt.Sprintf("%q is required.", compiled.ruleName),
+				QuickFixes: defaultQuickFixes(compiled.rule.Default),
 			}}
 		}
 		return nil
@@ -654,12 +656,13 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 		if raw == "" {
 			if rule.Required {
 				issues = append(issues, Issue{
-					Type:     "schema-required",
-					Severity: "error",
-					Row:      row + 1,
-					Col:      col + 1,
-					Rule:     ruleName,
-					Message:  fmt.Sprintf("%q is required.", ruleName),
+					Type:       "schema-required",
+					Severity:   "error",
+					Row:        row + 1,
+					Col:        col + 1,
+					Rule:       ruleName,
+					Message:    fmt.Sprintf("%q is required.", ruleName),
+					QuickFixes: defaultQuickFixes(rule.Default),
 				})
 			}
 			continue
@@ -722,6 +725,13 @@ func enumQuickFixes(values []string) []QuickFix {
 		return nil
 	}
 	return []QuickFix{{ID: "schema.enum.useValue", Label: "Use allowed value", Value: values[0]}}
+}
+
+func defaultQuickFixes(value string) []QuickFix {
+	if value == "" {
+		return nil
+	}
+	return []QuickFix{{ID: "schema.default.use", Label: "Use default", Value: value}}
 }
 
 func schemaTypeMatches(raw string, expectedType string) bool {

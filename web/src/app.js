@@ -774,6 +774,7 @@ const localeCatalog = {
     "profile.rule.max": "Max",
     "profile.rule.minLength": "Min Length",
     "profile.rule.maxLength": "Max Length",
+    "profile.rule.defaultSummary": "default {{value}}",
     "profile.rule.save": "Save Rule",
     "profile.rule.update": "Update Rule",
     "profile.rule.clear": "Clear Rule",
@@ -804,6 +805,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "Fill Header",
     "profile.quickFix.header.unique": "Make Unique",
     "profile.quickFix.row.pad": "Pad Row",
+    "profile.quickFix.schema.default.use": "Use Default",
     "profile.quickFix.schema.enum.useValue": "Use Allowed Value",
     "profile.quickFix.schema.range.clampMin": "Use Minimum",
     "profile.quickFix.schema.range.clampMax": "Use Maximum",
@@ -1313,6 +1315,7 @@ const localeCatalog = {
     "profile.rule.max": "最大值",
     "profile.rule.minLength": "最小长度",
     "profile.rule.maxLength": "最大长度",
+    "profile.rule.defaultSummary": "默认值 {{value}}",
     "profile.rule.save": "保存规则",
     "profile.rule.update": "更新规则",
     "profile.rule.clear": "清除规则",
@@ -1343,6 +1346,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "填充表头",
     "profile.quickFix.header.unique": "设为唯一",
     "profile.quickFix.row.pad": "补齐行",
+    "profile.quickFix.schema.default.use": "使用默认值",
     "profile.quickFix.schema.enum.useValue": "使用允许值",
     "profile.quickFix.schema.range.clampMin": "使用最小值",
     "profile.quickFix.schema.range.clampMax": "使用最大值",
@@ -14975,6 +14979,8 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   );
   if (minLength != null) rule.minLength = minLength;
   if (maxLength != null) rule.maxLength = maxLength;
+  const defaultValue = schemaString(column.default ?? column.defaultValue ?? column.default_value ?? constraints.default ?? constraints.defaultValue ?? constraints.default_value);
+  if (defaultValue !== "") rule.default = defaultValue;
   return ruleHasValidation(rule) ? rule : null;
 }
 
@@ -15003,6 +15009,11 @@ function schemaArrayValues(value) {
     return value.split(",").map((item) => item.trim()).filter(Boolean);
   }
   return [];
+}
+
+function schemaString(value) {
+  if (value == null) return "";
+  return String(value).trim();
 }
 
 function normalizeProfileSchemaType(value) {
@@ -15501,6 +15512,9 @@ function profileRuleSummary(rule) {
   if (rule.max != null) parts.push(tf("profile.rule.maxSummary", { value: rule.max }));
   if (rule.minLength != null) parts.push(tf("profile.rule.minLengthSummary", { value: rule.minLength }));
   if (rule.maxLength != null) parts.push(tf("profile.rule.maxLengthSummary", { value: rule.maxLength }));
+  if (rule.default != null && String(rule.default).trim() !== "") {
+    parts.push(tf("profile.rule.defaultSummary", { value: rule.default }));
+  }
   return parts.length ? parts.join(", ") : t("profile.rule.locationOnly");
 }
 
@@ -15814,7 +15828,8 @@ function profileQuickFixEdits(issue, fix) {
   if (
     (fixID === "schema.range.clampMin" ||
       fixID === "schema.range.clampMax" ||
-      fixID === "schema.enum.useValue") &&
+      fixID === "schema.enum.useValue" ||
+      fixID === "schema.default.use") &&
     issue?.row &&
     issue?.col &&
     typeof fix?.value === "string"

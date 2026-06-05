@@ -2363,6 +2363,43 @@ func TestServerProfileSingleEnumQuickFix(t *testing.T) {
 	}
 }
 
+func TestServerProfileRequiredDefaultQuickFix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "required-default.csv")
+	if err := os.WriteFile(path, []byte("id,status\n1,\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"fields": []map[string]any{
+				{"name": "status", "constraints": map[string]any{"required": true, "default": "active"}},
+			},
+		},
+	})
+	issue := jsonIssueByType(profilePayload["issues"].([]any), "schema-required")
+	if issue == nil {
+		t.Fatalf("expected schema-required issue in %#v", profilePayload["issues"])
+	}
+	quickFixes, ok := issue["quickFixes"].([]any)
+	if !ok || len(quickFixes) != 1 {
+		t.Fatalf("schema-required quick fixes = %#v, want one fix", issue["quickFixes"])
+	}
+	quickFix, ok := quickFixes[0].(map[string]any)
+	if !ok || quickFix["id"] != "schema.default.use" || quickFix["value"] != "active" {
+		t.Fatalf("schema-required quick fix = %#v, want default active", quickFixes[0])
+	}
+}
+
 func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile-stream.csv")

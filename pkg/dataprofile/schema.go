@@ -165,6 +165,10 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	if maxLength, ok := firstSchemaInteger([]map[string]json.RawMessage{column, constraints, datatypeObject}, "maxLength", "maximumLength", "max_length", "maximum_length"); ok {
 		rule.MaxLength = &maxLength
 	}
+	rule.Default = firstSchemaString(column, "default", "defaultValue", "default_value")
+	if rule.Default == "" {
+		rule.Default = firstSchemaString(constraints, "default", "defaultValue", "default_value")
+	}
 	return rule, ruleHasChecks(rule), nil
 }
 

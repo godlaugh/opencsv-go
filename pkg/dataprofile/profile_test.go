@@ -261,6 +261,35 @@ func TestAnalyzeWithSchemaSingleEnumQuickFix(t *testing.T) {
 	}
 }
 
+func TestAnalyzeWithSchemaRequiredDefaultQuickFix(t *testing.T) {
+	result := AnalyzeWithSchema([][]string{
+		{"status", "owner"},
+		{"", ""},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "status", Required: true, Default: "active"},
+		{Name: "owner", Required: true},
+	}})
+	var defaulted, noDefault *Issue
+	for i := range result.Issues {
+		issue := &result.Issues[i]
+		if issue.Type != "schema-required" {
+			continue
+		}
+		switch issue.Col {
+		case 1:
+			defaulted = issue
+		case 2:
+			noDefault = issue
+		}
+	}
+	if defaulted == nil || len(defaulted.QuickFixes) != 1 || defaulted.QuickFixes[0].ID != "schema.default.use" || defaulted.QuickFixes[0].Value != "active" {
+		t.Fatalf("defaulted required issue = %#v, want default active quick fix", defaulted)
+	}
+	if noDefault == nil || len(noDefault.QuickFixes) != 0 {
+		t.Fatalf("required issue without default = %#v, want no quick fix", noDefault)
+	}
+}
+
 func TestAnalyzeWithSchemaStringLengthRules(t *testing.T) {
 	minLength := 2
 	maxLength := 3
@@ -356,7 +385,7 @@ func TestSchemaUnmarshalAcceptsFrictionlessResources(t *testing.T) {
 				"name": "scores",
 				"schema": {
 					"fields": [
-						{"name": "status", "constraints": {"enum": ["active"]}},
+						{"name": "status", "constraints": {"enum": ["active"], "default": "active"}},
 						{"name": "score", "type": "number", "constraints": {"minimum": 0, "maximum": 100}}
 					],
 					"primaryKey": "status"
@@ -371,7 +400,7 @@ func TestSchemaUnmarshalAcceptsFrictionlessResources(t *testing.T) {
 		t.Fatalf("columns = %#v, want 2", schema.Columns)
 	}
 	status := schema.Columns[0]
-	if status.Name != "status" || !status.Required || !status.Unique || len(status.Enum) != 1 || status.Enum[0] != "active" {
+	if status.Name != "status" || !status.Required || !status.Unique || len(status.Enum) != 1 || status.Enum[0] != "active" || status.Default != "active" {
 		t.Fatalf("status rule = %#v", status)
 	}
 	score := schema.Columns[1]
