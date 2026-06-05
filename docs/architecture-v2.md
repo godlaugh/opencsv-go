@@ -569,8 +569,8 @@ Rules:
 Input:
 
 - document ID.
-- mode: `trim`, `upper`, or `lower`.
-- explicit source cells with zero-based row and column indexes.
+- mode: `trim`, `upper`, `lower`, `snake`, `kebab`, `camel`, `pascal`, `title`, `wide`, or `narrow`.
+- either explicit source cells with zero-based row and column indexes, or one zero-based source column for current-column transforms.
 
 Output:
 
@@ -582,7 +582,9 @@ Rules:
 
 - Transform commands are read-only-safe: they reject read-only sessions.
 - Duplicate cells in the request are applied once.
+- Current-column transforms skip detected header rows.
 - Empty no-op transforms do not create an undo entry or mark the document dirty.
+- Frontend command execution reuses localized command titles for selected-cell and current-column status messages.
 
 ### Cell Tools
 

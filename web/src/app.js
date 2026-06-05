@@ -558,6 +558,10 @@ const localeCatalog = {
     "text.mode.title": "Title Case",
     "text.mode.wide": "Full Width",
     "text.mode.narrow": "Half Width",
+    "text.status.running": "{{label}}...",
+    "text.status.failed": "{{label}} failed: {{message}}",
+    "text.status.changed": "{{label}}: {{count}} cells changed",
+    "text.status.noChange": "{{label}}: no cells changed",
     "edit.find": "Find",
     "edit.preview": "Preview",
     "edit.replace": "Replace",
@@ -1188,6 +1192,10 @@ const localeCatalog = {
     "text.mode.title": "标题大小写",
     "text.mode.wide": "全角",
     "text.mode.narrow": "半角",
+    "text.status.running": "正在{{label}}...",
+    "text.status.failed": "{{label}}失败：{{message}}",
+    "text.status.changed": "{{label}}：已更改 {{count}} 个单元格",
+    "text.status.noChange": "{{label}}：没有单元格更改",
     "edit.find": "查找",
     "edit.preview": "预览",
     "edit.replace": "替换",
@@ -1686,20 +1694,45 @@ const localeCatalog = {
     "command.table.dedupeRows.title": "删除重复行",
     "command.table.dedupeColumns.title": "删除重复列",
     "command.text.trim.title": "修剪文本",
+    "command.text.trim.description": "修剪选中单元格首尾的空白字符。",
     "command.text.uppercase.title": "转大写",
+    "command.text.uppercase.description": "将选中单元格转换为大写文本。",
     "command.text.lowercase.title": "转小写",
+    "command.text.lowercase.description": "将选中单元格转换为小写文本。",
+    "command.text.snakeCase.title": "蛇形命名",
+    "command.text.snakeCase.description": "将选中单元格转换为 snake_case 命名。",
+    "command.text.kebabCase.title": "短横线命名",
+    "command.text.kebabCase.description": "将选中单元格转换为 kebab-case 命名。",
+    "command.text.camelCase.title": "驼峰命名",
+    "command.text.camelCase.description": "将选中单元格转换为 camelCase 命名。",
+    "command.text.pascalCase.title": "帕斯卡命名",
+    "command.text.pascalCase.description": "将选中单元格转换为 PascalCase 命名。",
+    "command.text.titleCase.title": "标题大小写",
+    "command.text.titleCase.description": "将选中单元格转换为 Title Case 命名。",
     "command.text.fullWidth.title": "转全角",
+    "command.text.fullWidth.description": "将选中单元格转换为全角 Unicode 文本。",
     "command.text.halfWidth.title": "转半角",
+    "command.text.halfWidth.description": "将选中单元格转换为半角 Unicode 文本。",
     "command.text.column.trim.title": "修剪整列文本",
+    "command.text.column.trim.description": "修剪当前列首尾的空白字符。",
     "command.text.column.uppercase.title": "整列转大写",
+    "command.text.column.uppercase.description": "将当前列转换为大写文本。",
     "command.text.column.lowercase.title": "整列转小写",
+    "command.text.column.lowercase.description": "将当前列转换为小写文本。",
     "command.text.column.snakeCase.title": "整列转蛇形命名",
+    "command.text.column.snakeCase.description": "将当前列转换为 snake_case 命名。",
     "command.text.column.kebabCase.title": "整列转短横线命名",
+    "command.text.column.kebabCase.description": "将当前列转换为 kebab-case 命名。",
     "command.text.column.camelCase.title": "整列转驼峰命名",
+    "command.text.column.camelCase.description": "将当前列转换为 camelCase 命名。",
     "command.text.column.pascalCase.title": "整列转帕斯卡命名",
+    "command.text.column.pascalCase.description": "将当前列转换为 PascalCase 命名。",
     "command.text.column.titleCase.title": "整列转标题大小写",
+    "command.text.column.titleCase.description": "将当前列转换为 Title Case 命名。",
     "command.text.column.fullWidth.title": "整列转全角",
+    "command.text.column.fullWidth.description": "将当前列转换为全角 Unicode 文本。",
     "command.text.column.halfWidth.title": "整列转半角",
+    "command.text.column.halfWidth.description": "将当前列转换为半角 Unicode 文本。",
     "command.cell.openLink.title": "打开链接",
     "command.cell.openLink.description": "打开当前单元格中通过安全审计的链接。",
     "command.cell.joinHorizontal.title": "合并单元格",
@@ -2303,6 +2336,15 @@ function localizedCommandTitle(command) {
 function localizedCommandDescription(command) {
   if (!command) return "";
   return translationOrEmpty(`command.${command.id}.description`) || command.description || "";
+}
+
+function localizedCommandLabel(commandID, fallback = commandID) {
+  const command = commandsById.get(commandID);
+  return command ? localizedCommandTitle(command) : fallback;
+}
+
+function localizedTransformStatus(key, label, values = {}) {
+  return tf(`text.status.${key}`, { label, ...values });
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -8613,34 +8655,34 @@ async function executeCommand(commandID) {
       await dedupeColumns();
       break;
     case "text.trim":
-      await transformSelectedText("trim", "Trim Text");
+      await transformSelectedText("trim", localizedCommandLabel(commandID, "Trim Text"));
       break;
     case "text.uppercase":
-      await transformSelectedText("upper", "Uppercase Text");
+      await transformSelectedText("upper", localizedCommandLabel(commandID, "Uppercase Text"));
       break;
     case "text.lowercase":
-      await transformSelectedText("lower", "Lowercase Text");
+      await transformSelectedText("lower", localizedCommandLabel(commandID, "Lowercase Text"));
       break;
     case "text.snakeCase":
-      await transformSelectedText("snake", "Snake Case");
+      await transformSelectedText("snake", localizedCommandLabel(commandID, "Snake Case"));
       break;
     case "text.kebabCase":
-      await transformSelectedText("kebab", "Kebab Case");
+      await transformSelectedText("kebab", localizedCommandLabel(commandID, "Kebab Case"));
       break;
     case "text.camelCase":
-      await transformSelectedText("camel", "Camel Case");
+      await transformSelectedText("camel", localizedCommandLabel(commandID, "Camel Case"));
       break;
     case "text.pascalCase":
-      await transformSelectedText("pascal", "Pascal Case");
+      await transformSelectedText("pascal", localizedCommandLabel(commandID, "Pascal Case"));
       break;
     case "text.titleCase":
-      await transformSelectedText("title", "Title Case");
+      await transformSelectedText("title", localizedCommandLabel(commandID, "Title Case"));
       break;
     case "text.fullWidth":
-      await transformSelectedText("wide", "Full Width");
+      await transformSelectedText("wide", localizedCommandLabel(commandID, "Full Width"));
       break;
     case "text.halfWidth":
-      await transformSelectedText("narrow", "Half Width");
+      await transformSelectedText("narrow", localizedCommandLabel(commandID, "Half Width"));
       break;
     case "text.column.trim":
     case "text.column.uppercase":
@@ -14119,7 +14161,7 @@ async function transformSelectedText(mode, label) {
   if (!ensureEditable(label)) return;
   const cells = selectedCellsForTransform();
   if (!cells) return;
-  status.textContent = `${label}...`;
+  status.textContent = localizedTransformStatus("running", label);
   const response = await fetch("/api/text-transform", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -14127,22 +14169,22 @@ async function transformSelectedText(mode, label) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedTransformStatus("failed", label, { message: payload.error ?? "unknown error" });
     return;
   }
   const changed = payload.changed ?? 0;
   applyMutationPayload(
     payload,
     changed > 0
-      ? `${label}: ${formatCount(changed)} cells changed`
-      : `${label}: no cells changed`,
+      ? localizedTransformStatus("changed", label, { count: formatCount(changed) })
+      : localizedTransformStatus("noChange", label),
   );
 }
 
 async function transformColumnTextForCommand(commandID) {
   const spec = columnTextTransformCommands.get(commandID);
   if (!spec) return;
-  await transformColumnText(spec.mode, spec.label);
+  await transformColumnText(spec.mode, localizedCommandLabel(commandID, spec.label));
 }
 
 async function transformColumnText(mode, label, column = activeTransformColumn()) {
@@ -14150,7 +14192,7 @@ async function transformColumnText(mode, label, column = activeTransformColumn()
   if (!documentId || !columns[column]) return;
   if (!ensureEditable(label)) return;
   const sourceCol = sourceColFor(column);
-  status.textContent = `${label}...`;
+  status.textContent = localizedTransformStatus("running", label);
   const response = await fetch("/api/text-transform", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -14158,7 +14200,7 @@ async function transformColumnText(mode, label, column = activeTransformColumn()
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedTransformStatus("failed", label, { message: payload.error ?? "unknown error" });
     return;
   }
   const changed = payload.changed ?? 0;
@@ -14166,8 +14208,8 @@ async function transformColumnText(mode, label, column = activeTransformColumn()
   applyMutationPayload(
     payload,
     changed > 0
-      ? `${label}: ${formatCount(changed)} cells changed`
-      : `${label}: no cells changed`,
+      ? localizedTransformStatus("changed", label, { count: formatCount(changed) })
+      : localizedTransformStatus("noChange", label),
   );
 }
 
