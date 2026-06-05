@@ -2169,6 +2169,53 @@ func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 	}
 }
 
+func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region,score\n1,APAC,8\n2,EU,9\n3,APAC,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+	})
+	if profilePayload["streamed"] != true || profilePayload["rows"] != float64(3) {
+		t.Fatalf("profile payload = %#v, want streamed three-row profile", profilePayload)
+	}
+	columns := profilePayload["columns"].([]any)
+	if len(columns) != 3 || columns[1].(map[string]any)["distinct"] != float64(2) {
+		t.Fatalf("profile columns = %#v, want region with two distinct values", columns)
+	}
+
+	if editPayload := postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": documentID,
+		"row":        2,
+		"col":        1,
+		"value":      "LATAM",
+	}); editPayload["dirty"] != true {
+		t.Fatalf("edit payload = %#v, want dirty edit", editPayload)
+	}
+	editedPayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+	})
+	if editedPayload["streamed"] == true {
+		t.Fatalf("edited profile streamed = true, want materialized fallback")
+	}
+	editedColumns := editedPayload["columns"].([]any)
+	editedRegion := editedColumns[1].(map[string]any)
+	if editedRegion["distinct"] != float64(2) || !jsonTopValuesContain(editedRegion["topValues"].([]any), "LATAM") {
+		t.Fatalf("edited profile columns = %#v, want materialized region edit included", editedColumns)
+	}
+}
+
 func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "csvlint-schema.csv")
@@ -2970,6 +3017,16 @@ func jsonIssuesContainType(issues []any, typ string) bool {
 	for _, raw := range issues {
 		issue, ok := raw.(map[string]any)
 		if ok && issue["type"] == typ {
+			return true
+		}
+	}
+	return false
+}
+
+func jsonTopValuesContain(values []any, want string) bool {
+	for _, raw := range values {
+		value, ok := raw.(map[string]any)
+		if ok && value["value"] == want {
 			return true
 		}
 	}

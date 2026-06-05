@@ -1498,9 +1498,25 @@ func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	if session, ok := server.documents.Snapshot(request.DocumentID); ok && canStreamDocumentSource(session) {
+		result, err := dataprofile.AnalyzeStreamContext(
+			r.Context(),
+			session.Document.Metadata.Dialect.HasHeader,
+			request.Schema,
+			func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
+				return csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, handle)
+			},
+		)
+		if err != nil {
+			writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
 	session, records, err := server.documents.Records(request.DocumentID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	result := dataprofile.AnalyzeWithSchema(records, session.Document.Metadata.Dialect.HasHeader, request.Schema)
@@ -1545,7 +1561,7 @@ func (server *Server) sqlSourceFromDocument(documentID string) (sqlconsole.Sourc
 }
 
 func (server *Server) sqlSourceFromSession(documentID string, session *docstore.Session) (sqlconsole.Source, error) {
-	if canStreamSQLSource(session) {
+	if canStreamDocumentSource(session) {
 		return sqlSourceFromCleanDocument(session.WorkingPath, session.Document), nil
 	}
 	session, records, err := server.documents.Records(documentID)
@@ -1555,7 +1571,7 @@ func (server *Server) sqlSourceFromSession(documentID string, session *docstore.
 	return sqlSourceFromDocumentRecords(session.WorkingPath, session.Document, records), nil
 }
 
-func canStreamSQLSource(session *docstore.Session) bool {
+func canStreamDocumentSource(session *docstore.Session) bool {
 	return session.EditBaseRecords == nil &&
 		len(session.Edits) == 0 &&
 		csvcore.CanStreamRecords(session.Document.Metadata)

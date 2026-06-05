@@ -1,8 +1,10 @@
 package dataprofile
 
 import (
+	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ type Result struct {
 	Columns     []ColumnProfile `json:"columns"`
 	Issues      []Issue         `json:"issues"`
 	SchemaRules int             `json:"schemaRules,omitempty"`
+	Streamed    bool            `json:"streamed,omitempty"`
 }
 
 type Schema struct {
@@ -72,8 +75,29 @@ type QuickFix struct {
 	Label string `json:"label"`
 }
 
+type RecordStream func(ctx context.Context, handle func(row int, record []string) error) (int, error)
+
 func Analyze(records [][]string, hasHeader bool) Result {
 	return AnalyzeWithSchema(records, hasHeader, Schema{})
+}
+
+func AnalyzeStreamContext(ctx context.Context, hasHeader bool, schema Schema, stream RecordStream) (Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if stream == nil {
+		return Result{}, fmt.Errorf("record stream is required")
+	}
+	acc := newProfileAccumulator(hasHeader)
+	if _, err := stream(ctx, acc.consume); err != nil {
+		return Result{}, err
+	}
+	result := acc.finalize()
+	if err := streamProfileValidationPass(ctx, stream, hasHeader, acc.headers(), &result, schema); err != nil {
+		return Result{}, err
+	}
+	result.Streamed = true
+	return result, nil
 }
 
 func AnalyzeWithSchema(records [][]string, hasHeader bool, schema Schema) Result {
@@ -151,6 +175,120 @@ func AnalyzeWithSchema(records [][]string, hasHeader bool, schema Schema) Result
 	result.SchemaRules = schemaRules
 	result.Issues = append(result.Issues, schemaIssues...)
 	return result
+}
+
+type rowWidth struct {
+	row   int
+	width int
+}
+
+type profileAccumulator struct {
+	hasHeader bool
+	header    []string
+	rows      int
+	widths    []rowWidth
+	result    Result
+	values    []map[string]int
+}
+
+func newProfileAccumulator(hasHeader bool) *profileAccumulator {
+	return &profileAccumulator{hasHeader: hasHeader}
+}
+
+func (acc *profileAccumulator) consume(row int, record []string) error {
+	if row == 0 && acc.hasHeader {
+		acc.header = append([]string(nil), record...)
+		acc.ensureWidth(len(record))
+		acc.result.Issues = append(acc.result.Issues, headerIssues(record)...)
+		return nil
+	}
+	acc.ensureWidth(len(record))
+	acc.rows++
+	acc.widths = append(acc.widths, rowWidth{row: row + 1, width: len(record)})
+	for col := 0; col < len(acc.result.Columns); col++ {
+		profile := &acc.result.Columns[col]
+		raw := strings.TrimSpace(cell(record, col))
+		if raw == "" {
+			profile.Nulls++
+			continue
+		}
+		acc.values[col][raw]++
+		kind := detectType(raw)
+		profile.TypeCounts[kind]++
+		updateMinMax(profile, raw, kind)
+		if kind == "integer" || kind == "decimal" {
+			num, _ := strconv.ParseFloat(raw, 64)
+			if profile.Sum == nil {
+				zero := 0.0
+				profile.Sum = &zero
+			}
+			*profile.Sum += num
+		}
+	}
+	return nil
+}
+
+func (acc *profileAccumulator) ensureWidth(width int) {
+	for len(acc.result.Columns) < width {
+		col := len(acc.result.Columns)
+		name := fmt.Sprintf("c%d", col+1)
+		if acc.hasHeader && col < len(acc.header) && strings.TrimSpace(acc.header[col]) != "" {
+			name = acc.header[col]
+		}
+		acc.result.Columns = append(acc.result.Columns, ColumnProfile{
+			Index:      col,
+			Name:       name,
+			Nulls:      acc.rows,
+			TypeCounts: make(map[string]int),
+		})
+		acc.values = append(acc.values, make(map[string]int))
+	}
+}
+
+func (acc *profileAccumulator) headers() []string {
+	headers := make([]string, len(acc.result.Columns))
+	for col := range headers {
+		headers[col] = acc.result.Columns[col].Name
+	}
+	return headers
+}
+
+func (acc *profileAccumulator) finalize() Result {
+	acc.result.Rows = acc.rows
+	for _, width := range acc.widths {
+		if width.width != len(acc.result.Columns) {
+			issue := Issue{
+				Type:     "ragged-row",
+				Severity: "error",
+				Row:      width.row,
+				Actual:   width.width,
+				Expected: len(acc.result.Columns),
+				Message:  fmt.Sprintf("Row has %d columns, expected %d.", width.width, len(acc.result.Columns)),
+			}
+			if width.width < len(acc.result.Columns) {
+				issue.QuickFixes = []QuickFix{{ID: "row.pad", Label: "Pad missing cells"}}
+			}
+			acc.result.Issues = append(acc.result.Issues, issue)
+		}
+	}
+	for col := range acc.result.Columns {
+		profile := &acc.result.Columns[col]
+		profile.Rows = acc.rows
+		profile.Distinct = len(acc.values[col])
+		if profile.Rows > 0 {
+			profile.NullRatio = float64(profile.Nulls) / float64(profile.Rows)
+		}
+		profile.Type = dominantType(profile.TypeCounts)
+		if profile.Sum != nil {
+			numericRows := profile.TypeCounts["integer"] + profile.TypeCounts["decimal"]
+			if numericRows > 0 {
+				average := *profile.Sum / float64(numericRows)
+				profile.Average = &average
+			}
+		}
+		profile.TopValues = topValues(acc.values[col], 5)
+	}
+	return acc.result
 }
 
 func headersFor(records [][]string, hasHeader bool, width int) []string {
@@ -253,6 +391,186 @@ func schemaValidationIssues(records [][]string, hasHeader bool, headers []string
 		issues = append(issues, validateColumnRule(records, hasHeader, col, rule, ruleName)...)
 	}
 	return rules, issues
+}
+
+type compiledColumnRule struct {
+	col          int
+	rule         ColumnRule
+	ruleName     string
+	expectedType string
+	enum         map[string]struct{}
+	pattern      *regexp.Regexp
+	seen         map[string]int
+}
+
+func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHeader bool, headers []string, result *Result, schema Schema) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	compiledRules, ruleCount, issues := compileColumnRules(headers, schema)
+	result.SchemaRules = ruleCount
+	result.Issues = append(result.Issues, issues...)
+	if len(result.Columns) == 0 && len(compiledRules) == 0 {
+		return nil
+	}
+	_, err := stream(ctx, func(row int, record []string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if row == 0 && hasHeader {
+			return nil
+		}
+		result.Issues = append(result.Issues, streamedTypeIssues(record, row, result.Columns)...)
+		for index := range compiledRules {
+			result.Issues = append(result.Issues, streamedColumnRuleIssues(record, row, &compiledRules[index])...)
+		}
+		return nil
+	})
+	return err
+}
+
+func compileColumnRules(headers []string, schema Schema) ([]compiledColumnRule, int, []Issue) {
+	var compiled []compiledColumnRule
+	var issues []Issue
+	rules := 0
+	for _, rule := range schema.Columns {
+		if !ruleHasChecks(rule) {
+			continue
+		}
+		rules++
+		col, ok := resolveRuleColumn(rule, headers)
+		ruleName := columnRuleName(rule)
+		if !ok {
+			issues = append(issues, Issue{
+				Type:     "schema-missing-column",
+				Severity: "error",
+				Row:      1,
+				Rule:     ruleName,
+				Message:  fmt.Sprintf("Schema column %q was not found.", ruleName),
+			})
+			continue
+		}
+		compiledRule := compiledColumnRule{
+			col:          col,
+			rule:         rule,
+			ruleName:     ruleName,
+			expectedType: strings.ToLower(strings.TrimSpace(rule.Type)),
+			enum:         make(map[string]struct{}, len(rule.Enum)),
+			seen:         make(map[string]int),
+		}
+		for _, value := range rule.Enum {
+			compiledRule.enum[value] = struct{}{}
+		}
+		if strings.TrimSpace(rule.Pattern) != "" {
+			pattern, err := regexp.Compile(rule.Pattern)
+			if err != nil {
+				issues = append(issues, Issue{
+					Type:     "schema-pattern",
+					Severity: "error",
+					Row:      1,
+					Col:      col + 1,
+					Rule:     ruleName,
+					Message:  fmt.Sprintf("Schema pattern for %q is invalid: %v.", ruleName, err),
+				})
+				continue
+			}
+			compiledRule.pattern = pattern
+		}
+		compiled = append(compiled, compiledRule)
+	}
+	return compiled, rules, issues
+}
+
+func streamedTypeIssues(record []string, row int, columns []ColumnProfile) []Issue {
+	var issues []Issue
+	for col, profile := range columns {
+		dominant := profile.Type
+		if dominant == "" || dominant == "string" || dominant == "mixed" {
+			continue
+		}
+		raw := strings.TrimSpace(cell(record, col))
+		if raw == "" {
+			continue
+		}
+		kind := detectType(raw)
+		if kind != dominant && !(dominant == "decimal" && kind == "integer") {
+			issues = append(issues, Issue{
+				Type:     "type-anomaly",
+				Severity: "warning",
+				Row:      row + 1,
+				Col:      col + 1,
+				Message:  fmt.Sprintf("Value %q is %s in a mostly %s column.", raw, kind, dominant),
+			})
+		}
+	}
+	return issues
+}
+
+func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumnRule) []Issue {
+	raw := strings.TrimSpace(cell(record, compiled.col))
+	if raw == "" {
+		if compiled.rule.Required {
+			return []Issue{{
+				Type:     "schema-required",
+				Severity: "error",
+				Row:      row + 1,
+				Col:      compiled.col + 1,
+				Rule:     compiled.ruleName,
+				Message:  fmt.Sprintf("%q is required.", compiled.ruleName),
+			}}
+		}
+		return nil
+	}
+	var issues []Issue
+	if compiled.expectedType != "" && !schemaTypeMatches(raw, compiled.expectedType) {
+		issues = append(issues, Issue{
+			Type:     "schema-type",
+			Severity: "error",
+			Row:      row + 1,
+			Col:      compiled.col + 1,
+			Rule:     compiled.ruleName,
+			Message:  fmt.Sprintf("Value %q does not match schema type %s.", raw, compiled.expectedType),
+		})
+	}
+	if compiled.rule.Unique {
+		if firstRow, ok := compiled.seen[raw]; ok {
+			issues = append(issues, Issue{
+				Type:     "schema-unique",
+				Severity: "error",
+				Row:      row + 1,
+				Col:      compiled.col + 1,
+				Rule:     compiled.ruleName,
+				Message:  fmt.Sprintf("Value %q duplicates row %d.", raw, firstRow),
+			})
+		} else {
+			compiled.seen[raw] = row + 1
+		}
+	}
+	if len(compiled.enum) > 0 {
+		if _, ok := compiled.enum[raw]; !ok {
+			issues = append(issues, Issue{
+				Type:     "schema-enum",
+				Severity: "error",
+				Row:      row + 1,
+				Col:      compiled.col + 1,
+				Rule:     compiled.ruleName,
+				Message:  fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
+			})
+		}
+	}
+	if compiled.pattern != nil && !compiled.pattern.MatchString(raw) {
+		issues = append(issues, Issue{
+			Type:     "schema-pattern",
+			Severity: "error",
+			Row:      row + 1,
+			Col:      compiled.col + 1,
+			Rule:     compiled.ruleName,
+			Message:  fmt.Sprintf("Value %q does not match schema pattern.", raw),
+		})
+	}
+	issues = append(issues, stringLengthIssues(raw, row, compiled.col, compiled.rule, compiled.ruleName)...)
+	issues = append(issues, numericRangeIssues(raw, row, compiled.col, compiled.rule, compiled.ruleName)...)
+	return issues
 }
 
 func ruleHasChecks(rule ColumnRule) bool {
@@ -577,21 +895,37 @@ func compareProfileValue(left string, right string, kind string) int {
 }
 
 func topValues(values map[string]int, limit int) []ValueFrequency {
-	items := make([]ValueFrequency, 0, len(values))
-	for value, count := range values {
-		items = append(items, ValueFrequency{Value: value, Count: count})
+	if limit <= 0 {
+		return nil
 	}
-	for i := 0; i < len(items); i++ {
-		for j := i + 1; j < len(items); j++ {
-			if items[j].Count > items[i].Count || (items[j].Count == items[i].Count && items[j].Value < items[i].Value) {
-				items[i], items[j] = items[j], items[i]
+	items := make([]ValueFrequency, 0, min(limit, len(values)))
+	for value, count := range values {
+		candidate := ValueFrequency{Value: value, Count: count}
+		if len(items) < limit {
+			items = append(items, candidate)
+			continue
+		}
+		worst := 0
+		for i := 1; i < len(items); i++ {
+			if topValueLess(items[i], items[worst]) {
+				worst = i
 			}
 		}
+		if topValueLess(items[worst], candidate) {
+			items[worst] = candidate
+		}
 	}
-	if len(items) > limit {
-		items = items[:limit]
-	}
+	sort.Slice(items, func(i, j int) bool {
+		return topValueLess(items[j], items[i])
+	})
 	return items
+}
+
+func topValueLess(left ValueFrequency, right ValueFrequency) bool {
+	if left.Count != right.Count {
+		return left.Count < right.Count
+	}
+	return left.Value > right.Value
 }
 
 func maxWidth(records [][]string) int {

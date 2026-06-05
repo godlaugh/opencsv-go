@@ -15145,6 +15145,7 @@ async function loadProfile(force = false) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "profile failed");
     profileData = payload;
+    document.body.dataset.profileStreamed = String(Boolean(payload.streamed));
     renderProfile(payload);
     updateInspector();
     status.textContent = tf("profile.status.complete", {

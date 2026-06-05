@@ -1,6 +1,7 @@
 package dataprofile
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 )
@@ -38,6 +39,43 @@ func TestAnalyzeProfilesColumnsAndIssues(t *testing.T) {
 	}
 }
 
+func TestAnalyzeStreamProfilesColumnsAndSchema(t *testing.T) {
+	minScore := 0.0
+	maxScore := 100.0
+	records := [][]string{
+		{"id", "", "score", "score"},
+		{"1", "Ada", "9", "9"},
+		{"1", "bad", "105", "10"},
+		{"", "Grace", "bad", "11"},
+		{"4", "Alan"},
+	}
+	result, err := AnalyzeStreamContext(context.Background(), true, Schema{Columns: []ColumnRule{
+		{Name: "id", Required: true, Type: "integer", Unique: true},
+		{Name: "score", Type: "number", Min: &minScore, Max: &maxScore},
+		{Name: "missing", Required: true},
+	}}, streamRecords(records))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed {
+		t.Fatal("streamed = false, want true")
+	}
+	if result.Rows != 4 || len(result.Columns) != 4 {
+		t.Fatalf("shape = rows %d columns %d, want 4/4", result.Rows, len(result.Columns))
+	}
+	if result.Columns[0].Type != "integer" || result.Columns[0].Distinct != 2 {
+		t.Fatalf("id profile = %#v, want integer with two distinct non-empty values", result.Columns[0])
+	}
+	if result.Columns[2].Type != "mixed" {
+		t.Fatalf("score type = %s, want mixed", result.Columns[2].Type)
+	}
+	for _, typ := range []string{"empty-header", "duplicate-header", "ragged-row", "schema-unique", "schema-required", "schema-range", "schema-type", "schema-missing-column"} {
+		if !hasIssue(result.Issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
+		}
+	}
+}
+
 func TestAnalyzeNumericSummary(t *testing.T) {
 	result := Analyze([][]string{
 		{"amount"},
@@ -60,6 +98,42 @@ func TestAnalyzeNumericSummary(t *testing.T) {
 	}
 	if amount.Min != "1.5" || amount.Max != "2.5" {
 		t.Fatalf("min/max = %q/%q", amount.Min, amount.Max)
+	}
+}
+
+func TestTopValuesKeepsHighestCountsAndLexicalTies(t *testing.T) {
+	values := topValues(map[string]int{
+		"zeta":  2,
+		"alpha": 2,
+		"beta":  3,
+		"gamma": 1,
+	}, 3)
+	want := []ValueFrequency{
+		{Value: "beta", Count: 3},
+		{Value: "alpha", Count: 2},
+		{Value: "zeta", Count: 2},
+	}
+	if len(values) != len(want) {
+		t.Fatalf("top values = %#v, want %#v", values, want)
+	}
+	for i := range want {
+		if values[i] != want[i] {
+			t.Fatalf("top values = %#v, want %#v", values, want)
+		}
+	}
+}
+
+func streamRecords(records [][]string) RecordStream {
+	return func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
+		for row, record := range records {
+			if err := ctx.Err(); err != nil {
+				return row, err
+			}
+			if err := handle(row, record); err != nil {
+				return row, err
+			}
+		}
+		return len(records), nil
 	}
 }
 
