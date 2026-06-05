@@ -241,7 +241,9 @@ func (manager *Manager) Window(id string, start int, count int) (csvcore.RecordW
 			return csvcore.RecordWindow{}, err
 		}
 		applyEdits(window.Rows, start, session.Edits)
-		window.TotalRows = session.Document.RowIndex.Rows
+		if session.Document.RowIndex.Rows > window.TotalRows {
+			window.TotalRows = session.Document.RowIndex.Rows
+		}
 		if len(window.SourceRows) == 0 {
 			window.SourceRows = make([]int, len(window.Rows))
 			for i := range window.Rows {
@@ -417,6 +419,18 @@ func (manager *Manager) EditCells(id string, edits []CellEdit) error {
 	}
 	if session.EditBaseRecords == nil && len(session.Edits) == 0 && len(session.UndoStack) > 0 {
 		session.EditBaseRecords = cloneRecords(session.UndoStack[len(session.UndoStack)-1].Records)
+	}
+	maxRow := -1
+	for _, edit := range edits {
+		if edit.Row > maxRow {
+			maxRow = edit.Row
+		}
+	}
+	if maxRow >= 0 && session.EditBaseRecords != nil {
+		ensureRecordCount(&session.EditBaseRecords, maxRow+1)
+		if maxRow+1 > session.Document.RowIndex.Rows {
+			session.Document.RowIndex.Rows = maxRow + 1
+		}
 	}
 	for _, edit := range edits {
 		session.Edits[Cell{Row: edit.Row, Col: edit.Col}] = edit.Value
@@ -1579,6 +1593,7 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 		current.ViewRows = nil
 		current.ViewActive = false
 		if openErr == nil {
+			refreshed.RowIndex.Rows = len(records)
 			current.Document = refreshed
 			current.WorkingPath = refreshedWorkingPath
 			current.OriginalPath = outputPath
@@ -3678,6 +3693,12 @@ func maxRecordWidth(records [][]string) int {
 func ensureRecordWidth(record *[]string, width int) {
 	for len(*record) < width {
 		*record = append(*record, "")
+	}
+}
+
+func ensureRecordCount(records *[][]string, count int) {
+	for len(*records) < count {
+		*records = append(*records, []string{})
 	}
 }
 

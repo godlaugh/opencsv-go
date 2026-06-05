@@ -10013,6 +10013,8 @@ function submitCellEdits(edits, windowRow, message) {
     .then(async (response) => {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "edit failed");
+      windowGeneration++;
+      loadingWindow = false;
       rows = new Map();
       rowSource = new Map();
       windowStart = 0;
@@ -11914,6 +11916,16 @@ function ensureSourceColumnsForEdits(edits) {
   allColumns.sort((left, right) => left.sourceCol - right.sourceCol);
   applyHiddenColumns();
   document.body.dataset.extendedColumns = String(maxSourceCol + 1);
+}
+
+function ensureSourceRowsForEdits(edits) {
+  if (!Array.isArray(edits) || edits.length === 0 || viewMapped) return;
+  const maxSourceRow = Math.max(-1, ...edits.map((edit) => Number.isInteger(edit.row) ? edit.row : -1));
+  const nextSourceRowCount = Math.max(sourceRowCount, maxSourceRow - dataStartRow + 1);
+  if (nextSourceRowCount <= sourceRowCount) return;
+  sourceRowCount = nextSourceRowCount;
+  syncTotalRows();
+  document.body.dataset.extendedRows = String(sourceRowCount);
 }
 
 async function maybeLoadWindow(row) {
@@ -14071,8 +14083,8 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   }
   const targetEndRow = range.startRow + colCount - 1;
   const targetEndCol = range.startCol + rowCount - 1;
-  if (targetEndRow >= sourceRowCount) {
-    status.textContent = "Selection transpose target rows must fit inside the current grid.";
+  if (targetEndRow >= sourceRowCount && viewMapped) {
+    status.textContent = "Selection transpose target rows must fit while a filtered or sorted view is active.";
     return true;
   }
   const transposeSourceCols = new Map();
@@ -14117,6 +14129,7 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   }
   selected = { row: range.startRow, col: range.startCol };
   selectionAnchor = { row: targetEndRow, col: targetEndCol };
+  ensureSourceRowsForEdits(edits);
   ensureSourceColumnsForEdits(edits);
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();

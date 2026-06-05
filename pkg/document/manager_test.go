@@ -1690,6 +1690,7 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 		{Row: 1, Col: 1, Value: "X"},
 		{Row: 2, Col: 1, Value: "X"},
 		{Row: 1, Col: 3, Value: "expanded"},
+		{Row: 3, Col: 0, Value: "tail"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1697,12 +1698,15 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if records[1][1] != "X" || records[2][1] != "X" || records[1][3] != "expanded" {
+	if len(records) != 4 || records[1][1] != "X" || records[2][1] != "X" || records[1][3] != "expanded" || records[3][0] != "tail" {
 		t.Fatalf("records after batch edit = %#v", records)
 	}
 	snapshot, ok := manager.Snapshot(session.ID)
 	if !ok {
 		t.Fatal("missing session after batch edit")
+	}
+	if snapshot.Document.RowIndex.Rows != 4 {
+		t.Fatalf("rows after batch edit = %d, want 4", snapshot.Document.RowIndex.Rows)
 	}
 	if snapshot.Document.Metadata.Dialect.EstimatedColumns != 4 {
 		t.Fatalf("estimated columns = %d, want 4", snapshot.Document.Metadata.Dialect.EstimatedColumns)
@@ -1721,8 +1725,51 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 	if !ok {
 		t.Fatal("missing session after undo")
 	}
+	if snapshot.Document.RowIndex.Rows != 3 {
+		t.Fatalf("rows after undo = %d, want 3", snapshot.Document.RowIndex.Rows)
+	}
 	if snapshot.Document.Metadata.Dialect.EstimatedColumns != 2 {
 		t.Fatalf("estimated columns after undo = %d, want 2", snapshot.Document.Metadata.Dialect.EstimatedColumns)
+	}
+}
+
+func TestManagerSavePreservesExpandedRowCount(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "expanded-save.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "expanded-save.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.EditCells(session.ID, []CellEdit{{Row: 3, Col: 0, Value: "tail"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Save(session.ID, "", false); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, ok := manager.Snapshot(session.ID)
+	if !ok {
+		t.Fatal("missing session after save")
+	}
+	if snapshot.Dirty {
+		t.Fatal("session still dirty after save")
+	}
+	if snapshot.Document.RowIndex.Rows != 4 {
+		t.Fatalf("rows after save = %d, want 4", snapshot.Document.RowIndex.Rows)
+	}
+	window, err := manager.Window(session.ID, 0, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if window.TotalRows != 4 || len(window.Rows) != 4 {
+		t.Fatalf("window after save = total %d rows %#v, want 4 rows", window.TotalRows, window.Rows)
+	}
+	if window.Rows[3][0] != "tail" {
+		t.Fatalf("expanded row after save = %#v", window.Rows)
 	}
 }
 
