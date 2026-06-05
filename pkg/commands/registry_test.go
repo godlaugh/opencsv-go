@@ -236,6 +236,30 @@ func TestEditorGroupLayoutPersistenceIsWired(t *testing.T) {
 	}
 }
 
+func TestOpenFileTabsAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"let openFileTabs = []",
+		"function renderOpenFileTabs()",
+		"function upsertOpenFileTab",
+		"function captureActiveOpenFileTabState",
+		"async function switchOpenFileTab",
+		"/api/session?id=",
+		"document.body.dataset.openTabCount",
+		"document.body.dataset.openTabs",
+		"document.body.dataset.activeOpenTab",
+		"button.dataset.documentId",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing open file tab wiring %q", snippet)
+		}
+	}
+}
+
 func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

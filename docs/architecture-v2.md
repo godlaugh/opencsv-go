@@ -169,12 +169,13 @@ flowchart TD
   - Sidebar start surface with path-input focus and browser file-picker quick actions.
   - Local recent file persistence for path-opened files.
   - Recent entry reopen flow and missing-file cleanup on failed reopen.
+  - Session-backed open file tab list for already-open files; sidebar tab switching uses `/api/session` and `/api/window` so dirty edit overlays remain attached to the original document session instead of reopening the path from disk.
 
 - `web Editor Groups`
   - First split-editor group state for primary and secondary editor groups.
   - Horizontal/vertical group layout toggling with active-group focus tracking.
   - Current document tab can move between editor groups by command, tab context menu, and mouse-drag drop while preserving selection.
-  - The canvas grid frame is mounted into the group that owns the current tab; empty groups render lightweight placeholders while independent multi-tab stacks remain planned.
+  - The canvas grid frame is mounted into the group that owns the current tab; empty groups render lightweight placeholders while full independent multi-tab stacks per group remain planned.
   - Workbench commands dispatch split, orientation, focus, tab move, and close actions.
 
 - `web SQL Console`
@@ -730,6 +731,7 @@ Output:
 
 - Initial UI has no fake file.
 - Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows, including repeated `open` params for CLI multi-file handoff and CLI stdin routes that pass a temporary path with `stdin=1`.
+- Multi-open boot keeps opened document sessions in the sidebar open tab list; switching back to a prior tab restores its session snapshot and loaded window rather than re-reading the file path.
 - Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
 - Sidebar start surface can reopen recent files and removes a missing recent entry when reopening fails.

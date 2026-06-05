@@ -51,6 +51,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/file-sample", server.handleFileSample)
 	server.mux.HandleFunc("POST /api/new", server.handleNew)
 	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
+	server.mux.HandleFunc("GET /api/session", server.handleSession)
 	server.mux.HandleFunc("GET /api/window", server.handleWindow)
 	server.mux.HandleFunc("POST /api/edit", server.handleEdit)
 	server.mux.HandleFunc("POST /api/edit-batch", server.handleEditBatch)
@@ -297,6 +298,28 @@ func openRequestSource(request openRequest) (docstore.SourceKind, string, error)
 	default:
 		return "", "", fmt.Errorf("unsupported sourceKind %q", request.SourceKind)
 	}
+}
+
+func (server *Server) handleSession(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, errors.New("documentId is required"))
+		return
+	}
+	session, ok := server.documents.Snapshot(id)
+	if !ok {
+		writeError(w, http.StatusBadRequest, errors.New("document not found"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"session":     session,
+		"documentId":  session.ID,
+		"document":    session.Document,
+		"sourceKind":  session.SourceKind,
+		"displayName": session.DisplayName,
+		"dirty":       session.Dirty,
+		"readOnly":    session.ReadOnly,
+	})
 }
 
 func cleanOpenDisplayName(name string) string {

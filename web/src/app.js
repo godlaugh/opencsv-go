@@ -1767,6 +1767,7 @@ let editing = false;
 let structureClipboard = null;
 let documentId = "";
 let activeFileEntry = null;
+let openFileTabs = [];
 let metadata = null;
 let rows = new Map();
 let rowSource = new Map();
@@ -9714,6 +9715,7 @@ function applyCellValue() {
 function submitCellEdits(edits, windowRow, message) {
   if (!edits.length) return;
   dirty = true;
+  syncActiveFileEntryState();
   profileData = null;
   draw();
   if (!documentId) return;
@@ -9764,6 +9766,7 @@ function displayRowForSourceRow(sourceRow) {
 }
 
 async function openPath(path, options = {}) {
+  captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
   status.textContent = `Opening ${path}...`;
   let preset = options.preset ?? null;
@@ -9809,7 +9812,11 @@ async function openPath(path, options = {}) {
   externalFileChanged = false;
   clearStructureClipboard();
   loadDocument(payload.document);
-  updateFileList(displayName, options.detail || metadata.path, totalRows, { remember });
+  updateFileList(displayName, options.detail || metadata.path, totalRows, {
+    remember,
+    documentId,
+    sourceKind: payload.sourceKind || options.sourceKind || "file",
+  });
   updateFormatRulePlaceholder(path);
   if (options.sourceKind) {
     document.body.dataset.openSourceKind = options.sourceKind;
@@ -9890,6 +9897,7 @@ function scrollRangeIntoView(range) {
 }
 
 async function uploadAndOpen(file) {
+  captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
   status.textContent = `Opening ${file.name}...`;
   const formData = new FormData();
@@ -9909,7 +9917,10 @@ async function uploadAndOpen(file) {
   loadDocument(payload.document);
   pathInput.value = file.name;
   updateFormatRulePlaceholder(file.name);
-  updateFileList(file.name, "temporary upload", totalRows);
+  updateFileList(file.name, "temporary upload", totalRows, {
+    documentId,
+    sourceKind: payload.sourceKind || "upload",
+  });
   document.body.dataset.openSourceKind = "upload";
   document.body.dataset.openDisplayName = file.name;
   delete document.body.dataset.stdinUrlBoot;
@@ -9921,6 +9932,7 @@ async function uploadAndOpen(file) {
 }
 
 async function createNewFile() {
+  captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
   const name = "Untitled.csv";
   status.textContent = t("file.status.creatingNew");
@@ -9940,12 +9952,15 @@ async function createNewFile() {
     clearStructureClipboard();
     loadDocument(payload.document);
     pathInput.value = name;
-  updateFormatRulePlaceholder(name);
-  updateFileList(name, "temporary upload", totalRows);
-  document.body.dataset.openSourceKind = "upload";
-  document.body.dataset.openDisplayName = name;
-  delete document.body.dataset.stdinUrlBoot;
-  document.body.dataset.newFile = `${totalRows}:${columns.length}`;
+    updateFormatRulePlaceholder(name);
+    updateFileList(name, "temporary upload", totalRows, {
+      documentId,
+      sourceKind: payload.sourceKind || "upload",
+    });
+    document.body.dataset.openSourceKind = "upload";
+    document.body.dataset.openDisplayName = name;
+    delete document.body.dataset.stdinUrlBoot;
+    document.body.dataset.newFile = `${totalRows}:${columns.length}`;
     draw();
     startFileStatusChecks();
     await checkFileStatus(false);
@@ -10032,7 +10047,10 @@ function applyMutationPayload(payload, message) {
     row: Math.max(0, Math.min(maxRow, previousAnchor.row)),
     col: Math.max(0, Math.min(maxCol, previousAnchor.col)),
   };
-  updateFileList(session.displayName || fileNameFromPath(detail), detail, totalRows);
+  updateFileList(session.displayName || fileNameFromPath(detail), detail, totalRows, {
+    documentId,
+    sourceKind: session.sourceKind,
+  });
   draw();
   status.textContent = message;
 }
@@ -11107,7 +11125,16 @@ function parseTSV(text) {
 window.__opencsvParseTSV = parseTSV;
 
 function updateFileList(name, detail, rowCount, options = {}) {
-  activeFileEntry = { name, detail, rowCount };
+  activeFileEntry = {
+    name,
+    detail,
+    rowCount,
+    documentId: options.documentId || documentId,
+    sourceKind: options.sourceKind || "",
+    dirty,
+    readOnly,
+  };
+  if (options.tab !== false) upsertOpenFileTab(activeFileEntry);
   if (options.remember) rememberRecentFile(activeFileEntry);
   renderFileList();
 }
@@ -11115,23 +11142,16 @@ function updateFileList(name, detail, rowCount, options = {}) {
 function renderFileList() {
   fileList.replaceChildren();
   if (!activeFileEntry) {
+    document.body.dataset.openTabCount = "0";
+    document.body.dataset.openTabs = "";
+    document.body.dataset.activeOpenTab = "";
     renderStartActions();
   } else {
-    fileList.append(fileButton(activeFileEntry, {
-      active: true,
-      onClick: () => {
-        selected = { row: 0, col: 0 };
-        selectionAnchor = { row: 0, col: 0 };
-        scrollX = 0;
-        scrollY = 0;
-        wheelRemainderY = 0;
-        canvas.focus();
-        draw();
-      },
-    }));
+    renderOpenFileTabs();
   }
 
-  const recent = recentFiles().filter((item) => item.detail !== activeFileEntry?.detail);
+  const openDetails = new Set(openFileTabs.map((item) => item.detail).filter(Boolean));
+  const recent = recentFiles().filter((item) => !openDetails.has(item.detail));
   if (recent.length > 0) {
     const label = document.createElement("div");
     label.className = "file-section-label";
@@ -11141,6 +11161,156 @@ function renderFileList() {
       fileList.append(fileButton(item, { onClick: () => openRecentFile(item) }));
     }
   }
+}
+
+function renderOpenFileTabs() {
+  const tabs = openFileTabs.length ? openFileTabs : [activeFileEntry].filter(Boolean);
+  if (tabs.length > 1) {
+    const label = document.createElement("div");
+    label.className = "file-section-label";
+    label.textContent = "Open Tabs";
+    fileList.append(label);
+  }
+  for (const tab of tabs) {
+    const isActive = tab.documentId && tab.documentId === documentId;
+    fileList.append(fileButton(tab, {
+      active: isActive,
+      onClick: () => {
+        if (isActive) {
+          canvas.focus();
+          draw();
+          return;
+        }
+        void switchOpenFileTab(tab.documentId);
+      },
+    }));
+  }
+  document.body.dataset.openTabCount = String(tabs.length);
+  document.body.dataset.openTabs = tabs.map((tab) => `${tab.documentId || ""}:${tab.name}`).join("|");
+  document.body.dataset.activeOpenTab = activeFileEntry?.documentId || documentId || "";
+}
+
+function openFileTabKey(entry) {
+  return entry?.documentId || entry?.detail || entry?.name || "";
+}
+
+function upsertOpenFileTab(entry) {
+  const key = openFileTabKey(entry);
+  if (!key) return;
+  const next = {
+    ...entry,
+    dirty,
+    readOnly,
+    viewState: entry.viewState ?? currentOpenFileTabState(),
+  };
+  openFileTabs = [
+    ...openFileTabs.filter((item) => openFileTabKey(item) !== key && item.detail !== entry.detail),
+    next,
+  ];
+}
+
+function currentOpenFileTabState() {
+  return {
+    selected: { ...selected },
+    selectionAnchor: { ...selectionAnchor },
+    scrollX: Math.max(0, Math.round(scrollX)),
+    scrollY: Math.max(0, Math.round(scrollY)),
+    viewMode,
+  };
+}
+
+function captureActiveOpenFileTabState() {
+  if (!activeFileEntry) return;
+  const key = openFileTabKey(activeFileEntry);
+  if (!key) return;
+  openFileTabs = openFileTabs.map((tab) => (
+    openFileTabKey(tab) === key
+      ? {
+        ...tab,
+        name: activeFileEntry.name,
+        detail: activeFileEntry.detail,
+        rowCount: totalRows,
+        dirty,
+        readOnly,
+        viewState: currentOpenFileTabState(),
+      }
+      : tab
+  ));
+}
+
+function syncActiveFileEntryState() {
+  if (!activeFileEntry) return;
+  activeFileEntry = {
+    ...activeFileEntry,
+    documentId: activeFileEntry.documentId || documentId,
+    rowCount: totalRows,
+    dirty,
+    readOnly,
+  };
+  upsertOpenFileTab(activeFileEntry);
+  renderFileList();
+}
+
+function restoreOpenFileTabState(tab) {
+  const state = tab?.viewState;
+  if (!state) return;
+  const maxRow = Math.max(0, sourceRowCount - 1);
+  const maxCol = Math.max(0, columns.length - 1);
+  selected = {
+    row: Math.max(0, Math.min(maxRow, Number(state.selected?.row) || 0)),
+    col: Math.max(0, Math.min(maxCol, Number(state.selected?.col) || 0)),
+  };
+  selectionAnchor = {
+    row: Math.max(0, Math.min(maxRow, Number(state.selectionAnchor?.row) || selected.row)),
+    col: Math.max(0, Math.min(maxCol, Number(state.selectionAnchor?.col) || selected.col)),
+  };
+  scrollX = Math.max(0, Math.min(maxHorizontalScroll(), Number(state.scrollX) || 0));
+  scrollY = Math.max(0, Math.min(maxVerticalScroll(), Number(state.scrollY) || 0));
+  wheelRemainderY = 0;
+  if (state.viewMode && state.viewMode !== viewMode) setViewMode(state.viewMode);
+}
+
+async function switchOpenFileTab(targetDocumentId) {
+  const tab = openFileTabs.find((item) => item.documentId === targetDocumentId);
+  if (!tab?.documentId) return;
+  captureActiveOpenFileTabState();
+  status.textContent = `Switching to ${tab.name}...`;
+  const response = await fetch(`/api/session?id=${encodeURIComponent(tab.documentId)}`);
+  const payload = await response.json();
+  if (!response.ok) {
+    openFileTabs = openFileTabs.filter((item) => item.documentId !== tab.documentId);
+    renderFileList();
+    status.textContent = `Open tab unavailable: ${payload.error ?? "unknown error"}`;
+    return;
+  }
+  const session = payload.session;
+  documentId = session.id;
+  readOnly = Boolean(session.readOnly);
+  externalFileChanged = false;
+  const detail = session.originalPath || session.workingPath || session.document?.metadata?.path || tab.detail;
+  const document = {
+    ...session.document,
+    metadata: { ...session.document.metadata, path: detail },
+  };
+  metadata = document.metadata;
+  clearStructureClipboard();
+  loadDocument(document);
+  dirty = Boolean(session.dirty);
+  restoreOpenFileTabState(tab);
+  rows = new Map();
+  rowSource = new Map();
+  windowStart = 0;
+  windowEnd = 0;
+  await maybeLoadWindow(selected.row);
+  updateFileList(session.displayName || tab.name || fileNameFromPath(detail), detail, totalRows, {
+    documentId,
+    sourceKind: session.sourceKind,
+    remember: false,
+  });
+  draw();
+  startFileStatusChecks();
+  await checkFileStatus(false);
+  status.textContent = `Switched to ${activeFileEntry.name}.`;
 }
 
 function renderStartActions() {
@@ -11187,6 +11357,7 @@ function fileButton(entry, options = {}) {
   button.className = options.active ? "file-button active" : "file-button";
   button.type = "button";
   button.title = entry.detail;
+  if (entry.documentId) button.dataset.documentId = entry.documentId;
   button.append(fileText(entry.name, fileMeta(entry)));
   if (options.onClick) button.addEventListener("click", options.onClick);
   return button;
@@ -11210,7 +11381,11 @@ function fileMeta(entry) {
   const rowsText = Number.isFinite(entry.rowCount)
     ? `${entry.rowCount.toLocaleString()} rows`
     : "recent file";
-  return `${rowsText} · ${entry.detail}`;
+  const flags = [];
+  if (entry.dirty) flags.push("edited");
+  if (entry.readOnly) flags.push("read-only");
+  const flagText = flags.length ? ` · ${flags.join(", ")}` : "";
+  return `${rowsText}${flagText} · ${entry.detail}`;
 }
 
 function recentFiles() {
@@ -14149,9 +14324,11 @@ async function saveDocumentToPath(path = "", options = {}) {
   if (payload.path) {
     metadata = metadata ? { ...metadata, path: payload.path } : metadata;
     pathInput.value = payload.path;
-    updateFileList(fileNameFromPath(payload.path), payload.path, totalRows, { remember: true });
+    updateFileList(fileNameFromPath(payload.path), payload.path, totalRows, { remember: true, documentId });
     updateFormatRulePlaceholder(payload.path);
     delete document.body.dataset.newFile;
+  } else {
+    updateFileList(activeFileEntry?.name || fileNameFromPath(metadata?.path || ""), activeFileEntry?.detail || metadata?.path || "", totalRows, { documentId });
   }
   if (options.saveAs) closeSaveAsDialog();
   status.textContent = payload.backupPath
@@ -14174,6 +14351,7 @@ async function toggleReadOnly() {
     return;
   }
   readOnly = Boolean(payload.readOnly);
+  updateFileList(activeFileEntry?.name || fileNameFromPath(metadata?.path || ""), activeFileEntry?.detail || metadata?.path || "", totalRows, { documentId });
   status.textContent = readOnly ? "Read-only mode enabled" : "Read-only mode disabled";
   draw();
 }
@@ -14240,7 +14418,11 @@ async function refreshCurrentDocument(options = {}) {
   externalFileChanged = false;
   externalChangePanelDismissed = false;
   loadDocument(session.document);
-  updateFileList(session.displayName || fileNameFromPath(metadata.path), metadata.path, totalRows);
+  dirty = Boolean(session.dirty);
+  updateFileList(session.displayName || fileNameFromPath(metadata.path), metadata.path, totalRows, {
+    documentId,
+    sourceKind: session.sourceKind,
+  });
   const restoredView = await restoreViewSnapshot(viewSnapshot);
   updateFormatStatus();
   updateInspector();

@@ -96,6 +96,52 @@ func TestServerOpenCanMarkStdinSource(t *testing.T) {
 	}
 }
 
+func TestServerSessionSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.csv")
+	second := filepath.Join(dir, "second.csv")
+	if err := os.WriteFile(first, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("id,name\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	firstPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        first,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	firstID := firstPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/open", map[string]any{
+		"path":        second,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": firstID,
+		"row":        1,
+		"col":        1,
+		"value":      "Grace",
+	})
+
+	sessionPayload := getJSON(t, handler, "/api/session?id="+firstID)
+	if sessionPayload["documentId"] != firstID || sessionPayload["dirty"] != true {
+		t.Fatalf("session payload = %#v", sessionPayload)
+	}
+	session := sessionPayload["session"].(map[string]any)
+	if session["id"] != firstID || session["dirty"] != true {
+		t.Fatalf("session snapshot = %#v", session)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+firstID+"&start=1&count=1")
+	windowRows := windowPayload["rows"].([]any)
+	windowRow := windowRows[0].([]any)
+	if windowRow[1] != "Grace" {
+		t.Fatalf("session window row = %#v, want edited Grace", windowRow)
+	}
+}
+
 func TestServerOpenEditSavePreservesLateDetectedQuoteCell(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "late-quotes.csv")
