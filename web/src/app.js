@@ -804,6 +804,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "Fill Header",
     "profile.quickFix.header.unique": "Make Unique",
     "profile.quickFix.row.pad": "Pad Row",
+    "profile.quickFix.schema.enum.useValue": "Use Allowed Value",
     "profile.quickFix.schema.range.clampMin": "Use Minimum",
     "profile.quickFix.schema.range.clampMax": "Use Maximum",
     "profile.summary.status": "Status",
@@ -1342,6 +1343,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "填充表头",
     "profile.quickFix.header.unique": "设为唯一",
     "profile.quickFix.row.pad": "补齐行",
+    "profile.quickFix.schema.enum.useValue": "使用允许值",
     "profile.quickFix.schema.range.clampMin": "使用最小值",
     "profile.quickFix.schema.range.clampMax": "使用最大值",
     "profile.summary.status": "状态",
@@ -15809,7 +15811,9 @@ function profileQuickFixEdits(issue, fix) {
     return edits;
   }
   if (
-    (fixID === "schema.range.clampMin" || fixID === "schema.range.clampMax") &&
+    (fixID === "schema.range.clampMin" ||
+      fixID === "schema.range.clampMax" ||
+      fixID === "schema.enum.useValue") &&
     issue?.row &&
     issue?.col &&
     typeof fix?.value === "string"

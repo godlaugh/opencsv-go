@@ -550,12 +550,13 @@ func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumn
 	if len(compiled.enum) > 0 {
 		if _, ok := compiled.enum[raw]; !ok {
 			issues = append(issues, Issue{
-				Type:     "schema-enum",
-				Severity: "error",
-				Row:      row + 1,
-				Col:      compiled.col + 1,
-				Rule:     compiled.ruleName,
-				Message:  fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
+				Type:       "schema-enum",
+				Severity:   "error",
+				Row:        row + 1,
+				Col:        compiled.col + 1,
+				Rule:       compiled.ruleName,
+				Message:    fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
+				QuickFixes: enumQuickFixes(compiled.rule.Enum),
 			})
 		}
 	}
@@ -690,12 +691,13 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 		if len(enum) > 0 {
 			if _, ok := enum[raw]; !ok {
 				issues = append(issues, Issue{
-					Type:     "schema-enum",
-					Severity: "error",
-					Row:      row + 1,
-					Col:      col + 1,
-					Rule:     ruleName,
-					Message:  fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
+					Type:       "schema-enum",
+					Severity:   "error",
+					Row:        row + 1,
+					Col:        col + 1,
+					Rule:       ruleName,
+					Message:    fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
+					QuickFixes: enumQuickFixes(rule.Enum),
 				})
 			}
 		}
@@ -713,6 +715,13 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 		issues = append(issues, numericRangeIssues(raw, row, col, rule, ruleName)...)
 	}
 	return issues
+}
+
+func enumQuickFixes(values []string) []QuickFix {
+	if len(values) != 1 || values[0] == "" {
+		return nil
+	}
+	return []QuickFix{{ID: "schema.enum.useValue", Label: "Use allowed value", Value: values[0]}}
 }
 
 func schemaTypeMatches(raw string, expectedType string) bool {

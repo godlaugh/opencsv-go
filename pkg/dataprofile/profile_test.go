@@ -232,6 +232,35 @@ func TestAnalyzeWithSchemaRangeQuickFixes(t *testing.T) {
 	}
 }
 
+func TestAnalyzeWithSchemaSingleEnumQuickFix(t *testing.T) {
+	result := AnalyzeWithSchema([][]string{
+		{"status", "category"},
+		{"pending", "old"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "status", Enum: []string{"active"}},
+		{Name: "category", Enum: []string{"new", "done"}},
+	}})
+	var singleEnum, multiEnum *Issue
+	for i := range result.Issues {
+		issue := &result.Issues[i]
+		if issue.Type != "schema-enum" {
+			continue
+		}
+		switch issue.Col {
+		case 1:
+			singleEnum = issue
+		case 2:
+			multiEnum = issue
+		}
+	}
+	if singleEnum == nil || len(singleEnum.QuickFixes) != 1 || singleEnum.QuickFixes[0].ID != "schema.enum.useValue" || singleEnum.QuickFixes[0].Value != "active" {
+		t.Fatalf("single enum issue = %#v, want useValue active quick fix", singleEnum)
+	}
+	if multiEnum == nil || len(multiEnum.QuickFixes) != 0 {
+		t.Fatalf("multi enum issue = %#v, want no guessed quick fix", multiEnum)
+	}
+}
+
 func TestAnalyzeWithSchemaStringLengthRules(t *testing.T) {
 	minLength := 2
 	maxLength := 3

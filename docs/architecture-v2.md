@@ -132,7 +132,7 @@ flowchart TD
   - Schema JSON editor with local save/reset controls and URL boot support via `profileSchema=` plus `profileRun=1`; input accepts normalized opencsv schemas plus common CSVLint/JSON Table Schema `fields`/`constraints`/`datatype`/`tableSchema` shapes.
   - Named local profile schema library with apply/delete/export/import controls and URL boot saving via `profileSchemaName=` plus `profileSchemaSave=1`.
   - Visual schema rule builder for column name/number, type, required, unique, enum, regex pattern, and numeric range checks; each builder action keeps the JSON schema source in sync.
-  - Problems rows navigate back to the grid selection, and safe quick-fix buttons, including deterministic numeric range clamps, dispatch through the existing edit-batch mutation path.
+  - Problems rows navigate back to the grid selection, and safe quick-fix buttons, including deterministic numeric range clamps and single-value enum replacements, dispatch through the existing edit-batch mutation path.
 
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.
@@ -789,7 +789,7 @@ Output:
 - Restore From Backup materializes a selected timestamped backup into the current session, marks it dirty, and keeps the backing file unchanged until Save.
 - Profile view shows column metrics and validation issues.
 - Profile row selection updates the inspector.
-- Profile validation can run saved or URL-supplied schema rules, manage named local schema sets, edit common rules visually, quick-fix short ragged rows, and clamp deterministic numeric range violations through edit-batch mutations.
+- Profile validation can run saved or URL-supplied schema rules, manage named local schema sets, edit common rules visually, quick-fix short ragged rows, clamp deterministic numeric range violations, and replace single-value enum violations through edit-batch mutations.
 - Command Palette can search and execute an enabled command.
 - Command Palette fuzzy search ranks `Profile` first for `pf`, and empty-query results prioritize recently executed commands.
 - Command Palette can execute Insert Row, Undo, Redo, Insert Column, Delete Column, and move/hide row/column commands without modifying the original file before Save.

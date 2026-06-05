@@ -2326,6 +2326,43 @@ func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 	}
 }
 
+func TestServerProfileSingleEnumQuickFix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "single-enum.csv")
+	if err := os.WriteFile(path, []byte("id,status\n1,pending\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"columns": []map[string]any{
+				{"name": "status", "enum": []string{"active"}},
+			},
+		},
+	})
+	issue := jsonIssueByType(profilePayload["issues"].([]any), "schema-enum")
+	if issue == nil {
+		t.Fatalf("expected schema-enum issue in %#v", profilePayload["issues"])
+	}
+	quickFixes, ok := issue["quickFixes"].([]any)
+	if !ok || len(quickFixes) != 1 {
+		t.Fatalf("schema-enum quick fixes = %#v, want one fix", issue["quickFixes"])
+	}
+	quickFix, ok := quickFixes[0].(map[string]any)
+	if !ok || quickFix["id"] != "schema.enum.useValue" || quickFix["value"] != "active" {
+		t.Fatalf("schema-enum quick fix = %#v, want useValue active", quickFixes[0])
+	}
+}
+
 func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile-stream.csv")
