@@ -2086,6 +2086,32 @@ button:disabled {
   margin: 0;
 }
 
+.transpose-confirm-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.transpose-confirm-body strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.transpose-confirm-body p {
+  margin: 0;
+}
+
+.transpose-confirm-warning {
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
 .condition-grid select,
 .condition-grid input,
 .save-as-body input {

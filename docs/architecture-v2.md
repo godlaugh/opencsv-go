@@ -500,7 +500,7 @@ Output:
 - updated mutation result.
 - refreshed session and row count.
 
-Frontend command dispatch uses this endpoint for whole-table transpose. When one or more multi-cell rectangular grid ranges are active, the same `table.transpose` command transposes those selected ranges through `/api/edit-batch` so the operation stays undoable without materializing the whole document. Multi-range transpose requires each range's source/target union to stay disjoint from the others. If a transposed selected-range target extends past the current rightmost visible column or bottom data row, the frontend grows the visible model and `/api/edit-batch` records the higher source column and row counts so the expanded target can be saved.
+Frontend command dispatch uses this endpoint for whole-table transpose. Known whole-table transposes at or above the confirmation threshold open a confirmation dialog with row, column, and cell counts before calling the endpoint; the endpoint remains the hard max-cell guard. When one or more multi-cell rectangular grid ranges are active, the same `table.transpose` command transposes those selected ranges through `/api/edit-batch` so the operation stays undoable without materializing the whole document. Multi-range transpose requires each range's source/target union to stay disjoint from the others. If a transposed selected-range target extends past the current rightmost visible column or bottom data row, the frontend grows the visible model and `/api/edit-batch` records the higher source column and row counts so the expanded target can be saved.
 
 Rules:
 
@@ -782,7 +782,7 @@ Output:
 - Link protocol Settings can allow or reset custom cell-link protocols without enabling unsafe schemes.
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
-- Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
+- Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; known large whole-table transposes show a confirmation dialog, and selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
 - Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
 - Swap/join/split cell tools are command-backed, undoable materialized mutations.
 - Hidden rows/columns are view-only and restored by Clear View.

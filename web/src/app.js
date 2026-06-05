@@ -284,6 +284,13 @@ const keepExternalChangeButton = document.querySelector("#keepExternalChangeButt
 const compareExternalChangeButton = document.querySelector("#compareExternalChangeButton");
 const saveAsExternalChangeButton = document.querySelector("#saveAsExternalChangeButton");
 const reloadExternalChangeButton = document.querySelector("#reloadExternalChangeButton");
+const transposeConfirmPanel = document.querySelector("#transposeConfirmPanel");
+const closeTransposeConfirmButton = document.querySelector("#closeTransposeConfirmButton");
+const cancelTransposeConfirmButton = document.querySelector("#cancelTransposeConfirmButton");
+const confirmTransposeButton = document.querySelector("#confirmTransposeButton");
+const transposeConfirmSummary = document.querySelector("#transposeConfirmSummary");
+const transposeConfirmDetail = document.querySelector("#transposeConfirmDetail");
+const transposeConfirmWarning = document.querySelector("#transposeConfirmWarning");
 const cellValueDialog = document.querySelector("#cellValueDialog");
 const closeCellValueDialogButton = document.querySelector("#closeCellValueDialogButton");
 const cellValueDialogInput = document.querySelector("#cellValueDialogInput");
@@ -333,6 +340,8 @@ const maxColumnWidth = 420;
 const columnReorderDragThreshold = 8;
 const rowReorderDragThreshold = 8;
 const autoFitColumnWidthOnEdit = true;
+const transposeConfirmThresholdCells = 50_000;
+const transposeMaxCells = 1_000_000;
 const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
@@ -2046,6 +2055,7 @@ let readOnly = false;
 let externalFileChanged = false;
 let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
+let pendingWholeTranspose = null;
 let customLinkProtocols = loadCustomLinkProtocols();
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
@@ -14064,7 +14074,70 @@ async function transposeCurrentDocument() {
     if (transposeSelectedRange(ranges[0])) return;
     return;
   }
-  await mutateStructure("/api/transpose", { maxCells: 1_000_000 }, "Transposed table");
+  const plan = wholeTableTransposePlan();
+  if (!plan) return;
+  if (plan.cells > transposeMaxCells || plan.cells >= transposeConfirmThresholdCells) {
+    openTransposeConfirmPanel(plan);
+    return;
+  }
+  await runWholeTableTranspose(plan);
+}
+
+function wholeTableTransposePlan() {
+  if (!documentId) return null;
+  if (!ensureEditable("Transpose Table")) return null;
+  const rows = Math.max(0, sourceRowCount + dataStartRow);
+  const columnsCount = Math.max(
+    columns.length,
+    allColumns.length,
+    metadata?.dialect?.estimatedColumns || 0,
+  );
+  const cells = rows * columnsCount;
+  return {
+    rows,
+    columns: columnsCount,
+    cells,
+    blocked: cells > transposeMaxCells,
+  };
+}
+
+function openTransposeConfirmPanel(plan) {
+  if (!transposeConfirmPanel || !plan) return;
+  pendingWholeTranspose = plan;
+  const cells = formatCount(plan.cells);
+  const rows = formatCount(plan.rows);
+  const columnsCount = formatCount(plan.columns);
+  transposeConfirmSummary.textContent = `Transpose ${rows} rows x ${columnsCount} columns`;
+  transposeConfirmDetail.textContent = "This will materialize the current table, swap rows and columns, and create one undo step before Save.";
+  transposeConfirmWarning.textContent = plan.blocked
+    ? `This transpose has ${cells} cells, above the ${formatCount(transposeMaxCells)} cell safety limit.`
+    : `This transpose has ${cells} cells and may take noticeable time and memory.`;
+  confirmTransposeButton.disabled = plan.blocked;
+  transposeConfirmPanel.hidden = false;
+  document.body.dataset.transposeConfirm = plan.blocked ? `blocked:${plan.cells}` : `open:${plan.cells}`;
+  status.textContent = plan.blocked ? "Transpose table is too large." : "Confirm table transpose.";
+  (plan.blocked ? cancelTransposeConfirmButton : confirmTransposeButton).focus();
+}
+
+function closeTransposeConfirmPanel() {
+  if (!transposeConfirmPanel || transposeConfirmPanel.hidden) return;
+  transposeConfirmPanel.hidden = true;
+  pendingWholeTranspose = null;
+  document.body.dataset.transposeConfirm = "closed";
+  canvas.focus();
+}
+
+async function confirmWholeTableTranspose() {
+  const plan = pendingWholeTranspose;
+  closeTransposeConfirmPanel();
+  if (!plan || plan.blocked) return;
+  await runWholeTableTranspose(plan);
+}
+
+async function runWholeTableTranspose(plan = wholeTableTransposePlan()) {
+  if (!plan) return;
+  document.body.dataset.transposeConfirm = `run:${plan.cells}`;
+  await mutateStructure("/api/transpose", { maxCells: transposeMaxCells }, "Transposed table");
 }
 
 function transposeSelectedRange(range, maxCells = 100_000) {
@@ -17431,6 +17504,11 @@ function handleGlobalShortcut(event) {
     closeExternalChangePanel();
     return true;
   }
+  if (event.key === "Escape" && transposeConfirmPanel && !transposeConfirmPanel.hidden) {
+    event.preventDefault();
+    closeTransposeConfirmPanel();
+    return true;
+  }
   if (event.key === "Escape" && smartSelectionRanges.length > 0) {
     event.preventDefault();
     clearSmartSelectionRanges();
@@ -18089,6 +18167,9 @@ keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 compareExternalChangeButton.addEventListener("click", compareExternalChangeWithDisk);
 saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
 reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDisk);
+closeTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);
+cancelTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);
+confirmTransposeButton.addEventListener("click", confirmWholeTableTranspose);
 closeCellValueDialogButton.addEventListener("click", closeCellValueDialog);
 applyCellValueDialogButton.addEventListener("click", () => {
   cellValueInput.value = cellValueDialogInput.value;
@@ -18111,6 +18192,12 @@ externalChangePanel.addEventListener("mousedown", (event) => {
   if (event.target === externalChangePanel) {
     event.preventDefault();
     closeExternalChangePanel();
+  }
+});
+transposeConfirmPanel.addEventListener("mousedown", (event) => {
+  if (event.target === transposeConfirmPanel) {
+    event.preventDefault();
+    closeTransposeConfirmPanel();
   }
 });
 cellValueDialog.addEventListener("mousedown", (event) => {

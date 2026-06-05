@@ -785,6 +785,24 @@
       </section>
     </div>
 
+    <div id="transposeConfirmPanel" class="command-palette-backdrop" hidden>
+      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm transpose">
+        <header class="condition-panel-header">
+          <strong>Transpose Table</strong>
+          <button id="closeTransposeConfirmButton" type="button">Close</button>
+        </header>
+        <div class="transpose-confirm-body">
+          <strong id="transposeConfirmSummary">Transpose table</strong>
+          <p id="transposeConfirmDetail">This operation rewrites the current table and can be undone before Save.</p>
+          <p id="transposeConfirmWarning" class="transpose-confirm-warning">Large transposes can take time and memory.</p>
+        </div>
+        <footer class="condition-actions">
+          <button id="cancelTransposeConfirmButton" type="button">Cancel</button>
+          <button id="confirmTransposeButton" type="button">Transpose</button>
+        </footer>
+      </section>
+    </div>
+
     <div id="cellValueDialog" class="command-palette-backdrop" hidden>
       <section class="cell-value-dialog" role="dialog" aria-modal="true" aria-label="Cell value editor">
         <header class="condition-panel-header">
