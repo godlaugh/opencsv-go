@@ -1430,6 +1430,10 @@ const localeCatalog = {
     "command.view.sql.description": "打开当前工作区的 SQL 控制台。",
     "command.view.profile.title": "概况",
     "command.view.profile.description": "显示列概况和数据质量指标。",
+    "command.profile.run.title": "运行概况",
+    "command.profile.run.description": "运行当前文档的列概况和验证。",
+    "command.profile.cancel.title": "取消概况",
+    "command.profile.cancel.description": "取消正在进行的概况分析。",
     "command.view.filter.title": "筛选",
     "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
     "command.view.filterBuilder.title": "筛选构建器",
@@ -3578,6 +3582,8 @@ function isCommandDisabled(command) {
   const needsColumnClipboard = command.id === "column.paste";
   const needsUpdateChecksEnabled = command.id === "settings.checkForUpdates";
   const needsWorkbookSheet = command.id === "format.switchWorksheet";
+  const needsProfileIdle = command.id === "profile.run";
+  const needsProfileCancel = command.id === "profile.cancel";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -3674,6 +3680,8 @@ function isCommandDisabled(command) {
     (needsSelectedCells && selectionCellCount() === 0) ||
     (needsUpdateChecksEnabled && updateCheckMode === "off") ||
     (needsWorkbookSheet && !canSwitchWorkbookSheet()) ||
+    (needsProfileIdle && profileLoading) ||
+    (needsProfileCancel && !activeProfileController) ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -8520,6 +8528,13 @@ async function executeCommand(commandID) {
       break;
     case "view.profile":
       await openProfilePanel();
+      break;
+    case "profile.run":
+      await openProfilePanel();
+      await loadProfile(true);
+      break;
+    case "profile.cancel":
+      cancelProfileRequest();
       break;
     case "diff.open":
       openDiffPanel();
@@ -16903,8 +16918,8 @@ sqlTabButton.addEventListener("click", () => {
   if (!sqlTabButton.disabled) setViewMode("sql");
 });
 profileTabButton.addEventListener("click", openProfilePanel);
-runProfileButton.addEventListener("click", () => loadProfile(true));
-cancelProfileButton.addEventListener("click", cancelProfileRequest);
+runProfileButton.addEventListener("click", () => executeCommand("profile.run"));
+cancelProfileButton.addEventListener("click", () => executeCommand("profile.cancel"));
 toggleProfileSchemaButton.addEventListener("click", toggleProfileSchemaEditor);
 profileSchemaInput.addEventListener("input", updateProfileSchemaDraft);
 saveProfileSchemaButton.addEventListener("click", saveProfileSchema);

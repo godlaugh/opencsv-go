@@ -207,6 +207,8 @@ func Registry() []Command {
 		{ID: "sql.exportResultRaw", Title: "Export SQL Result Raw", Description: "Download the latest SQL result headers and rows as raw tab-separated values.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"export sql result raw", "download sql result raw"}},
 		{ID: "sql.clearSelection", Title: "Clear SQL Result Selection", Description: "Clear the current SQL result range selection.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"clear sql selection", "clear result selection"}},
 		{ID: "view.profile", Title: "Profile", Description: "Show column profile and data quality metrics.", Scope: ScopeView, RequiresDoc: true, Implemented: true},
+		{ID: "profile.run", Title: "Run Profile", Description: "Run column profiling and validation for the current document.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"data profile", "profile data", "validation profile"}},
+		{ID: "profile.cancel", Title: "Cancel Profile", Description: "Cancel the in-flight Profile analysis.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"cancel data profile", "stop profile", "abort profile"}},
 		{ID: "diff.open", Title: "Compare Files", Description: "Compare two CSV files side by side.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"diff", "compare"}},
 	}
 }

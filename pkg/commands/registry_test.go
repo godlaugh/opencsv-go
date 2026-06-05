@@ -494,6 +494,7 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 	for _, id := range []string{
 		"cancelFindButton",
 		"cancelSqlButton",
+		"cancelProfileButton",
 	} {
 		if !strings.Contains(html, `id="`+id+`"`) {
 			t.Fatalf("missing cancellation control %s", id)
@@ -502,18 +503,23 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		"let activeFindController = null",
 		"let activeSQLController = null",
+		"let activeProfileController = null",
 		"function startFindProgress",
 		"function cancelFindRequest",
 		"function startSQLProgress",
 		"function cancelSQLRequest",
+		"function startProfileProgress",
+		"function cancelProfileRequest",
 		"signal: controller.signal",
 		`params.get("find")`,
 		`params.get("findRun")`,
 		"document.body.dataset.findUrlBoot",
 		`document.body.dataset.findProgress = "canceled"`,
 		`document.body.dataset.sqlProgress = "canceled"`,
+		`document.body.dataset.profileProgress = "canceled"`,
 		`"find.status.running": "正在查找`,
 		`"sql.status.canceled": "SQL 已取消。"`,
+		`"profile.status.canceledElapsed": "概况已在`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing long-operation cancellation wiring %q", snippet)
