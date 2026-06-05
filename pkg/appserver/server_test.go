@@ -1859,6 +1859,62 @@ func TestServerFindUsesRequestContextCancellation(t *testing.T) {
 	}
 }
 
+func TestServerFilterContainsStreamsCleanFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "filter-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region\n1,APAC\n2,EU\n3,APAC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	filterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"query":      "APAC",
+	})
+	if filterPayload["totalRows"] != float64(2) || filterPayload["streamed"] != true {
+		t.Fatalf("filter payload = %#v, want streamed two-row match", filterPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 2 || rows[0].([]any)[1] != "APAC" || rows[1].([]any)[0] != "3" {
+		t.Fatalf("streamed filter window = %#v", rows)
+	}
+}
+
+func TestServerFilterUsesRequestContextCancellation(t *testing.T) {
+	body, err := json.Marshal(map[string]any{
+		"query": "APAC",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/filter", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled filter status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled filter payload = %#v, want context canceled", payload)
+	}
+}
+
 func TestServerReplaceSingleScopedCell(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "replace-current.csv")

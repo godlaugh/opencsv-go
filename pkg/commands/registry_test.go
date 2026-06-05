@@ -521,6 +521,25 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 	}
 }
 
+func TestFilterURLBootAndStreamingMarkerIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`params.get("filter")`,
+		`params.get("filterRun")`,
+		"document.body.dataset.filterUrlBoot",
+		"document.body.dataset.filterStreamed",
+		"await filterCurrentQuery()",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing filter URL boot/streaming wiring %q", snippet)
+		}
+	}
+}
+
 func TestConditionBuilderI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

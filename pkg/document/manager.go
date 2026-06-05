@@ -2011,6 +2011,11 @@ type FilterOptions struct {
 	CaseSensitive bool   `json:"caseSensitive"`
 }
 
+type FilterResult struct {
+	TotalRows int  `json:"totalRows"`
+	Streamed  bool `json:"streamed,omitempty"`
+}
+
 type ColumnValue struct {
 	Value string `json:"value"`
 	Count int    `json:"count"`
@@ -2024,53 +2029,116 @@ type ValueFilterOptions struct {
 }
 
 func (manager *Manager) FilterContains(id string, options FilterOptions) (int, error) {
-	if options.Query == "" {
-		return manager.ClearView(id)
-	}
-	session, ok := manager.snapshot(id)
-	if !ok {
-		return 0, errors.New("document not found")
-	}
-	records, err := recordsForSession(session)
+	result, err := manager.FilterContainsDetailedContext(context.Background(), id, options)
 	if err != nil {
 		return 0, err
 	}
+	return result.TotalRows, nil
+}
 
+func (manager *Manager) FilterContainsDetailedContext(ctx context.Context, id string, options FilterOptions) (FilterResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+	if options.Query == "" {
+		count, err := manager.ClearView(id)
+		return FilterResult{TotalRows: count}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return FilterResult{}, errors.New("document not found")
+	}
 	query := options.Query
 	if !options.CaseSensitive {
 		query = strings.ToLower(query)
 	}
+	if canStreamContainsFilter(session) {
+		return manager.filterContainsInStream(ctx, id, session, options, query)
+	}
+	records, err := recordsForSession(session)
+	if err != nil {
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+
 	viewRows := make([]int, 0)
 	start := 0
 	if session.Document.Metadata.Dialect.HasHeader {
 		start = 1
 	}
 	for row := start; row < len(records); row++ {
+		if err := ctx.Err(); err != nil {
+			return FilterResult{}, err
+		}
 		record := records[row]
-		for col, value := range record {
-			if options.Column != nil && col != *options.Column {
-				continue
-			}
-			haystack := value
-			if !options.CaseSensitive {
-				haystack = strings.ToLower(haystack)
-			}
-			if strings.Contains(haystack, query) {
-				viewRows = append(viewRows, row)
-				break
-			}
+		if filterRecordContains(record, options, query) {
+			viewRows = append(viewRows, row)
 		}
 	}
+	return manager.applyFilterViewRows(id, viewRows, false)
+}
 
+func canStreamContainsFilter(session *Session) bool {
+	return session.EditBaseRecords == nil &&
+		len(session.Edits) == 0 &&
+		csvcore.CanStreamRecords(session.Document.Metadata)
+}
+
+func (manager *Manager) filterContainsInStream(ctx context.Context, id string, session *Session, options FilterOptions, query string) (FilterResult, error) {
+	viewRows := make([]int, 0)
+	start := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		start = 1
+	}
+	_, err := csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, func(row int, record []string) error {
+		if row < start {
+			return nil
+		}
+		if filterRecordContains(record, options, query) {
+			viewRows = append(viewRows, row)
+		}
+		return nil
+	})
+	if err != nil {
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+	return manager.applyFilterViewRows(id, viewRows, true)
+}
+
+func filterRecordContains(record []string, options FilterOptions, query string) bool {
+	for col, value := range record {
+		if options.Column != nil && col != *options.Column {
+			continue
+		}
+		haystack := value
+		if !options.CaseSensitive {
+			haystack = strings.ToLower(haystack)
+		}
+		if strings.Contains(haystack, query) {
+			return true
+		}
+	}
+	return false
+}
+
+func (manager *Manager) applyFilterViewRows(id string, viewRows []int, streamed bool) (FilterResult, error) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	current, ok := manager.sessions[id]
 	if !ok {
-		return 0, errors.New("document not found")
+		return FilterResult{}, errors.New("document not found")
 	}
 	current.ViewRows = viewRows
 	current.ViewActive = true
-	return len(viewRows), nil
+	return FilterResult{TotalRows: len(viewRows), Streamed: streamed}, nil
 }
 
 func naturalCompare(left string, right string) int {

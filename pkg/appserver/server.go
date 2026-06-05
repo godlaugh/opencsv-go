@@ -1251,26 +1251,28 @@ func (server *Server) handleFilter(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	var count int
+	var result docstore.FilterResult
 	var err error
 	if strings.EqualFold(request.Mode, "sql") || strings.TrimSpace(request.Expression) != "" {
 		expression := request.Expression
 		if expression == "" {
 			expression = request.Query
 		}
+		var count int
 		count, err = server.documents.FilterSQL(request.DocumentID, expression)
+		result = docstore.FilterResult{TotalRows: count}
 	} else {
-		count, err = server.documents.FilterContains(request.DocumentID, docstore.FilterOptions{
+		result, err = server.documents.FilterContainsDetailedContext(r.Context(), request.DocumentID, docstore.FilterOptions{
 			Query:         request.Query,
 			Column:        request.Column,
 			CaseSensitive: request.CaseSensitive,
 		})
 	}
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (server *Server) handleColumnValues(w http.ResponseWriter, r *http.Request) {

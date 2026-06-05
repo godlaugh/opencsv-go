@@ -894,6 +894,45 @@ func TestManagerFindAndReplaceSelectionScope(t *testing.T) {
 	}
 }
 
+func TestManagerFilterContainsStreamsCleanFileOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "filter-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region\n1,APAC\n2,EU\n3,APAC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "filter-stream.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FilterContainsDetailedContext(context.Background(), session.ID, FilterOptions{Query: "APAC"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed || result.TotalRows != 2 {
+		t.Fatalf("streamed filter result = %#v, want streamed two-row match", result)
+	}
+	window, err := manager.Window(session.ID, 0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(window.Rows) != 2 || window.Rows[0][1] != "APAC" || window.Rows[1][0] != "3" {
+		t.Fatalf("streamed filter window = %#v", window.Rows)
+	}
+
+	if err := manager.Edit(session.ID, 1, 1, "LATAM"); err != nil {
+		t.Fatal(err)
+	}
+	edited, err := manager.FilterContainsDetailedContext(context.Background(), session.ID, FilterOptions{Query: "LATAM"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Streamed || edited.TotalRows != 1 {
+		t.Fatalf("edited filter result = %#v, want materialized edited match", edited)
+	}
+}
+
 type cancelAfterErrContext struct {
 	context.Context
 	calls    int

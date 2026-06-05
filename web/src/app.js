@@ -12591,6 +12591,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col, statu
     return false;
   }
   viewMapped = true;
+  document.body.dataset.filterStreamed = String(Boolean(payload.streamed));
   sortDescending = false;
   sortKeys = [];
   const descriptor = filterDescriptorFromRequest(body, label);
@@ -16598,6 +16599,15 @@ async function openInitialURLTarget() {
         document.body.dataset.findUrlBoot = truthyParam(params.get("findRun")) ? "run" : "loaded";
         if (truthyParam(params.get("findRun"))) {
           await findCurrentQuery();
+        }
+      }
+      const filterQuery = params.get("filter");
+      if (filterQuery != null) {
+        commandInput.value = filterQuery;
+        invalidateFindState();
+        document.body.dataset.filterUrlBoot = truthyParam(params.get("filterRun")) ? "run" : "loaded";
+        if (truthyParam(params.get("filterRun"))) {
+          await filterCurrentQuery();
         }
       }
       const profileSchemaParam = params.get("profileSchema");
