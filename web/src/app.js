@@ -469,6 +469,53 @@ const localeCatalog = {
     "view.filters": "Filters",
     "view.builder": "Builder",
     "view.sort": "Sort",
+    "view.chips.aria": "Active view filters",
+    "view.filters.aria": "Recent and saved filters",
+    "view.filters.recent": "Recent",
+    "view.filters.saved": "Saved",
+    "view.chip.sql": "SQL",
+    "view.chip.openSql": "Open this filter in SQL",
+    "view.chip.save": "Save",
+    "view.chip.saveFilter": "Save this filter",
+    "view.chip.saveSort": "Save this sort",
+    "view.chip.clear": "Clear",
+    "view.chip.clearView": "Clear filter and sort",
+    "view.chip.apply": "Apply",
+    "view.chip.delete": "Delete",
+    "view.chip.savedFilter": "Saved: {{name}}",
+    "view.chip.savedSort": "Saved Sort: {{name}}",
+    "view.chip.activeSort": "Sort: {{sort}}",
+    "view.chip.applySavedFilter": "Apply saved filter {{name}}",
+    "view.chip.deleteSavedFilter": "Delete saved filter {{name}}",
+    "view.chip.applySavedSort": "Apply saved sort {{name}}",
+    "view.chip.deleteSavedSort": "Delete saved sort {{name}}",
+    "view.status.filterToSql": "Loaded current filter in SQL Console",
+    "view.status.saveFilterFirst": "Apply a filter before saving it.",
+    "view.status.savedFilter": "Saved filter: {{name}}",
+    "view.status.savedFilterNotFound": "Saved filter not found.",
+    "view.status.deletedSavedFilter": "Deleted saved filter.",
+    "view.status.savedFilterMatched": "Saved filter matched {{count}} rows",
+    "view.status.recentFilterNotFound": "Recent filter not found.",
+    "view.status.recentFilterMatched": "Recent filter matched {{count}} rows",
+    "view.status.saveSortFirst": "Apply a sort before saving it.",
+    "view.status.savedSort": "Saved sort: {{name}}",
+    "view.status.savedSortNotFound": "Saved sort not found.",
+    "view.status.savedSortNoColumns": "Saved sort has no matching columns.",
+    "view.status.savedSortApplied": "Saved sort {{name}} applied: {{sort}}",
+    "view.status.deletedSavedSort": "Deleted saved sort.",
+    "view.status.exportedSavedViews": "Exported {{filters}} filters, {{sorts}} sorts.",
+    "view.status.importedSavedViews": "Imported {{filters}} filters, {{sorts}} sorts.",
+    "view.status.savedViewImportFailed": "Saved view import failed: {{message}}",
+    "view.status.filterHistoryOff": "Recent filter history is off.",
+    "view.status.filterHistoryKeep": "Recent filter history will keep {{count}} queries.",
+    "view.status.clearedRecentFilters": "Cleared recent filter history.",
+    "sort.direction.ascending": "ascending",
+    "sort.direction.descending": "descending",
+    "sort.join.then": ", then ",
+    "sort.mode.number": "number",
+    "sort.mode.date": "date",
+    "sort.mode.length": "length",
+    "sort.mode.text": "text",
     "edit.find": "Find",
     "edit.preview": "Preview",
     "edit.replace": "Replace",
@@ -1010,6 +1057,53 @@ const localeCatalog = {
     "view.filters": "筛选",
     "view.builder": "构建器",
     "view.sort": "排序",
+    "view.chips.aria": "当前视图筛选",
+    "view.filters.aria": "最近和保存的筛选",
+    "view.filters.recent": "最近",
+    "view.filters.saved": "保存",
+    "view.chip.sql": "SQL",
+    "view.chip.openSql": "在 SQL 控制台打开此筛选",
+    "view.chip.save": "保存",
+    "view.chip.saveFilter": "保存此筛选",
+    "view.chip.saveSort": "保存此排序",
+    "view.chip.clear": "清除",
+    "view.chip.clearView": "清除筛选和排序",
+    "view.chip.apply": "应用",
+    "view.chip.delete": "删除",
+    "view.chip.savedFilter": "保存的筛选：{{name}}",
+    "view.chip.savedSort": "保存的排序：{{name}}",
+    "view.chip.activeSort": "排序：{{sort}}",
+    "view.chip.applySavedFilter": "应用保存的筛选 {{name}}",
+    "view.chip.deleteSavedFilter": "删除保存的筛选 {{name}}",
+    "view.chip.applySavedSort": "应用保存的排序 {{name}}",
+    "view.chip.deleteSavedSort": "删除保存的排序 {{name}}",
+    "view.status.filterToSql": "已将当前筛选载入 SQL 控制台",
+    "view.status.saveFilterFirst": "请先应用筛选再保存。",
+    "view.status.savedFilter": "已保存筛选：{{name}}",
+    "view.status.savedFilterNotFound": "未找到保存的筛选。",
+    "view.status.deletedSavedFilter": "已删除保存的筛选。",
+    "view.status.savedFilterMatched": "保存的筛选匹配 {{count}} 行",
+    "view.status.recentFilterNotFound": "未找到最近筛选。",
+    "view.status.recentFilterMatched": "最近筛选匹配 {{count}} 行",
+    "view.status.saveSortFirst": "请先应用排序再保存。",
+    "view.status.savedSort": "已保存排序：{{name}}",
+    "view.status.savedSortNotFound": "未找到保存的排序。",
+    "view.status.savedSortNoColumns": "保存的排序没有匹配列。",
+    "view.status.savedSortApplied": "已应用保存的排序 {{name}}：{{sort}}",
+    "view.status.deletedSavedSort": "已删除保存的排序。",
+    "view.status.exportedSavedViews": "已导出 {{filters}} 个筛选、{{sorts}} 个排序。",
+    "view.status.importedSavedViews": "已导入 {{filters}} 个筛选、{{sorts}} 个排序。",
+    "view.status.savedViewImportFailed": "保存视图导入失败：{{message}}",
+    "view.status.filterHistoryOff": "最近筛选历史已关闭。",
+    "view.status.filterHistoryKeep": "最近筛选历史将保留 {{count}} 个查询。",
+    "view.status.clearedRecentFilters": "已清除最近筛选历史。",
+    "sort.direction.ascending": "升序",
+    "sort.direction.descending": "降序",
+    "sort.join.then": "，然后 ",
+    "sort.mode.number": "数字",
+    "sort.mode.date": "日期",
+    "sort.mode.length": "长度",
+    "sort.mode.text": "文本",
     "edit.find": "查找",
     "edit.preview": "预览",
     "edit.replace": "替换",
@@ -2209,6 +2303,11 @@ function applyLocaleStrings() {
   const copyHeaderLabel = copyHeadersToggle?.nextElementSibling;
   if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
   if (recentFilterSelect?.options?.[0]) recentFilterSelect.options[0].textContent = t("view.filters");
+  if (recentFilterSelect) {
+    recentFilterSelect.setAttribute("aria-label", t("view.filters.aria"));
+    recentFilterSelect.title = t("view.filters.aria");
+  }
+  if (viewChips) viewChips.setAttribute("aria-label", t("view.chips.aria"));
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
   syncAboutSupportPanel();
@@ -2217,6 +2316,7 @@ function applyLocaleStrings() {
   applyProfileLocaleStrings();
   applySQLLocaleStrings();
   applyDiffLocaleStrings();
+  renderViewChips();
   const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
   if (!documentId && status && readyLabels.has(status.textContent)) {
     status.textContent = t("status.ready");
@@ -2718,15 +2818,15 @@ function updateFilterHistoryLimitFromSettings() {
   setFilterHistoryLimit(filterHistoryLimitSelect.value);
   renderSettingsPanel();
   status.textContent = filterHistoryLimit === 0
-    ? "Recent filter history is off."
-    : `Recent filter history will keep ${filterHistoryLimit} queries.`;
+    ? t("view.status.filterHistoryOff")
+    : tf("view.status.filterHistoryKeep", { count: formatCount(filterHistoryLimit) });
 }
 
 function clearRecentFilters() {
   saveRecentFilters([]);
   refreshFilterDropdown();
   renderSettingsPanel();
-  status.textContent = "Cleared recent filter history.";
+  status.textContent = t("view.status.clearedRecentFilters");
 }
 
 function loadCustomLinkProtocols() {
@@ -12210,11 +12310,38 @@ function clearActiveFilter() {
   renderViewChips();
 }
 
+function localizedFilterDisplay(filter) {
+  const display = String(filter?.display || "");
+  return display.replace(/^Filter:/i, `${t("view.filter")}:`);
+}
+
+function canonicalSortDisplay(keys = sortKeys) {
+  return keys.length ? `Sort: ${formatSortKeys(keys)}` : "";
+}
+
+function localizedSortDisplay(keys = sortKeys) {
+  return keys.length ? tf("view.chip.activeSort", { sort: formatSortKeysLocalized(keys) }) : "";
+}
+
+function localizedSavedSortDisplay(savedSort) {
+  const keys = Array.isArray(savedSort?.keys) ? savedSort.keys : [];
+  if (keys.length) return tf("view.chip.activeSort", { sort: formatStoredSortKeysLocalized(keys) });
+  return String(savedSort?.display || "").replace(/^Sort:/i, `${t("view.sort")}:`);
+}
+
+function setChipButtonText(button, labelKey, titleKey, values = {}) {
+  button.textContent = tf(labelKey, values);
+  const title = tf(titleKey, values);
+  button.title = title;
+  button.setAttribute("aria-label", title);
+}
+
 function renderViewChips() {
   const saved = savedFilters();
   const recent = recentFilters();
   const savedSortsList = savedSorts();
-  const activeSort = sortKeys.length ? `Sort: ${formatSortKeys(sortKeys)}` : "";
+  const activeSort = canonicalSortDisplay();
+  const activeSortLabel = localizedSortDisplay();
   refreshFilterDropdown(saved, recent);
   viewChips.replaceChildren();
   if (!activeFilter && !activeSort && saved.length === 0 && savedSortsList.length === 0) {
@@ -12234,29 +12361,27 @@ function renderViewChips() {
   document.body.dataset.savedSortCount = String(savedSortsList.length);
 
   if (activeFilter) {
+    const display = localizedFilterDisplay(activeFilter);
     const chip = document.createElement("div");
     chip.className = "view-chip";
-    chip.title = activeFilter.display;
+    chip.title = display;
 
     const label = document.createElement("span");
-    label.textContent = activeFilter.display;
+    label.textContent = display;
 
     const sqlButton = document.createElement("button");
     sqlButton.type = "button";
-    sqlButton.textContent = "SQL";
-    sqlButton.title = "Open this filter in SQL";
+    setChipButtonText(sqlButton, "view.chip.sql", "view.chip.openSql");
     sqlButton.addEventListener("click", openActiveFilterInSQL);
 
     const saveButton = document.createElement("button");
     saveButton.type = "button";
-    saveButton.textContent = "Save";
-    saveButton.title = "Save this filter";
+    setChipButtonText(saveButton, "view.chip.save", "view.chip.saveFilter");
     saveButton.addEventListener("click", saveActiveFilter);
 
     const clearButton = document.createElement("button");
     clearButton.type = "button";
-    clearButton.textContent = "Clear";
-    clearButton.title = "Clear filter and sort";
+    setChipButtonText(clearButton, "view.chip.clear", "view.chip.clearView");
     clearButton.addEventListener("click", clearView);
 
     chip.append(label, sqlButton, saveButton, clearButton);
@@ -12266,21 +12391,19 @@ function renderViewChips() {
   if (activeSort) {
     const chip = document.createElement("div");
     chip.className = "view-chip active-sort-chip";
-    chip.title = activeSort;
+    chip.title = activeSortLabel;
 
     const label = document.createElement("span");
-    label.textContent = activeSort;
+    label.textContent = activeSortLabel;
 
     const saveButton = document.createElement("button");
     saveButton.type = "button";
-    saveButton.textContent = "Save";
-    saveButton.title = "Save this sort";
+    setChipButtonText(saveButton, "view.chip.save", "view.chip.saveSort");
     saveButton.addEventListener("click", saveActiveSort);
 
     const clearButton = document.createElement("button");
     clearButton.type = "button";
-    clearButton.textContent = "Clear";
-    clearButton.title = "Clear filter and sort";
+    setChipButtonText(clearButton, "view.chip.clear", "view.chip.clearView");
     clearButton.addEventListener("click", clearView);
 
     chip.append(label, saveButton, clearButton);
@@ -12288,24 +12411,23 @@ function renderViewChips() {
   }
 
   for (const filter of saved) {
+    const values = { name: filter.name };
     const chip = document.createElement("div");
     chip.className = "view-chip saved-filter-chip";
-    chip.title = filter.display;
+    chip.title = localizedFilterDisplay(filter);
     chip.dataset.filterId = filter.id;
 
     const label = document.createElement("span");
-    label.textContent = `Saved: ${filter.name}`;
+    label.textContent = tf("view.chip.savedFilter", values);
 
     const applyButton = document.createElement("button");
     applyButton.type = "button";
-    applyButton.textContent = "Apply";
-    applyButton.title = "Apply saved filter";
+    setChipButtonText(applyButton, "view.chip.apply", "view.chip.applySavedFilter", values);
     applyButton.addEventListener("click", () => applySavedFilter(filter.id));
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.title = "Delete saved filter";
+    setChipButtonText(deleteButton, "view.chip.delete", "view.chip.deleteSavedFilter", values);
     deleteButton.addEventListener("click", () => deleteSavedFilter(filter.id));
 
     chip.append(label, applyButton, deleteButton);
@@ -12313,24 +12435,23 @@ function renderViewChips() {
   }
 
   for (const savedSort of savedSortsList) {
+    const values = { name: savedSort.name };
     const chip = document.createElement("div");
     chip.className = "view-chip saved-sort-chip";
-    chip.title = savedSort.display;
+    chip.title = localizedSavedSortDisplay(savedSort);
     chip.dataset.sortId = savedSort.id;
 
     const label = document.createElement("span");
-    label.textContent = `Saved Sort: ${savedSort.name}`;
+    label.textContent = tf("view.chip.savedSort", values);
 
     const applyButton = document.createElement("button");
     applyButton.type = "button";
-    applyButton.textContent = "Apply";
-    applyButton.title = "Apply saved sort";
+    setChipButtonText(applyButton, "view.chip.apply", "view.chip.applySavedSort", values);
     applyButton.addEventListener("click", () => applySavedSort(savedSort.id));
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.title = "Delete saved sort";
+    setChipButtonText(deleteButton, "view.chip.delete", "view.chip.deleteSavedSort", values);
     deleteButton.addEventListener("click", () => deleteSavedSort(savedSort.id));
 
     chip.append(label, applyButton, deleteButton);
@@ -12440,7 +12561,7 @@ function refreshFilterDropdown(saved = savedFilters(), recent = recentFilters())
   recentFilterSelect.append(filterDropdownOption("", t("view.filters")));
   if (recent.length) {
     const group = document.createElement("optgroup");
-    group.label = "Recent";
+    group.label = t("view.filters.recent");
     for (const filter of recent) {
       group.append(filterDropdownOption(`recent:${filter.id}`, filter.input || filter.display));
     }
@@ -12448,7 +12569,7 @@ function refreshFilterDropdown(saved = savedFilters(), recent = recentFilters())
   }
   if (saved.length) {
     const group = document.createElement("optgroup");
-    group.label = "Saved";
+    group.label = t("view.filters.saved");
     for (const filter of saved) {
       group.append(filterDropdownOption(`saved:${filter.id}`, filter.name));
     }
@@ -12483,7 +12604,7 @@ async function applyFilterDropdownSelection() {
   if (kind !== "recent" || !documentId) return;
   const filter = recentFilters().find((item) => item.id === id);
   if (!filter) {
-    status.textContent = "Recent filter not found.";
+    status.textContent = t("view.status.recentFilterNotFound");
     refreshFilterDropdown();
     return;
   }
@@ -12493,6 +12614,7 @@ async function applyFilterDropdownSelection() {
     { documentId, ...filter.body },
     `Recent filter ${savedFilterName(filter.display)}`,
     selected.col,
+    { matched: "view.status.recentFilterMatched" },
   );
 }
 
@@ -12532,7 +12654,7 @@ function saveSavedFilters(filters) {
 
 function saveActiveFilter() {
   if (!activeFilter?.expression) {
-    status.textContent = "Apply a filter before saving it.";
+    status.textContent = t("view.status.saveFilterFirst");
     return;
   }
   const saved = {
@@ -12546,14 +12668,14 @@ function saveActiveFilter() {
   saveSavedFilters(next);
   renderViewChips();
   document.body.dataset.savedFilterPreview = `${saved.name}|${saved.expression}`;
-  status.textContent = `Saved filter: ${saved.name}`;
+  status.textContent = tf("view.status.savedFilter", { name: saved.name });
 }
 
 async function applySavedFilter(filterID) {
   if (!documentId) return;
   const filter = savedFilters().find((item) => item.id === filterID);
   if (!filter) {
-    status.textContent = "Saved filter not found.";
+    status.textContent = t("view.status.savedFilterNotFound");
     renderViewChips();
     return;
   }
@@ -12563,6 +12685,7 @@ async function applySavedFilter(filterID) {
     { documentId, mode: "sql", expression: filter.expression },
     `Saved filter ${filter.name}`,
     selected.col,
+    { matched: "view.status.savedFilterMatched" },
   );
 }
 
@@ -12571,7 +12694,7 @@ function deleteSavedFilter(filterID) {
   const next = before.filter((filter) => filter.id !== filterID);
   saveSavedFilters(next);
   renderViewChips();
-  status.textContent = before.length === next.length ? "Saved filter not found." : "Deleted saved filter.";
+  status.textContent = before.length === next.length ? t("view.status.savedFilterNotFound") : t("view.status.deletedSavedFilter");
 }
 
 function savedSorts() {
@@ -12634,7 +12757,7 @@ function saveSavedSorts(sorts) {
 
 function saveActiveSort() {
   if (!sortKeys.length) {
-    status.textContent = "Apply a sort before saving it.";
+    status.textContent = t("view.status.saveSortFirst");
     return;
   }
   const keys = sortKeys.map(storedSortKey);
@@ -12651,20 +12774,20 @@ function saveActiveSort() {
   saveSavedSorts(next);
   renderViewChips();
   document.body.dataset.savedSortPreview = `${saved.name}|${savedSortSignature(saved.keys)}`;
-  status.textContent = `Saved sort: ${saved.name}`;
+  status.textContent = tf("view.status.savedSort", { name: saved.name });
 }
 
 async function applySavedSort(sortID) {
   if (!documentId) return;
   const savedSort = savedSorts().find((item) => item.id === sortID);
   if (!savedSort) {
-    status.textContent = "Saved sort not found.";
+    status.textContent = t("view.status.savedSortNotFound");
     renderViewChips();
     return;
   }
   const resolvedKeys = resolveStoredSortKeys(savedSort.keys);
   if (resolvedKeys.length === 0) {
-    status.textContent = "Saved sort has no matching columns.";
+    status.textContent = t("view.status.savedSortNoColumns");
     renderViewChips();
     return;
   }
@@ -12673,7 +12796,7 @@ async function applySavedSort(sortID) {
   await applySortKeys(
     resolvedKeys,
     primaryVisibleCol,
-    `Saved sort ${savedSort.name} applied: ${formatSortKeys(resolvedKeys)}`,
+    tf("view.status.savedSortApplied", { name: savedSort.name, sort: formatSortKeysLocalized(resolvedKeys) }),
     { stable: savedSort.stable !== false },
   );
 }
@@ -12683,7 +12806,7 @@ function deleteSavedSort(sortID) {
   const next = before.filter((sort) => sort.id !== sortID);
   saveSavedSorts(next);
   renderViewChips();
-  status.textContent = before.length === next.length ? "Saved sort not found." : "Deleted saved sort.";
+  status.textContent = before.length === next.length ? t("view.status.savedSortNotFound") : t("view.status.deletedSavedSort");
 }
 
 function exportSavedViews() {
@@ -12701,7 +12824,10 @@ function exportSavedViews() {
   document.body.dataset.savedViewExport = `${filters.length}:${sorts.length}`;
   document.body.dataset.savedViewExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-saved-views.json", "application/json;charset=utf-8");
-  status.textContent = `Exported ${formatCount(filters.length)} filters, ${formatCount(sorts.length)} sorts.`;
+  status.textContent = tf("view.status.exportedSavedViews", {
+    filters: formatCount(filters.length),
+    sorts: formatCount(sorts.length),
+  });
 }
 
 function showSavedViewImportPanel() {
@@ -12736,9 +12862,12 @@ function applySavedViewImport() {
     document.body.dataset.savedViewImportPanel = "closed";
     renderViewChips();
     renderSettingsPanel();
-    status.textContent = `Imported ${formatCount(imported.filters.length)} filters, ${formatCount(imported.sorts.length)} sorts.`;
+    status.textContent = tf("view.status.importedSavedViews", {
+      filters: formatCount(imported.filters.length),
+      sorts: formatCount(imported.sorts.length),
+    });
   } catch (error) {
-    status.textContent = `Saved view import failed: ${error.message}`;
+    status.textContent = tf("view.status.savedViewImportFailed", { message: error.message });
     document.body.dataset.savedViewImport = "error";
   }
   syncSavedViewImportControls();
@@ -12862,6 +12991,18 @@ function formatStoredSortKeys(keys) {
     .join(", then ");
 }
 
+function formatStoredSortKeysLocalized(keys) {
+  return keys
+    .map((key) => {
+      const label = key.name || columnNameForSource(key.column);
+      const mode = sortModeLabel(key.mode);
+      const modeLabel = mode ? ` ${mode}` : "";
+      const direction = key.descending ? t("sort.direction.descending") : t("sort.direction.ascending");
+      return `${label}${modeLabel} ${direction}`;
+    })
+    .join(t("sort.join.then"));
+}
+
 function savedFilterID(expression) {
   return `filter-${hashText(expression)}`;
 }
@@ -12888,7 +13029,7 @@ function openActiveFilterInSQL() {
   sqlInput.value = activeFilter.sqlQuery;
   document.body.dataset.sqlFilterPreview = activeFilter.sqlQuery;
   setViewMode("sql");
-  status.textContent = "Loaded current filter in SQL Console";
+  status.textContent = t("view.status.filterToSql");
 }
 
 function filterDescriptorFromRequest(body, label) {
@@ -13099,6 +13240,22 @@ function formatSortKeys(keys) {
       return `${columnNameForSource(key.column)}${modeLabel} ${key.descending ? "descending" : "ascending"}`;
     })
     .join(", then ");
+}
+
+function sortModeLabel(mode) {
+  if (!mode || mode === "auto") return "";
+  return translationOrEmpty(`sort.mode.${mode}`) || mode;
+}
+
+function formatSortKeysLocalized(keys) {
+  return keys
+    .map((key) => {
+      const mode = sortModeLabel(key.mode);
+      const modeLabel = mode ? ` ${mode}` : "";
+      const direction = key.descending ? t("sort.direction.descending") : t("sort.direction.ascending");
+      return `${columnNameForSource(key.column)}${modeLabel} ${direction}`;
+    })
+    .join(t("sort.join.then"));
 }
 
 function sortModeForColumn(column, type) {
