@@ -991,6 +991,45 @@ func TestManagerFilterContainsStreamsCleanFileOnly(t *testing.T) {
 	}
 }
 
+func TestManagerFilterSQLStreamsCleanFileOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sql-filter-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region,score\n1,APAC,8\n2,EU,9\n3,APAC,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "sql-filter-stream.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FilterSQLDetailedContext(context.Background(), session.ID, "WHERE region = 'APAC' AND CAST(score AS number) >= 9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed || result.TotalRows != 1 {
+		t.Fatalf("streamed SQL filter result = %#v, want one streamed match", result)
+	}
+	window, err := manager.Window(session.ID, 0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(window.Rows) != 1 || window.Rows[0][0] != "3" || window.Rows[0][1] != "APAC" {
+		t.Fatalf("streamed SQL filter window = %#v", window.Rows)
+	}
+
+	if err := manager.Edit(session.ID, 2, 1, "LATAM"); err != nil {
+		t.Fatal(err)
+	}
+	edited, err := manager.FilterSQLDetailedContext(context.Background(), session.ID, "WHERE region = 'LATAM'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Streamed || edited.TotalRows != 1 {
+		t.Fatalf("edited SQL filter result = %#v, want materialized edited match", edited)
+	}
+}
+
 type cancelAfterErrContext struct {
 	context.Context
 	calls    int

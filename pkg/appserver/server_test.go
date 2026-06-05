@@ -1888,6 +1888,36 @@ func TestServerFilterContainsStreamsCleanFile(t *testing.T) {
 	}
 }
 
+func TestServerFilterSQLStreamsCleanFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sql-filter-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region,score\n1,APAC,8\n2,EU,9\n3,APAC,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	filterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "region = 'APAC' AND CAST(score AS number) >= 9",
+	})
+	if filterPayload["totalRows"] != float64(1) || filterPayload["streamed"] != true {
+		t.Fatalf("SQL filter payload = %#v, want one streamed match", filterPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "3" || rows[0].([]any)[1] != "APAC" {
+		t.Fatalf("streamed SQL filter window = %#v", rows)
+	}
+}
+
 func TestServerValueChecklistStreamsCleanFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "value-filter-stream.csv")
@@ -1952,6 +1982,34 @@ func TestServerFilterUsesRequestContextCancellation(t *testing.T) {
 	}
 	if !strings.Contains(payload["error"].(string), "context canceled") {
 		t.Fatalf("canceled filter payload = %#v, want context canceled", payload)
+	}
+}
+
+func TestServerSQLFilterUsesRequestContextCancellation(t *testing.T) {
+	body, err := json.Marshal(map[string]any{
+		"mode":       "sql",
+		"expression": "region = 'APAC'",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/filter", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled SQL filter status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled SQL filter payload = %#v, want context canceled", payload)
 	}
 }
 

@@ -2427,16 +2427,37 @@ func valueFilterMatches(value string, selected map[string]bool, includeBlank boo
 }
 
 func (manager *Manager) FilterSQL(id string, expression string) (int, error) {
+	result, err := manager.FilterSQLDetailedContext(context.Background(), id, expression)
+	if err != nil {
+		return 0, err
+	}
+	return result.TotalRows, nil
+}
+
+func (manager *Manager) FilterSQLDetailedContext(ctx context.Context, id string, expression string) (FilterResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
 	if strings.TrimSpace(expression) == "" {
-		return manager.ClearView(id)
+		count, err := manager.ClearView(id)
+		return FilterResult{TotalRows: count}, err
 	}
 	session, ok := manager.snapshot(id)
 	if !ok {
-		return 0, errors.New("document not found")
+		return FilterResult{}, errors.New("document not found")
+	}
+	if canStreamCleanSession(session) {
+		return manager.filterSQLInStream(ctx, id, session, expression)
 	}
 	records, err := recordsForSession(session)
 	if err != nil {
-		return 0, err
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
 	}
 
 	start := 0
@@ -2447,29 +2468,68 @@ func (manager *Manager) FilterSQL(id string, expression string) (int, error) {
 	}
 	program, err := sqlexpr.Compile(stripWhere(expression), headers)
 	if err != nil {
-		return 0, err
+		return FilterResult{}, err
 	}
 
 	viewRows := make([]int, 0)
 	for row := start; row < len(records); row++ {
+		if err := ctx.Err(); err != nil {
+			return FilterResult{}, err
+		}
 		matched, err := program.Eval(records[row])
 		if err != nil {
-			return 0, fmt.Errorf("row %d: %w", row+1, err)
+			return FilterResult{}, fmt.Errorf("row %d: %w", row+1, err)
 		}
 		if matched {
 			viewRows = append(viewRows, row)
 		}
 	}
+	return manager.applyFilterViewRows(id, viewRows, false)
+}
 
-	manager.mu.Lock()
-	defer manager.mu.Unlock()
-	current, ok := manager.sessions[id]
-	if !ok {
-		return 0, errors.New("document not found")
+func (manager *Manager) filterSQLInStream(ctx context.Context, id string, session *Session, expression string) (FilterResult, error) {
+	viewRows := make([]int, 0)
+	source := stripWhere(expression)
+	var program *sqlexpr.Program
+	if !session.Document.Metadata.Dialect.HasHeader {
+		compiled, err := sqlexpr.Compile(source, nil)
+		if err != nil {
+			return FilterResult{}, err
+		}
+		program = compiled
 	}
-	current.ViewRows = viewRows
-	current.ViewActive = true
-	return len(viewRows), nil
+	_, err := csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, func(row int, record []string) error {
+		if row == 0 && session.Document.Metadata.Dialect.HasHeader {
+			compiled, err := sqlexpr.Compile(source, record)
+			if err != nil {
+				return err
+			}
+			program = compiled
+			return nil
+		}
+		if program == nil {
+			compiled, err := sqlexpr.Compile(source, nil)
+			if err != nil {
+				return err
+			}
+			program = compiled
+		}
+		matched, err := program.Eval(record)
+		if err != nil {
+			return fmt.Errorf("row %d: %w", row+1, err)
+		}
+		if matched {
+			viewRows = append(viewRows, row)
+		}
+		return nil
+	})
+	if err != nil {
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+	return manager.applyFilterViewRows(id, viewRows, true)
 }
 
 type SortOptions struct {

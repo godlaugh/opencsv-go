@@ -1258,9 +1258,7 @@ func (server *Server) handleFilter(w http.ResponseWriter, r *http.Request) {
 		if expression == "" {
 			expression = request.Query
 		}
-		var count int
-		count, err = server.documents.FilterSQL(request.DocumentID, expression)
-		result = docstore.FilterResult{TotalRows: count}
+		result, err = server.documents.FilterSQLDetailedContext(r.Context(), request.DocumentID, expression)
 	} else {
 		result, err = server.documents.FilterContainsDetailedContext(r.Context(), request.DocumentID, docstore.FilterOptions{
 			Query:         request.Query,
