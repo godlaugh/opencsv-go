@@ -11148,6 +11148,7 @@ function renderFileList() {
     document.body.dataset.openTabCount = "0";
     document.body.dataset.openTabs = "";
     document.body.dataset.activeOpenTab = "";
+    document.body.dataset.activeOpenTabVisible = "";
     renderStartActions();
   } else {
     renderOpenFileTabs();
@@ -11164,6 +11165,7 @@ function renderFileList() {
       fileList.append(fileButton(item, { onClick: () => openRecentFile(item) }));
     }
   }
+  ensureActiveOpenFileTabVisible();
 }
 
 function renderOpenFileTabs() {
@@ -11196,10 +11198,14 @@ function upsertOpenFileTab(entry) {
     readOnly,
     viewState: entry.viewState ?? currentOpenFileTabState(),
   };
-  openFileTabs = [
-    ...openFileTabs.filter((item) => openFileTabKey(item) !== key && item.detail !== entry.detail),
-    next,
-  ];
+  let updated = false;
+  openFileTabs = openFileTabs.map((item) => {
+    const matches = openFileTabKey(item) === key || (entry.detail && item.detail === entry.detail);
+    if (!matches) return item;
+    updated = true;
+    return next;
+  });
+  if (!updated) openFileTabs = [...openFileTabs, next];
 }
 
 function currentOpenFileTabState() {
@@ -11433,7 +11439,8 @@ function renderStartActions() {
 
 function fileTabItem(tab, isActive) {
   const row = document.createElement("div");
-  row.className = "file-tab-row";
+  row.className = isActive ? "file-tab-row active" : "file-tab-row";
+  if (tab.documentId) row.dataset.documentId = tab.documentId;
   row.append(fileButton(tab, {
     active: isActive,
     onClick: () => {
@@ -11459,6 +11466,43 @@ function fileTabItem(tab, isActive) {
   });
   row.append(closeButton);
   return row;
+}
+
+function ensureActiveOpenFileTabVisible() {
+  const activeTab = fileList.querySelector(".file-tab-row.active");
+  if (activeTab) {
+    scrollOpenFileTabIntoView(activeTab);
+  }
+  window.scrollTo(0, 0);
+  syncOpenFileTabOverflowState();
+}
+
+function scrollOpenFileTabIntoView(tabNode) {
+  const padding = 4;
+  const tabTop = tabNode.offsetTop;
+  const tabBottom = tabTop + tabNode.offsetHeight;
+  const viewTop = fileList.scrollTop;
+  const viewBottom = viewTop + fileList.clientHeight;
+  if (tabTop < viewTop) {
+    fileList.scrollTop = Math.max(0, tabTop - padding);
+  } else if (tabBottom > viewBottom) {
+    fileList.scrollTop = Math.max(0, tabBottom - fileList.clientHeight + padding);
+  }
+}
+
+function syncOpenFileTabOverflowState() {
+  const activeTab = fileList.querySelector(".file-tab-row.active");
+  const listRect = fileList.getBoundingClientRect();
+  const activeRect = activeTab?.getBoundingClientRect();
+  const overflows = fileList.scrollHeight > fileList.clientHeight + 1;
+  const visible = Boolean(
+    activeRect &&
+    activeRect.top >= listRect.top - 1 &&
+    activeRect.bottom <= listRect.bottom + 1,
+  );
+  document.body.dataset.openTabOverflow = overflows ? "true" : "false";
+  document.body.dataset.openTabScrollTop = String(Math.round(fileList.scrollTop));
+  document.body.dataset.activeOpenTabVisible = activeTab ? String(visible) : "";
 }
 
 function fileButton(entry, options = {}) {
@@ -17236,6 +17280,7 @@ function normalizeDelimiterOverride(value) {
 }
 
 openButton.addEventListener("click", openPathInputOrPicker);
+fileList.addEventListener("scroll", syncOpenFileTabOverflowState, { passive: true });
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];

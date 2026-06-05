@@ -636,6 +636,7 @@ The app shall support:
 - Recent files display with file name as primary label and path as secondary label.
 - Missing recent files are cleaned up automatically.
 - Open-file tabs with session-backed switching and Close Tab entry points from the sidebar and command palette.
+- Overflowing open-file tab lists must remain scrollable and keep the active tab visible after open, switch, close, and reload-like restoration flows.
 - Closing a dirty tab must protect unsaved edits unless the user explicitly chooses a discard path.
 - Split editor area into multiple tab groups arranged horizontally, vertically, or nested.
 - Move tabs between groups by drag/drop, tab context menu, and command palette actions.
@@ -652,6 +653,7 @@ Acceptance:
 - Relaunch restores window geometry and recent file list.
 - Closing a clean open-file tab removes that document session and switches to the next remaining tab or returns to the start surface.
 - Attempting to close a dirty open-file tab does not discard edits silently.
+- Opening many files does not push the app chrome out of the viewport, and the active open-file tab stays visible in the sidebar.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
 - Settings changed from defaults are visibly marked and can be reset.
 - Disabling automatic update checks prevents startup update network calls.

@@ -143,11 +143,15 @@ button:disabled {
 .sidebar,
 .inspector {
   min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--panel);
 }
 
 .sidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   padding: 14px 10px;
 }
 
@@ -161,7 +165,13 @@ button:disabled {
 
 .file-list {
   display: grid;
+  align-content: start;
   gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .file-section-label {

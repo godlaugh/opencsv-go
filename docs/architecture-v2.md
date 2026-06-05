@@ -171,6 +171,7 @@ flowchart TD
   - Recent entry reopen flow and missing-file cleanup on failed reopen.
   - Session-backed open file tab list for already-open files; sidebar tab switching uses `/api/session` and `/api/window` so dirty edit overlays remain attached to the original document session instead of reopening the path from disk.
   - Clean open tabs can be closed through `/api/close`; dirty tabs are rejected unless a caller passes an explicit force/discard path.
+  - The sidebar file list owns its vertical overflow and scrolls the active open tab into view after render so multi-file sessions do not stretch the app shell.
 
 - `web Editor Groups`
   - First split-editor group state for primary and secondary editor groups.
@@ -758,6 +759,7 @@ Output:
 - Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows, including repeated `open` params for CLI multi-file handoff and CLI stdin routes that pass a temporary path with `stdin=1`.
 - Multi-open boot keeps opened document sessions in the sidebar open tab list; switching back to a prior tab restores its session snapshot and loaded window rather than re-reading the file path.
 - Sidebar open tab close removes clean sessions, switches to a remaining tab or start surface, and blocks dirty closes without an explicit discard path.
+- A long sidebar open-tab list remains contained within the viewport, reports overflow state for regression checks, and keeps the active tab visible after multi-open boot and tab switching.
 - Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
 - Sidebar start surface can reopen recent files and removes a missing recent entry when reopening fails.
