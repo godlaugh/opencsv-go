@@ -76,16 +76,20 @@ func schemaSourceObject(root map[string]json.RawMessage) (map[string]json.RawMes
 			return schemaSourceObject(child)
 		}
 	}
-	if raw, ok := root["tables"]; ok && len(raw) > 0 {
+	for _, collectionKey := range []string{"tables", "resources"} {
+		raw, ok := root[collectionKey]
+		if !ok || len(raw) == 0 {
+			continue
+		}
 		var tables []map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &tables); err != nil {
-			return nil, fmt.Errorf("tables must be an array: %w", err)
+			return nil, fmt.Errorf("%s must be an array: %w", collectionKey, err)
 		}
 		for _, table := range tables {
 			for _, key := range []string{"schema", "tableSchema"} {
 				child, ok, err := schemaRawObject(table[key])
 				if err != nil {
-					return nil, fmt.Errorf("tables.%s must be an object: %w", key, err)
+					return nil, fmt.Errorf("%s.%s must be an object: %w", collectionKey, key, err)
 				}
 				if ok {
 					return schemaSourceObject(child)

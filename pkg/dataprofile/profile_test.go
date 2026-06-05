@@ -348,6 +348,38 @@ func TestSchemaUnmarshalAcceptsNestedTableSchema(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsFrictionlessResources(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"resources": [
+			{
+				"name": "scores",
+				"schema": {
+					"fields": [
+						{"name": "status", "constraints": {"enum": ["active"]}},
+						{"name": "score", "type": "number", "constraints": {"minimum": 0, "maximum": 100}}
+					],
+					"primaryKey": "status"
+				}
+			}
+		]
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 2 {
+		t.Fatalf("columns = %#v, want 2", schema.Columns)
+	}
+	status := schema.Columns[0]
+	if status.Name != "status" || !status.Required || !status.Unique || len(status.Enum) != 1 || status.Enum[0] != "active" {
+		t.Fatalf("status rule = %#v", status)
+	}
+	score := schema.Columns[1]
+	if score.Name != "score" || score.Type != "number" || score.Min == nil || *score.Min != 0 || score.Max == nil || *score.Max != 100 {
+		t.Fatalf("score rule = %#v", score)
+	}
+}
+
 func TestAnalyzeWithSchemaInvalidPattern(t *testing.T) {
 	result := AnalyzeWithSchema([][]string{
 		{"code"},

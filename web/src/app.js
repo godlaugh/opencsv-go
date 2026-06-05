@@ -14902,8 +14902,9 @@ function profileSchemaSourceObject(value) {
   if (Array.isArray(value.fields) || Array.isArray(value.columns)) return value;
   if (value.schema && typeof value.schema === "object") return profileSchemaSourceObject(value.schema);
   if (value.tableSchema && typeof value.tableSchema === "object") return profileSchemaSourceObject(value.tableSchema);
-  if (Array.isArray(value.tables)) {
-    for (const table of value.tables) {
+  for (const collectionKey of ["tables", "resources"]) {
+    if (!Array.isArray(value[collectionKey])) continue;
+    for (const table of value[collectionKey]) {
       if (table?.schema || table?.tableSchema) return profileSchemaSourceObject(table.schema || table.tableSchema);
     }
   }

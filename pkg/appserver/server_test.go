@@ -2486,6 +2486,49 @@ func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 	}
 }
 
+func TestServerProfileAcceptsFrictionlessResourcesSchema(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "resources-schema.csv")
+	if err := os.WriteFile(path, []byte("status,score\npending,105\npending,50\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"resources": []map[string]any{
+				{
+					"name": "scores",
+					"schema": map[string]any{
+						"fields": []map[string]any{
+							{"name": "status", "constraints": map[string]any{"enum": []string{"active"}}},
+							{"name": "score", "type": "number", "constraints": map[string]any{"minimum": 0, "maximum": 100}},
+						},
+						"primaryKey": "status",
+					},
+				},
+			},
+		},
+	})
+	if profilePayload["schemaRules"].(float64) != 2 {
+		t.Fatalf("schemaRules = %#v, want 2", profilePayload["schemaRules"])
+	}
+	issues := profilePayload["issues"].([]any)
+	for _, typ := range []string{"schema-enum", "schema-unique", "schema-range"} {
+		if !jsonIssuesContainType(issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, issues)
+		}
+	}
+}
+
 func TestServerSQLFilterNestedConditionGroups(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested-filter.csv")
