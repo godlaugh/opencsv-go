@@ -500,7 +500,7 @@ Output:
 - updated mutation result.
 - refreshed session and row count.
 
-Frontend command dispatch uses this endpoint for whole-table transpose. When exactly one multi-cell rectangular grid range is active, the same `table.transpose` command transposes that selected range through `/api/edit-batch` so the operation stays undoable without materializing the whole document.
+Frontend command dispatch uses this endpoint for whole-table transpose. When exactly one multi-cell rectangular grid range is active, the same `table.transpose` command transposes that selected range through `/api/edit-batch` so the operation stays undoable without materializing the whole document. If the transposed selected-range target extends past the current rightmost visible column, the frontend grows the column model and `/api/edit-batch` records the higher source column count so the expanded target can be saved.
 
 Rules:
 
@@ -782,7 +782,7 @@ Output:
 - Link protocol Settings can allow or reset custom cell-link protocols without enabling unsafe schemes.
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
-- Transpose swaps rows and columns for the whole table, or transposes one rectangular selected range through batch edits; both paths mark the document dirty and remain undoable.
+- Transpose swaps rows and columns for the whole table, or transposes one rectangular selected range through batch edits; selected-range targets may expand rightward into new columns. Both paths mark the document dirty and remain undoable.
 - Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
 - Swap/join/split cell tools are command-backed, undoable materialized mutations.
 - Hidden rows/columns are view-only and restored by Clear View.

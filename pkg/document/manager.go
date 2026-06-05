@@ -420,6 +420,9 @@ func (manager *Manager) EditCells(id string, edits []CellEdit) error {
 	}
 	for _, edit := range edits {
 		session.Edits[Cell{Row: edit.Row, Col: edit.Col}] = edit.Value
+		if edit.Col+1 > session.Document.Metadata.Dialect.EstimatedColumns {
+			session.Document.Metadata.Dialect.EstimatedColumns = edit.Col + 1
+		}
 	}
 	session.Dirty = true
 	return nil

@@ -1689,6 +1689,7 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 	if err := manager.EditCells(session.ID, []CellEdit{
 		{Row: 1, Col: 1, Value: "X"},
 		{Row: 2, Col: 1, Value: "X"},
+		{Row: 1, Col: 3, Value: "expanded"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1696,8 +1697,15 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if records[1][1] != "X" || records[2][1] != "X" {
+	if records[1][1] != "X" || records[2][1] != "X" || records[1][3] != "expanded" {
 		t.Fatalf("records after batch edit = %#v", records)
+	}
+	snapshot, ok := manager.Snapshot(session.ID)
+	if !ok {
+		t.Fatal("missing session after batch edit")
+	}
+	if snapshot.Document.Metadata.Dialect.EstimatedColumns != 4 {
+		t.Fatalf("estimated columns = %d, want 4", snapshot.Document.Metadata.Dialect.EstimatedColumns)
 	}
 	if _, err := manager.Undo(session.ID); err != nil {
 		t.Fatal(err)
@@ -1708,6 +1716,13 @@ func TestManagerBatchEditSingleUndo(t *testing.T) {
 	}
 	if records[1][1] != "Ada" || records[2][1] != "Linus" {
 		t.Fatalf("records after single undo = %#v", records)
+	}
+	snapshot, ok = manager.Snapshot(session.ID)
+	if !ok {
+		t.Fatal("missing session after undo")
+	}
+	if snapshot.Document.Metadata.Dialect.EstimatedColumns != 2 {
+		t.Fatalf("estimated columns after undo = %d, want 2", snapshot.Document.Metadata.Dialect.EstimatedColumns)
 	}
 }
 

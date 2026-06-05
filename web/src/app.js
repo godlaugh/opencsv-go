@@ -3191,6 +3191,18 @@ function valueAt(row, col) {
   return record[sourceColFor(col)] ?? "";
 }
 
+function valueAtSourceColumn(row, sourceCol) {
+  if (!documentId) return "";
+  const aggregateRow = aggregateRowAt(row);
+  if (aggregateRow) return aggregateRow.values[sourceCol] ?? "";
+  const record = rows.get(row);
+  if (!record) {
+    maybeLoadWindow(row);
+    return "";
+  }
+  return record[sourceCol] ?? "";
+}
+
 function hasCellAt(row, col) {
   if (aggregateRowAt(row)) return true;
   const record = rows.get(row);
@@ -11867,15 +11879,41 @@ function fileNameFromPath(path) {
 function buildColumns(document) {
   const first = document.preview[0] ?? [];
   const hasHeader = document.metadata.dialect.hasHeader;
+  const previewColumnCount = Math.max(...document.preview.map((record) => record.length), 1);
   const columnCount =
-    document.metadata.dialect.estimatedColumns ||
-    Math.max(...document.preview.map((record) => record.length), 1);
+    Math.max(document.metadata.dialect.estimatedColumns || 0, previewColumnCount);
   return Array.from({ length: columnCount }, (_, index) => ({
     name: hasHeader && first[index] ? first[index] : `Column ${index + 1}`,
     sourceCol: index,
     width: Math.max(minColumnWidth, Math.min(240, String(first[index] ?? "").length * 9 + 64)),
     type: index === 0 ? "mixed" : "string",
   }));
+}
+
+function ensureSourceColumnsForEdits(edits) {
+  if (!Array.isArray(edits) || edits.length === 0) return;
+  const maxSourceCol = Math.max(-1, ...edits.map((edit) => Number.isInteger(edit.col) ? edit.col : -1));
+  if (maxSourceCol < 0) return;
+  if (metadata?.dialect) {
+    metadata.dialect.estimatedColumns = Math.max(metadata.dialect.estimatedColumns || 0, maxSourceCol + 1);
+  }
+  let changed = false;
+  const existing = new Set(allColumns.map((column) => column.sourceCol));
+  for (let sourceCol = 0; sourceCol <= maxSourceCol; sourceCol++) {
+    if (existing.has(sourceCol)) continue;
+    allColumns.push({
+      name: `Column ${sourceCol + 1}`,
+      sourceCol,
+      width: minColumnWidth,
+      type: sourceCol === 0 ? "mixed" : "string",
+    });
+    existing.add(sourceCol);
+    changed = true;
+  }
+  if (!changed) return;
+  allColumns.sort((left, right) => left.sourceCol - right.sourceCol);
+  applyHiddenColumns();
+  document.body.dataset.extendedColumns = String(maxSourceCol + 1);
 }
 
 async function maybeLoadWindow(row) {
@@ -14033,9 +14071,17 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   }
   const targetEndRow = range.startRow + colCount - 1;
   const targetEndCol = range.startCol + rowCount - 1;
-  if (targetEndRow >= sourceRowCount || targetEndCol >= columns.length) {
-    status.textContent = "Selection transpose target must fit inside the current grid.";
+  if (targetEndRow >= sourceRowCount) {
+    status.textContent = "Selection transpose target rows must fit inside the current grid.";
     return true;
+  }
+  const transposeSourceCols = new Map();
+  const maxExistingSourceCol = Math.max(-1, ...allColumns.map((column) => column.sourceCol));
+  for (let col = range.startCol; col <= Math.max(range.endCol, targetEndCol); col++) {
+    const sourceCol = col < columns.length
+      ? sourceColFor(col)
+      : maxExistingSourceCol + (col - columns.length) + 1;
+    transposeSourceCols.set(col, sourceCol);
   }
   const sourceMatrix = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
@@ -14059,8 +14105,9 @@ function transposeSelectedRange(range, maxCells = 100_000) {
       const nextValue = inTarget
         ? sourceMatrix[col - range.startCol]?.[row - range.startRow] ?? ""
         : "";
-      if (valueAt(row, col) === nextValue) continue;
-      edits.push({ row: sourceRow, col: sourceColFor(col), value: nextValue });
+      const sourceCol = transposeSourceCols.get(col) ?? sourceColFor(col);
+      if (valueAtSourceColumn(row, sourceCol) === nextValue) continue;
+      edits.push({ row: sourceRow, col: sourceCol, value: nextValue });
     }
   }
   if (!edits.length) {
@@ -14070,6 +14117,7 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   }
   selected = { row: range.startRow, col: range.startCol };
   selectionAnchor = { row: targetEndRow, col: targetEndCol };
+  ensureSourceColumnsForEdits(edits);
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
   document.body.dataset.transposeSelection = `${rowCount}x${colCount}->${colCount}x${rowCount}:${edits.length}`;
