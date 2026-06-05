@@ -666,7 +666,7 @@ The app shall support transposing rows and columns.
 Acceptance:
 
 - Transpose works on small and medium files.
-- Transpose can apply to the full table or to one rectangular selected range; selected-range transpose can expand target columns to the right or target rows downward when the transposed target exceeds the current visible grid.
+- Transpose can apply to the full table, one rectangular selected range, or multiple non-overlapping rectangular selected ranges; selected-range transpose can expand target columns to the right or target rows downward when the transposed target exceeds the current visible grid.
 - The operation is undoable and warns when the result would be too large for memory.
 
 ### FR-018 Auto-Refresh and External Changes

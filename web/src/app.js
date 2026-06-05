@@ -1690,7 +1690,7 @@ const localeCatalog = {
     "command.selection.insertCountRow.title": "添加计数行",
     "command.selection.insertCountRow.description": "为选中的单元格添加可移除的计数行。",
     "command.table.transpose.title": "转置",
-    "command.table.transpose.description": "转置当前表格或选中的矩形区域。",
+    "command.table.transpose.description": "转置当前表格或选中的一个或多个矩形区域。",
     "command.table.dedupeRows.title": "删除重复行",
     "command.table.dedupeColumns.title": "删除重复列",
     "command.text.trim.title": "修剪文本",
@@ -14057,7 +14057,7 @@ async function moveColumnToVisible(sourceVisibleCol, targetVisibleCol, source = 
 async function transposeCurrentDocument() {
   const ranges = activeSelectionRanges();
   if (ranges.length > 1) {
-    status.textContent = "Select one rectangular range to transpose.";
+    if (transposeSelectedRanges(ranges)) return;
     return;
   }
   if (ranges.length === 1 && rangeCellCount(ranges[0]) > 1) {
@@ -14070,22 +14070,77 @@ async function transposeCurrentDocument() {
 function transposeSelectedRange(range, maxCells = 100_000) {
   if (!documentId || !range) return false;
   if (!ensureEditable("Transpose Selection")) return true;
+  const plan = buildSelectionTransposePlan(range, maxCells);
+  if (!plan) return true;
+  if (!plan.edits.length) {
+    status.textContent = "Transpose Selection: no cells changed.";
+    document.body.dataset.transposeSelection = `${plan.rowCount}x${plan.colCount}->${plan.colCount}x${plan.rowCount}:0`;
+    return true;
+  }
+  applySelectionTransposePlans(
+    [plan],
+    `Transposed ${plan.rowCount}x${plan.colCount} selection`,
+  );
+  return true;
+}
+
+function transposeSelectedRanges(ranges, maxCells = 100_000) {
+  if (!documentId || !Array.isArray(ranges) || ranges.length === 0) return false;
+  if (!ensureEditable("Transpose Selection")) return true;
+  const cellCount = ranges.reduce((count, range) => count + rangeCellCount(range), 0);
+  if (cellCount > maxCells) {
+    status.textContent = `Selection has ${formatCount(cellCount)} cells; transpose limit is ${formatCount(maxCells)}.`;
+    return true;
+  }
+  const plans = [];
+  for (const range of ranges) {
+    if (rangeCellCount(range) <= 1) {
+      status.textContent = "Each transpose range must contain at least two cells.";
+      return true;
+    }
+    const plan = buildSelectionTransposePlan(range, maxCells);
+    if (!plan) return true;
+    plans.push(plan);
+  }
+  for (let i = 0; i < plans.length; i++) {
+    for (let j = i + 1; j < plans.length; j++) {
+      if (rangesOverlap(plans[i].unionRange, plans[j].unionRange)) {
+        status.textContent = "Multi-range transpose targets must not overlap each other.";
+        document.body.dataset.transposeSelection = `multi:${plans.length}:overlap`;
+        return true;
+      }
+    }
+  }
+  const edits = plans.flatMap((plan) => plan.edits);
+  if (!edits.length) {
+    status.textContent = "Transpose Selection: no cells changed.";
+    document.body.dataset.transposeSelection = `multi:${plans.length}:0`;
+    return true;
+  }
+  applySelectionTransposePlans(
+    plans,
+    `Transposed ${plans.length} ranges (${formatCount(edits.length)} cells changed)`,
+  );
+  return true;
+}
+
+function buildSelectionTransposePlan(range, maxCells = 100_000) {
   if (range.endRow >= sourceRowCount) {
     status.textContent = "Aggregate rows are view-only.";
-    return true;
+    return null;
   }
   const rowCount = range.endRow - range.startRow + 1;
   const colCount = range.endCol - range.startCol + 1;
   const cellCount = rowCount * colCount;
   if (cellCount > maxCells) {
     status.textContent = `Selection has ${formatCount(cellCount)} cells; transpose limit is ${formatCount(maxCells)}.`;
-    return true;
+    return null;
   }
   const targetEndRow = range.startRow + colCount - 1;
   const targetEndCol = range.startCol + rowCount - 1;
   if (targetEndRow >= sourceRowCount && viewMapped) {
     status.textContent = "Selection transpose target rows must fit while a filtered or sorted view is active.";
-    return true;
+    return null;
   }
   const transposeSourceCols = new Map();
   const maxExistingSourceCol = Math.max(-1, ...allColumns.map((column) => column.sourceCol));
@@ -14097,7 +14152,7 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   }
   const sourceMatrix = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
-    if (sourceRowForDisplayRow(row, "Transpose Selection") == null) return true;
+    if (sourceRowForDisplayRow(row, "Transpose Selection") == null) return null;
     const values = [];
     for (let col = range.startCol; col <= range.endCol; col++) {
       values.push(valueAt(row, col));
@@ -14109,7 +14164,7 @@ function transposeSelectedRange(range, maxCells = 100_000) {
   const unionEndCol = Math.max(range.endCol, targetEndCol);
   for (let row = range.startRow; row <= unionEndRow; row++) {
     const sourceRow = sourceRowForDisplayRow(row, "Transpose Selection");
-    if (sourceRow == null) return true;
+    if (sourceRow == null) return null;
     for (let col = range.startCol; col <= unionEndCol; col++) {
       const inSource = row <= range.endRow && col <= range.endCol;
       const inTarget = row <= targetEndRow && col <= targetEndCol;
@@ -14122,24 +14177,36 @@ function transposeSelectedRange(range, maxCells = 100_000) {
       edits.push({ row: sourceRow, col: sourceCol, value: nextValue });
     }
   }
-  if (!edits.length) {
-    status.textContent = "Transpose Selection: no cells changed.";
-    document.body.dataset.transposeSelection = `${rowCount}x${colCount}->${colCount}x${rowCount}:0`;
-    return true;
-  }
-  selected = { row: range.startRow, col: range.startCol };
-  selectionAnchor = { row: targetEndRow, col: targetEndCol };
+  return {
+    range,
+    targetRange: { startRow: range.startRow, endRow: targetEndRow, startCol: range.startCol, endCol: targetEndCol },
+    unionRange: { startRow: range.startRow, endRow: unionEndRow, startCol: range.startCol, endCol: unionEndCol },
+    rowCount,
+    colCount,
+    edits,
+  };
+}
+
+function applySelectionTransposePlans(plans, message) {
+  const edits = plans.flatMap((plan) => plan.edits);
+  const [firstPlan] = plans;
+  if (!firstPlan || !edits.length) return;
   ensureSourceRowsForEdits(edits);
   ensureSourceColumnsForEdits(edits);
+  selected = { row: firstPlan.targetRange.startRow, col: firstPlan.targetRange.startCol };
+  selectionAnchor = { row: firstPlan.targetRange.endRow, col: firstPlan.targetRange.endCol };
+  setSmartSelectionRanges(plans.slice(1).map((plan) => plan.targetRange));
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
-  document.body.dataset.transposeSelection = `${rowCount}x${colCount}->${colCount}x${rowCount}:${edits.length}`;
+  const summaries = plans.map((plan) => `${plan.rowCount}x${plan.colCount}->${plan.colCount}x${plan.rowCount}`);
+  document.body.dataset.transposeSelection = plans.length === 1
+    ? `${summaries[0]}:${edits.length}`
+    : `multi:${plans.length}:${summaries.join(";")}:${edits.length}`;
   submitCellEdits(
     edits,
-    range.startRow,
-    `Transposed ${rowCount}x${colCount} selection`,
+    Math.min(...plans.map((plan) => plan.range.startRow)),
+    message,
   );
-  return true;
 }
 
 function sourceRowForDisplayRow(row, action) {
