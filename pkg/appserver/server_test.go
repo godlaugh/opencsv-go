@@ -72,6 +72,30 @@ func TestServerOpenEditSave(t *testing.T) {
 	}
 }
 
+func TestServerOpenCanMarkStdinSource(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "stdin-copy.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+		"sourceKind":  "stdin",
+		"displayName": "stdin",
+	})
+	if payload["sourceKind"] != "stdin" || payload["displayName"] != "stdin" {
+		t.Fatalf("stdin open response = %#v", payload)
+	}
+	document := payload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	if metadata["path"] != path {
+		t.Fatalf("stdin document path = %#v, want %q", metadata["path"], path)
+	}
+}
+
 func TestServerOpenEditSavePreservesLateDetectedQuoteCell(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "late-quotes.csv")

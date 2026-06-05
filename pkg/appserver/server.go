@@ -128,6 +128,8 @@ type openRequest struct {
 	Path          string `json:"path"`
 	PreviewRows   int    `json:"previewRows"`
 	IndexRows     *int   `json:"indexRows"`
+	SourceKind    string `json:"sourceKind,omitempty"`
+	DisplayName   string `json:"displayName,omitempty"`
 	Delimiter     string `json:"delimiter,omitempty"`
 	DelimiterName string `json:"delimiterName,omitempty"`
 	QuoteChar     string `json:"quoteChar,omitempty"`
@@ -142,8 +144,10 @@ type openRequest struct {
 }
 
 type openResponse struct {
-	DocumentID string           `json:"documentId"`
-	Document   csvcore.Document `json:"document"`
+	DocumentID  string              `json:"documentId"`
+	Document    csvcore.Document    `json:"document"`
+	SourceKind  docstore.SourceKind `json:"sourceKind,omitempty"`
+	DisplayName string              `json:"displayName,omitempty"`
 }
 
 type newDocumentRequest struct {
@@ -253,13 +257,58 @@ func (server *Server) handleOpen(w http.ResponseWriter, r *http.Request) {
 		options.SheetIndex = request.SheetIndex
 	}
 
-	session, err := server.documents.OpenPath(request.Path, docstore.SourceFile, filepath.Base(request.Path), options)
+	sourceKind, displayName, err := openRequestSource(request)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := server.documents.OpenPath(request.Path, sourceKind, displayName, options)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
+	writeJSON(w, http.StatusOK, openResponseFromSession(session))
+}
+
+func openResponseFromSession(session *docstore.Session) openResponse {
+	return openResponse{
+		DocumentID:  session.ID,
+		Document:    session.Document,
+		SourceKind:  session.SourceKind,
+		DisplayName: session.DisplayName,
+	}
+}
+
+func openRequestSource(request openRequest) (docstore.SourceKind, string, error) {
+	displayName := cleanOpenDisplayName(request.DisplayName)
+	if displayName == "" {
+		displayName = cleanOpenDisplayName(filepath.Base(request.Path))
+	}
+	sourceKind := strings.ToLower(strings.TrimSpace(request.SourceKind))
+	switch sourceKind {
+	case "", string(docstore.SourceFile):
+		return docstore.SourceFile, displayName, nil
+	case string(docstore.SourceStdin):
+		if displayName == "" || displayName == "." {
+			displayName = "stdin"
+		}
+		return docstore.SourceStdin, displayName, nil
+	default:
+		return "", "", fmt.Errorf("unsupported sourceKind %q", request.SourceKind)
+	}
+}
+
+func cleanOpenDisplayName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	name = filepath.Base(name)
+	if name == "." || name == ".." || name == string(filepath.Separator) {
+		return ""
+	}
+	return name
 }
 
 func (server *Server) handleFileSample(w http.ResponseWriter, r *http.Request) {

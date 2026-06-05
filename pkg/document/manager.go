@@ -28,6 +28,7 @@ type SourceKind string
 const (
 	SourceFile   SourceKind = "file"
 	SourceUpload SourceKind = "upload"
+	SourceStdin  SourceKind = "stdin"
 )
 
 type Cell struct {

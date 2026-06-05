@@ -736,6 +736,29 @@ func TestLaunchURLFlagsAreWired(t *testing.T) {
 	}
 }
 
+func TestCLIStdinURLBootIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`params.get("stdin")`,
+		`params.get("source") === "stdin"`,
+		`displayName: stdinSource ? "stdin"`,
+		`remember: !stdinSource`,
+		`sourceKind: stdinSource ? "stdin"`,
+		`body.sourceKind = options.sourceKind`,
+		`body.displayName = options.displayName`,
+		`document.body.dataset.stdinUrlBoot = "1"`,
+		`document.body.dataset.openSourceKind = options.sourceKind`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing CLI stdin URL boot wiring %q", snippet)
+		}
+	}
+}
+
 func TestProfileViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

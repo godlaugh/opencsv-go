@@ -95,11 +95,12 @@ type cliInvocation struct {
 }
 
 type cliOpenedFile struct {
-	Path     string                `json:"path"`
-	Source   string                `json:"source"`
-	Location protocol.Location     `json:"location,omitempty"`
-	Format   protocol.FormatParams `json:"format,omitempty"`
-	Document csvcore.Document      `json:"document"`
+	Path      string                `json:"path"`
+	Source    string                `json:"source"`
+	RoutePath string                `json:"routePath,omitempty"`
+	Location  protocol.Location     `json:"location,omitempty"`
+	Format    protocol.FormatParams `json:"format,omitempty"`
+	Document  csvcore.Document      `json:"document"`
 }
 
 type rootOptions struct {
@@ -186,17 +187,18 @@ func rootOpen(args []string) error {
 		}
 		openOptions.PreviewRows = 50
 		openOptions.IndexRows = 0
-		document, source, err := openCLITarget(target.Path, openOptions)
+		document, source, routePath, err := openCLITarget(target.Path, openOptions)
 		if err != nil {
 			return err
 		}
 		resolvedPaths = append(resolvedPaths, target.Path)
 		invocation.Files = append(invocation.Files, cliOpenedFile{
-			Path:     target.Path,
-			Source:   source,
-			Location: target.Location,
-			Format:   targetFormat,
-			Document: document,
+			Path:      target.Path,
+			Source:    source,
+			RoutePath: routePath,
+			Location:  target.Location,
+			Format:    targetFormat,
+			Document:  document,
 		})
 	}
 
@@ -212,7 +214,7 @@ func rootOpen(args []string) error {
 		}
 		invocation.Route = route
 		invocation.WebURL = webURLForRoute(route)
-	} else if len(invocation.Files) == 1 && invocation.Files[0].Source == "file" {
+	} else if len(invocation.Files) == 1 && invocation.Files[0].RoutePath != "" {
 		route, err := openRoute(invocation.Files[0], options)
 		if err != nil {
 			return err
@@ -242,12 +244,20 @@ func diffRoute(leftPath string, rightPath string, options rootOptions) (string, 
 }
 
 func openRoute(file cliOpenedFile, options rootOptions) (string, error) {
-	path, err := filepath.Abs(file.Path)
+	openPath := file.RoutePath
+	if openPath == "" {
+		openPath = file.Path
+	}
+	path, err := filepath.Abs(openPath)
 	if err != nil {
 		return "", err
 	}
 	values := url.Values{}
 	values.Set("open", path)
+	if file.Source == "stdin" {
+		values.Set("stdin", "1")
+		values.Set("source", "stdin")
+	}
 	if location := locationParam(file.Location); location != "" {
 		values.Set("goto", location)
 	}
@@ -494,24 +504,24 @@ func parseDelimiter(raw string) (rune, string, error) {
 	return csvcore.NormalizeDelimiter(raw, "")
 }
 
-func openCLITarget(path string, options csvcore.OpenOptions) (csvcore.Document, string, error) {
+func openCLITarget(path string, options csvcore.OpenOptions) (csvcore.Document, string, string, error) {
 	if path != "-" {
 		document, err := csvcore.OpenDocument(path, options)
-		return document, "file", err
+		return document, "file", path, err
 	}
 	tmp, err := os.CreateTemp("", "opencsv-stdin-*.csv")
 	if err != nil {
-		return csvcore.Document{}, "", err
+		return csvcore.Document{}, "", "", err
 	}
 	defer tmp.Close()
 	if _, err := io.Copy(tmp, os.Stdin); err != nil {
-		return csvcore.Document{}, "", err
+		return csvcore.Document{}, "", "", err
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		return csvcore.Document{}, "", err
+		return csvcore.Document{}, "", "", err
 	}
 	document, err := csvcore.OpenDocument(tmp.Name(), options)
-	return document, "stdin", err
+	return document, "stdin", tmp.Name(), err
 }
 
 func mergeFormat(base protocol.FormatParams, override protocol.FormatParams) protocol.FormatParams {

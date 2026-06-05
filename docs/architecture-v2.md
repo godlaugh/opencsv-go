@@ -90,7 +90,7 @@ flowchart TD
 - `cmd/opencsv`
   - Developer subcommands for open/inspect/generate/save/serve/bench.
   - Product root syntax `opencsv [options] [path ...]`.
-  - Root CLI opens file targets and stdin (`opencsv -`), parses official goto/diff/format/window flags, and emits an invocation document for the current local prototype.
+  - Root CLI opens file targets and stdin (`opencsv -`), parses official goto/diff/format/window flags, and emits an invocation document plus browser-prototype route for the current local prototype.
   - CLI grep scans cells with optional case-insensitive, regex, column-targeted, and limited JSON output.
 
 - `pkg/commands`
@@ -729,7 +729,7 @@ Output:
 ### Browser Tests
 
 - Initial UI has no fake file.
-- Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows.
+- Browser prototype can boot-open a local direct path from `?open=/absolute/path.csv` for launch and regression workflows, including CLI stdin handoff routes that pass a temporary path with `stdin=1`.
 - Open button opens the typed direct path when present, otherwise triggers the file chooser.
 - Path Enter opens direct path.
 - Sidebar start surface can reopen recent files and removes a missing recent entry when reopening fails.
@@ -792,6 +792,7 @@ Output:
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
 - `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
+- `opencsv -` emits a retained temporary route path plus `stdin=1`/`source=stdin` so the browser prototype opens the piped data as a temporary stdin source.
 - Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`, including official URL aliases for generated Browser routes.
 - `smoothcsv://file/...` and `opencsv://file/...` URL parsing with format query parameters.
 

@@ -329,18 +329,80 @@ func TestOpenCLITargetReadsStdin(t *testing.T) {
 		_ = input.Close()
 	})
 
-	document, source, err := openCLITarget("-", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	document, source, routePath, err := openCLITarget("-", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if source != "stdin" {
 		t.Fatalf("source = %q, want stdin", source)
 	}
+	if routePath == "" {
+		t.Fatal("missing stdin route path")
+	}
 	if document.RowIndex.Rows != 2 {
 		t.Fatalf("rows = %d, want 2", document.RowIndex.Rows)
 	}
 	if len(document.Preview) != 2 || document.Preview[1][1] != "Ada" {
 		t.Fatalf("preview = %#v", document.Preview)
+	}
+}
+
+func TestRootOpenStdinIncludesWebRoute(t *testing.T) {
+	input, err := os.CreateTemp(t.TempDir(), "stdin-route-*.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := input.WriteString("id,name\n1,Ada\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := input.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	previousStdin := os.Stdin
+	os.Stdin = input
+	t.Cleanup(func() {
+		os.Stdin = previousStdin
+		_ = input.Close()
+	})
+
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--delimiter", "comma", "-"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if invocation.Mode != "open" || len(invocation.Files) != 1 {
+		t.Fatalf("stdin invocation = %#v", invocation)
+	}
+	file := invocation.Files[0]
+	if file.Path != "-" || file.Source != "stdin" || file.RoutePath == "" {
+		t.Fatalf("stdin file = %#v", file)
+	}
+	if _, err := os.Stat(file.RoutePath); err != nil {
+		t.Fatalf("stdin route path was not retained: %v", err)
+	}
+	route, err := url.Parse(invocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := route.Query()
+	if query.Get("open") != file.RoutePath || query.Get("stdin") != "1" || query.Get("source") != "stdin" {
+		t.Fatalf("stdin route query = %#v", query)
+	}
+	if query.Get("delimiter") != "comma" {
+		t.Fatalf("stdin format route query = %#v", query)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webURL.Query().Get("open") != file.RoutePath || webURL.Query().Get("stdin") != "1" {
+		t.Fatalf("stdin web URL query = %#v", webURL.Query())
 	}
 }
 

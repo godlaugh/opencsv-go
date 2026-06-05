@@ -9769,6 +9769,8 @@ async function openPath(path, options = {}) {
   let preset = options.preset ?? null;
   const formatOverride = options.formatOverride ?? null;
   const urlLocation = options.location ?? null;
+  const displayName = options.displayName || fileNameFromPath(path);
+  const remember = options.remember !== false;
   let matchedRule = null;
   if (!preset && options.applyRules !== false) {
     const match = await matchingFormatPresetForPath(path);
@@ -9779,6 +9781,8 @@ async function openPath(path, options = {}) {
     }
   }
   const body = { path, previewRows: windowSize, indexRows: -1 };
+  if (options.sourceKind) body.sourceKind = options.sourceKind;
+  if (options.displayName) body.displayName = options.displayName;
   if (preset) {
     body.delimiter = preset.delimiter;
     body.delimiterName = preset.delimiterName;
@@ -9805,8 +9809,14 @@ async function openPath(path, options = {}) {
   externalFileChanged = false;
   clearStructureClipboard();
   loadDocument(payload.document);
-  updateFileList(fileNameFromPath(path), metadata.path, totalRows, { remember: true });
+  updateFileList(displayName, options.detail || metadata.path, totalRows, { remember });
   updateFormatRulePlaceholder(path);
+  if (options.sourceKind) {
+    document.body.dataset.openSourceKind = options.sourceKind;
+  } else {
+    delete document.body.dataset.openSourceKind;
+  }
+  document.body.dataset.openDisplayName = displayName;
   delete document.body.dataset.newFile;
   draw();
   startFileStatusChecks();
@@ -9900,6 +9910,9 @@ async function uploadAndOpen(file) {
   pathInput.value = file.name;
   updateFormatRulePlaceholder(file.name);
   updateFileList(file.name, "temporary upload", totalRows);
+  document.body.dataset.openSourceKind = "upload";
+  document.body.dataset.openDisplayName = file.name;
+  delete document.body.dataset.stdinUrlBoot;
   delete document.body.dataset.newFile;
   draw();
   startFileStatusChecks();
@@ -9927,9 +9940,12 @@ async function createNewFile() {
     clearStructureClipboard();
     loadDocument(payload.document);
     pathInput.value = name;
-    updateFormatRulePlaceholder(name);
-    updateFileList(name, "temporary upload", totalRows);
-    document.body.dataset.newFile = `${totalRows}:${columns.length}`;
+  updateFormatRulePlaceholder(name);
+  updateFileList(name, "temporary upload", totalRows);
+  document.body.dataset.openSourceKind = "upload";
+  document.body.dataset.openDisplayName = name;
+  delete document.body.dataset.stdinUrlBoot;
+  document.body.dataset.newFile = `${totalRows}:${columns.length}`;
     draw();
     startFileStatusChecks();
     await checkFileStatus(false);
@@ -16687,12 +16703,21 @@ async function openInitialURLTarget() {
   }
   const path = params.get("open");
   if (!path) return;
-  pathInput.value = path;
+  const stdinSource = truthyParam(params.get("stdin")) || params.get("source") === "stdin";
+  pathInput.value = stdinSource ? "stdin" : path;
   try {
     await openPath(path, {
       formatOverride: formatOverrideFromParams(params),
       location: locationFromParams(params),
+      displayName: stdinSource ? "stdin" : undefined,
+      remember: !stdinSource,
+      sourceKind: stdinSource ? "stdin" : "",
     });
+    if (stdinSource) {
+      document.body.dataset.stdinUrlBoot = "1";
+    } else {
+      delete document.body.dataset.stdinUrlBoot;
+    }
     const sqlQuery = params.get("sql");
     if (sqlQuery != null) {
       sqlInput.value = sqlQuery;
