@@ -8155,6 +8155,9 @@ async function executeCommand(commandID) {
     case "file.open":
       await openPathInputOrPicker();
       break;
+    case "file.closeTab":
+      await closeActiveOpenFileTab();
+      break;
     case "file.save":
       await saveCurrentDocument();
       break;
@@ -11173,17 +11176,7 @@ function renderOpenFileTabs() {
   }
   for (const tab of tabs) {
     const isActive = tab.documentId && tab.documentId === documentId;
-    fileList.append(fileButton(tab, {
-      active: isActive,
-      onClick: () => {
-        if (isActive) {
-          canvas.focus();
-          draw();
-          return;
-        }
-        void switchOpenFileTab(tab.documentId);
-      },
-    }));
+    fileList.append(fileTabItem(tab, isActive));
   }
   document.body.dataset.openTabCount = String(tabs.length);
   document.body.dataset.openTabs = tabs.map((tab) => `${tab.documentId || ""}:${tab.name}`).join("|");
@@ -11313,6 +11306,92 @@ async function switchOpenFileTab(targetDocumentId) {
   status.textContent = `Switched to ${activeFileEntry.name}.`;
 }
 
+async function closeActiveOpenFileTab() {
+  if (!documentId) return;
+  await closeOpenFileTab(documentId);
+}
+
+async function closeOpenFileTab(targetDocumentId, options = {}) {
+  if (!targetDocumentId) return false;
+  const target = openFileTabs.find((item) => item.documentId === targetDocumentId)
+    || (activeFileEntry?.documentId === targetDocumentId ? activeFileEntry : null);
+  const response = await fetch("/api/close", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      documentId: targetDocumentId,
+      force: Boolean(options.force),
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    const message = payload.error ?? "close failed";
+    document.body.dataset.closeTabBlocked = `${targetDocumentId}:${message}`;
+    status.textContent = message === "document has unsaved changes"
+      ? `Save ${target?.name ?? "the file"} before closing.`
+      : `Close tab failed: ${message}`;
+    return false;
+  }
+
+  const closedName = target?.name || payload.displayName || "tab";
+  document.body.dataset.closedOpenTab = `${targetDocumentId}:${closedName}`;
+  document.body.dataset.closeTabBlocked = "";
+  openFileTabs = openFileTabs.filter((item) => item.documentId !== targetDocumentId);
+  if (targetDocumentId === documentId) {
+    const next = openFileTabs[openFileTabs.length - 1];
+    if (next?.documentId) {
+      await switchOpenFileTab(next.documentId);
+      status.textContent = `Closed ${closedName}.`;
+      return true;
+    }
+    clearCurrentDocumentState(closedName);
+    return true;
+  }
+
+  renderFileList();
+  status.textContent = `Closed ${closedName}.`;
+  return true;
+}
+
+function clearCurrentDocumentState(closedName = "") {
+  if (fileStatusTimer) clearInterval(fileStatusTimer);
+  fileStatusTimer = 0;
+  windowGeneration++;
+  loadingWindow = false;
+  documentId = "";
+  activeFileEntry = null;
+  metadata = null;
+  rows = new Map();
+  rowSource = new Map();
+  windowStart = 0;
+  windowEnd = 0;
+  sourceRowCount = 0;
+  aggregateRows = [];
+  syncTotalRows();
+  columns = [];
+  allColumns = [];
+  hiddenSourceColumns = new Set();
+  selected = { row: 0, col: 0 };
+  selectionAnchor = { row: 0, col: 0 };
+  scrollX = 0;
+  scrollY = 0;
+  wheelRemainderY = 0;
+  dirty = false;
+  readOnly = false;
+  externalFileChanged = false;
+  externalChangePanelDismissed = false;
+  viewMapped = false;
+  sortDescending = false;
+  sortKeys = [];
+  clearActiveFilter();
+  invalidateFindState();
+  setSmartSelectionRanges([]);
+  clearStructureClipboard();
+  renderFileList();
+  draw();
+  status.textContent = closedName ? `Closed ${closedName}.` : "Closed tab.";
+}
+
 function renderStartActions() {
   const newFileButton = document.createElement("button");
   newFileButton.className = "file-button file-action";
@@ -11350,6 +11429,36 @@ function renderStartActions() {
   supportButton.addEventListener("click", () => openAboutSupportPanel());
 
   fileList.append(newFileButton, openPathButton, chooseButton, settingsButton, supportButton);
+}
+
+function fileTabItem(tab, isActive) {
+  const row = document.createElement("div");
+  row.className = "file-tab-row";
+  row.append(fileButton(tab, {
+    active: isActive,
+    onClick: () => {
+      if (isActive) {
+        canvas.focus();
+        draw();
+        return;
+      }
+      void switchOpenFileTab(tab.documentId);
+    },
+  }));
+
+  const closeButton = document.createElement("button");
+  closeButton.className = "file-tab-close";
+  closeButton.type = "button";
+  closeButton.textContent = "x";
+  closeButton.title = `Close ${tab.name}`;
+  closeButton.setAttribute("aria-label", `Close ${tab.name}`);
+  if (tab.documentId) closeButton.dataset.documentId = tab.documentId;
+  closeButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void closeOpenFileTab(tab.documentId);
+  });
+  row.append(closeButton);
+  return row;
 }
 
 function fileButton(entry, options = {}) {

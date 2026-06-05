@@ -171,6 +171,34 @@ button:disabled {
   font-weight: 650;
 }
 
+.file-tab-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.file-tab-row .file-button {
+  min-width: 0;
+}
+
+.file-tab-close {
+  width: 28px;
+  min-height: 56px;
+  margin: 4px 0;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.file-tab-close:hover,
+.file-tab-close:focus-visible {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, var(--panel));
+}
+
 .file-button,
 .empty-file-list {
   display: grid;

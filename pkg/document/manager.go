@@ -3179,6 +3179,20 @@ func (manager *Manager) Snapshot(id string) (*Session, bool) {
 	return manager.snapshot(id)
 }
 
+func (manager *Manager) Close(id string, force bool) (*Session, error) {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	session, ok := manager.sessions[id]
+	if !ok {
+		return nil, errors.New("document not found")
+	}
+	if session.Dirty && !force {
+		return nil, errors.New("document has unsaved changes")
+	}
+	delete(manager.sessions, id)
+	return cloneSession(session), nil
+}
+
 func (manager *Manager) ensureWritable(id string) error {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()

@@ -142,6 +142,81 @@ func TestServerSessionSnapshot(t *testing.T) {
 	}
 }
 
+func TestServerCloseProtectsDirtySession(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.csv")
+	second := filepath.Join(dir, "second.csv")
+	if err := os.WriteFile(first, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("id,name\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	firstPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        first,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	firstID := firstPayload["documentId"].(string)
+	secondPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        second,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	secondID := secondPayload["documentId"].(string)
+	_ = postJSON(t, handler, "/api/edit", map[string]any{
+		"documentId": firstID,
+		"row":        1,
+		"col":        1,
+		"value":      "Grace",
+	})
+
+	blockedResponse := postJSONResponse(t, handler, "/api/close", map[string]any{
+		"documentId": firstID,
+	})
+	if blockedResponse.Code != http.StatusBadRequest {
+		t.Fatalf("dirty close status = %d, want 400", blockedResponse.Code)
+	}
+	var blockedPayload map[string]any
+	if err := json.NewDecoder(blockedResponse.Body).Decode(&blockedPayload); err != nil {
+		t.Fatal(err)
+	}
+	if blockedPayload["error"] != "document has unsaved changes" {
+		t.Fatalf("dirty close payload = %#v", blockedPayload)
+	}
+	firstSession := getJSON(t, handler, "/api/session?id="+firstID)
+	if firstSession["dirty"] != true {
+		t.Fatalf("first session after blocked close = %#v", firstSession)
+	}
+
+	forcePayload := postJSON(t, handler, "/api/close", map[string]any{
+		"documentId": firstID,
+		"force":      true,
+	})
+	if forcePayload["closed"] != true || forcePayload["documentId"] != firstID || forcePayload["dirty"] != true {
+		t.Fatalf("force close payload = %#v", forcePayload)
+	}
+	missingRequest := httptest.NewRequest(http.MethodGet, "/api/session?id="+firstID, nil)
+	missingResponse := httptest.NewRecorder()
+	handler.ServeHTTP(missingResponse, missingRequest)
+	if missingResponse.Code != http.StatusBadRequest {
+		t.Fatalf("closed session status = %d, want 400", missingResponse.Code)
+	}
+
+	secondSession := getJSON(t, handler, "/api/session?id="+secondID)
+	if secondSession["documentId"] != secondID || secondSession["dirty"] != false {
+		t.Fatalf("second session after closing first = %#v", secondSession)
+	}
+	cleanPayload := postJSON(t, handler, "/api/close", map[string]any{
+		"documentId": secondID,
+	})
+	if cleanPayload["closed"] != true || cleanPayload["documentId"] != secondID || cleanPayload["dirty"] != false {
+		t.Fatalf("clean close payload = %#v", cleanPayload)
+	}
+}
+
 func TestServerOpenEditSavePreservesLateDetectedQuoteCell(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "late-quotes.csv")

@@ -635,6 +635,8 @@ The app shall support:
 - Start page with New File, Open, Settings, and recent files.
 - Recent files display with file name as primary label and path as secondary label.
 - Missing recent files are cleaned up automatically.
+- Open-file tabs with session-backed switching and Close Tab entry points from the sidebar and command palette.
+- Closing a dirty tab must protect unsaved edits unless the user explicitly chooses a discard path.
 - Split editor area into multiple tab groups arranged horizontally, vertically, or nested.
 - Move tabs between groups by drag/drop, tab context menu, and command palette actions.
 - Switch focus between editor groups by command.
@@ -648,6 +650,8 @@ The app shall support:
 Acceptance:
 
 - Relaunch restores window geometry and recent file list.
+- Closing a clean open-file tab removes that document session and switches to the next remaining tab or returns to the start surface.
+- Attempting to close a dirty open-file tab does not discard edits silently.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
 - Settings changed from defaults are visibly marked and can be reset.
 - Disabling automatic update checks prevents startup update network calls.

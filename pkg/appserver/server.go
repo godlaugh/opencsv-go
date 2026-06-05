@@ -52,6 +52,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/new", server.handleNew)
 	server.mux.HandleFunc("POST /api/upload-open", server.handleUploadOpen)
 	server.mux.HandleFunc("GET /api/session", server.handleSession)
+	server.mux.HandleFunc("POST /api/close", server.handleClose)
 	server.mux.HandleFunc("GET /api/window", server.handleWindow)
 	server.mux.HandleFunc("POST /api/edit", server.handleEdit)
 	server.mux.HandleFunc("POST /api/edit-batch", server.handleEditBatch)
@@ -319,6 +320,36 @@ func (server *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		"displayName": session.DisplayName,
 		"dirty":       session.Dirty,
 		"readOnly":    session.ReadOnly,
+	})
+}
+
+type closeRequest struct {
+	DocumentID string `json:"documentId"`
+	Force      bool   `json:"force,omitempty"`
+}
+
+func (server *Server) handleClose(w http.ResponseWriter, r *http.Request) {
+	var request closeRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.DocumentID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("documentId is required"))
+		return
+	}
+	session, err := server.documents.Close(request.DocumentID, request.Force)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"closed":      true,
+		"documentId":  session.ID,
+		"dirty":       session.Dirty,
+		"readOnly":    session.ReadOnly,
+		"sourceKind":  session.SourceKind,
+		"displayName": session.DisplayName,
 	})
 }
 
