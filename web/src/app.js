@@ -494,6 +494,17 @@ const localeCatalog = {
     "view.status.savedFilter": "Saved filter: {{name}}",
     "view.status.savedFilterNotFound": "Saved filter not found.",
     "view.status.deletedSavedFilter": "Deleted saved filter.",
+    "view.status.filterMatched": "Filter matched {{count}} rows",
+    "view.status.sqlFilterMatched": "SQL filter matched {{count}} rows",
+    "view.status.filterFailed": "Filter failed: {{message}}",
+    "view.status.sqlFilterFailed": "SQL filter failed: {{message}}",
+    "view.status.columnFilterMatched": "Filtered {{column}} matched {{count}} rows",
+    "view.status.blankFilterMatched": "Blank {{column}} matched {{count}} rows",
+    "view.status.nonblankFilterMatched": "Non-blank {{column}} matched {{count}} rows",
+    "view.status.selectedBlank": "Selected cell is blank.",
+    "view.status.chooseValueFilter": "Choose at least one value to filter.",
+    "view.status.valueFilterFailed": "Value filter failed: {{message}}",
+    "view.status.valueFilterMatched": "Value filter {{column}} matched {{count}} rows",
     "view.status.savedFilterMatched": "Saved filter matched {{count}} rows",
     "view.status.recentFilterNotFound": "Recent filter not found.",
     "view.status.recentFilterMatched": "Recent filter matched {{count}} rows",
@@ -503,6 +514,8 @@ const localeCatalog = {
     "view.status.savedSortNoColumns": "Saved sort has no matching columns.",
     "view.status.savedSortApplied": "Saved sort {{name}} applied: {{sort}}",
     "view.status.deletedSavedSort": "Deleted saved sort.",
+    "view.status.sorted": "Sorted {{sort}}",
+    "view.status.sortFailed": "Sort failed: {{message}}",
     "view.status.exportedSavedViews": "Exported {{filters}} filters, {{sorts}} sorts.",
     "view.status.importedSavedViews": "Imported {{filters}} filters, {{sorts}} sorts.",
     "view.status.savedViewImportFailed": "Saved view import failed: {{message}}",
@@ -1082,6 +1095,17 @@ const localeCatalog = {
     "view.status.savedFilter": "已保存筛选：{{name}}",
     "view.status.savedFilterNotFound": "未找到保存的筛选。",
     "view.status.deletedSavedFilter": "已删除保存的筛选。",
+    "view.status.filterMatched": "筛选匹配 {{count}} 行",
+    "view.status.sqlFilterMatched": "SQL 筛选匹配 {{count}} 行",
+    "view.status.filterFailed": "筛选失败：{{message}}",
+    "view.status.sqlFilterFailed": "SQL 筛选失败：{{message}}",
+    "view.status.columnFilterMatched": "已筛选 {{column}}，匹配 {{count}} 行",
+    "view.status.blankFilterMatched": "{{column}} 空值匹配 {{count}} 行",
+    "view.status.nonblankFilterMatched": "{{column}} 非空值匹配 {{count}} 行",
+    "view.status.selectedBlank": "选中单元格为空。",
+    "view.status.chooseValueFilter": "请至少选择一个筛选值。",
+    "view.status.valueFilterFailed": "值筛选失败：{{message}}",
+    "view.status.valueFilterMatched": "{{column}} 值筛选匹配 {{count}} 行",
     "view.status.savedFilterMatched": "保存的筛选匹配 {{count}} 行",
     "view.status.recentFilterNotFound": "未找到最近筛选。",
     "view.status.recentFilterMatched": "最近筛选匹配 {{count}} 行",
@@ -1091,6 +1115,8 @@ const localeCatalog = {
     "view.status.savedSortNoColumns": "保存的排序没有匹配列。",
     "view.status.savedSortApplied": "已应用保存的排序 {{name}}：{{sort}}",
     "view.status.deletedSavedSort": "已删除保存的排序。",
+    "view.status.sorted": "已排序：{{sort}}",
+    "view.status.sortFailed": "排序失败：{{message}}",
     "view.status.exportedSavedViews": "已导出 {{filters}} 个筛选、{{sorts}} 个排序。",
     "view.status.importedSavedViews": "已导入 {{filters}} 个筛选、{{sorts}} 个排序。",
     "view.status.savedViewImportFailed": "保存视图导入失败：{{message}}",
@@ -13096,6 +13122,10 @@ async function filterCurrentQuery() {
       : { documentId, query },
     useSQL ? "SQL filter" : "Filter",
     0,
+    {
+      failed: useSQL ? "view.status.sqlFilterFailed" : "view.status.filterFailed",
+      matched: useSQL ? "view.status.sqlFilterMatched" : "view.status.filterMatched",
+    },
   );
 }
 
@@ -13109,7 +13139,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col, statu
   if (!response.ok) {
     const message = payload.error ?? "unknown error";
     status.textContent = statusKeys.failed
-      ? tf(statusKeys.failed, { message })
+      ? tf(statusKeys.failed, { message, ...(statusKeys.values || {}) })
       : `${label} failed: ${message}`;
     return false;
   }
@@ -13134,7 +13164,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col, statu
   await maybeLoadWindow(0);
   const count = sourceRowCount.toLocaleString(localeLanguageTag());
   status.textContent = statusKeys.matched
-    ? tf(statusKeys.matched, { count })
+    ? tf(statusKeys.matched, { count, ...(statusKeys.values || {}) })
     : `${label} matched ${count} rows`;
   return true;
 }
@@ -13191,7 +13221,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "", opti
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Sort failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("view.status.sortFailed", { message: payload.error ?? "unknown error" });
     return false;
   }
   viewMapped = true;
@@ -13212,7 +13242,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "", opti
   await maybeLoadWindow(0);
   renderViewChips();
   document.body.dataset.sortStable = String(sortStable);
-  status.textContent = successMessage || `Sorted ${formatSortKeys(sortKeys)}`;
+  status.textContent = successMessage || tf("view.status.sorted", { sort: formatSortKeysLocalized(sortKeys) });
   return true;
 }
 
@@ -13314,14 +13344,20 @@ async function filterColumnBySelectedValue(column = activeCommandColumn()) {
   if (!documentId || !columns[column]) return;
   const value = valueAt(selected.row, column);
   if (value === "") {
-    status.textContent = "Selected cell is blank.";
+    status.textContent = t("view.status.selectedBlank");
     return;
   }
+  const columnName = columns[column].name;
   commandInput.value = value;
   await applyFilterRequest(
     { documentId, query: value, column: sourceColFor(column) },
-    `Filtered ${columns[column].name}`,
+    `Filtered ${columnName}`,
     column,
+    {
+      failed: "view.status.filterFailed",
+      matched: "view.status.columnFilterMatched",
+      values: { column: columnName },
+    },
   );
 }
 
@@ -13334,11 +13370,17 @@ async function filterColumnBlank(showBlank, column = activeCommandColumn()) {
   closeColumnMenu();
   if (!documentId || !columns[column]) return;
   const expression = `c${sourceColFor(column) + 1} ${showBlank ? "=" : "<>"} ''`;
+  const columnName = columns[column].name;
   commandInput.value = `where ${expression}`;
   await applyFilterRequest(
     { documentId, mode: "sql", expression },
-    showBlank ? `Blank ${columns[column].name}` : `Non-blank ${columns[column].name}`,
+    showBlank ? `Blank ${columnName}` : `Non-blank ${columnName}`,
     column,
+    {
+      failed: "view.status.sqlFilterFailed",
+      matched: showBlank ? "view.status.blankFilterMatched" : "view.status.nonblankFilterMatched",
+      values: { column: columnName },
+    },
   );
 }
 
@@ -13347,7 +13389,7 @@ async function applyColumnValueChecklist() {
   if (!documentId || !columns[column]) return;
   const checked = Array.from(columnMenuValues.querySelectorAll("input:checked"));
   if (!checked.length) {
-    status.textContent = "Choose at least one value to filter.";
+    status.textContent = t("view.status.chooseValueFilter");
     return;
   }
   const values = [];
@@ -13369,7 +13411,7 @@ async function applyColumnValueChecklist() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Value filter failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("view.status.valueFilterFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   viewMapped = true;
@@ -13391,7 +13433,10 @@ async function applyColumnValueChecklist() {
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(0);
-  status.textContent = `Value filter ${columns[column].name} matched ${sourceRowCount.toLocaleString()} rows`;
+  status.textContent = tf("view.status.valueFilterMatched", {
+    column: columns[column].name,
+    count: sourceRowCount.toLocaleString(localeLanguageTag()),
+  });
 }
 
 async function clearView() {

@@ -162,7 +162,7 @@ flowchart TD
 
 - `web Internationalization`
   - Locale catalog with English fallback and target locale entries for Japanese, French, Spanish, Italian, Simplified Chinese, Portuguese, Russian, German, and Korean.
-  - App chrome labels, start/recent file actions, settings headings, placeholders, active filter/sort chips, saved-view statuses, and idle status route through a translation helper instead of being fixed in rendering code.
+  - App chrome labels, start/recent file actions, settings headings, placeholders, active filter/sort chips, filter/sort statuses, saved-view statuses, and idle status route through a translation helper instead of being fixed in rendering code.
   - `document.documentElement.lang` and `body[data-locale]` mirror the active locale for accessibility and Browser verification.
 
 - `web Start / Recent Files`
