@@ -73,6 +73,7 @@ type Issue struct {
 type QuickFix struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+	Value string `json:"value,omitempty"`
 }
 
 type RecordStream func(ctx context.Context, handle func(row int, record []string) error) (int, error)
@@ -744,23 +745,31 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 		}}
 	}
 	if rule.Min != nil && number < *rule.Min {
+		target := formatRuleNumber(*rule.Min)
 		return []Issue{{
 			Type:     "schema-range",
 			Severity: "error",
 			Row:      row + 1,
 			Col:      col + 1,
 			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is below schema minimum %s.", raw, formatRuleNumber(*rule.Min)),
+			Message:  fmt.Sprintf("Value %q is below schema minimum %s.", raw, target),
+			QuickFixes: []QuickFix{
+				{ID: "schema.range.clampMin", Label: "Use minimum", Value: target},
+			},
 		}}
 	}
 	if rule.Max != nil && number > *rule.Max {
+		target := formatRuleNumber(*rule.Max)
 		return []Issue{{
 			Type:     "schema-range",
 			Severity: "error",
 			Row:      row + 1,
 			Col:      col + 1,
 			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is above schema maximum %s.", raw, formatRuleNumber(*rule.Max)),
+			Message:  fmt.Sprintf("Value %q is above schema maximum %s.", raw, target),
+			QuickFixes: []QuickFix{
+				{ID: "schema.range.clampMax", Label: "Use maximum", Value: target},
+			},
 		}}
 	}
 	return nil

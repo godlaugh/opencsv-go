@@ -594,6 +594,7 @@ Acceptance:
 - Problems panel lists issue type, row, column, message.
 - Clicking issue navigates to location.
 - Safe quick fixes can repair straightforward structural issues such as empty generated headers and short ragged rows without guessing semantic data changes.
+- Safe semantic quick fixes may repair deterministic schema violations when the schema itself supplies the replacement target, such as clamping a numeric range violation to the declared minimum or maximum.
 
 ### FR-015 Clipboard and Export
 

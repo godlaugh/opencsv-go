@@ -804,6 +804,8 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "Fill Header",
     "profile.quickFix.header.unique": "Make Unique",
     "profile.quickFix.row.pad": "Pad Row",
+    "profile.quickFix.schema.range.clampMin": "Use Minimum",
+    "profile.quickFix.schema.range.clampMax": "Use Maximum",
     "profile.summary.status": "Status",
     "profile.summary.rows": "Rows",
     "profile.summary.columns": "Columns",
@@ -1340,6 +1342,8 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "填充表头",
     "profile.quickFix.header.unique": "设为唯一",
     "profile.quickFix.row.pad": "补齐行",
+    "profile.quickFix.schema.range.clampMin": "使用最小值",
+    "profile.quickFix.schema.range.clampMax": "使用最大值",
     "profile.summary.status": "状态",
     "profile.summary.rows": "行",
     "profile.summary.columns": "列",
@@ -15727,7 +15731,7 @@ function renderProfileIssues(issues) {
       button.textContent = profileQuickFixLabel(fix);
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        void applyProfileQuickFix(issue, fix.id);
+        void applyProfileQuickFix(issue, fix);
       });
       fixCell.append(button);
     }
@@ -15786,7 +15790,8 @@ async function navigateToProfileIssue(issue) {
   });
 }
 
-function profileQuickFixEdits(issue, fixID) {
+function profileQuickFixEdits(issue, fix) {
+  const fixID = typeof fix === "string" ? fix : fix?.id;
   if (fixID === "header.fill" && issue?.col) {
     const col = Number(issue.col) - 1;
     return [{ row: 0, col, value: `Column ${Number(issue.col)}` }];
@@ -15802,6 +15807,14 @@ function profileQuickFixEdits(issue, fixID) {
       edits.push({ row, col, value: "" });
     }
     return edits;
+  }
+  if (
+    (fixID === "schema.range.clampMin" || fixID === "schema.range.clampMax") &&
+    issue?.row &&
+    issue?.col &&
+    typeof fix?.value === "string"
+  ) {
+    return [{ row: Number(issue.row) - 1, col: Number(issue.col) - 1, value: fix.value }];
   }
   return [];
 }
@@ -15831,12 +15844,13 @@ function renameSourceColumn(sourceCol, name) {
   }
 }
 
-async function applyProfileQuickFix(issue, fixID) {
+async function applyProfileQuickFix(issue, fix) {
   if (!documentId || readOnly) {
     status.textContent = readOnly ? t("profile.quickFix.readOnly") : t("profile.quickFix.noFile");
     return;
   }
-  const edits = profileQuickFixEdits(issue, fixID);
+  const fixID = typeof fix === "string" ? fix : fix?.id;
+  const edits = profileQuickFixEdits(issue, fix);
   if (!edits.length) {
     status.textContent = t("profile.quickFix.unavailable");
     return;

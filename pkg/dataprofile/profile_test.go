@@ -186,6 +186,50 @@ func TestAnalyzeWithSchemaRules(t *testing.T) {
 			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
 		}
 	}
+	rangeIssue := issueByType(result.Issues, "schema-range")
+	if rangeIssue == nil || len(rangeIssue.QuickFixes) != 1 {
+		t.Fatalf("schema range quick fix = %#v, want one clamp fix", rangeIssue)
+	}
+	if rangeIssue.QuickFixes[0].ID != "schema.range.clampMax" || rangeIssue.QuickFixes[0].Value != "100" {
+		t.Fatalf("schema range quick fix = %#v, want clampMax to 100", rangeIssue.QuickFixes)
+	}
+}
+
+func TestAnalyzeWithSchemaRangeQuickFixes(t *testing.T) {
+	minScore := 0.0
+	maxScore := 10.0
+	result := AnalyzeWithSchema([][]string{
+		{"score"},
+		{"-1"},
+		{"11"},
+		{"bad"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "score", Type: "number", Min: &minScore, Max: &maxScore},
+	}})
+	var clampMin, clampMax, nonNumeric *Issue
+	for i := range result.Issues {
+		issue := &result.Issues[i]
+		if issue.Type != "schema-range" {
+			continue
+		}
+		switch issue.Row {
+		case 2:
+			clampMin = issue
+		case 3:
+			clampMax = issue
+		case 4:
+			nonNumeric = issue
+		}
+	}
+	if clampMin == nil || len(clampMin.QuickFixes) != 1 || clampMin.QuickFixes[0].ID != "schema.range.clampMin" || clampMin.QuickFixes[0].Value != "0" {
+		t.Fatalf("min range issue = %#v, want clampMin to 0", clampMin)
+	}
+	if clampMax == nil || len(clampMax.QuickFixes) != 1 || clampMax.QuickFixes[0].ID != "schema.range.clampMax" || clampMax.QuickFixes[0].Value != "10" {
+		t.Fatalf("max range issue = %#v, want clampMax to 10", clampMax)
+	}
+	if nonNumeric == nil || len(nonNumeric.QuickFixes) != 0 {
+		t.Fatalf("non-numeric range issue = %#v, want no semantic quick fix", nonNumeric)
+	}
 }
 
 func TestAnalyzeWithSchemaStringLengthRules(t *testing.T) {

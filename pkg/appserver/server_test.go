@@ -2312,6 +2312,18 @@ func TestServerProfileAcceptsSchemaRules(t *testing.T) {
 			t.Fatalf("expected %s issue in %#v", typ, issues)
 		}
 	}
+	rangeIssue := jsonIssueByType(issues, "schema-range")
+	if rangeIssue == nil {
+		t.Fatalf("expected schema-range issue in %#v", issues)
+	}
+	quickFixes, ok := rangeIssue["quickFixes"].([]any)
+	if !ok || len(quickFixes) != 1 {
+		t.Fatalf("schema-range quick fixes = %#v, want one fix", rangeIssue["quickFixes"])
+	}
+	quickFix, ok := quickFixes[0].(map[string]any)
+	if !ok || quickFix["id"] != "schema.range.clampMax" || quickFix["value"] != "100" {
+		t.Fatalf("schema-range quick fix = %#v, want clampMax to 100", quickFixes[0])
+	}
 }
 
 func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
@@ -3197,13 +3209,17 @@ func getJSON(t *testing.T, handler http.Handler, path string) map[string]any {
 }
 
 func jsonIssuesContainType(issues []any, typ string) bool {
+	return jsonIssueByType(issues, typ) != nil
+}
+
+func jsonIssueByType(issues []any, typ string) map[string]any {
 	for _, raw := range issues {
 		issue, ok := raw.(map[string]any)
 		if ok && issue["type"] == typ {
-			return true
+			return issue
 		}
 	}
-	return false
+	return nil
 }
 
 func jsonTopValuesContain(values []any, want string) bool {
