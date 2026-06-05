@@ -140,6 +140,7 @@ const diffSummary = document.querySelector("#diffSummary");
 const diffResult = document.querySelector("#diffResult");
 const profilePanel = document.querySelector("#profilePanel");
 const runProfileButton = document.querySelector("#runProfileButton");
+const cancelProfileButton = document.querySelector("#cancelProfileButton");
 const toggleProfileSchemaButton = document.querySelector("#toggleProfileSchemaButton");
 const saveProfileSchemaButton = document.querySelector("#saveProfileSchemaButton");
 const resetProfileSchemaButton = document.querySelector("#resetProfileSchemaButton");
@@ -813,6 +814,7 @@ const localeCatalog = {
     "profile.columns.loading": "Profiling columns...",
     "profile.issues.loading": "Checking data quality...",
     "profile.status.running": "Profiling data...",
+    "profile.status.canceled": "Profile canceled.",
     "profile.status.complete": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues",
     "profile.status.failed": "Profile failed: {{message}}",
     "profile.status.initialColumns": "Run Profile to inspect columns.",
@@ -1345,6 +1347,7 @@ const localeCatalog = {
     "profile.columns.loading": "正在分析列...",
     "profile.issues.loading": "正在检查数据质量...",
     "profile.status.running": "正在分析数据...",
+    "profile.status.canceled": "概况已取消。",
     "profile.status.complete": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题",
     "profile.status.failed": "概况失败：{{message}}",
     "profile.status.initialColumns": "运行概况以检查列。",
@@ -1781,6 +1784,7 @@ let sqlResultSelectionAnchor = null;
 let sqlResultSelectionRange = null;
 let sqlResultContextTarget = null;
 let profileLoading = false;
+let activeProfileController = null;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let savedProfileSchemasState = loadSavedProfileSchemas();
@@ -15123,23 +15127,59 @@ function profileTypeLabel(type) {
   return translationOrEmpty(`profile.type.${type}`) || String(type || "");
 }
 
+function startProfileProgress() {
+  if (activeProfileController) activeProfileController.abort();
+  activeProfileController = new AbortController();
+  profileLoading = true;
+  runProfileButton.disabled = true;
+  cancelProfileButton.hidden = false;
+  cancelProfileButton.disabled = false;
+  document.body.dataset.profileProgress = "running";
+  status.textContent = t("profile.status.running");
+  return activeProfileController;
+}
+
+function finishProfileProgress(controller) {
+  if (activeProfileController !== controller) return;
+  activeProfileController = null;
+  profileLoading = false;
+  runProfileButton.disabled = false;
+  cancelProfileButton.hidden = true;
+  cancelProfileButton.disabled = true;
+  if (document.body.dataset.profileProgress === "running") {
+    document.body.dataset.profileProgress = "idle";
+  }
+}
+
+function cancelProfileRequest() {
+  if (!activeProfileController) return;
+  activeProfileController.abort();
+  activeProfileController = null;
+  profileLoading = false;
+  runProfileButton.disabled = false;
+  cancelProfileButton.hidden = true;
+  cancelProfileButton.disabled = true;
+  document.body.dataset.profileProgress = "canceled";
+  status.textContent = t("profile.status.canceled");
+}
+
 async function loadProfile(force = false) {
   if (!documentId || profileLoading) return;
   if (profileData && !force) {
     renderProfile(profileData);
     return;
   }
-  profileLoading = true;
+  const controller = startProfileProgress();
   profileSummary.replaceChildren(summaryNode(t("profile.summary.status"), t("profile.loading")));
   profileColumns.replaceChildren(emptyProfileNode(t("profile.columns.loading")));
   profileIssues.replaceChildren(emptyProfileNode(t("profile.issues.loading")));
-  status.textContent = t("profile.status.running");
   try {
     const schema = activeProfileSchema();
     syncProfileSchemaControls();
     const response = await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({ documentId, schema }),
     });
     const payload = await response.json();
@@ -15154,11 +15194,18 @@ async function loadProfile(force = false) {
       issues: formatCount(payload.issues?.length ?? 0),
     });
   } catch (error) {
+    if (error.name === "AbortError") {
+      if (!activeProfileController || activeProfileController === controller) {
+        document.body.dataset.profileProgress = "canceled";
+        status.textContent = t("profile.status.canceled");
+      }
+      return;
+    }
     status.textContent = tf("profile.status.failed", { message: error.message });
     profileColumns.replaceChildren(emptyProfileNode(error.message));
     profileIssues.replaceChildren(emptyProfileNode(t("profile.empty.noValidation")));
   } finally {
-    profileLoading = false;
+    finishProfileProgress(controller);
   }
 }
 
@@ -16814,6 +16861,7 @@ sqlTabButton.addEventListener("click", () => {
 });
 profileTabButton.addEventListener("click", openProfilePanel);
 runProfileButton.addEventListener("click", () => loadProfile(true));
+cancelProfileButton.addEventListener("click", cancelProfileRequest);
 toggleProfileSchemaButton.addEventListener("click", toggleProfileSchemaEditor);
 profileSchemaInput.addEventListener("input", updateProfileSchemaDraft);
 saveProfileSchemaButton.addEventListener("click", saveProfileSchema);

@@ -2216,6 +2216,44 @@ func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
 	}
 }
 
+func TestServerProfileUsesRequestContextCancellation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile-cancel.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 1,
+		"indexRows":   0,
+	})
+	body, err := json.Marshal(map[string]any{
+		"documentId": openPayload["documentId"].(string),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/profile", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled profile status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled profile payload = %#v, want context canceled", payload)
+	}
+}
+
 func TestServerProfileAcceptsCSVLintSchema(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "csvlint-schema.csv")
