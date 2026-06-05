@@ -548,6 +548,16 @@ const localeCatalog = {
     "column.clearView": "Clear filter/sort",
     "column.filterSelected": "Filter by selected value",
     "column.filterValue": "Filter: {{value}}",
+    "text.mode.trim": "Trim",
+    "text.mode.upper": "Uppercase",
+    "text.mode.lower": "Lowercase",
+    "text.mode.snake": "Snake Case",
+    "text.mode.kebab": "Kebab Case",
+    "text.mode.camel": "Camel Case",
+    "text.mode.pascal": "Pascal Case",
+    "text.mode.title": "Title Case",
+    "text.mode.wide": "Full Width",
+    "text.mode.narrow": "Half Width",
     "edit.find": "Find",
     "edit.preview": "Preview",
     "edit.replace": "Replace",
@@ -1168,6 +1178,16 @@ const localeCatalog = {
     "column.clearView": "清除筛选/排序",
     "column.filterSelected": "按选中值筛选",
     "column.filterValue": "筛选：{{value}}",
+    "text.mode.trim": "修剪",
+    "text.mode.upper": "转大写",
+    "text.mode.lower": "转小写",
+    "text.mode.snake": "蛇形命名",
+    "text.mode.kebab": "短横线命名",
+    "text.mode.camel": "驼峰命名",
+    "text.mode.pascal": "帕斯卡命名",
+    "text.mode.title": "标题大小写",
+    "text.mode.wide": "全角",
+    "text.mode.narrow": "半角",
     "edit.find": "查找",
     "edit.preview": "预览",
     "edit.replace": "替换",
@@ -2385,7 +2405,10 @@ function applyLocaleStrings() {
   if (stableSortLabel) stableSortLabel.textContent = t("column.stableSort");
   const transformLabel = columnTransformMode?.closest("label")?.querySelector("span");
   if (transformLabel) transformLabel.textContent = t("column.textTransform");
-  if (columnTransformMode) columnTransformMode.setAttribute("aria-label", t("column.textTransform"));
+  if (columnTransformMode) {
+    columnTransformMode.setAttribute("aria-label", t("column.textTransform"));
+    applyColumnTransformOptionLabels();
+  }
   if (columnTransformApply) columnTransformApply.textContent = t("column.applyTransform");
   if (columnMenuValues) columnMenuValues.setAttribute("aria-label", t("column.values"));
   if (columnApplyValues) columnApplyValues.textContent = t("column.applyValues");
@@ -2406,6 +2429,14 @@ function applyLocaleStrings() {
     status.textContent = t("status.ready");
   }
   document.body.dataset.localeLabel = localeLabel();
+}
+
+function applyColumnTransformOptionLabels() {
+  if (!columnTransformMode) return;
+  for (const option of columnTransformMode.options) {
+    const label = translationOrEmpty(`text.mode.${option.value}`);
+    if (label) option.textContent = label;
+  }
 }
 
 function applyDataI18n(root = document) {
