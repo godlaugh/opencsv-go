@@ -1888,6 +1888,46 @@ func TestServerFilterContainsStreamsCleanFile(t *testing.T) {
 	}
 }
 
+func TestServerValueChecklistStreamsCleanFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "value-filter-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region\n1,APAC\n2,EU\n3,\n4,APAC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	valuesPayload := getJSON(t, handler, "/api/column-values?id="+documentID+"&column=1&limit=10")
+	if valuesPayload["streamed"] != true || valuesPayload["totalDistinct"] != float64(3) {
+		t.Fatalf("column values payload = %#v, want streamed three distinct values", valuesPayload)
+	}
+	values := valuesPayload["values"].([]any)
+	if len(values) != 3 || values[0].(map[string]any)["value"] != "APAC" || values[2].(map[string]any)["blank"] != true {
+		t.Fatalf("column values = %#v, want APAC first and blank last", values)
+	}
+
+	filterPayload := postJSON(t, handler, "/api/filter-values", map[string]any{
+		"documentId":   documentID,
+		"column":       1,
+		"values":       []string{"APAC"},
+		"includeBlank": true,
+	})
+	if filterPayload["totalRows"] != float64(3) || filterPayload["streamed"] != true {
+		t.Fatalf("value filter payload = %#v, want streamed APAC plus blank rows", filterPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 3 || rows[0].([]any)[1] != "APAC" || rows[1].([]any)[1] != "" || rows[2].([]any)[0] != "4" {
+		t.Fatalf("streamed value-filter window = %#v", rows)
+	}
+}
+
 func TestServerFilterUsesRequestContextCancellation(t *testing.T) {
 	body, err := json.Marshal(map[string]any{
 		"query": "APAC",
@@ -1912,6 +1952,54 @@ func TestServerFilterUsesRequestContextCancellation(t *testing.T) {
 	}
 	if !strings.Contains(payload["error"].(string), "context canceled") {
 		t.Fatalf("canceled filter payload = %#v, want context canceled", payload)
+	}
+}
+
+func TestServerValueFilterUsesRequestContextCancellation(t *testing.T) {
+	body, err := json.Marshal(map[string]any{
+		"column": 1,
+		"values": []string{"APAC"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodPost, "/api/filter-values", bytes.NewReader(body)).WithContext(ctx)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled value-filter status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled value-filter payload = %#v, want context canceled", payload)
+	}
+}
+
+func TestServerColumnValuesUsesRequestContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request := httptest.NewRequest(http.MethodGet, "/api/column-values?id=missing&column=1", nil).WithContext(ctx)
+	response := httptest.NewRecorder()
+
+	New(t.TempDir()).Handler().ServeHTTP(response, request)
+
+	if response.Code != statusClientClosedRequest {
+		t.Fatalf("canceled column-values status = %d, want %d", response.Code, statusClientClosedRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "context canceled") {
+		t.Fatalf("canceled column-values payload = %#v, want context canceled", payload)
 	}
 }
 

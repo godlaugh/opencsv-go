@@ -532,6 +532,10 @@ func TestFilterURLBootAndStreamingMarkerIsWired(t *testing.T) {
 		`params.get("filterRun")`,
 		"document.body.dataset.filterUrlBoot",
 		"document.body.dataset.filterStreamed",
+		"document.body.dataset.columnValuesStreamed",
+		"document.body.dataset.valueFilterStreamed",
+		`"/api/filter-values"`,
+		`/api/column-values?id=`,
 		"await filterCurrentQuery()",
 	} {
 		if !strings.Contains(source, snippet) {

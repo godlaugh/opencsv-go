@@ -9482,6 +9482,7 @@ async function loadColumnMenuValues(col) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "column values failed");
     if (columnMenuColumn !== col || columnMenu.hidden) return;
+    document.body.dataset.columnValuesStreamed = String(Boolean(payload.streamed));
     renderColumnMenuValues(payload.values ?? [], payload.totalDistinct ?? 0);
   } catch (error) {
     columnMenuValues.replaceChildren();
@@ -12834,6 +12835,7 @@ async function applyColumnValueChecklist() {
     return;
   }
   viewMapped = true;
+  document.body.dataset.valueFilterStreamed = String(Boolean(payload.streamed));
   sortDescending = false;
   sortKeys = [];
   const descriptor = valueFilterDescriptor(sourceCol, values, includeBlank);

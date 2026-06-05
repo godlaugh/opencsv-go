@@ -2022,6 +2022,12 @@ type ColumnValue struct {
 	Blank bool   `json:"blank"`
 }
 
+type ColumnValuesResult struct {
+	Values        []ColumnValue `json:"values"`
+	TotalDistinct int           `json:"totalDistinct"`
+	Streamed      bool          `json:"streamed,omitempty"`
+}
+
 type ValueFilterOptions struct {
 	Column       int      `json:"column"`
 	Values       []string `json:"values"`
@@ -2084,6 +2090,10 @@ func (manager *Manager) FilterContainsDetailedContext(ctx context.Context, id st
 }
 
 func canStreamContainsFilter(session *Session) bool {
+	return canStreamCleanSession(session)
+}
+
+func canStreamCleanSession(session *Session) bool {
 	return session.EditBaseRecords == nil &&
 		len(session.Edits) == 0 &&
 		csvcore.CanStreamRecords(session.Document.Metadata)
@@ -2229,29 +2239,85 @@ func isASCIIDigit(value rune) bool {
 }
 
 func (manager *Manager) ColumnValues(id string, column int, limit int) ([]ColumnValue, int, error) {
+	result, err := manager.ColumnValuesContext(context.Background(), id, column, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return result.Values, result.TotalDistinct, nil
+}
+
+func (manager *Manager) ColumnValuesContext(ctx context.Context, id string, column int, limit int) (ColumnValuesResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if column < 0 {
-		return nil, 0, errors.New("column must be non-negative")
+		return ColumnValuesResult{}, errors.New("column must be non-negative")
 	}
 	if limit <= 0 {
 		limit = 50
 	}
+	if err := ctx.Err(); err != nil {
+		return ColumnValuesResult{}, err
+	}
 	session, ok := manager.snapshot(id)
 	if !ok {
-		return nil, 0, errors.New("document not found")
+		return ColumnValuesResult{}, errors.New("document not found")
+	}
+	if canStreamCleanSession(session) {
+		return columnValuesInStream(ctx, session, column, limit)
 	}
 	records, err := recordsForSession(session)
 	if err != nil {
-		return nil, 0, err
+		return ColumnValuesResult{}, err
 	}
+	counts, err := columnValueCountsFromRecords(ctx, records, session.Document.Metadata, column)
+	if err != nil {
+		return ColumnValuesResult{}, err
+	}
+	return columnValuesResultFromCounts(counts, limit, false), nil
+}
 
+func columnValuesInStream(ctx context.Context, session *Session, column int, limit int) (ColumnValuesResult, error) {
 	start := 0
 	if session.Document.Metadata.Dialect.HasHeader {
 		start = 1
 	}
 	counts := make(map[string]int)
+	_, err := csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, func(row int, record []string) error {
+		if row < start {
+			return nil
+		}
+		counts[cellValue(record, column)]++
+		return nil
+	})
+	if err != nil {
+		return ColumnValuesResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return ColumnValuesResult{}, err
+	}
+	return columnValuesResultFromCounts(counts, limit, true), nil
+}
+
+func columnValueCountsFromRecords(ctx context.Context, records [][]string, metadata csvcore.FileMetadata, column int) (map[string]int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	start := 0
+	if metadata.Dialect.HasHeader {
+		start = 1
+	}
+	counts := make(map[string]int)
 	for row := start; row < len(records); row++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		counts[cellValue(records[row], column)]++
 	}
+	return counts, nil
+}
+
+func columnValuesResultFromCounts(counts map[string]int, limit int, streamed bool) ColumnValuesResult {
 	values := make([]ColumnValue, 0, len(counts))
 	for value, count := range counts {
 		values = append(values, ColumnValue{Value: value, Count: count, Blank: value == ""})
@@ -2266,29 +2332,41 @@ func (manager *Manager) ColumnValues(id string, column int, limit int) ([]Column
 	if len(values) > limit {
 		values = values[:limit]
 	}
-	return values, totalDistinct, nil
+	return ColumnValuesResult{Values: values, TotalDistinct: totalDistinct, Streamed: streamed}
 }
 
 func (manager *Manager) FilterValues(id string, options ValueFilterOptions) (int, error) {
-	if options.Column < 0 {
-		return 0, errors.New("column must be non-negative")
-	}
-	session, ok := manager.snapshot(id)
-	if !ok {
-		return 0, errors.New("document not found")
-	}
-	records, err := recordsForSession(session)
+	result, err := manager.FilterValuesDetailedContext(context.Background(), id, options)
 	if err != nil {
 		return 0, err
 	}
+	return result.TotalRows, nil
+}
 
-	selected := make(map[string]bool, len(options.Values))
-	for _, value := range options.Values {
-		if value == "" {
-			options.IncludeBlank = true
-			continue
-		}
-		selected[value] = true
+func (manager *Manager) FilterValuesDetailedContext(ctx context.Context, id string, options ValueFilterOptions) (FilterResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if options.Column < 0 {
+		return FilterResult{}, errors.New("column must be non-negative")
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return FilterResult{}, errors.New("document not found")
+	}
+	selected, includeBlank := selectedValueFilterSet(options)
+	if canStreamCleanSession(session) {
+		return manager.filterValuesInStream(ctx, id, session, options.Column, selected, includeBlank)
+	}
+	records, err := recordsForSession(session)
+	if err != nil {
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
 	}
 	start := 0
 	if session.Document.Metadata.Dialect.HasHeader {
@@ -2296,21 +2374,56 @@ func (manager *Manager) FilterValues(id string, options ValueFilterOptions) (int
 	}
 	viewRows := make([]int, 0)
 	for row := start; row < len(records); row++ {
+		if err := ctx.Err(); err != nil {
+			return FilterResult{}, err
+		}
 		value := cellValue(records[row], options.Column)
-		if (value == "" && options.IncludeBlank) || selected[value] {
+		if valueFilterMatches(value, selected, includeBlank) {
 			viewRows = append(viewRows, row)
 		}
 	}
+	return manager.applyFilterViewRows(id, viewRows, false)
+}
 
-	manager.mu.Lock()
-	defer manager.mu.Unlock()
-	current, ok := manager.sessions[id]
-	if !ok {
-		return 0, errors.New("document not found")
+func selectedValueFilterSet(options ValueFilterOptions) (map[string]bool, bool) {
+	selected := make(map[string]bool, len(options.Values))
+	includeBlank := options.IncludeBlank
+	for _, value := range options.Values {
+		if value == "" {
+			includeBlank = true
+			continue
+		}
+		selected[value] = true
 	}
-	current.ViewRows = viewRows
-	current.ViewActive = true
-	return len(viewRows), nil
+	return selected, includeBlank
+}
+
+func (manager *Manager) filterValuesInStream(ctx context.Context, id string, session *Session, column int, selected map[string]bool, includeBlank bool) (FilterResult, error) {
+	viewRows := make([]int, 0)
+	start := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		start = 1
+	}
+	_, err := csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, func(row int, record []string) error {
+		if row < start {
+			return nil
+		}
+		if valueFilterMatches(cellValue(record, column), selected, includeBlank) {
+			viewRows = append(viewRows, row)
+		}
+		return nil
+	})
+	if err != nil {
+		return FilterResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return FilterResult{}, err
+	}
+	return manager.applyFilterViewRows(id, viewRows, true)
+}
+
+func valueFilterMatches(value string, selected map[string]bool, includeBlank bool) bool {
+	return (value == "" && includeBlank) || selected[value]
 }
 
 func (manager *Manager) FilterSQL(id string, expression string) (int, error) {

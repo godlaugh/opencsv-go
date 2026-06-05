@@ -217,6 +217,64 @@ func TestManagerColumnValuesNaturalSort(t *testing.T) {
 	}
 }
 
+func TestManagerValueChecklistStreamsCleanFileOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "value-filter-stream.csv")
+	contents := []byte("id,region\n1,APAC\n2,EU\n3,\n4,APAC\n")
+	if err := os.WriteFile(path, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "value-filter-stream.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, err := manager.ColumnValuesContext(context.Background(), session.ID, 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !values.Streamed || values.TotalDistinct != 3 {
+		t.Fatalf("column values result = %#v, want streamed three distinct values", values)
+	}
+	if len(values.Values) != 3 || values.Values[0].Value != "APAC" || values.Values[0].Count != 2 || !values.Values[2].Blank {
+		t.Fatalf("column values = %#v, want APAC count first and blank last", values.Values)
+	}
+
+	filtered, err := manager.FilterValuesDetailedContext(context.Background(), session.ID, ValueFilterOptions{Column: 1, Values: []string{"APAC", ""}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filtered.Streamed || filtered.TotalRows != 3 {
+		t.Fatalf("value filter result = %#v, want streamed APAC plus blank rows", filtered)
+	}
+	window, err := manager.Window(session.ID, 0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(window.Rows) != 3 || window.Rows[0][1] != "APAC" || window.Rows[1][1] != "" || window.Rows[2][0] != "4" {
+		t.Fatalf("streamed value-filter window = %#v", window.Rows)
+	}
+
+	if err := manager.Edit(session.ID, 2, 1, "LATAM"); err != nil {
+		t.Fatal(err)
+	}
+	editedValues, err := manager.ColumnValuesContext(context.Background(), session.ID, 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if editedValues.Streamed {
+		t.Fatalf("edited column values streamed = true, want materialized fallback")
+	}
+	editedFilter, err := manager.FilterValuesDetailedContext(context.Background(), session.ID, ValueFilterOptions{Column: 1, Values: []string{"LATAM"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if editedFilter.Streamed || editedFilter.TotalRows != 1 {
+		t.Fatalf("edited value filter result = %#v, want materialized edited match", editedFilter)
+	}
+}
+
 func TestManagerSetHeaderModeUpdatesStructureWithoutDirtying(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "header.csv")

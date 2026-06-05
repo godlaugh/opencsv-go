@@ -1279,15 +1279,12 @@ func (server *Server) handleColumnValues(w http.ResponseWriter, r *http.Request)
 	id := r.URL.Query().Get("id")
 	column := queryInt(r, "column", -1)
 	limit := queryInt(r, "limit", 50)
-	values, totalDistinct, err := server.documents.ColumnValues(id, column, limit)
+	result, err := server.documents.ColumnValuesContext(r.Context(), id, column, limit)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"values":        values,
-		"totalDistinct": totalDistinct,
-	})
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (server *Server) handleFilterValues(w http.ResponseWriter, r *http.Request) {
@@ -1296,16 +1293,16 @@ func (server *Server) handleFilterValues(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	count, err := server.documents.FilterValues(request.DocumentID, docstore.ValueFilterOptions{
+	result, err := server.documents.FilterValuesDetailedContext(r.Context(), request.DocumentID, docstore.ValueFilterOptions{
 		Column:       request.Column,
 		Values:       request.Values,
 		IncludeBlank: request.IncludeBlank,
 	})
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"totalRows": count})
+	writeJSON(w, http.StatusOK, result)
 }
 
 type sortRequest struct {
