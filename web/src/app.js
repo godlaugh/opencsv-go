@@ -814,8 +814,11 @@ const localeCatalog = {
     "profile.columns.loading": "Profiling columns...",
     "profile.issues.loading": "Checking data quality...",
     "profile.status.running": "Profiling data...",
+    "profile.status.runningElapsed": "Profiling data... {{seconds}}s",
     "profile.status.canceled": "Profile canceled.",
+    "profile.status.canceledElapsed": "Profile canceled after {{seconds}}s.",
     "profile.status.complete": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues",
+    "profile.status.completeTimed": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues in {{seconds}}s",
     "profile.status.failed": "Profile failed: {{message}}",
     "profile.status.initialColumns": "Run Profile to inspect columns.",
     "profile.status.initialIssues": "No validation issues loaded.",
@@ -1347,8 +1350,11 @@ const localeCatalog = {
     "profile.columns.loading": "正在分析列...",
     "profile.issues.loading": "正在检查数据质量...",
     "profile.status.running": "正在分析数据...",
+    "profile.status.runningElapsed": "正在分析数据... {{seconds}} 秒",
     "profile.status.canceled": "概况已取消。",
+    "profile.status.canceledElapsed": "概况已在 {{seconds}} 秒后取消。",
     "profile.status.complete": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题",
+    "profile.status.completeTimed": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题，用时 {{seconds}} 秒",
     "profile.status.failed": "概况失败：{{message}}",
     "profile.status.initialColumns": "运行概况以检查列。",
     "profile.status.initialIssues": "没有加载验证问题。",
@@ -1785,6 +1791,8 @@ let sqlResultSelectionRange = null;
 let sqlResultContextTarget = null;
 let profileLoading = false;
 let activeProfileController = null;
+let profileProgressTimer = 0;
+let profileProgressStartedAt = 0;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let savedProfileSchemasState = loadSavedProfileSchemas();
@@ -15130,17 +15138,42 @@ function profileTypeLabel(type) {
 function startProfileProgress() {
   if (activeProfileController) activeProfileController.abort();
   activeProfileController = new AbortController();
+  if (profileProgressTimer) window.clearInterval(profileProgressTimer);
+  profileProgressStartedAt = performance.now();
   profileLoading = true;
   runProfileButton.disabled = true;
   cancelProfileButton.hidden = false;
   cancelProfileButton.disabled = false;
   document.body.dataset.profileProgress = "running";
-  status.textContent = t("profile.status.running");
+  document.body.dataset.profileElapsedMs = "0";
+  updateProfileProgressStatus();
+  profileProgressTimer = window.setInterval(updateProfileProgressStatus, 250);
   return activeProfileController;
+}
+
+function updateProfileProgressStatus() {
+  const elapsed = profileElapsedMs();
+  document.body.dataset.profileElapsedMs = String(Math.round(elapsed));
+  status.textContent = tf("profile.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
+}
+
+function profileElapsedMs() {
+  return profileProgressStartedAt ? Math.max(0, performance.now() - profileProgressStartedAt) : 0;
+}
+
+function stopProfileProgressTimer() {
+  if (profileProgressTimer) {
+    window.clearInterval(profileProgressTimer);
+    profileProgressTimer = 0;
+  }
+  const elapsed = profileElapsedMs();
+  document.body.dataset.profileElapsedMs = String(Math.round(elapsed));
+  return elapsed;
 }
 
 function finishProfileProgress(controller) {
   if (activeProfileController !== controller) return;
+  stopProfileProgressTimer();
   activeProfileController = null;
   profileLoading = false;
   runProfileButton.disabled = false;
@@ -15154,13 +15187,14 @@ function finishProfileProgress(controller) {
 function cancelProfileRequest() {
   if (!activeProfileController) return;
   activeProfileController.abort();
+  const elapsed = stopProfileProgressTimer();
   activeProfileController = null;
   profileLoading = false;
   runProfileButton.disabled = false;
   cancelProfileButton.hidden = true;
   cancelProfileButton.disabled = true;
   document.body.dataset.profileProgress = "canceled";
-  status.textContent = t("profile.status.canceled");
+  status.textContent = tf("profile.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
 async function loadProfile(force = false) {
@@ -15188,16 +15222,19 @@ async function loadProfile(force = false) {
     document.body.dataset.profileStreamed = String(Boolean(payload.streamed));
     renderProfile(payload);
     updateInspector();
-    status.textContent = tf("profile.status.complete", {
+    const elapsed = stopProfileProgressTimer();
+    status.textContent = tf("profile.status.completeTimed", {
       rows: formatCount(payload.rows ?? 0),
       columns: formatCount(payload.columns?.length ?? 0),
       issues: formatCount(payload.issues?.length ?? 0),
+      seconds: formatElapsedSeconds(elapsed),
     });
   } catch (error) {
     if (error.name === "AbortError") {
       if (!activeProfileController || activeProfileController === controller) {
+        const elapsed = stopProfileProgressTimer();
         document.body.dataset.profileProgress = "canceled";
-        status.textContent = t("profile.status.canceled");
+        status.textContent = tf("profile.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
       }
       return;
     }
@@ -16064,6 +16101,12 @@ function formatNumber(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "";
   return number.toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function formatElapsedSeconds(milliseconds) {
+  const seconds = Math.max(0, Number(milliseconds || 0)) / 1000;
+  if (seconds < 10) return seconds.toFixed(1);
+  return Math.round(seconds).toLocaleString();
 }
 
 function formatBackupSize(value) {
