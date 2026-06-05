@@ -531,6 +531,23 @@ const localeCatalog = {
     "sort.mode.date": "date",
     "sort.mode.length": "length",
     "sort.mode.text": "text",
+    "column.stableSort": "Stable sort",
+    "column.textTransform": "Text transform",
+    "column.applyTransform": "Apply transform to column",
+    "column.values": "Column values",
+    "column.valuesLoading": "Loading values...",
+    "column.valuesFailed": "Values failed: {{message}}",
+    "column.noValues": "No values",
+    "column.valuesCount": "Values ({{count}})",
+    "column.valuesShown": "Values ({{shown}} of {{total}})",
+    "column.blankValue": "(blank)",
+    "column.applyValues": "Apply selected values",
+    "column.hide": "Hide column",
+    "column.showAll": "Show all columns",
+    "column.showAllShort": "Show All",
+    "column.clearView": "Clear filter/sort",
+    "column.filterSelected": "Filter by selected value",
+    "column.filterValue": "Filter: {{value}}",
     "edit.find": "Find",
     "edit.preview": "Preview",
     "edit.replace": "Replace",
@@ -1134,6 +1151,23 @@ const localeCatalog = {
     "sort.mode.date": "日期",
     "sort.mode.length": "长度",
     "sort.mode.text": "文本",
+    "column.stableSort": "稳定排序",
+    "column.textTransform": "文本转换",
+    "column.applyTransform": "将转换应用到列",
+    "column.values": "列值",
+    "column.valuesLoading": "正在加载值...",
+    "column.valuesFailed": "值加载失败：{{message}}",
+    "column.noValues": "没有值",
+    "column.valuesCount": "值（{{count}}）",
+    "column.valuesShown": "值（{{shown}} / {{total}}）",
+    "column.blankValue": "（空白）",
+    "column.applyValues": "应用选中的值",
+    "column.hide": "隐藏列",
+    "column.showAll": "显示所有列",
+    "column.showAllShort": "显示全部",
+    "column.clearView": "清除筛选/排序",
+    "column.filterSelected": "按选中值筛选",
+    "column.filterValue": "筛选：{{value}}",
     "edit.find": "查找",
     "edit.preview": "预览",
     "edit.replace": "替换",
@@ -1575,14 +1609,23 @@ const localeCatalog = {
     "command.view.sort.title": "排序",
     "command.view.sort.description": "排序选中的列。",
     "command.column.sortAscending.title": "按列升序排序",
+    "command.column.sortAscending.description": "将当前列按升序排序。",
     "command.column.sortDescending.title": "按列降序排序",
+    "command.column.sortDescending.description": "将当前列按降序排序。",
     "command.column.sortLengthAscending.title": "按列长度升序排序",
+    "command.column.sortLengthAscending.description": "将当前列按文本长度升序排序。",
     "command.column.sortLengthDescending.title": "按列长度降序排序",
+    "command.column.sortLengthDescending.description": "将当前列按文本长度降序排序。",
     "command.column.addSortAscending.title": "追加列升序排序",
+    "command.column.addSortAscending.description": "将当前列追加为升序次级排序键。",
     "command.column.addSortDescending.title": "追加列降序排序",
+    "command.column.addSortDescending.description": "将当前列追加为降序次级排序键。",
     "command.column.filterBySelectedValue.title": "按选中值筛选",
+    "command.column.filterBySelectedValue.description": "将当前列筛选为选中单元格的值。",
     "command.column.filterBlanks.title": "只显示空值",
+    "command.column.filterBlanks.description": "将当前列筛选为空单元格。",
     "command.column.filterNonBlanks.title": "只显示非空值",
+    "command.column.filterNonBlanks.description": "将当前列筛选为非空单元格。",
     "command.edit.copy.title": "复制",
     "command.edit.copy.description": "以制表符分隔文本复制选中单元格。",
     "command.edit.copyWithHeaders.title": "复制并带表头",
@@ -2338,6 +2381,17 @@ function applyLocaleStrings() {
     recentFilterSelect.title = t("view.filters.aria");
   }
   if (viewChips) viewChips.setAttribute("aria-label", t("view.chips.aria"));
+  const stableSortLabel = columnStableSortToggle?.closest("label")?.querySelector("span");
+  if (stableSortLabel) stableSortLabel.textContent = t("column.stableSort");
+  const transformLabel = columnTransformMode?.closest("label")?.querySelector("span");
+  if (transformLabel) transformLabel.textContent = t("column.textTransform");
+  if (columnTransformMode) columnTransformMode.setAttribute("aria-label", t("column.textTransform"));
+  if (columnTransformApply) columnTransformApply.textContent = t("column.applyTransform");
+  if (columnMenuValues) columnMenuValues.setAttribute("aria-label", t("column.values"));
+  if (columnApplyValues) columnApplyValues.textContent = t("column.applyValues");
+  if (columnHide) columnHide.textContent = t("column.hide");
+  if (columnShowAll) columnShowAll.textContent = t("column.showAll");
+  if (columnClearView) columnClearView.textContent = t("column.clearView");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
   syncAboutSupportPanel();
@@ -3632,7 +3686,7 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "format.toggleCellQuote") {
       button.textContent = "Toggle";
     } else if (button.dataset.command === "column.showAll") {
-      button.textContent = "Show All";
+      button.textContent = t("column.showAllShort");
     } else if (button.dataset.command === "sql.copyResultCsv") {
       button.textContent = "Copy CSV";
     } else if (button.dataset.command === "sql.exportResultCsv") {
@@ -9603,8 +9657,8 @@ function openColumnMenu(col, clientX, clientY) {
   const selectedValue = valueAt(selected.row, col);
   columnFilterValue.textContent =
     selectedValue === ""
-      ? "Filter by selected value"
-      : `Filter: ${truncateMenuValue(selectedValue)}`;
+      ? t("column.filterSelected")
+      : tf("column.filterValue", { value: truncateMenuValue(selectedValue) });
   columnFilterValue.disabled = selectedValue === "";
   columnTransformApply.disabled = readOnly;
   syncColumnTransformCommand();
@@ -9640,7 +9694,7 @@ function renderColumnValuesLoading() {
   columnMenuValues.replaceChildren();
   const node = document.createElement("div");
   node.className = "column-values-empty";
-  node.textContent = "Loading values...";
+  node.textContent = t("column.valuesLoading");
   columnMenuValues.append(node);
   columnApplyValues.disabled = true;
 }
@@ -9659,7 +9713,7 @@ async function loadColumnMenuValues(col) {
     columnMenuValues.replaceChildren();
     const node = document.createElement("div");
     node.className = "column-values-empty";
-    node.textContent = `Values failed: ${error.message}`;
+    node.textContent = tf("column.valuesFailed", { message: error.message });
     columnMenuValues.append(node);
     columnApplyValues.disabled = true;
   }
@@ -9670,7 +9724,7 @@ function renderColumnMenuValues(values, totalDistinct) {
   if (!values.length) {
     const node = document.createElement("div");
     node.className = "column-values-empty";
-    node.textContent = "No values";
+    node.textContent = t("column.noValues");
     columnMenuValues.append(node);
     columnApplyValues.disabled = true;
     return;
@@ -9678,8 +9732,8 @@ function renderColumnMenuValues(values, totalDistinct) {
   const heading = document.createElement("span");
   heading.className = "column-values-heading";
   heading.textContent = totalDistinct > values.length
-    ? `Values (${values.length} of ${formatCount(totalDistinct)})`
-    : `Values (${formatCount(totalDistinct)})`;
+    ? tf("column.valuesShown", { shown: formatCount(values.length), total: formatCount(totalDistinct) })
+    : tf("column.valuesCount", { count: formatCount(totalDistinct) });
   columnMenuValues.append(heading);
   for (const item of values) {
     const label = document.createElement("label");
@@ -9690,7 +9744,7 @@ function renderColumnMenuValues(values, totalDistinct) {
     input.dataset.blank = item.blank ? "true" : "false";
     input.addEventListener("change", updateColumnApplyValuesState);
     const text = document.createElement("span");
-    text.textContent = `${truncateMenuValue(item.blank ? "(blank)" : item.value)} (${formatCount(item.count)})`;
+    text.textContent = `${truncateMenuValue(item.blank ? t("column.blankValue") : item.value)} (${formatCount(item.count)})`;
     label.append(input, text);
     columnMenuValues.append(label);
   }
