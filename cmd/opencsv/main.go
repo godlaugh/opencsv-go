@@ -208,7 +208,7 @@ func rootOpen(args []string) error {
 			return err
 		}
 		invocation.Diff = &result
-		route, err := diffRoute(resolvedPaths[0], resolvedPaths[1], options)
+		route, err := diffRoute(invocation.Files[0], invocation.Files[1], options)
 		if err != nil {
 			return err
 		}
@@ -244,12 +244,12 @@ func routeableOpenFiles(files []cliOpenedFile) bool {
 	return true
 }
 
-func diffRoute(leftPath string, rightPath string, options rootOptions) (string, error) {
-	left, err := filepath.Abs(leftPath)
+func diffRoute(leftFile cliOpenedFile, rightFile cliOpenedFile, options rootOptions) (string, error) {
+	left, err := filepath.Abs(leftFile.Path)
 	if err != nil {
 		return "", err
 	}
-	right, err := filepath.Abs(rightPath)
+	right, err := filepath.Abs(rightFile.Path)
 	if err != nil {
 		return "", err
 	}
@@ -257,6 +257,13 @@ func diffRoute(leftPath string, rightPath string, options rootOptions) (string, 
 	values.Set("diffLeft", left)
 	values.Set("diffRight", right)
 	values.Set("diffRun", "1")
+	if location := locationParam(leftFile.Location); location != "" {
+		values.Set("diffGotoSide", "left")
+		values.Set("diffGoto", location)
+	} else if location := locationParam(rightFile.Location); location != "" {
+		values.Set("diffGotoSide", "right")
+		values.Set("diffGoto", location)
+	}
 	addLaunchQuery(values, options)
 	return "/?" + values.Encode(), nil
 }

@@ -371,6 +371,28 @@ func TestDiffResultFiltersAreWired(t *testing.T) {
 	}
 }
 
+func TestDiffURLGotoIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`params.get("diffGoto")`,
+		`params.get("diffGotoSide")`,
+		"function applyDiffURLGoto",
+		"document.body.dataset.diffGotoSide",
+		"document.body.dataset.diffGotoRow",
+		"document.body.dataset.diffGotoActive",
+		"row.dataset.resultIndex",
+		"Diff goto ${targetSide} row ${targetRow}.",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing diff URL goto wiring %q", snippet)
+		}
+	}
+}
+
 func TestDiffViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

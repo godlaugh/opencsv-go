@@ -156,6 +156,44 @@ func TestRootOpenDiffIncludesWebRoute(t *testing.T) {
 	}
 }
 
+func TestRootOpenDiffRouteIncludesGotoSide(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left.csv")
+	right := filepath.Join(dir, "right.csv")
+	if err := os.WriteFile(left, []byte("id,name\n1,Ada\n2,Linus\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(right, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{"--diff", "--goto", right + ":2:1", left, right})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	route, err := url.Parse(invocation.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := route.Query()
+	if query.Get("diffGotoSide") != "right" || query.Get("diffGoto") != "2:1" {
+		t.Fatalf("diff goto query = %#v", query)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webURL.Query().Get("diffGotoSide") != "right" || webURL.Query().Get("diffGoto") != "2:1" {
+		t.Fatalf("diff goto web query = %#v", webURL.Query())
+	}
+}
+
 func TestRootOpenIncludesOpenRouteForGotoAndFormat(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.tsv")

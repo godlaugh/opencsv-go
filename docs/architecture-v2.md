@@ -792,6 +792,7 @@ Output:
 - `--goto` with embedded file path and 1-based row/cell/range coordinates.
 - `--diff` arity and stdin rejection.
 - `--diff` invocation emits a web route/URL that boots the browser Diff View with `diffLeft`, `diffRight`, and `diffRun=1`.
+- `--diff --goto <side-file>:row:col` emits `diffGotoSide` and `diffGoto`; Browser URL boot activates the matching changed/added/deleted diff row after compare.
 - Multiple root file paths emit repeated `open`, `openSource`, `openName`, and `openGoto` params; the browser prototype opens them sequentially and leaves the final or goto-target file active while prior files remain in Recent.
 - `opencsv -` emits a retained temporary route path plus `stdin=1`/`source=stdin` so the browser prototype opens the piped data as a temporary stdin source.
 - Delimiter, encoding, line-ending, quote character/mode, and header overrides mapped into `csvcore.OpenOptions`, including official URL aliases for generated Browser routes.

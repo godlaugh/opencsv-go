@@ -15943,6 +15943,32 @@ function activateDiffRow(index, scroll = true) {
   status.textContent = tf("diff.status.active", { current: activeDiffIndex + 1, total: diffRows.length });
 }
 
+function applyDiffURLGoto(side, location) {
+  const targetSide = side === "right" ? "right" : "left";
+  const targetRow = Number.parseInt(String(location?.startRow || ""), 10);
+  document.body.dataset.diffGotoSide = targetSide;
+  document.body.dataset.diffGotoRow = Number.isFinite(targetRow) && targetRow > 0 ? String(targetRow) : "";
+  if (!lastDiffResult || !Array.isArray(lastDiffResult.rows) || !Number.isFinite(targetRow) || targetRow <= 0) {
+    document.body.dataset.diffGotoActive = "invalid";
+    return false;
+  }
+  const rowKey = targetSide === "right" ? "rightRow" : "leftRow";
+  const resultIndex = lastDiffResult.rows.findIndex((row) => Number(row?.[rowKey]) === targetRow && row?.status !== "unchanged");
+  if (resultIndex < 0) {
+    document.body.dataset.diffGotoActive = "not-found";
+    return false;
+  }
+  const diffIndex = diffRows.findIndex((row) => Number(row.dataset.resultIndex) === resultIndex);
+  if (diffIndex < 0) {
+    document.body.dataset.diffGotoActive = "filtered";
+    return false;
+  }
+  activateDiffRow(diffIndex);
+  document.body.dataset.diffGotoActive = `${targetSide}:${targetRow}:${resultIndex}`;
+  status.textContent = `Diff goto ${targetSide} row ${targetRow}.`;
+  return true;
+}
+
 function navigateDiff(direction) {
   if (viewMode !== "diff" || diffRows.length === 0) return false;
   activateDiffRow(activeDiffIndex < 0 ? 0 : activeDiffIndex + direction);
@@ -16698,6 +16724,8 @@ async function openInitialURLTarget() {
     openDiffPanel();
     if (truthyParam(params.get("diffRun")) && diffLeft && (diffRight || diffText)) {
       await runDiffCompare();
+      const diffGoto = params.get("diffGoto");
+      if (diffGoto) applyDiffURLGoto(params.get("diffGotoSide") || params.get("diffSide"), parseURLLocation(diffGoto));
     }
     return;
   }
