@@ -1918,6 +1918,35 @@ func TestServerFilterSQLStreamsCleanFile(t *testing.T) {
 	}
 }
 
+func TestServerSQLConsoleStreamsCleanCurrentFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sql-console-stream.csv")
+	if err := os.WriteFile(path, []byte("id,region,score\n1,APAC,8\n2,EU,9\n3,APAC,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlPayload := postJSON(t, handler, "/api/sql", map[string]any{
+		"documentId": documentID,
+		"query":      "SELECT region, COUNT(*) AS rows FROM current GROUP BY region ORDER BY rows DESC",
+		"limit":      10,
+	})
+	if sqlPayload["streamed"] != true || sqlPayload["totalRows"] != float64(2) {
+		t.Fatalf("SQL payload = %#v, want streamed two groups", sqlPayload)
+	}
+	rows := sqlPayload["rows"].([]any)
+	if len(rows) != 2 || rows[0].([]any)[0] != "APAC" || rows[0].([]any)[1] != "2" {
+		t.Fatalf("streamed SQL rows = %#v, want APAC count first", rows)
+	}
+}
+
 func TestServerValueChecklistStreamsCleanFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "value-filter-stream.csv")

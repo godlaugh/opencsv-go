@@ -1516,40 +1516,66 @@ func (server *Server) sqlResolver(documentID string) sqlconsole.Resolver {
 			return server.sqlSourceFromDocument(documentID)
 		}
 		if documentID != "" {
-			if session, records, err := server.documents.Records(documentID); err == nil {
-				if ref == session.OriginalPath || ref == session.WorkingPath || ref == session.DisplayName {
-					return sqlSourceFromSession(session, records), nil
-				}
+			if session, ok := server.documents.Snapshot(documentID); ok &&
+				(ref == session.OriginalPath || ref == session.WorkingPath || ref == session.DisplayName) {
+				return server.sqlSourceFromSession(documentID, session)
 			}
 		}
-		doc, err := csvcore.OpenDocument(ref, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+		doc, err := csvcore.OpenDocument(ref, csvcore.OpenOptions{PreviewRows: 50, IndexRows: 0})
 		if err != nil {
 			return sqlconsole.Source{}, err
+		}
+		if csvcore.CanStreamRecords(doc.Metadata) {
+			return sqlSourceFromCleanDocument(ref, doc), nil
 		}
 		records, err := csvcore.ReadAllRecords(ref, doc.Metadata)
 		if err != nil {
 			return sqlconsole.Source{}, err
 		}
-		return sqlSourceFromDocument(ref, doc, records), nil
+		return sqlSourceFromDocumentRecords(ref, doc, records), nil
 	}
 }
 
 func (server *Server) sqlSourceFromDocument(documentID string) (sqlconsole.Source, error) {
+	session, ok := server.documents.Snapshot(documentID)
+	if !ok {
+		return sqlconsole.Source{}, errors.New("document not found")
+	}
+	return server.sqlSourceFromSession(documentID, session)
+}
+
+func (server *Server) sqlSourceFromSession(documentID string, session *docstore.Session) (sqlconsole.Source, error) {
+	if canStreamSQLSource(session) {
+		return sqlSourceFromCleanDocument(session.WorkingPath, session.Document), nil
+	}
 	session, records, err := server.documents.Records(documentID)
 	if err != nil {
 		return sqlconsole.Source{}, err
 	}
-	return sqlSourceFromSession(session, records), nil
+	return sqlSourceFromDocumentRecords(session.WorkingPath, session.Document, records), nil
 }
 
-func sqlSourceFromSession(session *docstore.Session, records [][]string) sqlconsole.Source {
-	return sqlSourceFromDocument(session.WorkingPath, session.Document, records)
+func canStreamSQLSource(session *docstore.Session) bool {
+	return session.EditBaseRecords == nil &&
+		len(session.Edits) == 0 &&
+		csvcore.CanStreamRecords(session.Document.Metadata)
 }
 
-func sqlSourceFromDocument(path string, doc csvcore.Document, records [][]string) sqlconsole.Source {
+func sqlSourceFromCleanDocument(path string, doc csvcore.Document) sqlconsole.Source {
+	source := sqlSourceFromDocumentRecords(path, doc, nil)
+	source.HasHeader = doc.Metadata.Dialect.HasHeader
+	source.Stream = func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
+		return csvcore.ForEachRecordContext(ctx, path, doc.Metadata, handle)
+	}
+	return source
+}
+
+func sqlSourceFromDocumentRecords(path string, doc csvcore.Document, records [][]string) sqlconsole.Source {
 	headers := []string(nil)
 	if doc.Metadata.Dialect.HasHeader && len(records) > 0 {
 		headers = records[0]
+	} else if doc.Metadata.Dialect.HasHeader && len(doc.Preview) > 0 {
+		headers = doc.Preview[0]
 	} else if doc.Metadata.Dialect.EstimatedColumns > 0 {
 		headers = make([]string, doc.Metadata.Dialect.EstimatedColumns)
 		for i := range headers {
@@ -1557,10 +1583,12 @@ func sqlSourceFromDocument(path string, doc csvcore.Document, records [][]string
 		}
 	}
 	return sqlconsole.Source{
-		Name:    filepath.Base(path),
-		Path:    path,
-		Headers: headers,
-		Records: records,
+		Name:             filepath.Base(path),
+		Path:             path,
+		Headers:          headers,
+		Records:          records,
+		EstimatedColumns: doc.Metadata.Dialect.EstimatedColumns,
+		HasHeader:        doc.Metadata.Dialect.HasHeader,
 	}
 }
 

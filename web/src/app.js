@@ -14345,6 +14345,7 @@ async function runSQLQuery() {
   }
   clearSQLErrorState();
   lastSQLResult = payload;
+  document.body.dataset.sqlStreamed = String(Boolean(payload.streamed));
   renderSQLResult(payload);
   rememberSQLQuery(query);
   status.textContent = tf("sql.status.returned", {

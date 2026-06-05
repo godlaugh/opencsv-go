@@ -15,11 +15,16 @@ import (
 )
 
 type Source struct {
-	Name    string
-	Path    string
-	Headers []string
-	Records [][]string
+	Name             string
+	Path             string
+	Headers          []string
+	Records          [][]string
+	EstimatedColumns int
+	HasHeader        bool
+	Stream           RecordStream
 }
+
+type RecordStream func(ctx context.Context, handle func(row int, record []string) error) (int, error)
 
 type Resolver func(ref string) (Source, error)
 
@@ -30,6 +35,7 @@ type Result struct {
 	Source      string     `json:"source"`
 	Truncated   bool       `json:"truncated"`
 	ExecutedSQL string     `json:"executedSql"`
+	Streamed    bool       `json:"streamed,omitempty"`
 }
 
 type Options struct {
@@ -121,6 +127,7 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 
 	refs := findSourceRefs(sqlText)
 	sourceNames := make([]string, 0, len(refs))
+	streamed := false
 	for _, ref := range refs {
 		if err := ctx.Err(); err != nil {
 			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
@@ -129,9 +136,11 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 		if err != nil {
 			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
 		}
-		if err := loadSource(ctx, db, ref, source); err != nil {
+		sourceStreamed, err := loadSource(ctx, db, ref, source)
+		if err != nil {
 			return Result{}, queryErrorNearToken(query, "load", contextAwareError(ctx, err), ref)
 		}
+		streamed = streamed || sourceStreamed
 		sourceNames = append(sourceNames, source.Path)
 	}
 
@@ -170,6 +179,7 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 		Source:      strings.Join(sourceNames, ", "),
 		Truncated:   truncated,
 		ExecutedSQL: strings.TrimSpace(query),
+		Streamed:    streamed,
 	}, nil
 }
 
@@ -372,13 +382,13 @@ func tokenAtOffset(query string, offset int, fallback string) string {
 	return fallback
 }
 
-func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source) error {
+func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source) (bool, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 	headers := sourceHeaders(source)
 	if len(headers) == 0 {
-		return nil
+		return false, nil
 	}
 	columns := uniqueHeaders(headers)
 	defs := make([]string, len(columns))
@@ -386,24 +396,29 @@ func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source
 		defs[index] = quoteIdent(column) + " TEXT"
 	}
 	if _, err := db.ExecContext(ctx, "CREATE TABLE "+quoteIdent(tableName)+" ("+strings.Join(defs, ", ")+")"); err != nil {
-		return contextAwareError(ctx, err)
+		return false, contextAwareError(ctx, err)
 	}
 
 	placeholders := make([]string, len(columns))
 	for index := range placeholders {
 		placeholders[index] = "?"
 	}
-	statement, err := db.PrepareContext(ctx, "INSERT INTO "+quoteIdent(tableName)+" VALUES ("+strings.Join(placeholders, ", ")+")")
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return contextAwareError(ctx, err)
+		return false, contextAwareError(ctx, err)
 	}
-	defer statement.Close()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	statement, err := tx.PrepareContext(ctx, "INSERT INTO "+quoteIdent(tableName)+" VALUES ("+strings.Join(placeholders, ", ")+")")
+	if err != nil {
+		return false, contextAwareError(ctx, err)
+	}
 
-	dataStart := 0
-	if len(source.Records) > 0 && sameRecord(source.Records[0], headers) {
-		dataStart = 1
-	}
-	for _, record := range source.Records[dataStart:] {
+	insert := func(record []string) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -414,12 +429,42 @@ func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source
 		if _, err := statement.ExecContext(ctx, values...); err != nil {
 			return contextAwareError(ctx, err)
 		}
+		return nil
 	}
-	return nil
+	streamed := false
+	if source.Stream != nil {
+		streamed = true
+		if _, err := source.Stream(ctx, func(row int, record []string) error {
+			if row == 0 && source.HasHeader {
+				return nil
+			}
+			return insert(record)
+		}); err != nil {
+			return streamed, err
+		}
+	} else {
+		dataStart := 0
+		if len(source.Records) > 0 && (source.HasHeader || sameRecord(source.Records[0], headers)) {
+			dataStart = 1
+		}
+		for _, record := range source.Records[dataStart:] {
+			if err := insert(record); err != nil {
+				return streamed, err
+			}
+		}
+	}
+	if err := statement.Close(); err != nil {
+		return streamed, contextAwareError(ctx, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return streamed, contextAwareError(ctx, err)
+	}
+	committed = true
+	return streamed, nil
 }
 
 func sourceHeaders(source Source) []string {
-	width := len(source.Headers)
+	width := max(len(source.Headers), source.EstimatedColumns)
 	for _, record := range source.Records {
 		if len(record) > width {
 			width = len(record)

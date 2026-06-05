@@ -31,6 +31,49 @@ func TestExecuteCurrentSelectWhereOrderLimit(t *testing.T) {
 	}
 }
 
+func TestExecuteStreamsSourceIntoSQLite(t *testing.T) {
+	visited := 0
+	source := Source{
+		Name:             "current",
+		Path:             "/tmp/current.csv",
+		Headers:          []string{"id", "name", "score"},
+		EstimatedColumns: 3,
+		HasHeader:        true,
+		Stream: func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
+			records := [][]string{
+				{"id", "name", "score"},
+				{"1", "Ada", "9"},
+				{"2", "Linus", "7"},
+				{"3", "Grace", "10"},
+			}
+			for row, record := range records {
+				if err := ctx.Err(); err != nil {
+					return row, err
+				}
+				visited++
+				if err := handle(row, record); err != nil {
+					return row, err
+				}
+			}
+			return len(records), nil
+		},
+	}
+
+	result, err := ExecuteContext(context.Background(), `SELECT name FROM current WHERE CAST(score AS REAL) >= 9 ORDER BY id`, fixedResolver(source), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed {
+		t.Fatal("result streamed = false, want true")
+	}
+	if visited != 4 {
+		t.Fatalf("visited rows = %d, want 4 including header", visited)
+	}
+	if result.TotalRows != 2 || len(result.Rows) != 2 || result.Rows[0][0] != "Ada" || result.Rows[1][0] != "Grace" {
+		t.Fatalf("streamed rows = %#v total=%d, want Ada/Grace", result.Rows, result.TotalRows)
+	}
+}
+
 func TestExecuteSupportsCColumnsAndFileRef(t *testing.T) {
 	source := Source{
 		Path:    "/tmp/file.csv",

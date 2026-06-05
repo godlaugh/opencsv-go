@@ -3174,6 +3174,10 @@ func (manager *Manager) snapshot(id string) (*Session, bool) {
 	return cloneSession(session), true
 }
 
+func (manager *Manager) Snapshot(id string) (*Session, bool) {
+	return manager.snapshot(id)
+}
+
 func (manager *Manager) ensureWritable(id string) error {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
