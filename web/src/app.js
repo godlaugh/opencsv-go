@@ -505,6 +505,8 @@ const localeCatalog = {
     "view.status.chooseValueFilter": "Choose at least one value to filter.",
     "view.status.valueFilterFailed": "Value filter failed: {{message}}",
     "view.status.valueFilterMatched": "Value filter {{column}} matched {{count}} rows",
+    "view.status.clearFailed": "Clear failed: {{message}}",
+    "view.status.cleared": "Filter/sort cleared",
     "view.status.savedFilterMatched": "Saved filter matched {{count}} rows",
     "view.status.recentFilterNotFound": "Recent filter not found.",
     "view.status.recentFilterMatched": "Recent filter matched {{count}} rows",
@@ -1106,6 +1108,8 @@ const localeCatalog = {
     "view.status.chooseValueFilter": "请至少选择一个筛选值。",
     "view.status.valueFilterFailed": "值筛选失败：{{message}}",
     "view.status.valueFilterMatched": "{{column}} 值筛选匹配 {{count}} 行",
+    "view.status.clearFailed": "清除失败：{{message}}",
+    "view.status.cleared": "已清除筛选/排序",
     "view.status.savedFilterMatched": "保存的筛选匹配 {{count}} 行",
     "view.status.recentFilterNotFound": "未找到最近筛选。",
     "view.status.recentFilterMatched": "最近筛选匹配 {{count}} 行",
@@ -13448,7 +13452,7 @@ async function clearView() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Clear failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("view.status.clearFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   viewMapped = false;
@@ -13470,7 +13474,7 @@ async function clearView() {
   scrollY = 0;
   wheelRemainderY = 0;
   await maybeLoadWindow(0);
-  status.textContent = "Filter/sort cleared";
+  status.textContent = t("view.status.cleared");
 }
 
 async function undoCurrentDocument() {
