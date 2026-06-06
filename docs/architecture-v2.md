@@ -62,7 +62,7 @@ flowchart TD
   - Read-only session flag.
   - Last-known file size/mod-time tracking.
   - Edit overlay.
-  - Full-record snapshot history for first-pass undo/redo.
+  - Full-record snapshot history for first-pass undo/redo, plus file-backed history snapshots for clean streaming current-column transforms.
   - Batch cell edits as a single undoable operation.
   - Row/column insert/delete/move materialized into temporary working copies.
   - View-only row hiding through source-row view mapping.
@@ -585,7 +585,7 @@ Rules:
 - Transform commands are read-only-safe: they reject read-only sessions.
 - Duplicate cells in the request are applied once.
 - Current-column transforms skip detected header rows.
-- Clean UTF-8/UTF-8-BOM current-column transforms with standard double-quote escaping stream records into a rewritten working file while preserving line endings, quote policy, and undo; dirty/edit-overlay, workbook, legacy encoding, and non-standard quote-escape sessions fall back to materialized records.
+- Clean UTF-8/UTF-8-BOM current-column transforms with standard double-quote escaping stream records into a rewritten working file while preserving line endings and quote policy; the pre-transform undo history is stored as a copied working-file snapshot instead of a full in-memory record slice. Dirty/edit-overlay, workbook, legacy encoding, and non-standard quote-escape sessions fall back to materialized records.
 - Empty no-op transforms do not create an undo entry or mark the document dirty.
 - Frontend command execution reuses localized command titles for selected-cell and current-column status messages.
 
@@ -787,7 +787,7 @@ Output:
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; known large whole-table transposes show a confirmation dialog, and selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
-- Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable mutations; current-column transforms use a streaming path for clean UTF-8 files when safe and fall back to materialized records otherwise.
+- Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable mutations; current-column transforms use a streaming path plus file-backed undo snapshot for clean UTF-8 files when safe and fall back to materialized records otherwise.
 - Swap/join/split cell tools are command-backed, undoable materialized mutations; split protects non-empty targets by default and keeps an explicit overwrite path for callers that need it.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.

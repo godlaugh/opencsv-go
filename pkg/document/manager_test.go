@@ -1664,6 +1664,71 @@ func TestManagerTransformColumnStreamsCleanFile(t *testing.T) {
 	}
 }
 
+func TestManagerTransformColumnStreamingUsesFileBackedHistory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-stream-history.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "column-stream-history.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformColumn(session.ID, 1, TransformUpper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed {
+		t.Fatalf("streamed column transform = false")
+	}
+	current, ok := manager.sessions[session.ID]
+	if !ok {
+		t.Fatal("session missing")
+	}
+	if len(current.UndoStack) != 1 {
+		t.Fatalf("undo stack length = %d, want 1", len(current.UndoStack))
+	}
+	undoSnapshot := current.UndoStack[0]
+	if undoSnapshot.WorkingPath == "" || undoSnapshot.Records != nil {
+		t.Fatalf("undo snapshot = %#v, want file-backed without records", undoSnapshot)
+	}
+	if _, err := os.Stat(undoSnapshot.WorkingPath); err != nil {
+		t.Fatalf("history working file missing: %v", err)
+	}
+
+	undo, err := manager.Undo(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if undo.Streamed {
+		t.Fatalf("undo result should not report transform streaming")
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[2][1] != "Grace" {
+		t.Fatalf("records after file-backed undo = %#v", records)
+	}
+	current = manager.sessions[session.ID]
+	if len(current.RedoStack) != 1 {
+		t.Fatalf("redo stack length = %d, want 1", len(current.RedoStack))
+	}
+
+	if _, err := manager.Redo(session.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "ADA" || records[2][1] != "GRACE" {
+		t.Fatalf("records after file-backed redo = %#v", records)
+	}
+}
+
 func TestManagerTransformColumnFallsBackWhenDirty(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "column-dirty.csv")

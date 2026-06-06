@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -74,11 +75,12 @@ type Session struct {
 }
 
 type historySnapshot struct {
-	Records    [][]string
-	Metadata   csvcore.FileMetadata
-	Dirty      bool
-	ViewRows   []int
-	ViewActive bool
+	Records     [][]string
+	WorkingPath string
+	Metadata    csvcore.FileMetadata
+	Dirty       bool
+	ViewRows    []int
+	ViewActive  bool
 }
 
 type FileStatus struct {
@@ -1409,7 +1411,12 @@ func (manager *Manager) transformColumnStreaming(id string, session *Session, co
 	if changed == 0 {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Streamed: true}, nil
 	}
-	if err := manager.pushUndo(id); err != nil {
+	undoSnapshot, err := snapshotWorkingFile(session)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	if err := manager.pushUndoSnapshot(id, undoSnapshot); err != nil {
+		removeHistorySnapshots([]historySnapshot{undoSnapshot})
 		return MutationResult{}, err
 	}
 	previewRows := max(160, min(rowCount, 1000))
@@ -3151,6 +3158,8 @@ func (manager *Manager) Refresh(id string, discardDirty bool) (*Session, error) 
 	current.EditBaseRecords = nil
 	current.ViewRows = nil
 	current.ViewActive = false
+	removeHistorySnapshots(current.UndoStack)
+	removeHistorySnapshots(current.RedoStack)
 	current.UndoStack = nil
 	current.RedoStack = nil
 	current.Dirty = false
@@ -3195,6 +3204,10 @@ func (manager *Manager) pushUndo(id string) error {
 	if err != nil {
 		return err
 	}
+	return manager.pushUndoSnapshot(id, snapshot)
+}
+
+func (manager *Manager) pushUndoSnapshot(id string, snapshot historySnapshot) error {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	current, ok := manager.sessions[id]
@@ -3203,8 +3216,10 @@ func (manager *Manager) pushUndo(id string) error {
 	}
 	current.UndoStack = append(current.UndoStack, snapshot)
 	if len(current.UndoStack) > 100 {
+		removeHistorySnapshots(current.UndoStack[:len(current.UndoStack)-100])
 		current.UndoStack = current.UndoStack[len(current.UndoStack)-100:]
 	}
+	removeHistorySnapshots(current.RedoStack)
 	current.RedoStack = nil
 	return nil
 }
@@ -3223,8 +3238,42 @@ func snapshotFromSession(session *Session) (historySnapshot, error) {
 	}, nil
 }
 
+func snapshotWorkingFile(session *Session) (historySnapshot, error) {
+	temp, err := os.CreateTemp("", "opencsv-history-*.csv")
+	if err != nil {
+		return historySnapshot{}, err
+	}
+	tempPath := temp.Name()
+	if err := temp.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return historySnapshot{}, err
+	}
+	if err := copyFile(session.WorkingPath, tempPath); err != nil {
+		_ = os.Remove(tempPath)
+		return historySnapshot{}, err
+	}
+	return historySnapshot{
+		WorkingPath: tempPath,
+		Metadata:    session.Document.Metadata,
+		Dirty:       session.Dirty,
+		ViewRows:    append([]int(nil), session.ViewRows...),
+		ViewActive:  session.ViewActive,
+	}, nil
+}
+
 func (manager *Manager) applySnapshot(id string, snapshot historySnapshot, adjustHistory func(session *Session)) (*Session, error) {
-	if _, err := manager.materializeRecords(id, cloneRecords(snapshot.Records), snapshot.Metadata, snapshot.Dirty); err != nil {
+	var updated *Session
+	var err error
+	if snapshot.WorkingPath != "" {
+		refreshed, openErr := openMaterializedDocument(snapshot.WorkingPath, snapshot.Metadata, 1000)
+		if openErr != nil {
+			return nil, openErr
+		}
+		updated, err = manager.setMaterializedDocument(id, snapshot.WorkingPath, refreshed, snapshot.Dirty)
+	} else {
+		updated, err = manager.materializeRecords(id, cloneRecords(snapshot.Records), snapshot.Metadata, snapshot.Dirty)
+	}
+	if err != nil {
 		return nil, err
 	}
 	manager.mu.Lock()
@@ -3238,7 +3287,33 @@ func (manager *Manager) applySnapshot(id string, snapshot historySnapshot, adjus
 	if adjustHistory != nil {
 		adjustHistory(session)
 	}
-	return cloneSession(session), nil
+	updated = cloneSession(session)
+	return updated, nil
+}
+
+func copyFile(sourcePath string, targetPath string) error {
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	target, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+
+	_, err = io.Copy(target, source)
+	return err
+}
+
+func removeHistorySnapshots(snapshots []historySnapshot) {
+	for _, snapshot := range snapshots {
+		if snapshot.WorkingPath != "" {
+			_ = os.Remove(snapshot.WorkingPath)
+		}
+	}
 }
 
 func (manager *Manager) materializeRecords(id string, records [][]string, metadata csvcore.FileMetadata, dirty bool) (*Session, error) {
@@ -3325,6 +3400,8 @@ func (manager *Manager) Close(id string, force bool) (*Session, error) {
 		return nil, errors.New("document has unsaved changes")
 	}
 	delete(manager.sessions, id)
+	removeHistorySnapshots(session.UndoStack)
+	removeHistorySnapshots(session.RedoStack)
 	return cloneSession(session), nil
 }
 
@@ -3398,11 +3475,12 @@ func cloneHistory(input []historySnapshot) []historySnapshot {
 	output := make([]historySnapshot, len(input))
 	for i, snapshot := range input {
 		output[i] = historySnapshot{
-			Records:    cloneRecords(snapshot.Records),
-			Metadata:   snapshot.Metadata,
-			Dirty:      snapshot.Dirty,
-			ViewRows:   append([]int(nil), snapshot.ViewRows...),
-			ViewActive: snapshot.ViewActive,
+			Records:     cloneRecords(snapshot.Records),
+			WorkingPath: snapshot.WorkingPath,
+			Metadata:    snapshot.Metadata,
+			Dirty:       snapshot.Dirty,
+			ViewRows:    append([]int(nil), snapshot.ViewRows...),
+			ViewActive:  snapshot.ViewActive,
 		}
 	}
 	return output

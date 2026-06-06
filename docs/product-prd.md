@@ -720,6 +720,7 @@ Targets:
 - 100 MB file open should not require loading all decoded records into UI memory.
 - Grid should request windows of rows.
 - Edit overlay stores deltas until save.
+- Undo history for large streaming operations should avoid full decoded-record snapshots when a file-backed or chunk-backed history item can preserve behavior.
 - Large operations have explicit memory budgets.
 
 ### NFR-003 Reliability
