@@ -2152,6 +2152,64 @@ func TestServerSQLConsoleStreamsCleanCurrentFile(t *testing.T) {
 	}
 }
 
+func TestServerSQLStreamsRowProgressEvents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sql-progress.csv")
+	if err := os.WriteFile(path, []byte("id,region\n1,APAC\n2,EU\n3,APAC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 1,
+		"indexRows":   0,
+	})
+	response := postJSONResponse(t, handler, "/api/sql", map[string]any{
+		"documentId":       openPayload["documentId"].(string),
+		"query":            "SELECT region, COUNT(*) AS rows FROM current GROUP BY region ORDER BY rows DESC",
+		"limit":            10,
+		"streamProgress":   true,
+		"progressInterval": 2,
+	})
+	if response.Code != http.StatusOK {
+		t.Fatalf("SQL stream status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/x-ndjson") {
+		t.Fatalf("SQL stream content type = %q", got)
+	}
+	var events []map[string]any
+	decoder := json.NewDecoder(response.Body)
+	for {
+		var event map[string]any
+		if err := decoder.Decode(&event); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatal(err)
+		}
+		events = append(events, event)
+	}
+	if len(events) != 3 {
+		t.Fatalf("events = %#v, want two progress events plus final result", events)
+	}
+	if events[0]["type"] != "progress" || events[0]["phase"] != "load" || events[0]["rows"] != float64(2) || events[0]["done"] == true {
+		t.Fatalf("first event = %#v, want loading checkpoint at two rows", events[0])
+	}
+	if events[1]["type"] != "progress" || events[1]["phase"] != "load" || events[1]["rows"] != float64(3) || events[1]["done"] != true {
+		t.Fatalf("second event = %#v, want loading done at three rows", events[1])
+	}
+	final := events[len(events)-1]
+	result, ok := final["result"].(map[string]any)
+	if final["type"] != "result" || !ok {
+		t.Fatalf("final event = %#v, want result", final)
+	}
+	progress := result["progress"].(map[string]any)
+	if result["streamed"] != true || progress["loadedRows"] != float64(3) || progress["sources"] != float64(1) {
+		t.Fatalf("result progress = %#v, want streamed three-row SQL source load", result)
+	}
+}
+
 func TestServerValueChecklistStreamsCleanFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "value-filter-stream.csv")

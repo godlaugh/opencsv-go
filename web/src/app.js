@@ -872,10 +872,13 @@ const localeCatalog = {
     "sql.status.enterQuery": "Enter a SQL query.",
     "sql.status.running": "Running SQL...",
     "sql.status.runningElapsed": "Running SQL... {{seconds}}s",
+    "sql.status.runningRows": "Loading {{phase}}... {{rows}} source rows in {{seconds}}s",
     "sql.status.canceled": "SQL canceled.",
     "sql.status.canceledElapsed": "SQL canceled after {{seconds}}s.",
     "sql.status.returned": "SQL returned {{rows}} of {{total}} rows",
     "sql.status.returnedTimed": "SQL returned {{rows}} of {{total}} rows in {{seconds}}s",
+    "sql.status.returnedTimedRows": "SQL loaded {{loadedRows}} source rows, returned {{rows}} of {{total}} rows in {{seconds}}s",
+    "sql.progress.load": "source rows",
     "sql.status.historySaveFailed": "SQL query history could not be saved.",
     "sql.status.historyClearFailed": "SQL query history could not be cleared.",
     "sql.status.historyLoaded": "Loaded SQL query from history.",
@@ -1548,10 +1551,13 @@ const localeCatalog = {
     "sql.status.enterQuery": "请输入 SQL 查询。",
     "sql.status.running": "正在运行 SQL...",
     "sql.status.runningElapsed": "正在运行 SQL... {{seconds}} 秒",
+    "sql.status.runningRows": "正在加载{{phase}}... 已加载 {{rows}} 行，用时 {{seconds}} 秒",
     "sql.status.canceled": "SQL 已取消。",
     "sql.status.canceledElapsed": "SQL 已在 {{seconds}} 秒后取消。",
     "sql.status.returned": "SQL 返回 {{rows}} / {{total}} 行",
     "sql.status.returnedTimed": "SQL 返回 {{rows}} / {{total}} 行，用时 {{seconds}} 秒",
+    "sql.status.returnedTimedRows": "SQL 已加载 {{loadedRows}} 个源数据行，返回 {{rows}} / {{total}} 行，用时 {{seconds}} 秒",
+    "sql.progress.load": "源数据行",
     "sql.status.historySaveFailed": "无法保存 SQL 查询历史。",
     "sql.status.historyClearFailed": "无法清除 SQL 查询历史。",
     "sql.status.historyLoaded": "已从历史加载 SQL 查询。",
@@ -2207,6 +2213,7 @@ let findProgressQuery = "";
 let activeSQLController = null;
 let sqlProgressTimer = 0;
 let sqlProgressStartedAt = 0;
+let sqlProgressEventCount = 0;
 let activeFilter = null;
 let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
@@ -15899,11 +15906,18 @@ function startSQLProgress() {
   activeSQLController = new AbortController();
   if (sqlProgressTimer) window.clearInterval(sqlProgressTimer);
   sqlProgressStartedAt = performance.now();
+  sqlProgressEventCount = 0;
   runSqlButton.disabled = true;
   cancelSqlButton.hidden = false;
   cancelSqlButton.disabled = false;
   document.body.dataset.sqlProgress = "running";
   document.body.dataset.sqlElapsedMs = "0";
+  document.body.dataset.sqlProgressEvents = "0";
+  document.body.dataset.sqlProgressPhase = "";
+  document.body.dataset.sqlProgressRows = "0";
+  document.body.dataset.sqlProgressSource = "";
+  document.body.dataset.sqlLoadedRows = "0";
+  document.body.dataset.sqlProgressSources = "0";
   updateSQLProgressStatus();
   sqlProgressTimer = window.setInterval(updateSQLProgressStatus, 250);
   return activeSQLController;
@@ -15912,7 +15926,15 @@ function startSQLProgress() {
 function updateSQLProgressStatus() {
   const elapsed = sqlElapsedMs();
   document.body.dataset.sqlElapsedMs = String(Math.round(elapsed));
-  status.textContent = tf("sql.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
+  const phase = document.body.dataset.sqlProgressPhase || "";
+  const rows = Number(document.body.dataset.sqlProgressRows || 0);
+  status.textContent = phase && rows > 0
+    ? tf("sql.status.runningRows", {
+        phase: sqlProgressPhaseLabel(phase),
+        rows: formatCount(rows),
+        seconds: formatElapsedSeconds(elapsed),
+      })
+    : tf("sql.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
 function sqlElapsedMs() {
@@ -15953,6 +15975,68 @@ function cancelSQLRequest() {
   status.textContent = tf("sql.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
+function sqlProgressPhaseLabel(phase) {
+  return translationOrEmpty(`sql.progress.${phase}`) || phase || t("sql.status.running");
+}
+
+function applySQLProgressEvent(event) {
+  if (!event || event.type !== "progress") return;
+  const phase = String(event.phase || "");
+  const rows = Math.max(0, Number(event.rows || 0));
+  sqlProgressEventCount++;
+  document.body.dataset.sqlProgressEvents = String(sqlProgressEventCount);
+  document.body.dataset.sqlProgressPhase = phase;
+  document.body.dataset.sqlProgressRows = String(rows);
+  document.body.dataset.sqlLoadedRows = String(rows);
+  document.body.dataset.sqlProgressSource = String(event.source || "");
+  document.body.dataset.sqlProgressDone = event.done ? `${phase}:${rows}` : "";
+  updateSQLProgressStatus();
+}
+
+function applySQLProgressSummary(progress) {
+  if (!progress) return;
+  document.body.dataset.sqlLoadedRows = String(progress.loadedRows ?? 0);
+  document.body.dataset.sqlProgressSources = String(progress.sources ?? 0);
+  document.body.dataset.sqlProgressEvents = String(progress.events ?? sqlProgressEventCount);
+}
+
+async function readSQLResponse(response) {
+  const contentType = response.headers.get("Content-Type") || "";
+  if (!contentType.includes("application/x-ndjson") || !response.body) {
+    const payload = await response.json();
+    return payload;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+  let errorPayload = null;
+  const consumeLine = (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const event = JSON.parse(trimmed);
+    if (event.type === "progress") {
+      applySQLProgressEvent(event);
+    } else if (event.type === "result") {
+      result = event.result;
+    } else if (event.type === "error") {
+      errorPayload = { error: event.error || "SQL failed", sqlError: event.sqlError };
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) consumeLine(line);
+    if (done) break;
+  }
+  consumeLine(buffer);
+  if (errorPayload) return errorPayload;
+  if (!result) return { error: "SQL stream ended without a result" };
+  return result;
+}
+
 async function runSQLQuery() {
   if (!documentId) return;
   const query = sqlInput.value.trim();
@@ -15971,10 +16055,10 @@ async function runSQLQuery() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
-      body: JSON.stringify({ documentId, query, limit: 500 }),
+      body: JSON.stringify({ documentId, query, limit: 500, streamProgress: true, progressInterval: 1000 }),
     });
-    payload = await response.json();
-    if (!response.ok) {
+    payload = await readSQLResponse(response);
+    if (!response.ok || payload.error) {
       renderSQLError(payload);
       clearSQLResultSelection();
       syncSQLResultActions();
@@ -15999,12 +16083,15 @@ async function runSQLQuery() {
   clearSQLErrorState();
   lastSQLResult = payload;
   document.body.dataset.sqlStreamed = String(Boolean(payload.streamed));
+  applySQLProgressSummary(payload.progress);
   renderSQLResult(payload);
   rememberSQLQuery(query);
   const elapsed = stopSQLProgressTimer();
-  status.textContent = tf("sql.status.returnedTimed", {
+  const statusKey = payload.progress?.loadedRows ? "sql.status.returnedTimedRows" : "sql.status.returnedTimed";
+  status.textContent = tf(statusKey, {
     rows: formatCount(payload.rows.length),
     total: formatCount(payload.totalRows),
+    loadedRows: formatCount(payload.progress?.loadedRows ?? 0),
     seconds: formatElapsedSeconds(elapsed),
   });
 }

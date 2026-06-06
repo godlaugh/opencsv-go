@@ -1570,9 +1570,24 @@ func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {
 }
 
 type sqlRequest struct {
-	DocumentID string `json:"documentId"`
-	Query      string `json:"query"`
-	Limit      int    `json:"limit"`
+	DocumentID       string `json:"documentId"`
+	Query            string `json:"query"`
+	Limit            int    `json:"limit"`
+	StreamProgress   bool   `json:"streamProgress,omitempty"`
+	ProgressInterval int    `json:"progressInterval,omitempty"`
+}
+
+type sqlStreamEvent struct {
+	Type      string                  `json:"type"`
+	Phase     string                  `json:"phase,omitempty"`
+	Source    string                  `json:"source,omitempty"`
+	Rows      int                     `json:"rows,omitempty"`
+	Records   int                     `json:"records,omitempty"`
+	Done      bool                    `json:"done,omitempty"`
+	ElapsedMs int64                   `json:"elapsedMs,omitempty"`
+	Result    *sqlconsole.Result      `json:"result,omitempty"`
+	Error     string                  `json:"error,omitempty"`
+	SQLError  *sqlconsole.ErrorDetail `json:"sqlError,omitempty"`
 }
 
 func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
@@ -1581,15 +1596,62 @@ func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := sqlconsole.ExecuteContext(r.Context(), request.Query, server.sqlResolver(request.DocumentID), sqlconsole.Options{
-		DefaultLimit: max(1, request.Limit),
-		MaxLimit:     5000,
-	})
+	if request.StreamProgress {
+		server.handleSQLProgressStream(w, r, request)
+		return
+	}
+	result, err := server.sqlResult(r.Context(), request, sqlconsole.Options{})
 	if err != nil {
 		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleSQLProgressStream(w http.ResponseWriter, r *http.Request, request sqlRequest) {
+	startedAt := time.Now()
+	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	flusher, _ := w.(http.Flusher)
+	writeEvent := func(event sqlStreamEvent) {
+		if event.ElapsedMs == 0 {
+			event.ElapsedMs = time.Since(startedAt).Milliseconds()
+		}
+		_ = json.NewEncoder(w).Encode(event)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	result, err := server.sqlResult(r.Context(), request, sqlconsole.Options{
+		ProgressInterval: request.ProgressInterval,
+		ReportProgress: func(progress sqlconsole.ProgressEvent) {
+			writeEvent(sqlStreamEvent{
+				Type:    "progress",
+				Phase:   progress.Phase,
+				Source:  progress.Source,
+				Rows:    progress.Rows,
+				Records: progress.Records,
+				Done:    progress.Done,
+			})
+		},
+	})
+	if err != nil {
+		event := sqlStreamEvent{Type: "error", Error: err.Error()}
+		var queryErr *sqlconsole.QueryError
+		if errors.As(err, &queryErr) {
+			event.SQLError = &queryErr.Detail
+		}
+		writeEvent(event)
+		return
+	}
+	writeEvent(sqlStreamEvent{Type: "result", Result: &result})
+}
+
+func (server *Server) sqlResult(ctx context.Context, request sqlRequest, options sqlconsole.Options) (sqlconsole.Result, error) {
+	options.DefaultLimit = max(1, request.Limit)
+	options.MaxLimit = 5000
+	return sqlconsole.ExecuteContext(ctx, request.Query, server.sqlResolver(request.DocumentID), options)
 }
 
 type profileRequest struct {

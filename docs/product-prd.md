@@ -446,6 +446,7 @@ The app shall support:
 - Per-tab console state and split-pane size persistence.
 - Query errors with useful locations/messages.
 - Long-running queries show running, completion, and cancellation elapsed time.
+- Clean-file SQL source loading shows source-row progress while loading CSV data into the query engine.
 
 Acceptance:
 
@@ -715,7 +716,7 @@ Targets:
 - Far-row window reads after a complete 100 MB row index: under 100 ms and reported by the benchmark.
 - Find over 100 MB: progress visible, cancellable.
 - Whole-column transforms over clean UTF-8/UTF-8-BOM files should stream when possible instead of loading the full table into the edit path.
-- SQL query over 100 MB: progress visible, cancellable.
+- SQL query over 100 MB: source-load row progress visible, cancellable.
 - Profile/validation over 100 MB: row-level progress visible for profile and validation passes, cancellable.
 - Startup should defer heavy optional surfaces and render a usable start/open surface before loading SQL, diff, settings, and extension-like modules.
 

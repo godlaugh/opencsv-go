@@ -29,18 +29,35 @@ type RecordStream func(ctx context.Context, handle func(row int, record []string
 type Resolver func(ref string) (Source, error)
 
 type Result struct {
-	Columns     []string   `json:"columns"`
-	Rows        [][]string `json:"rows"`
-	TotalRows   int        `json:"totalRows"`
-	Source      string     `json:"source"`
-	Truncated   bool       `json:"truncated"`
-	ExecutedSQL string     `json:"executedSql"`
-	Streamed    bool       `json:"streamed,omitempty"`
+	Columns     []string         `json:"columns"`
+	Rows        [][]string       `json:"rows"`
+	TotalRows   int              `json:"totalRows"`
+	Source      string           `json:"source"`
+	Truncated   bool             `json:"truncated"`
+	ExecutedSQL string           `json:"executedSql"`
+	Streamed    bool             `json:"streamed,omitempty"`
+	Progress    *ProgressSummary `json:"progress,omitempty"`
 }
 
 type Options struct {
-	DefaultLimit int
-	MaxLimit     int
+	DefaultLimit     int
+	MaxLimit         int
+	ProgressInterval int
+	ReportProgress   func(ProgressEvent)
+}
+
+type ProgressSummary struct {
+	LoadedRows int `json:"loadedRows"`
+	Sources    int `json:"sources"`
+	Events     int `json:"events,omitempty"`
+}
+
+type ProgressEvent struct {
+	Phase   string `json:"phase"`
+	Source  string `json:"source,omitempty"`
+	Rows    int    `json:"rows"`
+	Records int    `json:"records"`
+	Done    bool   `json:"done,omitempty"`
 }
 
 type ErrorDetail struct {
@@ -128,6 +145,7 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 	refs := findSourceRefs(sqlText)
 	sourceNames := make([]string, 0, len(refs))
 	streamed := false
+	progress := newProgressTracker(options)
 	for _, ref := range refs {
 		if err := ctx.Err(); err != nil {
 			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
@@ -136,7 +154,8 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 		if err != nil {
 			return Result{}, queryErrorNearToken(query, "resolve", err, ref)
 		}
-		sourceStreamed, err := loadSource(ctx, db, ref, source)
+		sourceTracker := progress.source(ref, source)
+		sourceStreamed, err := loadSource(ctx, db, ref, source, sourceTracker)
 		if err != nil {
 			return Result{}, queryErrorNearToken(query, "load", contextAwareError(ctx, err), ref)
 		}
@@ -180,7 +199,85 @@ func ExecuteContext(ctx context.Context, query string, resolver Resolver, option
 		Truncated:   truncated,
 		ExecutedSQL: strings.TrimSpace(query),
 		Streamed:    streamed,
+		Progress:    progress.summary(len(refs)),
 	}, nil
+}
+
+type progressTracker struct {
+	interval int
+	report   func(ProgressEvent)
+	rows     int
+	events   int
+}
+
+type sourceProgressTracker struct {
+	parent  *progressTracker
+	source  string
+	rows    int
+	records int
+}
+
+func newProgressTracker(options Options) *progressTracker {
+	interval := options.ProgressInterval
+	if interval <= 0 {
+		interval = 1000
+	}
+	return &progressTracker{
+		interval: interval,
+		report:   options.ReportProgress,
+	}
+}
+
+func (tracker *progressTracker) source(ref string, source Source) *sourceProgressTracker {
+	name := strings.TrimSpace(source.Path)
+	if name == "" {
+		name = strings.TrimSpace(source.Name)
+	}
+	if name == "" {
+		name = ref
+	}
+	return &sourceProgressTracker{parent: tracker, source: name}
+}
+
+func (tracker *progressTracker) summary(sources int) *ProgressSummary {
+	return &ProgressSummary{
+		LoadedRows: tracker.rows,
+		Sources:    sources,
+		Events:     tracker.events,
+	}
+}
+
+func (tracker *sourceProgressTracker) observe(record bool) {
+	if tracker == nil || tracker.parent == nil {
+		return
+	}
+	tracker.records++
+	if !record {
+		return
+	}
+	tracker.rows++
+	tracker.parent.rows++
+	if tracker.parent.report != nil && tracker.parent.interval > 0 && tracker.rows > 0 && tracker.rows%tracker.parent.interval == 0 {
+		tracker.emit(false)
+	}
+}
+
+func (tracker *sourceProgressTracker) finish() {
+	if tracker == nil || tracker.parent == nil || tracker.parent.report == nil {
+		return
+	}
+	tracker.emit(true)
+}
+
+func (tracker *sourceProgressTracker) emit(done bool) {
+	tracker.parent.events++
+	tracker.parent.report(ProgressEvent{
+		Phase:   "load",
+		Source:  tracker.source,
+		Rows:    tracker.rows,
+		Records: tracker.records,
+		Done:    done,
+	})
 }
 
 func contextAwareError(ctx context.Context, err error) error {
@@ -382,7 +479,7 @@ func tokenAtOffset(query string, offset int, fallback string) string {
 	return fallback
 }
 
-func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source) (bool, error) {
+func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source, progress *sourceProgressTracker) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -436,7 +533,13 @@ func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source
 		streamed = true
 		if _, err := source.Stream(ctx, func(row int, record []string) error {
 			if row == 0 && source.HasHeader {
+				if progress != nil {
+					progress.observe(false)
+				}
 				return nil
+			}
+			if progress != nil {
+				progress.observe(true)
 			}
 			return insert(record)
 		}); err != nil {
@@ -447,11 +550,20 @@ func loadSource(ctx context.Context, db *sql.DB, tableName string, source Source
 		if len(source.Records) > 0 && (source.HasHeader || sameRecord(source.Records[0], headers)) {
 			dataStart = 1
 		}
+		if progress != nil && dataStart == 1 {
+			progress.observe(false)
+		}
 		for _, record := range source.Records[dataStart:] {
+			if progress != nil {
+				progress.observe(true)
+			}
 			if err := insert(record); err != nil {
 				return streamed, err
 			}
 		}
+	}
+	if progress != nil {
+		progress.finish()
 	}
 	if err := statement.Close(); err != nil {
 		return streamed, contextAwareError(ctx, err)

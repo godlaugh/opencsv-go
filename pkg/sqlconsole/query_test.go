@@ -74,6 +74,58 @@ func TestExecuteStreamsSourceIntoSQLite(t *testing.T) {
 	}
 }
 
+func TestExecuteReportsSourceLoadProgress(t *testing.T) {
+	source := Source{
+		Name:             "current",
+		Path:             "/tmp/current.csv",
+		Headers:          []string{"id", "name"},
+		EstimatedColumns: 2,
+		HasHeader:        true,
+		Stream: func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
+			records := [][]string{
+				{"id", "name"},
+				{"1", "Ada"},
+				{"2", "Linus"},
+				{"3", "Grace"},
+			}
+			for row, record := range records {
+				if err := ctx.Err(); err != nil {
+					return row, err
+				}
+				if err := handle(row, record); err != nil {
+					return row, err
+				}
+			}
+			return len(records), nil
+		},
+	}
+	var events []ProgressEvent
+	result, err := ExecuteContext(context.Background(), `SELECT COUNT(*) AS rows FROM current`, fixedResolver(source), Options{
+		ProgressInterval: 2,
+		ReportProgress: func(event ProgressEvent) {
+			events = append(events, event)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Progress == nil {
+		t.Fatalf("progress = nil, want source loading summary")
+	}
+	if result.Progress.LoadedRows != 3 || result.Progress.Sources != 1 {
+		t.Fatalf("progress = %#v, want three loaded rows from one source", result.Progress)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %#v, want checkpoint and done", events)
+	}
+	if events[0].Phase != "load" || events[0].Source != "/tmp/current.csv" || events[0].Rows != 2 || events[0].Done {
+		t.Fatalf("first event = %#v, want load checkpoint at two rows", events[0])
+	}
+	if events[1].Phase != "load" || events[1].Rows != 3 || !events[1].Done {
+		t.Fatalf("second event = %#v, want load done at three rows", events[1])
+	}
+}
+
 func TestExecuteSupportsCColumnsAndFileRef(t *testing.T) {
 	source := Source{
 		Path:    "/tmp/file.csv",
