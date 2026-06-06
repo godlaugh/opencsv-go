@@ -709,6 +709,7 @@ Targets:
 - Full row index for 100 MB: under 2 seconds.
 - Far-row window reads after a complete 100 MB row index: under 100 ms and reported by the benchmark.
 - Find over 100 MB: progress visible, cancellable.
+- Whole-column transforms over clean UTF-8/UTF-8-BOM files should stream when possible instead of loading the full table into the edit path.
 - SQL query over 100 MB: progress visible, cancellable.
 - Startup should defer heavy optional surfaces and render a usable start/open surface before loading SQL, diff, settings, and extension-like modules.
 

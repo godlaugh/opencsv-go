@@ -1579,6 +1579,9 @@ func TestServerTextTransformColumn(t *testing.T) {
 	if columnPayload["changed"].(float64) != 3 {
 		t.Fatalf("column transform payload = %#v", columnPayload)
 	}
+	if columnPayload["streamed"] != true {
+		t.Fatalf("column transform streamed = %#v, want true", columnPayload["streamed"])
+	}
 	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=4")
 	rows := windowPayload["rows"].([]any)
 	if rows[0].([]any)[1] != "name" || rows[1].([]any)[1] != "ADA" || rows[2].([]any)[1] != "GRACE" || rows[3].([]any)[1] != "LINUS" {

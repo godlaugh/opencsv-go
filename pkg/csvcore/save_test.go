@@ -79,6 +79,31 @@ func TestEncodeRecordsUsesDialectAndLineEnding(t *testing.T) {
 	}
 }
 
+func TestWriteRecordUTF8UsesRowQuoteRulesAndLineEnding(t *testing.T) {
+	metadata := FileMetadata{
+		LineEnding: LineEndingInfo{Name: LineEndingCRLF},
+		Dialect: Dialect{
+			Delimiter:   ',',
+			QuoteChar:   `"`,
+			QuoteMode:   QuoteModeManual,
+			HasHeader:   true,
+			QuoteHeader: true,
+			QuoteBody:   true,
+		},
+	}
+	var output bytes.Buffer
+	if err := WriteRecordUTF8(&output, metadata, 0, []string{"id", "name"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteRecordUTF8(&output, metadata, 1, []string{"1", "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	want := "\"id\",\"name\"\r\n\"1\",\"Ada\"\r\n"
+	if output.String() != want {
+		t.Fatalf("streamed records = %q, want %q", output.String(), want)
+	}
+}
+
 func TestEncodeRecordsQuoteModes(t *testing.T) {
 	records := [][]string{
 		{"id", "note"},

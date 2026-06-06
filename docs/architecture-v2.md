@@ -570,7 +570,7 @@ Rules:
 Input:
 
 - document ID.
-- mode: `trim`, `upper`, `lower`, `snake`, `kebab`, `camel`, `pascal`, `title`, `wide`, or `narrow`.
+- mode: `trim`, `upper`, `lower`, `snake`, `kebab`, `camel`, `pascal`, `title`, `wide`, `narrow`, `nfc`, `nfd`, `nfkc`, or `nfkd`.
 - either explicit source cells with zero-based row and column indexes, or one zero-based source column for current-column transforms.
 
 Output:
@@ -578,12 +578,14 @@ Output:
 - updated mutation result.
 - refreshed session and row count.
 - changed count for cells whose value changed.
+- optional `streamed:true` when a clean-file current-column transform used the streaming read/write path.
 
 Rules:
 
 - Transform commands are read-only-safe: they reject read-only sessions.
 - Duplicate cells in the request are applied once.
 - Current-column transforms skip detected header rows.
+- Clean UTF-8/UTF-8-BOM current-column transforms with standard double-quote escaping stream records into a rewritten working file while preserving line endings, quote policy, and undo; dirty/edit-overlay, workbook, legacy encoding, and non-standard quote-escape sessions fall back to materialized records.
 - Empty no-op transforms do not create an undo entry or mark the document dirty.
 - Frontend command execution reuses localized command titles for selected-cell and current-column status messages.
 
@@ -785,7 +787,7 @@ Output:
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; known large whole-table transposes show a confirmation dialog, and selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
-- Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable materialized mutations.
+- Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable mutations; current-column transforms use a streaming path for clean UTF-8 files when safe and fall back to materialized records otherwise.
 - Swap/join/split cell tools are command-backed, undoable materialized mutations; split protects non-empty targets by default and keeps an explicit overwrite path for callers that need it.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.

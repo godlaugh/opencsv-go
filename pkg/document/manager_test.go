@@ -1617,6 +1617,80 @@ func TestManagerTransformColumnUnicodeNormalization(t *testing.T) {
 	}
 }
 
+func TestManagerTransformColumnStreamsCleanFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-stream.csv")
+	original := []byte("\xef\xbb\xbfid,name,note\r\n1, Ada ,\"quoted\"\r\n2, Grace ,plain\r\n")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "column-stream.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformColumn(session.ID, 1, TransformTrim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Streamed || result.Changed != 2 {
+		t.Fatalf("streamed column transform = streamed %v changed %d, want true/2", result.Streamed, result.Changed)
+	}
+	saved, err := os.ReadFile(result.Session.WorkingPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(saved, []byte{0xEF, 0xBB, 0xBF}) {
+		t.Fatalf("streamed transform lost UTF-8 BOM: %q", saved)
+	}
+	if !bytes.Contains(saved, []byte("1,Ada,\"quoted\"\r\n2,Grace,plain\r\n")) {
+		t.Fatalf("streamed transform bytes = %q", saved)
+	}
+	if bytes.Contains(saved, []byte("\n")) && !bytes.Contains(saved, []byte("\r\n")) {
+		t.Fatalf("streamed transform lost CRLF line endings: %q", saved)
+	}
+
+	undo, err := manager.Undo(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, err := csvcore.ReadAllRecords(undo.Session.WorkingPath, undo.Session.Document.Metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != " Ada " || records[2][1] != " Grace " {
+		t.Fatalf("records after undo streamed transform = %#v", records)
+	}
+}
+
+func TestManagerTransformColumnFallsBackWhenDirty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-dirty.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "column-dirty.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Edit(session.ID, 1, 1, "ada"); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformColumn(session.ID, 1, TransformUpper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Streamed {
+		t.Fatalf("dirty column transform streamed = true, want materialized fallback")
+	}
+	if result.Changed != 2 {
+		t.Fatalf("dirty column transform changed = %d, want 2", result.Changed)
+	}
+}
+
 func TestManagerJoinAndSplitCells(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "join-split.csv")

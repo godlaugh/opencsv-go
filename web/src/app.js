@@ -14611,6 +14611,7 @@ async function transformColumnText(mode, label, column = activeTransformColumn()
   }
   const changed = payload.changed ?? 0;
   document.body.dataset.columnTransform = `${sourceCol}:${mode}:${changed}`;
+  document.body.dataset.columnTransformStreamed = String(Boolean(payload.streamed));
   applyMutationPayload(
     payload,
     changed > 0

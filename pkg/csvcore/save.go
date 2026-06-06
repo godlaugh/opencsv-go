@@ -61,26 +61,43 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 // line-ending policy. It does not apply the original file encoding or BOM.
 func EncodeRecords(records [][]string, metadata FileMetadata) ([]byte, error) {
 	var buffer bytes.Buffer
+	for rowIndex, record := range records {
+		if err := WriteRecordUTF8(&buffer, metadata, rowIndex, record); err != nil {
+			return nil, err
+		}
+	}
+	return buffer.Bytes(), nil
+}
+
+func WriteRecordUTF8(writer io.Writer, metadata FileMetadata, rowIndex int, record []string) error {
+	encoded, err := EncodeRecord(record, metadata, rowIndex)
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(encoded)
+	return err
+}
+
+func EncodeRecord(record []string, metadata FileMetadata, rowIndex int) ([]byte, error) {
+	var buffer bytes.Buffer
 	delimiter := metadata.Dialect.Delimiter
 	if delimiter == 0 {
 		delimiter = ','
 	}
 	quoteChar := DialectQuoteChar(metadata.Dialect)
-	for rowIndex, record := range records {
-		for index, field := range record {
-			if index > 0 {
-				buffer.WriteRune(delimiter)
-			}
-			if ShouldQuoteField(field, metadata.Dialect, rowIndex, index) && quoteChar != "" {
-				buffer.WriteString(quoteChar)
-				buffer.WriteString(EscapeQuotedField(field, metadata.Dialect))
-				buffer.WriteString(quoteChar)
-			} else {
-				buffer.WriteString(field)
-			}
+	for index, field := range record {
+		if index > 0 {
+			buffer.WriteRune(delimiter)
 		}
-		buffer.WriteByte('\n')
+		if ShouldQuoteField(field, metadata.Dialect, rowIndex, index) && quoteChar != "" {
+			buffer.WriteString(quoteChar)
+			buffer.WriteString(EscapeQuotedField(field, metadata.Dialect))
+			buffer.WriteString(quoteChar)
+		} else {
+			buffer.WriteString(field)
+		}
 	}
+	buffer.WriteByte('\n')
 
 	if metadata.LineEnding.Name == LineEndingCRLF {
 		return bytes.ReplaceAll(buffer.Bytes(), []byte("\n"), []byte("\r\n")), nil

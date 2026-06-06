@@ -1,6 +1,7 @@
 package document
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -452,6 +453,7 @@ type MutationResult struct {
 	TotalRows int      `json:"totalRows"`
 	Dirty     bool     `json:"dirty"`
 	Changed   int      `json:"changed,omitempty"`
+	Streamed  bool     `json:"streamed,omitempty"`
 }
 
 func (manager *Manager) SetHeaderMode(id string, hasHeader bool) (MutationResult, error) {
@@ -1346,6 +1348,83 @@ func (manager *Manager) TransformCells(id string, cells []Cell, mode TextTransfo
 	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed}, nil
 }
 
+func canStreamColumnTransform(session *Session) bool {
+	return session != nil &&
+		!session.Dirty &&
+		session.Document.Metadata.Workbook == nil &&
+		session.EditBaseRecords == nil &&
+		len(session.Edits) == 0 &&
+		session.WorkingPath != "" &&
+		csvcore.CanStreamRecords(session.Document.Metadata)
+}
+
+func (manager *Manager) transformColumnStreaming(id string, session *Session, col int, transform func(string) string) (MutationResult, error) {
+	metadata := session.Document.Metadata
+	temp, err := os.CreateTemp("", "opencsv-work-*.csv")
+	if err != nil {
+		return MutationResult{}, err
+	}
+	tempPath := temp.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	writer := bufio.NewWriter(temp)
+	if metadata.Encoding.Name == csvcore.EncodingUTF8BOM {
+		if _, err := writer.Write([]byte{0xEF, 0xBB, 0xBF}); err != nil {
+			_ = temp.Close()
+			return MutationResult{}, err
+		}
+	}
+	startRow := 0
+	if metadata.Dialect.HasHeader {
+		startRow = 1
+	}
+	changed := 0
+	rowCount, err := csvcore.ForEachRecordContext(context.Background(), session.WorkingPath, metadata, func(row int, record []string) error {
+		if row >= startRow && col < len(record) {
+			next := transform(record[col])
+			if next != record[col] {
+				record = append([]string(nil), record...)
+				record[col] = next
+				changed++
+			}
+		}
+		return csvcore.WriteRecordUTF8(writer, metadata, row, record)
+	})
+	if err != nil {
+		_ = temp.Close()
+		return MutationResult{}, err
+	}
+	if err := writer.Flush(); err != nil {
+		_ = temp.Close()
+		return MutationResult{}, err
+	}
+	if err := temp.Close(); err != nil {
+		return MutationResult{}, err
+	}
+	if changed == 0 {
+		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty, Streamed: true}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return MutationResult{}, err
+	}
+	previewRows := max(160, min(rowCount, 1000))
+	refreshed, err := openMaterializedDocument(tempPath, metadata, previewRows)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	updated, err := manager.setMaterializedDocument(id, tempPath, refreshed, true)
+	if err != nil {
+		return MutationResult{}, err
+	}
+	committed = true
+	return MutationResult{Session: updated, TotalRows: updated.Document.RowIndex.Rows, Dirty: updated.Dirty, Changed: changed, Streamed: true}, nil
+}
+
 func (manager *Manager) TransformColumn(id string, col int, mode TextTransformMode) (MutationResult, error) {
 	if col < 0 {
 		return MutationResult{}, errors.New("column must be non-negative")
@@ -1360,6 +1439,9 @@ func (manager *Manager) TransformColumn(id string, col int, mode TextTransformMo
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return MutationResult{}, errors.New("document not found")
+	}
+	if canStreamColumnTransform(session) {
+		return manager.transformColumnStreaming(id, session, col, transform)
 	}
 	records, err := recordsForSession(session)
 	if err != nil {
@@ -3175,12 +3257,20 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 	if _, err := csvcore.SaveRecords(tempPath, metadata, records, csvcore.SaveOptions{}); err != nil {
 		return nil, err
 	}
+	refreshed, err := openMaterializedDocument(tempPath, metadata, max(160, min(len(records), 1000)))
+	if err != nil {
+		return nil, err
+	}
+	return manager.setMaterializedDocument(id, tempPath, refreshed, dirty)
+}
+
+func openMaterializedDocument(path string, metadata csvcore.FileMetadata, previewRows int) (csvcore.Document, error) {
 	delimiter := metadata.Dialect.Delimiter
 	delimiterName := metadata.Dialect.DelimiterName
 	hasHeader := metadata.Dialect.HasHeader
 	headerColumns := metadata.Dialect.HeaderColumns
-	refreshed, err := csvcore.OpenDocument(tempPath, csvcore.OpenOptions{
-		PreviewRows:   max(160, min(len(records), 1000)),
+	return csvcore.OpenDocument(path, csvcore.OpenOptions{
+		PreviewRows:   previewRows,
 		IndexRows:     -1,
 		Delimiter:     &delimiter,
 		DelimiterName: delimiterName,
@@ -3191,18 +3281,17 @@ func (manager *Manager) materializeRecords(id string, records [][]string, metada
 		QuoteMode:     metadata.Dialect.QuoteMode,
 		QuoteEscape:   metadata.Dialect.QuoteEscape,
 	})
-	if err != nil {
-		return nil, err
-	}
+}
 
+func (manager *Manager) setMaterializedDocument(id string, workingPath string, document csvcore.Document, dirty bool) (*Session, error) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	session, ok := manager.sessions[id]
 	if !ok {
 		return nil, errors.New("document not found")
 	}
-	session.WorkingPath = tempPath
-	session.Document = refreshed
+	session.WorkingPath = workingPath
+	session.Document = document
 	session.Edits = make(map[Cell]string)
 	session.EditBaseRecords = nil
 	session.ViewRows = nil
