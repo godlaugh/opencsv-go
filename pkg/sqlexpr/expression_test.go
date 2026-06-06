@@ -114,6 +114,35 @@ func TestMatchInAndNotIn(t *testing.T) {
 	}
 }
 
+func TestMatchBetweenAndNotBetween(t *testing.T) {
+	headers := []string{"id", "name", "region", "score", "created_at"}
+	record := []string{"9007199254740993", "Grace", "APAC", "10", "2026-05-27"}
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "score BETWEEN 8 AND 10", want: true},
+		{expr: "score NOT BETWEEN 8 AND 10", want: false},
+		{expr: "score NOT BETWEEN 11 AND 20", want: true},
+		{expr: "CAST(score AS number) + 1 BETWEEN 10 AND 12", want: true},
+		{expr: "score BETWEEN 8 AND 10 AND region = 'APAC'", want: true},
+		{expr: "score BETWEEN 8 AND 10 AND region = 'EMEA'", want: false},
+		{expr: "CAST(created_at AS date) BETWEEN DATE '2026-01-01' AND DATE '2026-12-31'", want: true},
+		{expr: "CAST(id AS bigint) BETWEEN 9007199254740992 AND 9007199254740994", want: true},
+	}
+
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
+		}
+	}
+}
+
 func TestMatchTemporalArithmetic(t *testing.T) {
 	headers := []string{"created_at", "seen_at", "stamp"}
 	record := []string{"2026-05-27", "15:30:00.123", "2026-05-27 14:30:00"}
@@ -220,5 +249,8 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("amount IN ()", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected in list syntax error")
+	}
+	if _, err := Match("amount BETWEEN 1", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected between syntax error")
 	}
 }

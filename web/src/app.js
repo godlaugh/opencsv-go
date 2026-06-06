@@ -13424,7 +13424,7 @@ function looksLikeSQLFilter(query) {
   const value = query.trim();
   return (
     /^where\s+/i.test(value) ||
-    /\b(and|or|not|like|is|cast|try_cast|null|date|time|timestamp)\b/i.test(value) ||
+    /\b(and|or|not|like|between|is|cast|try_cast|null|date|time|timestamp)\b/i.test(value) ||
     /(?:[<>=!]=|<>|[<>])/.test(value)
   );
 }

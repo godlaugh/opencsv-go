@@ -361,6 +361,33 @@ func (expr inExpr) eval(ctx evalContext) (value, error) {
 	return boolValue(matched), nil
 }
 
+type betweenExpr struct {
+	target expr
+	lower  expr
+	upper  expr
+	not    bool
+}
+
+func (expr betweenExpr) eval(ctx evalContext) (value, error) {
+	target, err := expr.target.eval(ctx)
+	if err != nil {
+		return nullValue(), err
+	}
+	lower, err := expr.lower.eval(ctx)
+	if err != nil {
+		return nullValue(), err
+	}
+	upper, err := expr.upper.eval(ctx)
+	if err != nil {
+		return nullValue(), err
+	}
+	matched := compare(target, lower, ">=") && compare(target, upper, "<=")
+	if expr.not {
+		matched = !matched
+	}
+	return boolValue(matched), nil
+}
+
 type isNullExpr struct {
 	target expr
 	not    bool
@@ -1429,7 +1456,14 @@ func (parser *parser) parseComparison() (expr, error) {
 			}
 			return inExpr{target: left, values: values, not: true}, nil
 		}
-		return nil, errors.New("expected like or in after not")
+		if parser.matchKeyword("between") {
+			lower, upper, err := parser.parseBetweenBounds()
+			if err != nil {
+				return nil, err
+			}
+			return betweenExpr{target: left, lower: lower, upper: upper, not: true}, nil
+		}
+		return nil, errors.New("expected like, in, or between after not")
 	}
 
 	if parser.matchKeyword("like") {
@@ -1448,6 +1482,14 @@ func (parser *parser) parseComparison() (expr, error) {
 		return inExpr{target: left, values: values}, nil
 	}
 
+	if parser.matchKeyword("between") {
+		lower, upper, err := parser.parseBetweenBounds()
+		if err != nil {
+			return nil, err
+		}
+		return betweenExpr{target: left, lower: lower, upper: upper}, nil
+	}
+
 	if parser.peek().kind == tokenOperator && isComparisonOperator(parser.peek().text) {
 		op := parser.advance().text
 		right, err := parser.parseAdditive()
@@ -1457,6 +1499,21 @@ func (parser *parser) parseComparison() (expr, error) {
 		return binaryExpr{left: left, op: strings.ToLower(op), right: right}, nil
 	}
 	return left, nil
+}
+
+func (parser *parser) parseBetweenBounds() (expr, expr, error) {
+	lower, err := parser.parseAdditive()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !parser.matchKeyword("and") {
+		return nil, nil, errors.New("between expects and")
+	}
+	upper, err := parser.parseAdditive()
+	if err != nil {
+		return nil, nil, err
+	}
+	return lower, upper, nil
 }
 
 func (parser *parser) parseInValues() ([]expr, error) {
