@@ -637,6 +637,8 @@ const localeCatalog = {
     "condition.clearView": "Clear View",
     "condition.remove": "Remove",
     "condition.duplicate": "Duplicate",
+    "condition.groupPrevious": "Group",
+    "condition.ungroupPrevious": "Ungroup",
     "condition.moveUp": "Up",
     "condition.moveDown": "Down",
     "condition.operator.contains": "contains",
@@ -675,11 +677,15 @@ const localeCatalog = {
     "condition.valueAria": "Condition {{number}} value",
     "condition.removeTitle": "Remove condition {{number}}",
     "condition.duplicateTitle": "Duplicate condition {{number}}",
+    "condition.groupPreviousTitle": "Group condition {{number}} with the previous condition",
+    "condition.ungroupPreviousTitle": "Remove one group around condition {{number}} and the previous condition",
     "condition.moveUpTitle": "Move condition {{number}} up",
     "condition.moveDownTitle": "Move condition {{number}} down",
     "condition.status.chooseQuick": "Choose a quick filter condition.",
     "condition.status.ready": "Quick condition ready: {{label}}.",
     "condition.status.duplicated": "Duplicated condition {{number}}.",
+    "condition.status.groupedPrevious": "Grouped conditions {{from}} and {{to}}.",
+    "condition.status.ungroupedPrevious": "Ungrouped conditions {{from}} and {{to}}.",
     "condition.status.reordered": "Moved condition {{from}} to position {{to}}.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
@@ -1277,6 +1283,8 @@ const localeCatalog = {
     "condition.clearView": "清除视图",
     "condition.remove": "移除",
     "condition.duplicate": "复制",
+    "condition.groupPrevious": "分组",
+    "condition.ungroupPrevious": "解组",
     "condition.moveUp": "上移",
     "condition.moveDown": "下移",
     "condition.operator.contains": "包含",
@@ -1315,11 +1323,15 @@ const localeCatalog = {
     "condition.valueAria": "条件 {{number}} 值",
     "condition.removeTitle": "移除条件 {{number}}",
     "condition.duplicateTitle": "复制条件 {{number}}",
+    "condition.groupPreviousTitle": "将条件 {{number}} 与上一条件分组",
+    "condition.ungroupPreviousTitle": "移除条件 {{number}} 与上一条件外的一层分组",
     "condition.moveUpTitle": "上移条件 {{number}}",
     "condition.moveDownTitle": "下移条件 {{number}}",
     "condition.status.chooseQuick": "请选择快速筛选条件。",
     "condition.status.ready": "快速条件已就绪：{{label}}。",
     "condition.status.duplicated": "已复制条件 {{number}}。",
+    "condition.status.groupedPrevious": "已将条件 {{from}} 与 {{to}} 分组。",
+    "condition.status.ungroupedPrevious": "已取消条件 {{from}} 与 {{to}} 的分组。",
     "condition.status.reordered": "已将条件 {{from}} 移到位置 {{to}}。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
@@ -7737,13 +7749,25 @@ function conditionExtraRowElement(row, index) {
   duplicateButton.textContent = t("condition.duplicate");
   duplicateButton.title = tf("condition.duplicateTitle", { number });
 
+  const groupButton = document.createElement("button");
+  groupButton.type = "button";
+  groupButton.dataset.conditionAction = "group-previous";
+  groupButton.textContent = t("condition.groupPrevious");
+  groupButton.title = tf("condition.groupPreviousTitle", { number });
+
+  const ungroupButton = document.createElement("button");
+  ungroupButton.type = "button";
+  ungroupButton.dataset.conditionAction = "ungroup-previous";
+  ungroupButton.textContent = t("condition.ungroupPrevious");
+  ungroupButton.title = tf("condition.ungroupPreviousTitle", { number });
+
   const removeButton = document.createElement("button");
   removeButton.className = "condition-remove-button";
   removeButton.type = "button";
   removeButton.dataset.conditionAction = "remove";
   removeButton.textContent = t("condition.remove");
   removeButton.title = tf("condition.removeTitle", { number });
-  actions.append(moveUpButton, moveDownButton, duplicateButton, removeButton);
+  actions.append(moveUpButton, moveDownButton, duplicateButton, groupButton, ungroupButton, removeButton);
   fieldset.append(actions);
   return fieldset;
 }
@@ -7955,6 +7979,39 @@ function duplicateConditionRow(index) {
   status.textContent = tf("condition.status.duplicated", { number: formatCount(fromNumber) });
   const valueInput = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${index + 1}"] .condition-value`);
   valueInput?.focus();
+}
+
+function groupConditionWithPrevious(extraIndex, direction) {
+  if (!Number.isInteger(extraIndex) || ![-1, 1].includes(direction)) return;
+  const current = extraIndex + 1;
+  const previous = current - 1;
+  const rows = conditionBuilderRowStatesFromDOM();
+  if (current < 1 || current >= rows.length || previous < 0) return;
+  const previousStart = conditionGroupCount(rows[previous].groupStart);
+  const currentEnd = conditionGroupCount(rows[current].groupEnd);
+  const grouping = direction > 0;
+  if (grouping) {
+    if (previousStart >= 3 || currentEnd >= 3) return;
+    rows[previous].groupStart = previousStart + 1;
+    rows[current].groupEnd = currentEnd + 1;
+  } else {
+    if (previousStart <= 0 || currentEnd <= 0) return;
+    rows[previous].groupStart = previousStart - 1;
+    rows[current].groupEnd = currentEnd - 1;
+  }
+  setConditionBuilderRows(rows);
+  const fromNumber = previous + 1;
+  const toNumber = current + 1;
+  document.body.dataset.conditionGroupAction = `${grouping ? "group" : "ungroup"}:${fromNumber}-${toNumber}`;
+  status.textContent = tf(
+    grouping ? "condition.status.groupedPrevious" : "condition.status.ungroupedPrevious",
+    {
+      from: formatCount(fromNumber),
+      to: formatCount(toNumber),
+    },
+  );
+  const field = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${extraIndex}"] .condition-value`);
+  field?.focus();
 }
 
 function moveConditionRow(extraIndex, direction) {
@@ -18452,6 +18509,10 @@ conditionRows.addEventListener("click", (event) => {
     removeConditionRow(index);
   } else if (button.dataset.conditionAction === "duplicate") {
     duplicateConditionRow(index);
+  } else if (button.dataset.conditionAction === "group-previous") {
+    groupConditionWithPrevious(index, 1);
+  } else if (button.dataset.conditionAction === "ungroup-previous") {
+    groupConditionWithPrevious(index, -1);
   } else if (button.dataset.conditionAction === "move-up") {
     moveConditionRow(index, -1);
   } else if (button.dataset.conditionAction === "move-down") {

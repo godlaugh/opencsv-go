@@ -208,7 +208,7 @@ flowchart TD
   - Column header quick menu for replacing sort keys, appending secondary sort keys, selected-value filter, blank/non-blank SQL filters, and clear view.
   - Hidden source-column state persists per local file path and is restored on reopen while rejecting stale or all-hidden column sets.
   - Recent and saved filter dropdown for replaying toolbar, SQL, value-checklist, and saved filter expressions without retyping.
-  - Filter Builder can generate adjacent nested condition groups such as `A AND (B OR C)`, duplicate/reorder additional condition rows, and emit direct list predicates such as `region IN (...)` before handing the SQL expression to the shared filter evaluator.
+  - Filter Builder can generate adjacent nested condition groups such as `A AND (B OR C)`, duplicate/reorder/group/ungroup additional condition rows, and emit direct list predicates such as `region IN (...)` before handing the SQL expression to the shared filter evaluator.
   - Builder-created active filters keep normalized condition rows, so active chips, recent filters, and saved filters can reopen the visual Builder while SQL-only filters continue to hand off to SQL Console.
   - Length-based column sort entry point and frontend sort-mode inference for numeric/date-looking columns.
   - Column value checklist inside the header quick menu.
