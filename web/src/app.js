@@ -8144,9 +8144,8 @@ function listConditionExpression(identifier, value, valueInput, negate) {
     valueInput.focus();
     return "";
   }
-  const operator = negate ? "<>" : "=";
-  const join = negate ? " AND " : " OR ";
-  return `(${values.map((item) => `${identifier} ${operator} ${sqlStringLiteral(item)}`).join(join)})`;
+  const operator = negate ? "NOT IN" : "IN";
+  return `${identifier} ${operator} (${values.map(sqlStringLiteral).join(", ")})`;
 }
 
 function conditionListValues(value) {

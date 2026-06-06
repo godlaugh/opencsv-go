@@ -86,6 +86,34 @@ func TestMatchBigIntPrecision(t *testing.T) {
 	}
 }
 
+func TestMatchInAndNotIn(t *testing.T) {
+	headers := []string{"id", "name", "region", "score"}
+	record := []string{"9007199254740993", "Grace", "APAC", "10"}
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "region IN ('APAC', 'EMEA')", want: true},
+		{expr: "region NOT IN ('AMER', 'EMEA')", want: true},
+		{expr: "region NOT IN ('APAC', 'EMEA')", want: false},
+		{expr: "score IN (8, 10)", want: true},
+		{expr: "(CAST(score AS number) + 1) IN (10, 11)", want: true},
+		{expr: "CAST(id AS bigint) IN (9007199254740992, 9007199254740993)", want: true},
+		{expr: "CAST(id AS bigint) NOT IN (9007199254740993, 9007199254740994)", want: false},
+	}
+
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
+		}
+	}
+}
+
 func TestMatchTemporalArithmetic(t *testing.T) {
 	headers := []string{"created_at", "seen_at", "stamp"}
 	record := []string{"2026-05-27", "15:30:00.123", "2026-05-27 14:30:00"}
@@ -189,5 +217,8 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("INTERVAL '1' second(3, 2) = INTERVAL '1' second", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected interval precision scale syntax error")
+	}
+	if _, err := Match("amount IN ()", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected in list syntax error")
 	}
 }

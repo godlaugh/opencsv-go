@@ -333,6 +333,34 @@ func (expr binaryExpr) eval(ctx evalContext) (value, error) {
 	return nullValue(), fmt.Errorf("unsupported binary operator %s", expr.op)
 }
 
+type inExpr struct {
+	target expr
+	values []expr
+	not    bool
+}
+
+func (expr inExpr) eval(ctx evalContext) (value, error) {
+	target, err := expr.target.eval(ctx)
+	if err != nil {
+		return nullValue(), err
+	}
+	matched := false
+	for _, candidateExpr := range expr.values {
+		candidate, err := candidateExpr.eval(ctx)
+		if err != nil {
+			return nullValue(), err
+		}
+		if compare(target, candidate, "=") {
+			matched = true
+			break
+		}
+	}
+	if expr.not {
+		matched = !matched
+	}
+	return boolValue(matched), nil
+}
+
 type isNullExpr struct {
 	target expr
 	not    bool
@@ -1387,14 +1415,21 @@ func (parser *parser) parseComparison() (expr, error) {
 	}
 
 	if parser.matchKeyword("not") {
-		if !parser.matchKeyword("like") {
-			return nil, errors.New("expected like after not")
+		if parser.matchKeyword("like") {
+			right, err := parser.parseAdditive()
+			if err != nil {
+				return nil, err
+			}
+			return binaryExpr{left: left, op: "not like", right: right}, nil
 		}
-		right, err := parser.parseAdditive()
-		if err != nil {
-			return nil, err
+		if parser.matchKeyword("in") {
+			values, err := parser.parseInValues()
+			if err != nil {
+				return nil, err
+			}
+			return inExpr{target: left, values: values, not: true}, nil
 		}
-		return binaryExpr{left: left, op: "not like", right: right}, nil
+		return nil, errors.New("expected like or in after not")
 	}
 
 	if parser.matchKeyword("like") {
@@ -1403,6 +1438,14 @@ func (parser *parser) parseComparison() (expr, error) {
 			return nil, err
 		}
 		return binaryExpr{left: left, op: "like", right: right}, nil
+	}
+
+	if parser.matchKeyword("in") {
+		values, err := parser.parseInValues()
+		if err != nil {
+			return nil, err
+		}
+		return inExpr{target: left, values: values}, nil
 	}
 
 	if parser.peek().kind == tokenOperator && isComparisonOperator(parser.peek().text) {
@@ -1414,6 +1457,29 @@ func (parser *parser) parseComparison() (expr, error) {
 		return binaryExpr{left: left, op: strings.ToLower(op), right: right}, nil
 	}
 	return left, nil
+}
+
+func (parser *parser) parseInValues() ([]expr, error) {
+	if !parser.match(tokenLeftParen) {
+		return nil, errors.New("in expects opening parenthesis")
+	}
+	if parser.match(tokenRightParen) {
+		return nil, errors.New("in expects at least one value")
+	}
+	var values []expr
+	for {
+		value, err := parser.parseOr()
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+		if parser.match(tokenRightParen) {
+			return values, nil
+		}
+		if !parser.match(tokenComma) {
+			return nil, errors.New("expected comma or closing parenthesis")
+		}
+	}
 }
 
 func (parser *parser) parseAdditive() (expr, error) {
