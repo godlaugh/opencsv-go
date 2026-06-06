@@ -14957,6 +14957,7 @@ function numberedTextAutoFill(seed, length) {
 
 async function runCellTool(endpoint, options) {
   status.textContent = `${options.label}...`;
+  delete document.body.dataset.cellToolFailed;
   if (options.separator !== undefined) {
     document.body.dataset.cellToolEndpoint = endpoint;
     document.body.dataset.cellToolDirection = options.direction ?? "";
@@ -14970,11 +14971,14 @@ async function runCellTool(endpoint, options) {
       cells: options.cells,
       separator: options.separator,
       direction: options.direction,
+      allowOverwrite: options.allowOverwrite === true,
     }),
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${options.label} failed: ${payload.error ?? "unknown error"}`;
+    const error = payload.error ?? "unknown error";
+    document.body.dataset.cellToolFailed = `${endpoint}:${error}`;
+    status.textContent = `${options.label} failed: ${error}`;
     return;
   }
   const changed = payload.changed ?? 0;

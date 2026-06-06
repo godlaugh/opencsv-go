@@ -598,6 +598,7 @@ Input:
 - document ID.
 - explicit source cells with zero-based row and column indexes.
 - separator text for join/split, supplied from the Inspector cell-tool separator preference.
+- optional `allowOverwrite` for split requests that intentionally replace non-empty target cells.
 
 Output:
 
@@ -609,7 +610,7 @@ Rules:
 
 - Swap requires exactly two source cells and exchanges their values; the frontend can provide those cells either from an explicit two-cell selection or from active-cell neighbor swap commands.
 - Join groups selected cells by row, sorts columns left-to-right, writes the joined text into the first selected cell using the configured separator, and clears the remaining selected cells in that row.
-- Split writes separator-delimited parts horizontally starting at the selected source cell using the configured separator and can expand row width.
+- Split writes separator-delimited parts horizontally or vertically starting at the selected source cell using the configured separator, can expand row width or row count, and rejects non-empty target cells unless `allowOverwrite` is explicitly set.
 - Cell tools are materialized, undoable mutations and preserve source-column targeting when frontend columns are hidden.
 
 ### Diff
@@ -785,7 +786,7 @@ Output:
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; known large whole-table transposes show a confirmation dialog, and selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
 - Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable materialized mutations.
-- Swap/join/split cell tools are command-backed, undoable materialized mutations.
+- Swap/join/split cell tools are command-backed, undoable materialized mutations; split protects non-empty targets by default and keeps an explicit overwrite path for callers that need it.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.
 - Save clears dirty and creates backup.

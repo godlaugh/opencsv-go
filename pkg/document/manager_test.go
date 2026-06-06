@@ -1654,7 +1654,7 @@ func TestManagerJoinAndSplitCells(t *testing.T) {
 		t.Fatalf("records after undo join = %#v", records)
 	}
 
-	result, err = manager.SplitCells(session.ID, []Cell{{Row: 1, Col: 1}}, "d")
+	result, err = manager.SplitCellsWithOptions(session.ID, []Cell{{Row: 1, Col: 1}}, "d", SplitOptions{AllowOverwrite: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1697,6 +1697,86 @@ func TestManagerJoinAndSplitCells(t *testing.T) {
 	}
 	if records[1][1] != "A" || records[2][1] != "Grace" {
 		t.Fatalf("records after vertical split = %#v", records)
+	}
+}
+
+func TestManagerSplitCellsRejectsOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "split-conflict.csv")
+	if err := os.WriteFile(path, []byte("id,name,target\n1,Ada Lovelace,occupied\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "split-conflict.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = manager.SplitCells(session.ID, []Cell{{Row: 1, Col: 1}}, " ")
+	if err == nil || !strings.Contains(err.Error(), `split would overwrite row 2, column 3 ("occupied")`) {
+		t.Fatalf("split conflict error = %v", err)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada Lovelace" || records[1][2] != "occupied" {
+		t.Fatalf("records after rejected split = %#v", records)
+	}
+
+	result, err := manager.SplitCellsWithOptions(session.ID, []Cell{{Row: 1, Col: 1}}, " ", SplitOptions{AllowOverwrite: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("split changed = %d, want 2", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[1][2] != "Lovelace" {
+		t.Fatalf("records after overwrite split = %#v", records)
+	}
+}
+
+func TestManagerSplitCellsVerticalRejectsOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "split-conflict-vertical.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada Grace\n2,occupied\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "split-conflict-vertical.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = manager.SplitCellsVertical(session.ID, []Cell{{Row: 1, Col: 1}}, " ")
+	if err == nil || !strings.Contains(err.Error(), `split would overwrite row 3, column 2 ("occupied")`) {
+		t.Fatalf("vertical split conflict error = %v", err)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada Grace" || records[2][1] != "occupied" {
+		t.Fatalf("records after rejected vertical split = %#v", records)
+	}
+
+	result, err := manager.SplitCellsVerticalWithOptions(session.ID, []Cell{{Row: 1, Col: 1}}, " ", SplitOptions{AllowOverwrite: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("vertical split changed = %d, want 2", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[1][1] != "Ada" || records[2][1] != "Grace" {
+		t.Fatalf("records after overwrite vertical split = %#v", records)
 	}
 }
 

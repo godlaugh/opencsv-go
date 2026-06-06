@@ -37,6 +37,10 @@ type Cell struct {
 	Col int `json:"col"`
 }
 
+type SplitOptions struct {
+	AllowOverwrite bool
+}
+
 type QuoteSettings struct {
 	QuoteChar    string
 	QuoteMode    string
@@ -1482,14 +1486,22 @@ func (manager *Manager) joinCells(id string, cells []Cell, separator string, dir
 }
 
 func (manager *Manager) SplitCells(id string, cells []Cell, separator string) (MutationResult, error) {
-	return manager.splitCells(id, cells, separator, "horizontal")
+	return manager.SplitCellsWithOptions(id, cells, separator, SplitOptions{})
 }
 
 func (manager *Manager) SplitCellsVertical(id string, cells []Cell, separator string) (MutationResult, error) {
-	return manager.splitCells(id, cells, separator, "vertical")
+	return manager.SplitCellsVerticalWithOptions(id, cells, separator, SplitOptions{})
 }
 
-func (manager *Manager) splitCells(id string, cells []Cell, separator string, direction string) (MutationResult, error) {
+func (manager *Manager) SplitCellsWithOptions(id string, cells []Cell, separator string, options SplitOptions) (MutationResult, error) {
+	return manager.splitCells(id, cells, separator, "horizontal", options)
+}
+
+func (manager *Manager) SplitCellsVerticalWithOptions(id string, cells []Cell, separator string, options SplitOptions) (MutationResult, error) {
+	return manager.splitCells(id, cells, separator, "vertical", options)
+}
+
+func (manager *Manager) splitCells(id string, cells []Cell, separator string, direction string, options SplitOptions) (MutationResult, error) {
 	if len(cells) == 0 {
 		return MutationResult{}, errors.New("no cells selected")
 	}
@@ -1513,7 +1525,10 @@ func (manager *Manager) splitCells(id string, cells []Cell, separator string, di
 		return MutationResult{}, err
 	}
 
-	changed := splitRecords(&records, cells, separator, direction)
+	changed, err := splitRecords(&records, cells, separator, direction, options)
+	if err != nil {
+		return MutationResult{}, err
+	}
 	if changed == 0 {
 		return MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty}, nil
 	}
@@ -3526,14 +3541,36 @@ type splitOperation struct {
 	parts []string
 }
 
-func splitRecords(records *[][]string, cells []Cell, separator string, direction string) int {
-	if direction == "vertical" {
-		return splitRecordsVertical(records, cells, separator)
-	}
-	return splitRecordsHorizontal(*records, cells, separator)
+type splitConflict struct {
+	row   int
+	col   int
+	value string
 }
 
-func splitRecordsHorizontal(records [][]string, cells []Cell, separator string) int {
+type splitConflictError struct {
+	conflicts []splitConflict
+}
+
+func (err splitConflictError) Error() string {
+	if len(err.conflicts) == 0 {
+		return "split would overwrite existing cells"
+	}
+	first := err.conflicts[0]
+	suffix := ""
+	if len(err.conflicts) > 1 {
+		suffix = fmt.Sprintf(" and %d more", len(err.conflicts)-1)
+	}
+	return fmt.Sprintf("split would overwrite row %d, column %d (%q)%s; clear targets or set allowOverwrite", first.row+1, first.col+1, first.value, suffix)
+}
+
+func splitRecords(records *[][]string, cells []Cell, separator string, direction string, options SplitOptions) (int, error) {
+	if direction == "vertical" {
+		return splitRecordsVertical(records, cells, separator, options)
+	}
+	return splitRecordsHorizontal(*records, cells, separator, options)
+}
+
+func splitRecordsHorizontal(records [][]string, cells []Cell, separator string, options SplitOptions) (int, error) {
 	seen := make(map[Cell]bool, len(cells))
 	operations := make([]splitOperation, 0, len(cells))
 	for _, cell := range cells {
@@ -3554,6 +3591,11 @@ func splitRecordsHorizontal(records [][]string, cells []Cell, separator string) 
 		}
 		return operations[i].row < operations[j].row
 	})
+	if !options.AllowOverwrite {
+		if conflicts := splitHorizontalConflicts(records, operations); len(conflicts) > 0 {
+			return 0, splitConflictError{conflicts: conflicts}
+		}
+	}
 	changed := 0
 	for _, operation := range operations {
 		ensureRecordWidth(&records[operation.row], operation.col+len(operation.parts))
@@ -3565,10 +3607,10 @@ func splitRecordsHorizontal(records [][]string, cells []Cell, separator string) 
 			}
 		}
 	}
-	return changed
+	return changed, nil
 }
 
-func splitRecordsVertical(records *[][]string, cells []Cell, separator string) int {
+func splitRecordsVertical(records *[][]string, cells []Cell, separator string, options SplitOptions) (int, error) {
 	seen := make(map[Cell]bool, len(cells))
 	operations := make([]splitOperation, 0, len(cells))
 	for _, cell := range cells {
@@ -3592,6 +3634,11 @@ func splitRecordsVertical(records *[][]string, cells []Cell, separator string) i
 		}
 		return operations[i].col < operations[j].col
 	})
+	if !options.AllowOverwrite {
+		if conflicts := splitVerticalConflicts(*records, operations); len(conflicts) > 0 {
+			return 0, splitConflictError{conflicts: conflicts}
+		}
+	}
 	changed := 0
 	for _, operation := range operations {
 		lastRow := operation.row + len(operation.parts) - 1
@@ -3607,7 +3654,39 @@ func splitRecordsVertical(records *[][]string, cells []Cell, separator string) i
 			}
 		}
 	}
-	return changed
+	return changed, nil
+}
+
+func splitHorizontalConflicts(records [][]string, operations []splitOperation) []splitConflict {
+	conflicts := make([]splitConflict, 0)
+	for _, operation := range operations {
+		for offset := 1; offset < len(operation.parts); offset++ {
+			targetCol := operation.col + offset
+			if operation.row >= len(records) || targetCol >= len(records[operation.row]) {
+				continue
+			}
+			if value := records[operation.row][targetCol]; value != "" {
+				conflicts = append(conflicts, splitConflict{row: operation.row, col: targetCol, value: value})
+			}
+		}
+	}
+	return conflicts
+}
+
+func splitVerticalConflicts(records [][]string, operations []splitOperation) []splitConflict {
+	conflicts := make([]splitConflict, 0)
+	for _, operation := range operations {
+		for offset := 1; offset < len(operation.parts); offset++ {
+			targetRow := operation.row + offset
+			if targetRow >= len(records) || operation.col >= len(records[targetRow]) {
+				continue
+			}
+			if value := records[targetRow][operation.col]; value != "" {
+				conflicts = append(conflicts, splitConflict{row: targetRow, col: operation.col, value: value})
+			}
+		}
+	}
+	return conflicts
 }
 
 func deduplicateRecords(records [][]string, hasHeader bool) ([][]string, int) {

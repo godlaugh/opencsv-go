@@ -1082,10 +1082,11 @@ type textTransformRequest struct {
 }
 
 type cellsToolRequest struct {
-	DocumentID string          `json:"documentId"`
-	Cells      []docstore.Cell `json:"cells"`
-	Separator  string          `json:"separator"`
-	Direction  string          `json:"direction,omitempty"`
+	DocumentID     string          `json:"documentId"`
+	Cells          []docstore.Cell `json:"cells"`
+	Separator      string          `json:"separator"`
+	Direction      string          `json:"direction,omitempty"`
+	AllowOverwrite bool            `json:"allowOverwrite,omitempty"`
 }
 
 func (server *Server) handleTextTransform(w http.ResponseWriter, r *http.Request) {
@@ -1161,10 +1162,11 @@ func (server *Server) handleSplitCells(w http.ResponseWriter, r *http.Request) {
 	}
 	var result docstore.MutationResult
 	var err error
+	options := docstore.SplitOptions{AllowOverwrite: request.AllowOverwrite}
 	if strings.EqualFold(strings.TrimSpace(request.Direction), "vertical") {
-		result, err = server.documents.SplitCellsVertical(request.DocumentID, request.Cells, request.Separator)
+		result, err = server.documents.SplitCellsVerticalWithOptions(request.DocumentID, request.Cells, request.Separator, options)
 	} else {
-		result, err = server.documents.SplitCells(request.DocumentID, request.Cells, request.Separator)
+		result, err = server.documents.SplitCellsWithOptions(request.DocumentID, request.Cells, request.Separator, options)
 	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

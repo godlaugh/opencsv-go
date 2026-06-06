@@ -1693,6 +1693,61 @@ func TestServerJoinAndSplitCells(t *testing.T) {
 	}
 }
 
+func TestServerSplitCellsRejectsOverwriteUnlessAllowed(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "split-conflict.csv")
+	if err := os.WriteFile(path, []byte("id,name,target\n1,Ada Lovelace,occupied\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	response := postJSONResponse(t, handler, "/api/cells/split", map[string]any{
+		"documentId": documentID,
+		"separator":  " ",
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+		},
+	})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("split conflict status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), `split would overwrite row 2, column 3 ("occupied")`) {
+		t.Fatalf("split conflict payload = %#v", payload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada Lovelace" || rows[1].([]any)[2] != "occupied" {
+		t.Fatalf("rows after rejected split = %#v", rows)
+	}
+
+	splitPayload := postJSON(t, handler, "/api/cells/split", map[string]any{
+		"documentId":     documentID,
+		"separator":      " ",
+		"allowOverwrite": true,
+		"cells": []map[string]any{
+			{"row": 1, "col": 1},
+		},
+	})
+	if splitPayload["changed"].(float64) != 2 {
+		t.Fatalf("split overwrite payload = %#v", splitPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Ada" || rows[1].([]any)[2] != "Lovelace" {
+		t.Fatalf("rows after allowed split = %#v", rows)
+	}
+}
+
 func TestServerVerticalJoinAndSplitCells(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "join-split-vertical.csv")
