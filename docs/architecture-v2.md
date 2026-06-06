@@ -141,7 +141,7 @@ flowchart TD
   - Keyboard Shortcuts stores backward-compatible string bindings plus object bindings with optional `when` contexts or boolean `when` expressions; conflict detection allows the same shortcut in non-overlapping contexts and runtime dispatch checks the active Grid/SQL/Profile/Settings/Diff/typing state.
   - Official Filter entrypoint uses `Cmd+Shift+F`/`Ctrl+Shift+F` in command metadata and runtime dispatch.
   - Honors implementation status and document requirements.
-  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
+  - Dispatches first-pass handlers for open, save, undo, redo, find, replace, copy formats, row/column insert/delete/move/hide, transpose, duplicate-row/column removal, selected-cell and column text transforms, join/split cell tools, filter, sort, clear view, theme toggling, SQL, Profile, and Diff.
 
 - `web Theme`
   - Light, dark, and system theme preferences.
@@ -193,7 +193,7 @@ flowchart TD
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
   - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
-  - Selected-cell text transforms for trim, uppercase, and lowercase with explicit source-cell mapping.
+  - Selected-cell and column text transforms for trim, uppercase/lowercase, naming/case conversions, full-width/half-width conversion, and Unicode NFC/NFD/NFKC/NFKD normalization with explicit source-cell mapping.
   - Grid context menu dispatches rich copy, text transform, quote, fill, swap, join/split, transpose, dedupe, row, column, filter, and sort commands through shared command IDs, and preserves an existing selected range when right-clicking inside it.
   - Selected column headers can be dragged to reorder visible columns through the existing `/api/column/move` mutation path.
   - Selected row headers can be dragged to reorder data rows through the existing `/api/row/move` mutation path.
@@ -784,7 +784,7 @@ Output:
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
 - Transpose swaps rows and columns for the whole table, or transposes one or more non-overlapping rectangular selected ranges through batch edits; known large whole-table transposes show a confirmation dialog, and selected-range targets may expand rightward into new columns or downward into new rows. Both paths mark the document dirty and remain undoable.
-- Duplicate-row/column removal and selected-cell text transforms are command-backed, undoable materialized mutations.
+- Duplicate-row/column removal and selected-cell/column text transforms are command-backed, undoable materialized mutations.
 - Swap/join/split cell tools are command-backed, undoable materialized mutations.
 - Hidden rows/columns are view-only and restored by Clear View.
 - Editing marks dirty.

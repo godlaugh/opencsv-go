@@ -570,6 +570,10 @@ const localeCatalog = {
     "text.mode.title": "Title Case",
     "text.mode.wide": "Full Width",
     "text.mode.narrow": "Half Width",
+    "text.mode.nfc": "Normalize NFC",
+    "text.mode.nfd": "Normalize NFD",
+    "text.mode.nfkc": "Normalize NFKC",
+    "text.mode.nfkd": "Normalize NFKD",
     "text.status.running": "{{label}}...",
     "text.status.failed": "{{label}} failed: {{message}}",
     "text.status.changed": "{{label}}: {{count}} cells changed",
@@ -1216,6 +1220,10 @@ const localeCatalog = {
     "text.mode.title": "标题大小写",
     "text.mode.wide": "全角",
     "text.mode.narrow": "半角",
+    "text.mode.nfc": "标准化 NFC",
+    "text.mode.nfd": "标准化 NFD",
+    "text.mode.nfkc": "标准化 NFKC",
+    "text.mode.nfkd": "标准化 NFKD",
     "text.status.running": "正在{{label}}...",
     "text.status.failed": "{{label}}失败：{{message}}",
     "text.status.changed": "{{label}}：已更改 {{count}} 个单元格",
@@ -1746,6 +1754,14 @@ const localeCatalog = {
     "command.text.fullWidth.description": "将选中单元格转换为全角 Unicode 文本。",
     "command.text.halfWidth.title": "转半角",
     "command.text.halfWidth.description": "将选中单元格转换为半角 Unicode 文本。",
+    "command.text.normalizeNFC.title": "标准化 NFC",
+    "command.text.normalizeNFC.description": "将选中单元格标准化为 Unicode NFC 组合形式。",
+    "command.text.normalizeNFD.title": "标准化 NFD",
+    "command.text.normalizeNFD.description": "将选中单元格标准化为 Unicode NFD 分解形式。",
+    "command.text.normalizeNFKC.title": "标准化 NFKC",
+    "command.text.normalizeNFKC.description": "将选中单元格标准化为 Unicode NFKC 兼容组合形式。",
+    "command.text.normalizeNFKD.title": "标准化 NFKD",
+    "command.text.normalizeNFKD.description": "将选中单元格标准化为 Unicode NFKD 兼容分解形式。",
     "command.text.column.trim.title": "修剪整列文本",
     "command.text.column.trim.description": "修剪当前列首尾的空白字符。",
     "command.text.column.uppercase.title": "整列转大写",
@@ -1766,6 +1782,14 @@ const localeCatalog = {
     "command.text.column.fullWidth.description": "将当前列转换为全角 Unicode 文本。",
     "command.text.column.halfWidth.title": "整列转半角",
     "command.text.column.halfWidth.description": "将当前列转换为半角 Unicode 文本。",
+    "command.text.column.normalizeNFC.title": "整列标准化 NFC",
+    "command.text.column.normalizeNFC.description": "将当前列标准化为 Unicode NFC 组合形式。",
+    "command.text.column.normalizeNFD.title": "整列标准化 NFD",
+    "command.text.column.normalizeNFD.description": "将当前列标准化为 Unicode NFD 分解形式。",
+    "command.text.column.normalizeNFKC.title": "整列标准化 NFKC",
+    "command.text.column.normalizeNFKC.description": "将当前列标准化为 Unicode NFKC 兼容组合形式。",
+    "command.text.column.normalizeNFKD.title": "整列标准化 NFKD",
+    "command.text.column.normalizeNFKD.description": "将当前列标准化为 Unicode NFKD 兼容分解形式。",
     "command.cell.openLink.title": "打开链接",
     "command.cell.openLink.description": "打开当前单元格中通过安全审计的链接。",
     "command.cell.joinHorizontal.title": "合并单元格",
@@ -1980,6 +2004,10 @@ const columnTextTransformSpecs = [
   { id: "text.column.titleCase", mode: "title", label: "Title Case Column" },
   { id: "text.column.fullWidth", mode: "wide", label: "Full Width Column" },
   { id: "text.column.halfWidth", mode: "narrow", label: "Half Width Column" },
+  { id: "text.column.normalizeNFC", mode: "nfc", label: "Normalize Column NFC" },
+  { id: "text.column.normalizeNFD", mode: "nfd", label: "Normalize Column NFD" },
+  { id: "text.column.normalizeNFKC", mode: "nfkc", label: "Normalize Column NFKC" },
+  { id: "text.column.normalizeNFKD", mode: "nfkd", label: "Normalize Column NFKD" },
 ];
 const columnTextTransformCommands = new Map(columnTextTransformSpecs.map((spec) => [spec.id, spec]));
 const columnTextTransformCommandByMode = new Map(columnTextTransformSpecs.map((spec) => [spec.mode, spec.id]));
@@ -3943,6 +3971,10 @@ function isCommandDisabled(command) {
       command.id === "text.titleCase" ||
       command.id === "text.fullWidth" ||
       command.id === "text.halfWidth" ||
+      command.id === "text.normalizeNFC" ||
+      command.id === "text.normalizeNFD" ||
+      command.id === "text.normalizeNFKC" ||
+      command.id === "text.normalizeNFKD" ||
       needsColumnTextTransform ||
       command.id === "cell.swap" ||
       command.id === "cell.swapUp" ||
@@ -6431,6 +6463,10 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("text.titleCase", "Title Case");
     addCommand("text.fullWidth", "Full Width");
     addCommand("text.halfWidth", "Half Width");
+    addCommand("text.normalizeNFC", "Normalize NFC");
+    addCommand("text.normalizeNFD", "Normalize NFD");
+    addCommand("text.normalizeNFKC", "Normalize NFKC");
+    addCommand("text.normalizeNFKD", "Normalize NFKD");
     addSeparator();
     addCommand("cell.fillDown", "Fill Down");
     addCommand("cell.fillRight", "Fill Right");
@@ -8826,6 +8862,18 @@ async function executeCommand(commandID) {
     case "text.halfWidth":
       await transformSelectedText("narrow", localizedCommandLabel(commandID, "Half Width"));
       break;
+    case "text.normalizeNFC":
+      await transformSelectedText("nfc", localizedCommandLabel(commandID, "Normalize NFC"));
+      break;
+    case "text.normalizeNFD":
+      await transformSelectedText("nfd", localizedCommandLabel(commandID, "Normalize NFD"));
+      break;
+    case "text.normalizeNFKC":
+      await transformSelectedText("nfkc", localizedCommandLabel(commandID, "Normalize NFKC"));
+      break;
+    case "text.normalizeNFKD":
+      await transformSelectedText("nfkd", localizedCommandLabel(commandID, "Normalize NFKD"));
+      break;
     case "text.column.trim":
     case "text.column.uppercase":
     case "text.column.lowercase":
@@ -8836,6 +8884,10 @@ async function executeCommand(commandID) {
     case "text.column.titleCase":
     case "text.column.fullWidth":
     case "text.column.halfWidth":
+    case "text.column.normalizeNFC":
+    case "text.column.normalizeNFD":
+    case "text.column.normalizeNFKC":
+    case "text.column.normalizeNFKD":
       await transformColumnTextForCommand(commandID);
       break;
     case "cell.swap":

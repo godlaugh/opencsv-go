@@ -20,6 +20,7 @@ import (
 	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/sqlexpr"
 	"github.com/opencsv/opencsv/pkg/xlsx"
+	"golang.org/x/text/unicode/norm"
 	"golang.org/x/text/width"
 )
 
@@ -1224,6 +1225,10 @@ const (
 	TransformTitle  TextTransformMode = "title"
 	TransformWide   TextTransformMode = "wide"
 	TransformNarrow TextTransformMode = "narrow"
+	TransformNFC    TextTransformMode = "nfc"
+	TransformNFD    TextTransformMode = "nfd"
+	TransformNFKC   TextTransformMode = "nfkc"
+	TransformNFKD   TextTransformMode = "nfkd"
 )
 
 func (manager *Manager) DeduplicateRows(id string) (MutationResult, error) {
@@ -2824,6 +2829,14 @@ func textTransformFunc(mode TextTransformMode) (func(string) string, error) {
 		return width.Widen.String, nil
 	case TransformNarrow:
 		return width.Narrow.String, nil
+	case TransformNFC:
+		return norm.NFC.String, nil
+	case TransformNFD:
+		return norm.NFD.String, nil
+	case TransformNFKC:
+		return norm.NFKC.String, nil
+	case TransformNFKD:
+		return norm.NFKD.String, nil
 	default:
 		return nil, fmt.Errorf("unsupported text transform %q", mode)
 	}

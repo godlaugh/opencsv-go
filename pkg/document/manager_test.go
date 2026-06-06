@@ -1412,7 +1412,7 @@ func TestDeduplicateColumnsKeepsDistinctHeaders(t *testing.T) {
 func TestManagerTextTransforms(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "text.csv")
-	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n3,Customer ID\n4,HTTP response_code\n5,quarter 2026 Q1\n6,ABC 123 ｶﾀｶﾅ\n7,ＡＢＣ　１２３　カタカナ\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("id,name\n1,  Ada \n2,Linus\n3,Customer ID\n4,HTTP response_code\n5,quarter 2026 Q1\n6,ABC 123 ｶﾀｶﾅ\n7,ＡＢＣ　１２３　カタカナ\n8,Cafe\u0301\n9,Café\n10,ﬃ ①\n11,ﬃ ①\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	manager := NewManager()
@@ -1510,6 +1510,42 @@ func TestManagerTextTransforms(t *testing.T) {
 	if records[6][1] != "ＡＢＣ　１２３　カタカナ" || records[7][1] != "ABC 123 ｶﾀｶﾅ" {
 		t.Fatalf("width transform records = %#v", records)
 	}
+
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 8, Col: 1}}, TransformNFC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("nfc changed = %d, want 1", result.Changed)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 9, Col: 1}}, TransformNFD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("nfd changed = %d, want 1", result.Changed)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 10, Col: 1}}, TransformNFKC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("nfkc changed = %d, want 1", result.Changed)
+	}
+	result, err = manager.TransformCells(session.ID, []Cell{{Row: 11, Col: 1}}, TransformNFKD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 1 {
+		t.Fatalf("nfkd changed = %d, want 1", result.Changed)
+	}
+	_, records, err = manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[8][1] != "Café" || records[9][1] != "Cafe\u0301" || records[10][1] != "ffi 1" || records[11][1] != "ffi 1" {
+		t.Fatalf("unicode normalization records = %#v", records)
+	}
 }
 
 func TestManagerTransformColumnSkipsHeaderAndMissingCells(t *testing.T) {
@@ -1550,6 +1586,34 @@ func TestManagerTransformColumnSkipsHeaderAndMissingCells(t *testing.T) {
 	}
 	if records[1][2] != "keep" || records[3][2] != "later" {
 		t.Fatalf("trimmed notes = %#v", records)
+	}
+}
+
+func TestManagerTransformColumnUnicodeNormalization(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "column-normalize.csv")
+	if err := os.WriteFile(path, []byte("id,label\n1,ﬃ ①\n2,Cafe\u0301\n3,plain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "column-normalize.csv", csvcore.OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := manager.TransformColumn(session.ID, 1, TransformNFKC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed != 2 {
+		t.Fatalf("nfkc column changed = %d, want 2", result.Changed)
+	}
+	_, records, err := manager.Records(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records[0][1] != "label" || records[1][1] != "ffi 1" || records[2][1] != "Café" || records[3][1] != "plain" {
+		t.Fatalf("normalized column records = %#v", records)
 	}
 }
 
