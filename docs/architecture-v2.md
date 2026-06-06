@@ -155,6 +155,7 @@ flowchart TD
 
 - `web Settings`
   - Section-level search over settings categories, controls, summaries, saved views, and format presets.
+  - Section-level modified/default badges backed by per-category preference checks plus `body[data-settings-modified-sections]` diagnostics.
   - Empty-state feedback when no settings section matches.
   - Saved/recent filter controls share the saved-view settings section, including configurable recent-filter retention and clear-history action.
   - Language preference controls with a reusable locale catalog and persisted locale selection for target SmoothCSV locales.

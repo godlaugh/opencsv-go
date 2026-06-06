@@ -703,6 +703,19 @@ button:disabled {
   font-size: 12px;
 }
 
+.settings-section-state {
+  justify-self: end;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--panel);
+}
+
+.settings-section-state[data-state="modified"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .settings-toolbar input,
 .settings-add-rule input {
   height: 30px;
@@ -739,7 +752,7 @@ button:disabled {
 
 .settings-section > header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
 }

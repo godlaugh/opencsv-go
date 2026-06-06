@@ -646,7 +646,7 @@ The app shall support:
 - Switch focus between editor groups by command.
 - Persistent window size, position, and maximized state.
 - Title/menu entry points for Settings and Keyboard Shortcuts.
-- Settings search, modified indicators, and reset-to-default controls.
+- Settings search, section-level modified/default indicators, and reset-to-default controls.
 - Grid/text editor appearance controls, including grid font, grid row height, and text editor font settings.
 - Automatic update checks plus a manual update mode.
 - Offline operation for all editing features.
@@ -658,7 +658,7 @@ Acceptance:
 - Attempting to close a dirty open-file tab does not discard edits silently.
 - Opening many files does not push the app chrome out of the viewport, and the active open-file tab stays visible in the sidebar.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
-- Settings changed from defaults are visibly marked and can be reset.
+- Settings sections changed from defaults are visibly marked and can be reset independently.
 - Disabling automatic update checks prevents startup update network calls.
 
 ### FR-017 Transpose

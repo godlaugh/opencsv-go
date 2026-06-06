@@ -287,6 +287,42 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 	}
 }
 
+func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	css := string(styles)
+	for _, snippet := range []string{
+		"function settingsSectionModifiedState",
+		"function syncSettingsSectionBadges",
+		"function quotePolicySettingsModified",
+		"document.body.dataset.settingsModifiedSections",
+		"document.body.dataset.settingsModifiedSectionCount",
+		`badge.className = "settings-section-state"`,
+		`badge.dataset.state = modified ? "modified" : "default"`,
+		`"Editor appearance": editorAppearanceModified()`,
+		`"File format presets": presets.length > 0`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing settings section modified wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		".settings-section-state",
+		`.settings-section-state[data-state="modified"]`,
+	} {
+		if !strings.Contains(css, snippet) {
+			t.Fatalf("missing settings section modified style %q", snippet)
+		}
+	}
+}
+
 func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

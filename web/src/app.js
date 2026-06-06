@@ -4565,6 +4565,22 @@ function syncLineEndingControls() {
   document.body.dataset.lineEndingDraft = lineEndingDraftDirty ? normalizeLineEndingName(lineEndingSelect.value) : "";
 }
 
+function quotePolicySettingsModified() {
+  if (delimiterDraftDirty || encodingDraftDirty || lineEndingDraftDirty || quotePolicyDraftDirty) return true;
+  if (!documentId) return false;
+  const settings = currentQuoteRuleSettings();
+  return (
+    settings.quoteMode !== "minimal" ||
+    settings.quoteChar !== "double" ||
+    normalizeQuoteEscapeValue(settings.quoteEscape) !== "double" ||
+    settings.quoteHeader ||
+    settings.quoteBody ||
+    settings.quoteColumns.length > 0 ||
+    settings.quoteCells.length > 0 ||
+    settings.noQuoteCells.length > 0
+  );
+}
+
 function documentFormatSummary() {
   return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)} · ${headerModeLabel(metadata.dialect)}`;
 }
@@ -4863,10 +4879,12 @@ function renderSettingsPanel() {
   const visiblePresets = query
     ? presets.filter((preset) => formatPresetSearchText(preset).includes(query))
     : presets;
-  settingsModifiedBadge.textContent = presets.length || filters.length || recent.length || sorts.length || editorAppearanceModified() || localePreferenceModified() || themePreferenceModified() || autoRefreshModeModified() || updateCheckModeModified() || filterHistoryLimitModified() || customLinkProtocolsModified() ? t("settings.modified") : t("settings.defaults");
+  const sectionState = settingsSectionModifiedState({ presets, filters, recent, sorts });
+  settingsModifiedBadge.textContent = sectionState.modified.length ? t("settings.modified") : t("settings.defaults");
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
+  syncSettingsSectionBadges(sectionState);
   renderSavedViewSettingsList(filters, sorts, query);
   settingsPresetList.replaceChildren();
   document.body.dataset.settingsPresetCount = String(presets.length);
@@ -4879,6 +4897,47 @@ function renderSettingsPanel() {
     }
   }
   filterSettingsSections(query);
+}
+
+function settingsSectionModifiedState({ presets = formatPresets(), filters = savedFilters(), recent = recentFilters(), sorts = savedSorts() } = {}) {
+  const state = {
+    Language: localePreferenceModified(),
+    "Saved filters and sorts": filters.length > 0 || recent.length > 0 || sorts.length > 0 || filterHistoryLimitModified(),
+    Theme: themePreferenceModified(),
+    "External changes": autoRefreshModeModified(),
+    Updates: updateCheckModeModified() || Boolean(updateCheckState?.checkedAt),
+    "Link protocols": customLinkProtocolsModified(),
+    "Quote policy": quotePolicySettingsModified(),
+    "Editor appearance": editorAppearanceModified(),
+    "File format presets": presets.length > 0,
+  };
+  const modified = Object.entries(state)
+    .filter(([, value]) => value)
+    .map(([label]) => label);
+  return { state, modified };
+}
+
+function syncSettingsSectionBadges(sectionState = settingsSectionModifiedState()) {
+  if (!settingsPanel) return;
+  const modifiedLabels = [];
+  for (const section of settingsPanel.querySelectorAll(".settings-section")) {
+    const label = section.getAttribute("aria-label") || "";
+    const modified = Boolean(sectionState.state[label]);
+    section.dataset.modified = String(modified);
+    let badge = section.querySelector(":scope > header .settings-section-state");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "settings-section-state";
+      const actions = section.querySelector(":scope > header .settings-section-actions");
+      section.querySelector(":scope > header")?.insertBefore(badge, actions || null);
+    }
+    badge.textContent = modified ? t("settings.modified") : t("settings.defaults");
+    badge.dataset.state = modified ? "modified" : "default";
+    badge.title = `${label}: ${badge.textContent}`;
+    if (modified) modifiedLabels.push(label);
+  }
+  document.body.dataset.settingsModifiedSections = modifiedLabels.join("|");
+  document.body.dataset.settingsModifiedSectionCount = String(modifiedLabels.length);
 }
 
 function renderSavedViewSettingsList(filters, sorts, query) {
