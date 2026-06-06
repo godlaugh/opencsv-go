@@ -591,6 +591,7 @@ The app shall validate:
 - Validation schemas supplied through the Profile UI, URL boot parameters, saved-schema import, or profile API requests.
 - Saved schema/rule sets with JSON import and export.
 - Visual rule editing for common schema checks without hand-writing JSON.
+- Large clean-file profiling shows row-level progress for profile and validation passes and remains cancellable.
 
 Acceptance:
 
@@ -715,6 +716,7 @@ Targets:
 - Find over 100 MB: progress visible, cancellable.
 - Whole-column transforms over clean UTF-8/UTF-8-BOM files should stream when possible instead of loading the full table into the edit path.
 - SQL query over 100 MB: progress visible, cancellable.
+- Profile/validation over 100 MB: row-level progress visible for profile and validation passes, cancellable.
 - Startup should defer heavy optional surfaces and render a usable start/open surface before loading SQL, diff, settings, and extension-like modules.
 
 ### NFR-002 Memory

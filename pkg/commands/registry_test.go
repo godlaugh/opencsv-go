@@ -687,6 +687,11 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 		"document.body.dataset.sqlElapsedMs",
 		"function startProfileProgress",
 		"function cancelProfileRequest",
+		"function readProfileResponse",
+		"function applyProfileProgressEvent",
+		"streamProgress: true",
+		"document.body.dataset.profileProgressRows",
+		"document.body.dataset.profileProgressEvents",
 		"signal: controller.signal",
 		`params.get("find")`,
 		`params.get("findRun")`,
@@ -702,6 +707,7 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 		`"sql.status.canceledElapsed": "SQL 已在 {{seconds}} 秒后取消。"`,
 		`"sql.status.returnedTimed": "SQL 返回 {{rows}} / {{total}} 行，用时 {{seconds}} 秒"`,
 		`"profile.status.canceledElapsed": "概况已在`,
+		`"profile.status.runningRows": "正在执行`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing long-operation cancellation wiring %q", snippet)
@@ -1005,8 +1011,12 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`"profile.status.complete": "概况`,
 		`"profile.quickFix.header.unique": "设为唯一"`,
 		`"profile.schema.savedAs": "验证架构已保存为`,
+		`"profile.summary.progress": "Scanned"`,
+		`"profile.status.completeTimedRows": "Profile:`,
 		`"profile.type.time": "Time"`,
 		`"profile.type.yearmonth": "Year-Month"`,
+		"applyProfileProgressSummary(result.progress)",
+		"readProfileResponse(response)",
 		"applyProfileLocaleStrings",
 		"renderProfile(profileData)",
 		"syncProfileSchemaControls()",

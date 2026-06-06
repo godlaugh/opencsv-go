@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -2502,6 +2504,71 @@ func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
 	editedRegion := editedColumns[1].(map[string]any)
 	if editedRegion["distinct"] != float64(2) || !jsonTopValuesContain(editedRegion["topValues"].([]any), "LATAM") {
 		t.Fatalf("edited profile columns = %#v, want materialized region edit included", editedColumns)
+	}
+}
+
+func TestServerProfileStreamsRowProgressEvents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile-progress.csv")
+	if err := os.WriteFile(path, []byte("id,region\n1,APAC\n2,EU\n3,APAC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 1,
+		"indexRows":   0,
+	})
+	response := postJSONResponse(t, handler, "/api/profile", map[string]any{
+		"documentId":       openPayload["documentId"].(string),
+		"streamProgress":   true,
+		"progressInterval": 2,
+	})
+	if response.Code != http.StatusOK {
+		t.Fatalf("profile stream status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/x-ndjson") {
+		t.Fatalf("profile stream content type = %q", got)
+	}
+	var events []map[string]any
+	decoder := json.NewDecoder(response.Body)
+	for {
+		var event map[string]any
+		if err := decoder.Decode(&event); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatal(err)
+		}
+		events = append(events, event)
+	}
+	if len(events) != 5 {
+		t.Fatalf("events = %#v, want four progress events plus final result", events)
+	}
+	for index, want := range []struct {
+		phase string
+		rows  float64
+		done  bool
+	}{
+		{"profile", 2, false},
+		{"profile", 3, true},
+		{"validation", 2, false},
+		{"validation", 3, true},
+	} {
+		event := events[index]
+		if event["type"] != "progress" || event["phase"] != want.phase || event["rows"] != want.rows || (event["done"] == true) != want.done {
+			t.Fatalf("event %d = %#v, want %s rows %.0f done %v", index, event, want.phase, want.rows, want.done)
+		}
+	}
+	final := events[len(events)-1]
+	result, ok := final["result"].(map[string]any)
+	if final["type"] != "result" || !ok {
+		t.Fatalf("final event = %#v, want result", final)
+	}
+	progress := result["progress"].(map[string]any)
+	if result["streamed"] != true || progress["profileRows"] != float64(3) || progress["validationRows"] != float64(3) {
+		t.Fatalf("result progress = %#v, want streamed three-row progress", result)
 	}
 }
 

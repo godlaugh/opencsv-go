@@ -977,16 +977,22 @@ const localeCatalog = {
     "profile.summary.errors": "Errors",
     "profile.summary.warnings": "Warnings",
     "profile.summary.rules": "Rules",
+    "profile.summary.progress": "Scanned",
+    "profile.summary.progressValue": "{{passes}} passes / {{rows}} row scans",
     "profile.loading": "loading",
     "profile.columns.loading": "Profiling columns...",
     "profile.issues.loading": "Checking data quality...",
     "profile.status.running": "Profiling data...",
     "profile.status.runningElapsed": "Profiling data... {{seconds}}s",
+    "profile.status.runningRows": "Profiling {{phase}}... {{rows}} rows scanned in {{seconds}}s",
     "profile.status.canceled": "Profile canceled.",
     "profile.status.canceledElapsed": "Profile canceled after {{seconds}}s.",
     "profile.status.complete": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues",
     "profile.status.completeTimed": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues in {{seconds}}s",
+    "profile.status.completeTimedRows": "Profile: {{rows}} rows, {{columns}} columns, {{issues}} issues in {{seconds}}s (profile {{profileRows}}, validation {{validationRows}} rows)",
     "profile.status.failed": "Profile failed: {{message}}",
+    "profile.progress.profile": "profile pass",
+    "profile.progress.validation": "validation pass",
     "profile.status.initialColumns": "Run Profile to inspect columns.",
     "profile.status.initialIssues": "No validation issues loaded.",
     "profile.empty.noValidation": "No validation result.",
@@ -1647,16 +1653,22 @@ const localeCatalog = {
     "profile.summary.errors": "错误",
     "profile.summary.warnings": "警告",
     "profile.summary.rules": "规则",
+    "profile.summary.progress": "已扫描",
+    "profile.summary.progressValue": "{{passes}} 轮 / {{rows}} 次行扫描",
     "profile.loading": "加载中",
     "profile.columns.loading": "正在分析列...",
     "profile.issues.loading": "正在检查数据质量...",
     "profile.status.running": "正在分析数据...",
     "profile.status.runningElapsed": "正在分析数据... {{seconds}} 秒",
+    "profile.status.runningRows": "正在执行{{phase}}... 已扫描 {{rows}} 行，用时 {{seconds}} 秒",
     "profile.status.canceled": "概况已取消。",
     "profile.status.canceledElapsed": "概况已在 {{seconds}} 秒后取消。",
     "profile.status.complete": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题",
     "profile.status.completeTimed": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题，用时 {{seconds}} 秒",
+    "profile.status.completeTimedRows": "概况：{{rows}} 行，{{columns}} 列，{{issues}} 个问题，用时 {{seconds}} 秒（分析 {{profileRows}} 行，验证 {{validationRows}} 行）",
     "profile.status.failed": "概况失败：{{message}}",
+    "profile.progress.profile": "分析阶段",
+    "profile.progress.validation": "验证阶段",
     "profile.status.initialColumns": "运行概况以检查列。",
     "profile.status.initialIssues": "没有加载验证问题。",
     "profile.empty.noValidation": "没有验证结果。",
@@ -2155,6 +2167,7 @@ let profileLoading = false;
 let activeProfileController = null;
 let profileProgressTimer = 0;
 let profileProgressStartedAt = 0;
+let profileProgressEventCount = 0;
 let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let savedProfileSchemasState = loadSavedProfileSchemas();
@@ -16792,12 +16805,18 @@ function startProfileProgress() {
   activeProfileController = new AbortController();
   if (profileProgressTimer) window.clearInterval(profileProgressTimer);
   profileProgressStartedAt = performance.now();
+  profileProgressEventCount = 0;
   profileLoading = true;
   runProfileButton.disabled = true;
   cancelProfileButton.hidden = false;
   cancelProfileButton.disabled = false;
   document.body.dataset.profileProgress = "running";
   document.body.dataset.profileElapsedMs = "0";
+  document.body.dataset.profileProgressEvents = "0";
+  document.body.dataset.profileProgressPhase = "";
+  document.body.dataset.profileProgressRows = "0";
+  document.body.dataset.profileProfileRows = "0";
+  document.body.dataset.profileValidationRows = "0";
   updateProfileProgressStatus();
   profileProgressTimer = window.setInterval(updateProfileProgressStatus, 250);
   return activeProfileController;
@@ -16806,7 +16825,15 @@ function startProfileProgress() {
 function updateProfileProgressStatus() {
   const elapsed = profileElapsedMs();
   document.body.dataset.profileElapsedMs = String(Math.round(elapsed));
-  status.textContent = tf("profile.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
+  const phase = document.body.dataset.profileProgressPhase || "";
+  const rows = Number(document.body.dataset.profileProgressRows || 0);
+  status.textContent = phase && rows > 0
+    ? tf("profile.status.runningRows", {
+        phase: profileProgressPhaseLabel(phase),
+        rows: formatCount(rows),
+        seconds: formatElapsedSeconds(elapsed),
+      })
+    : tf("profile.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
 function profileElapsedMs() {
@@ -16849,6 +16876,73 @@ function cancelProfileRequest() {
   status.textContent = tf("profile.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
+function profileProgressPhaseLabel(phase) {
+  return translationOrEmpty(`profile.progress.${phase}`) || phase || t("profile.loading");
+}
+
+function applyProfileProgressEvent(event) {
+  if (!event || event.type !== "progress") return;
+  const phase = String(event.phase || "");
+  const rows = Math.max(0, Number(event.rows || 0));
+  profileProgressEventCount++;
+  document.body.dataset.profileProgressEvents = String(profileProgressEventCount);
+  document.body.dataset.profileProgressPhase = phase;
+  document.body.dataset.profileProgressRows = String(rows);
+  if (phase === "profile") document.body.dataset.profileProfileRows = String(rows);
+  if (phase === "validation") document.body.dataset.profileValidationRows = String(rows);
+  document.body.dataset.profileProgressDone = event.done ? `${phase}:${rows}` : "";
+  updateProfileProgressStatus();
+}
+
+function applyProfileProgressSummary(progress) {
+  if (!progress) return;
+  document.body.dataset.profileProfileRows = String(progress.profileRows ?? 0);
+  document.body.dataset.profileValidationRows = String(progress.validationRows ?? 0);
+  document.body.dataset.profileProgressTotalRows = String(progress.totalRows ?? 0);
+  document.body.dataset.profileProgressPasses = String(progress.passes ?? 0);
+  document.body.dataset.profileProgressEvents = String(progress.events ?? profileProgressEventCount);
+}
+
+async function readProfileResponse(response) {
+  const contentType = response.headers.get("Content-Type") || "";
+  if (!contentType.includes("application/x-ndjson") || !response.body) {
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "profile failed");
+    return payload;
+  }
+  if (!response.ok) {
+    const payload = await response.json();
+    throw new Error(payload.error ?? "profile failed");
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+  const consumeLine = (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const event = JSON.parse(trimmed);
+    if (event.type === "progress") {
+      applyProfileProgressEvent(event);
+    } else if (event.type === "result") {
+      result = event.result;
+    } else if (event.type === "error") {
+      throw new Error(event.error || "profile failed");
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) consumeLine(line);
+    if (done) break;
+  }
+  consumeLine(buffer);
+  if (!result) throw new Error("profile stream ended without a result");
+  return result;
+}
+
 async function loadProfile(force = false) {
   if (!documentId || profileLoading) return;
   if (profileData && !force) {
@@ -16866,20 +16960,26 @@ async function loadProfile(force = false) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
-      body: JSON.stringify({ documentId, schema }),
+      body: JSON.stringify({ documentId, schema, streamProgress: true, progressInterval: 1000 }),
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error ?? "profile failed");
+    const payload = await readProfileResponse(response);
     profileData = payload;
     document.body.dataset.profileStreamed = String(Boolean(payload.streamed));
+    applyProfileProgressSummary(payload.progress);
     renderProfile(payload);
     updateInspector();
     const elapsed = stopProfileProgressTimer();
-    status.textContent = tf("profile.status.completeTimed", {
+    const progress = payload.progress || {};
+    const statusKey = progress.profileRows || progress.validationRows
+      ? "profile.status.completeTimedRows"
+      : "profile.status.completeTimed";
+    status.textContent = tf(statusKey, {
       rows: formatCount(payload.rows ?? 0),
       columns: formatCount(payload.columns?.length ?? 0),
       issues: formatCount(payload.issues?.length ?? 0),
       seconds: formatElapsedSeconds(elapsed),
+      profileRows: formatCount(progress.profileRows ?? 0),
+      validationRows: formatCount(progress.validationRows ?? 0),
     });
   } catch (error) {
     if (error.name === "AbortError") {
@@ -16910,9 +17010,16 @@ function renderProfile(result) {
     summaryNode(t("profile.summary.warnings"), warningCount),
   ];
   if (result.schemaRules) summaryNodes.push(summaryNode(t("profile.summary.rules"), result.schemaRules));
+  if (result.progress?.passes) {
+    summaryNodes.push(summaryNode(t("profile.summary.progress"), tf("profile.summary.progressValue", {
+      passes: formatCount(result.progress.passes),
+      rows: formatCount((result.progress.profileRows ?? 0) + (result.progress.validationRows ?? 0)),
+    })));
+  }
   profileSummary.replaceChildren(...summaryNodes);
   document.body.dataset.profileIssueCount = String(issues.length);
   document.body.dataset.profileSchemaIssueCount = String(issues.filter((issue) => String(issue.type || "").startsWith("schema-")).length);
+  applyProfileProgressSummary(result.progress);
   renderProfileColumns(result.columns ?? []);
   renderProfileIssues(issues);
 }

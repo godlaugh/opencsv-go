@@ -1593,8 +1593,21 @@ func (server *Server) handleSQL(w http.ResponseWriter, r *http.Request) {
 }
 
 type profileRequest struct {
-	DocumentID string             `json:"documentId"`
-	Schema     dataprofile.Schema `json:"schema"`
+	DocumentID       string             `json:"documentId"`
+	Schema           dataprofile.Schema `json:"schema"`
+	StreamProgress   bool               `json:"streamProgress,omitempty"`
+	ProgressInterval int                `json:"progressInterval,omitempty"`
+}
+
+type profileStreamEvent struct {
+	Type      string              `json:"type"`
+	Phase     string              `json:"phase,omitempty"`
+	Rows      int                 `json:"rows,omitempty"`
+	Records   int                 `json:"records,omitempty"`
+	Done      bool                `json:"done,omitempty"`
+	ElapsedMs int64               `json:"elapsedMs,omitempty"`
+	Result    *dataprofile.Result `json:"result,omitempty"`
+	Error     string              `json:"error,omitempty"`
 }
 
 func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
@@ -1603,29 +1616,70 @@ func (server *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if session, ok := server.documents.Snapshot(request.DocumentID); ok && canStreamDocumentSource(session) {
-		result, err := dataprofile.AnalyzeStreamContext(
-			r.Context(),
-			session.Document.Metadata.Dialect.HasHeader,
-			request.Schema,
-			func(ctx context.Context, handle func(row int, record []string) error) (int, error) {
-				return csvcore.ForEachRecordContext(ctx, session.WorkingPath, session.Document.Metadata, handle)
-			},
-		)
-		if err != nil {
-			writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
+	if request.StreamProgress {
+		server.handleProfileProgressStream(w, r, request)
 		return
 	}
-	session, records, err := server.documents.Records(request.DocumentID)
+	result, err := server.profileResult(r.Context(), request, dataprofile.StreamOptions{})
 	if err != nil {
 		writeError(w, requestContextStatus(err, http.StatusBadRequest), err)
 		return
 	}
-	result := dataprofile.AnalyzeWithSchema(records, session.Document.Metadata.Dialect.HasHeader, request.Schema)
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleProfileProgressStream(w http.ResponseWriter, r *http.Request, request profileRequest) {
+	startedAt := time.Now()
+	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	flusher, _ := w.(http.Flusher)
+	writeEvent := func(event profileStreamEvent) {
+		if event.ElapsedMs == 0 {
+			event.ElapsedMs = time.Since(startedAt).Milliseconds()
+		}
+		_ = json.NewEncoder(w).Encode(event)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	result, err := server.profileResult(r.Context(), request, dataprofile.StreamOptions{
+		ProgressInterval: request.ProgressInterval,
+		ReportProgress: func(progress dataprofile.ProgressEvent) {
+			writeEvent(profileStreamEvent{
+				Type:    "progress",
+				Phase:   progress.Phase,
+				Rows:    progress.Rows,
+				Records: progress.Records,
+				Done:    progress.Done,
+			})
+		},
+	})
+	if err != nil {
+		writeEvent(profileStreamEvent{Type: "error", Error: err.Error()})
+		return
+	}
+	writeEvent(profileStreamEvent{Type: "result", Result: &result})
+}
+
+func (server *Server) profileResult(ctx context.Context, request profileRequest, options dataprofile.StreamOptions) (dataprofile.Result, error) {
+	if session, ok := server.documents.Snapshot(request.DocumentID); ok && canStreamDocumentSource(session) {
+		return dataprofile.AnalyzeStreamContextWithOptions(
+			ctx,
+			session.Document.Metadata.Dialect.HasHeader,
+			request.Schema,
+			func(streamCtx context.Context, handle func(row int, record []string) error) (int, error) {
+				return csvcore.ForEachRecordContext(streamCtx, session.WorkingPath, session.Document.Metadata, handle)
+			},
+			options,
+		)
+	}
+	session, records, err := server.documents.Records(request.DocumentID)
+	if err != nil {
+		return dataprofile.Result{}, err
+	}
+	result := dataprofile.AnalyzeWithSchema(records, session.Document.Metadata.Dialect.HasHeader, request.Schema)
+	return result, nil
 }
 
 func (server *Server) sqlResolver(documentID string) sqlconsole.Resolver {

@@ -12,15 +12,36 @@ import (
 )
 
 type Result struct {
-	Rows        int             `json:"rows"`
-	Columns     []ColumnProfile `json:"columns"`
-	Issues      []Issue         `json:"issues"`
-	SchemaRules int             `json:"schemaRules,omitempty"`
-	Streamed    bool            `json:"streamed,omitempty"`
+	Rows        int              `json:"rows"`
+	Columns     []ColumnProfile  `json:"columns"`
+	Issues      []Issue          `json:"issues"`
+	SchemaRules int              `json:"schemaRules,omitempty"`
+	Streamed    bool             `json:"streamed,omitempty"`
+	Progress    *ProgressSummary `json:"progress,omitempty"`
 }
 
 type Schema struct {
 	Columns []ColumnRule `json:"columns,omitempty"`
+}
+
+type ProgressSummary struct {
+	ProfileRows    int `json:"profileRows"`
+	ValidationRows int `json:"validationRows"`
+	TotalRows      int `json:"totalRows"`
+	Passes         int `json:"passes"`
+	Events         int `json:"events,omitempty"`
+}
+
+type ProgressEvent struct {
+	Phase   string `json:"phase"`
+	Rows    int    `json:"rows"`
+	Records int    `json:"records"`
+	Done    bool   `json:"done,omitempty"`
+}
+
+type StreamOptions struct {
+	ProgressInterval int
+	ReportProgress   func(ProgressEvent)
 }
 
 type ColumnRule struct {
@@ -84,6 +105,10 @@ func Analyze(records [][]string, hasHeader bool) Result {
 }
 
 func AnalyzeStreamContext(ctx context.Context, hasHeader bool, schema Schema, stream RecordStream) (Result, error) {
+	return AnalyzeStreamContextWithOptions(ctx, hasHeader, schema, stream, StreamOptions{})
+}
+
+func AnalyzeStreamContextWithOptions(ctx context.Context, hasHeader bool, schema Schema, stream RecordStream, options StreamOptions) (Result, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -91,20 +116,35 @@ func AnalyzeStreamContext(ctx context.Context, hasHeader bool, schema Schema, st
 		return Result{}, fmt.Errorf("record stream is required")
 	}
 	acc := newProfileAccumulator(hasHeader)
-	if _, err := stream(ctx, acc.consume); err != nil {
+	profileProgress := newStreamProgressTracker("profile", hasHeader, options)
+	if _, err := stream(ctx, func(row int, record []string) error {
+		profileProgress.observe(row)
+		return acc.consume(row, record)
+	}); err != nil {
 		return Result{}, err
 	}
+	profileProgress.finish()
 	result := acc.finalize()
-	if err := streamProfileValidationPass(ctx, stream, hasHeader, acc.headers(), &result, schema); err != nil {
+	validationProgress := newStreamProgressTracker("validation", hasHeader, options)
+	if err := streamProfileValidationPass(ctx, stream, hasHeader, acc.headers(), &result, schema, validationProgress); err != nil {
 		return Result{}, err
 	}
+	validationProgress.finish()
 	result.Streamed = true
+	result.Progress = &ProgressSummary{
+		ProfileRows:    profileProgress.rows,
+		ValidationRows: validationProgress.rows,
+		TotalRows:      result.Rows,
+		Passes:         2,
+		Events:         profileProgress.events + validationProgress.events,
+	}
 	return result, nil
 }
 
 func AnalyzeWithSchema(records [][]string, hasHeader bool, schema Schema) Result {
 	result := Result{Rows: dataRowCount(records, hasHeader)}
 	if len(records) == 0 {
+		result.Progress = materializedProgressSummary(result.Rows)
 		return result
 	}
 
@@ -176,7 +216,67 @@ func AnalyzeWithSchema(records [][]string, hasHeader bool, schema Schema) Result
 	schemaRules, schemaIssues := schemaValidationIssues(records, hasHeader, headers, schema)
 	result.SchemaRules = schemaRules
 	result.Issues = append(result.Issues, schemaIssues...)
+	result.Progress = materializedProgressSummary(result.Rows)
 	return result
+}
+
+func materializedProgressSummary(rows int) *ProgressSummary {
+	return &ProgressSummary{
+		ProfileRows:    rows,
+		ValidationRows: rows,
+		TotalRows:      rows,
+		Passes:         2,
+	}
+}
+
+type streamProgressTracker struct {
+	phase     string
+	hasHeader bool
+	interval  int
+	report    func(ProgressEvent)
+	rows      int
+	records   int
+	events    int
+}
+
+func newStreamProgressTracker(phase string, hasHeader bool, options StreamOptions) *streamProgressTracker {
+	interval := options.ProgressInterval
+	if interval <= 0 {
+		interval = 1000
+	}
+	return &streamProgressTracker{
+		phase:     phase,
+		hasHeader: hasHeader,
+		interval:  interval,
+		report:    options.ReportProgress,
+	}
+}
+
+func (tracker *streamProgressTracker) observe(row int) {
+	tracker.records++
+	if tracker.hasHeader && row == 0 {
+		return
+	}
+	tracker.rows++
+	if tracker.report != nil && tracker.interval > 0 && tracker.rows > 0 && tracker.rows%tracker.interval == 0 {
+		tracker.emit(false)
+	}
+}
+
+func (tracker *streamProgressTracker) finish() {
+	if tracker.report != nil {
+		tracker.emit(true)
+	}
+}
+
+func (tracker *streamProgressTracker) emit(done bool) {
+	tracker.events++
+	tracker.report(ProgressEvent{
+		Phase:   tracker.phase,
+		Rows:    tracker.rows,
+		Records: tracker.records,
+		Done:    done,
+	})
 }
 
 type rowWidth struct {
@@ -405,7 +505,7 @@ type compiledColumnRule struct {
 	seen         map[string]int
 }
 
-func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHeader bool, headers []string, result *Result, schema Schema) error {
+func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHeader bool, headers []string, result *Result, schema Schema, progress *streamProgressTracker) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -418,6 +518,9 @@ func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHe
 	_, err := stream(ctx, func(row int, record []string) error {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if progress != nil {
+			progress.observe(row)
 		}
 		if row == 0 && hasHeader {
 			return nil

@@ -76,6 +76,46 @@ func TestAnalyzeStreamProfilesColumnsAndSchema(t *testing.T) {
 	}
 }
 
+func TestAnalyzeStreamReportsRowProgress(t *testing.T) {
+	records := [][]string{
+		{"id", "name"},
+		{"1", "Ada"},
+		{"2", "Linus"},
+		{"3", "Grace"},
+	}
+	var events []ProgressEvent
+	result, err := AnalyzeStreamContextWithOptions(context.Background(), true, Schema{}, streamRecords(records), StreamOptions{
+		ProgressInterval: 2,
+		ReportProgress: func(event ProgressEvent) {
+			events = append(events, event)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Progress == nil {
+		t.Fatalf("progress = nil, want summary")
+	}
+	if result.Progress.ProfileRows != 3 || result.Progress.ValidationRows != 3 || result.Progress.Passes != 2 {
+		t.Fatalf("progress = %#v, want 3 profile rows and 3 validation rows", result.Progress)
+	}
+	if len(events) != 4 {
+		t.Fatalf("events = %#v, want checkpoint and done for both passes", events)
+	}
+	if events[0].Phase != "profile" || events[0].Rows != 2 || events[0].Done {
+		t.Fatalf("first event = %#v, want profile checkpoint at 2 rows", events[0])
+	}
+	if events[1].Phase != "profile" || events[1].Rows != 3 || !events[1].Done {
+		t.Fatalf("second event = %#v, want profile done at 3 rows", events[1])
+	}
+	if events[2].Phase != "validation" || events[2].Rows != 2 || events[2].Done {
+		t.Fatalf("third event = %#v, want validation checkpoint at 2 rows", events[2])
+	}
+	if events[3].Phase != "validation" || events[3].Rows != 3 || !events[3].Done {
+		t.Fatalf("fourth event = %#v, want validation done at 3 rows", events[3])
+	}
+}
+
 func TestAnalyzeNumericSummary(t *testing.T) {
 	result := Analyze([][]string{
 		{"amount"},
