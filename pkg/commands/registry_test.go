@@ -66,8 +66,22 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"edit.copyWithHeaders",
 		"edit.copyRow",
 		"edit.copyRowWithHeaders",
+		"edit.copyRowCsv",
+		"edit.copyRowMarkdown",
+		"edit.copyRowJson",
+		"edit.copyRowHtml",
+		"edit.copyRowSql",
+		"edit.copyRowLatex",
+		"edit.copyRowRaw",
 		"edit.copyColumn",
 		"edit.copyColumnWithHeader",
+		"edit.copyColumnCsv",
+		"edit.copyColumnMarkdown",
+		"edit.copyColumnJson",
+		"edit.copyColumnHtml",
+		"edit.copyColumnSql",
+		"edit.copyColumnLatex",
+		"edit.copyColumnRaw",
 		"selection.toggleHeaders",
 		"selection.addRange",
 		"selection.subtractRange",
@@ -221,6 +235,48 @@ func TestOfficialFilterShortcutDefault(t *testing.T) {
 	}
 }
 
+func TestRowColumnCopyAsFormatsAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	formats := map[string]string{
+		"Csv":      "csv",
+		"Markdown": "markdown",
+		"Json":     "json",
+		"Html":     "html",
+		"Sql":      "sql",
+		"Latex":    "latex",
+		"Raw":      "raw",
+	}
+	for suffix, format := range formats {
+		for _, target := range []string{"Row", "Column"} {
+			id := "edit.copy" + target + suffix
+			if _, ok := ByID(id); !ok {
+				t.Fatalf("missing copy-as command %s", id)
+			}
+			if !strings.Contains(source, `["`+id+`", "`+format+`"]`) {
+				t.Fatalf("missing frontend format map for %s", id)
+			}
+		}
+	}
+	for _, snippet := range []string{
+		"function normalizeCopyFormat",
+		"function copyFormatLabel",
+		"copyActiveRow({ format: copyRowFormatCommands.get(commandID) })",
+		"copyActiveColumn({ format: copyColumnFormatCommands.get(commandID) })",
+		"for (const commandID of copyRowFormatCommands.keys()) addCommand(commandID);",
+		"for (const commandID of copyColumnFormatCommands.keys()) addCommand(commandID);",
+		"status.textContent = `Copied ${label}: ${shape} as ${copyFormatLabel(format)}`",
+		`format === "tsv" && copied`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing row/column copy-as wiring %q", snippet)
+		}
+	}
+}
+
 func TestEditorGroupLayoutPersistenceIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
@@ -334,6 +390,9 @@ func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 		handlers[match[1]] = true
 	}
 	for _, match := range regexp.MustCompile(`"(sql\.[^"]+)"\s*:\s*\{\s*action:`).FindAllStringSubmatch(source, -1) {
+		handlers[match[1]] = true
+	}
+	for _, match := range regexp.MustCompile(`\["(edit\.copy(?:Row|Column)[^"]+)",\s*"`).FindAllStringSubmatch(source, -1) {
 		handlers[match[1]] = true
 	}
 

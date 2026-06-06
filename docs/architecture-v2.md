@@ -194,7 +194,7 @@ flowchart TD
   - Cmd/Ctrl mouse drag adds a range to Smart Selection; Cmd/Ctrl+Shift mouse drag subtracts the range from the current multi-range selection.
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
-  - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy.
+  - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy, including active row/column Copy As variants.
   - Selected-cell and column text transforms for trim, uppercase/lowercase, naming/case conversions, full-width/half-width conversion, and Unicode NFC/NFD/NFKC/NFKD normalization with explicit source-cell mapping.
   - Grid context menu dispatches rich copy, text transform, quote, fill, swap, join/split, transpose, dedupe, row, column, filter, and sort commands through shared command IDs, and preserves an existing selected range when right-clicking inside it.
   - Selected column headers can be dragged to reorder visible columns through the existing `/api/column/move` mutation path.

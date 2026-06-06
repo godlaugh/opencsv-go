@@ -357,6 +357,24 @@ const sqlResultFormatLabels = {
   latex: "LaTeX",
   raw: "Raw",
 };
+const copyRowFormatCommands = new Map([
+  ["edit.copyRowCsv", "csv"],
+  ["edit.copyRowMarkdown", "markdown"],
+  ["edit.copyRowJson", "json"],
+  ["edit.copyRowHtml", "html"],
+  ["edit.copyRowSql", "sql"],
+  ["edit.copyRowLatex", "latex"],
+  ["edit.copyRowRaw", "raw"],
+]);
+const copyColumnFormatCommands = new Map([
+  ["edit.copyColumnCsv", "csv"],
+  ["edit.copyColumnMarkdown", "markdown"],
+  ["edit.copyColumnJson", "json"],
+  ["edit.copyColumnHtml", "html"],
+  ["edit.copyColumnSql", "sql"],
+  ["edit.copyColumnLatex", "latex"],
+  ["edit.copyColumnRaw", "raw"],
+]);
 const sqlResultFormatExtensions = {
   csv: "csv",
   tsv: "tsv",
@@ -6641,10 +6659,12 @@ function renderGridContextMenu(target, clientX, clientY) {
   if (target.kind !== "column") {
     addCommand("edit.copyRow", "Copy Row");
     addCommand("edit.copyRowWithHeaders", "Copy Row with Headers");
+    for (const commandID of copyRowFormatCommands.keys()) addCommand(commandID);
   }
   if (target.kind !== "row") {
     addCommand("edit.copyColumn", "Copy Column");
     addCommand("edit.copyColumnWithHeader", "Copy Column with Header");
+    for (const commandID of copyColumnFormatCommands.keys()) addCommand(commandID);
   }
 
   const url = target.kind === "cell" ? normalizeURL(valueAt(selected.row, selected.col)) : "";
@@ -8758,6 +8778,14 @@ async function executeCommand(commandID) {
   }
   if (sqlResultCommand?.action === "export") {
     await exportSQLResult(sqlResultCommand.format);
+    return;
+  }
+  if (copyRowFormatCommands.has(commandID)) {
+    await copyActiveRow({ format: copyRowFormatCommands.get(commandID) });
+    return;
+  }
+  if (copyColumnFormatCommands.has(commandID)) {
+    await copyActiveColumn({ format: copyColumnFormatCommands.get(commandID) });
     return;
   }
   switch (commandID) {
@@ -11002,8 +11030,9 @@ async function copySelection(format = "tsv", options = {}) {
 
 async function copyActiveRow(options = {}) {
   if (!documentId) return;
+  const format = normalizeCopyFormat(options.format || "tsv");
   if (selected.row >= sourceRowCount) {
-    await copySelection("tsv", { includeHeaders: Boolean(options.includeHeaders) });
+    await copySelection(format, { includeHeaders: Boolean(options.includeHeaders) });
     return;
   }
   const includeHeaders = Boolean(options.includeHeaders);
@@ -11018,16 +11047,18 @@ async function copyActiveRow(options = {}) {
       documentId,
       rows: rowSelection.displayRows,
       columns: columns.map((column) => column.sourceCol),
-      format: "tsv",
+      format,
       includeHeaders,
     },
     cellCount: columns.length * rowCount,
+    format,
   });
-  if (!includeHeaders && copied) setStructureClipboard("row", rowSelection.sourceRows, false);
+  if (!includeHeaders && format === "tsv" && copied) setStructureClipboard("row", rowSelection.sourceRows, false);
 }
 
 async function copyActiveColumn(options = {}) {
   if (!documentId || !columns[selected.col]) return;
+  const format = normalizeCopyFormat(options.format || "tsv");
   const includeHeaders = Boolean(options.includeHeaders);
   const sourceCols = selectedColumnsForStructure();
   if (!sourceCols) return;
@@ -11039,15 +11070,34 @@ async function copyActiveColumn(options = {}) {
     body: {
       documentId,
       columns: sourceCols,
-      format: "tsv",
+      format,
       includeHeaders,
     },
     cellCount: sourceRowCount * colCount,
+    format,
   });
-  if (!includeHeaders && copied) setStructureClipboard("column", sourceCols, false);
+  if (!includeHeaders && format === "tsv" && copied) setStructureClipboard("column", sourceCols, false);
 }
 
-async function copyExportViewSlice({ label, body, cellCount }) {
+function normalizeCopyFormat(format) {
+  return ["csv", "tsv", "markdown", "json", "html", "sql", "latex", "raw"].includes(format) ? format : "tsv";
+}
+
+function copyFormatLabel(format) {
+  return {
+    csv: "CSV",
+    tsv: "TSV",
+    markdown: "Markdown",
+    json: "JSON",
+    html: "HTML",
+    sql: "SQL",
+    latex: "LaTeX",
+    raw: "Raw",
+  }[normalizeCopyFormat(format)];
+}
+
+async function copyExportViewSlice({ label, body, cellCount, format = "tsv" }) {
+  format = normalizeCopyFormat(format);
   const response = await fetch("/api/export-view", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -11071,7 +11121,7 @@ async function copyExportViewSlice({ label, body, cellCount }) {
     const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
     const cols = Number(response.headers.get("X-Opencsv-Columns") || 0);
     const shape = rows && cols ? `${formatCount(rows)} rows, ${formatCount(cols)} columns` : `${formatCount(cellCount)} cells`;
-    status.textContent = `Copied ${label}: ${shape} as TSV`;
+    status.textContent = `Copied ${label}: ${shape} as ${copyFormatLabel(format)}`;
   } catch (error) {
     status.textContent = `Copy ${label} failed: ${error.message}`;
   }

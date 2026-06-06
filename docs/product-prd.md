@@ -605,7 +605,7 @@ The app shall support:
 - Copy cells as CSV.
 - Copy cells as raw values without CSV quoting/escaping.
 - Copy selections as Markdown, HTML, JSON, SQL, and LaTeX.
-- Copy row/column.
+- Copy row/column as TSV and common Copy As formats.
 - Paste spreadsheet ranges.
 - Parse quoted spreadsheet TSV paste payloads, including embedded tabs, escaped quotes, and embedded line breaks.
 - Export filtered rows.
