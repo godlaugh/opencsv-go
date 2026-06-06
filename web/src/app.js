@@ -636,6 +636,7 @@ const localeCatalog = {
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
     "condition.remove": "Remove",
+    "condition.duplicate": "Duplicate",
     "condition.moveUp": "Up",
     "condition.moveDown": "Down",
     "condition.operator.contains": "contains",
@@ -673,10 +674,12 @@ const localeCatalog = {
     "condition.operatorAria": "Condition {{number}} operator",
     "condition.valueAria": "Condition {{number}} value",
     "condition.removeTitle": "Remove condition {{number}}",
+    "condition.duplicateTitle": "Duplicate condition {{number}}",
     "condition.moveUpTitle": "Move condition {{number}} up",
     "condition.moveDownTitle": "Move condition {{number}} down",
     "condition.status.chooseQuick": "Choose a quick filter condition.",
     "condition.status.ready": "Quick condition ready: {{label}}.",
+    "condition.status.duplicated": "Duplicated condition {{number}}.",
     "condition.status.reordered": "Moved condition {{from}} to position {{to}}.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
@@ -1273,6 +1276,7 @@ const localeCatalog = {
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
     "condition.remove": "移除",
+    "condition.duplicate": "复制",
     "condition.moveUp": "上移",
     "condition.moveDown": "下移",
     "condition.operator.contains": "包含",
@@ -1310,10 +1314,12 @@ const localeCatalog = {
     "condition.operatorAria": "条件 {{number}} 操作符",
     "condition.valueAria": "条件 {{number}} 值",
     "condition.removeTitle": "移除条件 {{number}}",
+    "condition.duplicateTitle": "复制条件 {{number}}",
     "condition.moveUpTitle": "上移条件 {{number}}",
     "condition.moveDownTitle": "下移条件 {{number}}",
     "condition.status.chooseQuick": "请选择快速筛选条件。",
     "condition.status.ready": "快速条件已就绪：{{label}}。",
+    "condition.status.duplicated": "已复制条件 {{number}}。",
     "condition.status.reordered": "已将条件 {{from}} 移到位置 {{to}}。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
@@ -7725,13 +7731,19 @@ function conditionExtraRowElement(row, index) {
   moveDownButton.title = tf("condition.moveDownTitle", { number });
   moveDownButton.disabled = index >= conditionExtraRows.length - 1;
 
+  const duplicateButton = document.createElement("button");
+  duplicateButton.type = "button";
+  duplicateButton.dataset.conditionAction = "duplicate";
+  duplicateButton.textContent = t("condition.duplicate");
+  duplicateButton.title = tf("condition.duplicateTitle", { number });
+
   const removeButton = document.createElement("button");
   removeButton.className = "condition-remove-button";
   removeButton.type = "button";
   removeButton.dataset.conditionAction = "remove";
   removeButton.textContent = t("condition.remove");
   removeButton.title = tf("condition.removeTitle", { number });
-  actions.append(moveUpButton, moveDownButton, removeButton);
+  actions.append(moveUpButton, moveDownButton, duplicateButton, removeButton);
   fieldset.append(actions);
   return fieldset;
 }
@@ -7919,6 +7931,30 @@ function removeConditionRow(index) {
   conditionExtraRows.splice(index, 1);
   renderConditionExtraRows();
   conditionValue.focus();
+}
+
+function duplicateConditionRow(index) {
+  if (!Number.isInteger(index) || index < 0) return;
+  readConditionExtraRowsFromDOM();
+  const row = conditionExtraRows[index];
+  if (!row) return;
+  const duplicate = {
+    ...row,
+    groupStart: 0,
+    groupEnd: conditionGroupCount(row.groupEnd),
+  };
+  conditionExtraRows[index] = {
+    ...row,
+    groupEnd: 0,
+  };
+  conditionExtraRows.splice(index + 1, 0, duplicate);
+  renderConditionExtraRows();
+  const fromNumber = index + 2;
+  const toNumber = fromNumber + 1;
+  document.body.dataset.conditionDuplicate = `${fromNumber}->${toNumber}`;
+  status.textContent = tf("condition.status.duplicated", { number: formatCount(fromNumber) });
+  const valueInput = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${index + 1}"] .condition-value`);
+  valueInput?.focus();
 }
 
 function moveConditionRow(extraIndex, direction) {
@@ -18414,6 +18450,8 @@ conditionRows.addEventListener("click", (event) => {
   const index = Number(row?.dataset.conditionIndex ?? -1);
   if (button.dataset.conditionAction === "remove") {
     removeConditionRow(index);
+  } else if (button.dataset.conditionAction === "duplicate") {
+    duplicateConditionRow(index);
   } else if (button.dataset.conditionAction === "move-up") {
     moveConditionRow(index, -1);
   } else if (button.dataset.conditionAction === "move-down") {
