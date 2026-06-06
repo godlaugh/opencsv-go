@@ -313,6 +313,7 @@ The app shall render a spreadsheet-like grid with:
 - Open hyperlink command for URL-like cell values.
 - Link audit for recognized URL values, including trusted standard schemes, safe custom protocols, and blocked unsafe protocols.
 - Configurable allow-list for user-approved custom link protocols.
+- Allow-listed custom protocols require explicit per-protocol confirmation before opening, with an optional remember decision for that protocol.
 - Cell Value panel support for multiline and large cell values, including edit statistics, dirty draft recovery, expandable editing space, and a detached large-cell editor.
 
 Acceptance:

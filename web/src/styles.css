@@ -2473,6 +2473,52 @@ button:disabled {
   color: var(--muted);
 }
 
+.link-confirm-dialog {
+  display: grid;
+  width: min(480px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.link-confirm-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.link-confirm-body > span {
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.link-confirm-body > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link-confirm-remember {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.link-confirm-remember input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 .cell-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

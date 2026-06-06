@@ -1018,6 +1018,59 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestCustomCellLinkPromptIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stylesCSS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	styles := string(stylesCSS)
+	for _, snippet := range []string{
+		`confirmedCustomLinkProtocolsStorageKey`,
+		`function openCellLinkWithPrompt(link)`,
+		`function linkRequiresCustomProtocolPrompt(link)`,
+		`function openCustomLinkConfirmDialog(link)`,
+		`function confirmCustomLinkOpen()`,
+		`function cellLinkAtPoint(x, y)`,
+		`document.body.dataset.linkConfirmDialog`,
+		`document.body.dataset.linkConfirmRemembered`,
+		`window.__opencsvLastOpenedLink`,
+		`openCellLinkWithPrompt(link);`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing custom link prompt wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`id="linkConfirmDialog"`,
+		`id="linkConfirmRemember"`,
+		`id="confirmOpenLinkButton"`,
+		`data-i18n="link.prompt.title"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing custom link prompt html %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`.link-confirm-dialog`,
+		`.link-confirm-body > strong`,
+		`.link-confirm-remember`,
+	} {
+		if !strings.Contains(styles, snippet) {
+			t.Fatalf("missing custom link prompt styles %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

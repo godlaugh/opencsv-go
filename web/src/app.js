@@ -35,6 +35,12 @@ const openCellLink = document.querySelector("#openCellLink");
 const cellLinkAudit = document.querySelector("#cellLinkAudit");
 const cellLinkProtocol = document.querySelector("#cellLinkProtocol");
 const cellLinkTarget = document.querySelector("#cellLinkTarget");
+const linkConfirmDialog = document.querySelector("#linkConfirmDialog");
+const linkConfirmProtocol = document.querySelector("#linkConfirmProtocol");
+const linkConfirmTarget = document.querySelector("#linkConfirmTarget");
+const linkConfirmRemember = document.querySelector("#linkConfirmRemember");
+const cancelOpenLinkButton = document.querySelector("#cancelOpenLinkButton");
+const confirmOpenLinkButton = document.querySelector("#confirmOpenLinkButton");
 const cellSeparatorInput = document.querySelector("#cellSeparatorInput");
 const toggleCellQuoteButton = document.querySelector("#toggleCellQuoteButton");
 const fileList = document.querySelector("#fileList");
@@ -817,6 +823,16 @@ const localeCatalog = {
     "settings.linkProtocols": "Link Protocols",
     "settings.editorAppearance": "Editor Appearance",
     "settings.fileFormatPresets": "File Format Presets",
+    "link.prompt.title": "Open Custom Link",
+    "link.prompt.protocol": "{{protocol}} custom protocol",
+    "link.prompt.target": "{{target}}",
+    "link.prompt.remember": "Remember this protocol",
+    "link.prompt.cancel": "Cancel",
+    "link.prompt.open": "Open Link",
+    "link.status.confirm": "Confirm opening {{protocol}} links.",
+    "link.status.canceled": "Link open canceled.",
+    "link.status.opened": "Opened {{href}}",
+    "link.status.remembered": "Opened {{href}} and remembered {{protocol}} links.",
     "start.newFile": "New File",
     "start.newHelp": "Create an unsaved CSV",
     "start.openCsv": "Open CSV/TSV",
@@ -1474,6 +1490,16 @@ const localeCatalog = {
     "settings.linkProtocols": "链接协议",
     "settings.editorAppearance": "编辑器外观",
     "settings.fileFormatPresets": "文件格式预设",
+    "link.prompt.title": "打开自定义链接",
+    "link.prompt.protocol": "{{protocol}} 自定义协议",
+    "link.prompt.target": "{{target}}",
+    "link.prompt.remember": "记住此协议",
+    "link.prompt.cancel": "取消",
+    "link.prompt.open": "打开链接",
+    "link.status.confirm": "确认打开 {{protocol}} 链接。",
+    "link.status.canceled": "已取消打开链接。",
+    "link.status.opened": "已打开 {{href}}",
+    "link.status.remembered": "已打开 {{href}}，并记住 {{protocol}} 链接。",
     "start.newFile": "新建文件",
     "start.newHelp": "创建未保存的 CSV",
     "start.openCsv": "打开 CSV/TSV",
@@ -2001,6 +2027,7 @@ const updateCheckModes = ["automatic", "manual", "off"];
 const blockedLinkProtocols = new Set(["javascript:", "data:", "vbscript:", "blob:", "about:"]);
 const trustedLinkProtocols = new Set(["http:", "https:", "mailto:", "file:"]);
 const customLinkProtocolsStorageKey = "opencsv-custom-link-protocols";
+const confirmedCustomLinkProtocolsStorageKey = "opencsv-confirmed-custom-link-protocols";
 const defaultCustomLinkProtocols = ["obsidian", "vscode"];
 const themeStorageKey = "opencsv-theme";
 const defaultThemePreference = "system";
@@ -2142,6 +2169,8 @@ let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
 let pendingWholeTranspose = null;
 let customLinkProtocols = loadCustomLinkProtocols();
+let confirmedCustomLinkProtocols = loadConfirmedCustomLinkProtocols();
+let pendingLinkConfirmation = null;
 let cellValueInputDirty = false;
 let cellValueInputKey = "";
 let cellValueExpanded = false;
@@ -3139,11 +3168,13 @@ function syncCustomLinkProtocolControls() {
   settingsLinkSummary.textContent = customLinkProtocolLabel();
   resetCustomLinkProtocolsButton.disabled = !customLinkProtocolsModified();
   document.body.dataset.customLinkProtocols = customLinkProtocols.join(",");
+  document.body.dataset.confirmedCustomLinkProtocols = confirmedCustomLinkProtocols.join(",");
 }
 
 function applyCustomLinkProtocols(nextProtocols, announce = true) {
   customLinkProtocols = [...nextProtocols];
   localStorage.setItem(customLinkProtocolsStorageKey, JSON.stringify(customLinkProtocols));
+  persistConfirmedCustomLinkProtocols();
   syncCustomLinkProtocolControls();
   syncCellLinkState(cellValueInput.value);
   if (announce) {
@@ -3165,6 +3196,36 @@ function resetCustomLinkProtocols() {
   applyCustomLinkProtocols(defaultCustomLinkProtocols);
   renderSettingsPanel();
   status.textContent = "Link protocols reset.";
+}
+
+function loadConfirmedCustomLinkProtocols() {
+  try {
+    return normalizeConfirmedCustomLinkProtocols(JSON.parse(localStorage.getItem(confirmedCustomLinkProtocolsStorageKey) || "[]"));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeConfirmedCustomLinkProtocols(value) {
+  const normalized = normalizeCustomLinkProtocols(value);
+  if (normalized.error) return [];
+  return normalized.protocols.filter((protocol) => customLinkProtocols.includes(protocol));
+}
+
+function persistConfirmedCustomLinkProtocols() {
+  confirmedCustomLinkProtocols = normalizeConfirmedCustomLinkProtocols(confirmedCustomLinkProtocols);
+  localStorage.setItem(confirmedCustomLinkProtocolsStorageKey, JSON.stringify(confirmedCustomLinkProtocols));
+  document.body.dataset.confirmedCustomLinkProtocols = confirmedCustomLinkProtocols.join(",");
+}
+
+function rememberCustomLinkProtocol(protocol) {
+  const normalized = normalizeCustomLinkProtocol(protocol);
+  if (!normalized || !customLinkProtocols.includes(normalized)) return;
+  confirmedCustomLinkProtocols = [
+    normalized,
+    ...confirmedCustomLinkProtocols.filter((item) => item !== normalized),
+  ];
+  persistConfirmedCustomLinkProtocols();
 }
 
 function loadEditorAppearance() {
@@ -6419,12 +6480,87 @@ function linkUnavailableMessage(link) {
 
 function openSelectedCellLink() {
   const link = analyzeCellLink(valueAt(selected.row, selected.col));
+  openCellLinkWithPrompt(link);
+}
+
+function openCellLinkWithPrompt(link) {
   if (!link.href) {
     status.textContent = linkUnavailableMessage(link);
     return;
   }
+  if (linkRequiresCustomProtocolPrompt(link)) {
+    openCustomLinkConfirmDialog(link);
+    return;
+  }
+  openAuditedCellLink(link);
+}
+
+function linkRequiresCustomProtocolPrompt(link) {
+  return link.status === "custom" && !confirmedCustomLinkProtocols.includes(link.protocol);
+}
+
+function openCustomLinkConfirmDialog(link) {
+  if (!linkConfirmDialog) {
+    openAuditedCellLink(link);
+    return;
+  }
+  pendingLinkConfirmation = { ...link };
+  linkConfirmDialog.hidden = false;
+  if (linkConfirmProtocol) {
+    linkConfirmProtocol.textContent = tf("link.prompt.protocol", { protocol: link.protocol.toUpperCase() });
+  }
+  if (linkConfirmTarget) {
+    linkConfirmTarget.textContent = tf("link.prompt.target", { target: link.target || link.href });
+  }
+  if (linkConfirmRemember) {
+    linkConfirmRemember.checked = false;
+  }
+  document.body.dataset.linkConfirmDialog = "open";
+  document.body.dataset.linkConfirmProtocol = link.protocol;
+  document.body.dataset.linkConfirmHref = link.href;
+  document.body.dataset.linkConfirmTarget = link.target || link.href;
+  document.body.dataset.linkConfirmRemembered = "false";
+  status.textContent = tf("link.status.confirm", { protocol: link.protocol });
+  confirmOpenLinkButton?.focus();
+}
+
+function closeCustomLinkConfirmDialog() {
+  pendingLinkConfirmation = null;
+  if (linkConfirmDialog) linkConfirmDialog.hidden = true;
+  document.body.dataset.linkConfirmDialog = "closed";
+  document.body.dataset.linkConfirmProtocol = "";
+  document.body.dataset.linkConfirmHref = "";
+  document.body.dataset.linkConfirmTarget = "";
+}
+
+function cancelCustomLinkConfirmDialog() {
+  closeCustomLinkConfirmDialog();
+  status.textContent = t("link.status.canceled");
+}
+
+function confirmCustomLinkOpen() {
+  const link = pendingLinkConfirmation;
+  if (!link?.href) {
+    closeCustomLinkConfirmDialog();
+    return;
+  }
+  const remember = Boolean(linkConfirmRemember?.checked);
+  if (remember) {
+    rememberCustomLinkProtocol(link.protocol);
+  }
+  closeCustomLinkConfirmDialog();
+  document.body.dataset.linkConfirmRemembered = remember ? "true" : "false";
+  openAuditedCellLink(link, { remembered: remember });
+}
+
+function openAuditedCellLink(link, options = {}) {
+  window.__opencsvLastOpenedLink = link.href;
+  document.body.dataset.lastOpenedLink = link.href;
+  document.body.dataset.lastOpenedLinkProtocol = link.protocol || "";
   window.open(link.href, "_blank", "noopener");
-  status.textContent = `Opened ${link.href}`;
+  status.textContent = options.remembered
+    ? tf("link.status.remembered", { href: link.href, protocol: link.protocol })
+    : tf("link.status.opened", { href: link.href });
 }
 
 function cellAtPoint(x, y) {
@@ -6436,9 +6572,13 @@ function cellAtPoint(x, y) {
 }
 
 function urlAtPoint(x, y) {
+  return cellLinkAtPoint(x, y).href;
+}
+
+function cellLinkAtPoint(x, y) {
   const cell = cellAtPoint(x, y);
-  if (!cell) return "";
-  return normalizeURL(valueAt(cell.row, cell.col));
+  if (!cell) return emptyCellLink();
+  return analyzeCellLink(valueAt(cell.row, cell.col));
 }
 
 function clearURLHover() {
@@ -17763,11 +17903,10 @@ canvas.addEventListener("mousedown", (event) => {
     return;
   }
   if (event.metaKey || event.ctrlKey) {
-    const url = urlAtPoint(x, y);
-    if (url) {
+    const link = cellLinkAtPoint(x, y);
+    if (link.href) {
       event.preventDefault();
-      window.open(url, "_blank", "noopener");
-      status.textContent = `Opened ${url}`;
+      openCellLinkWithPrompt(link);
       return;
     }
   }
@@ -17946,6 +18085,13 @@ window.addEventListener("paste", (event) => {
 window.addEventListener("keydown", (event) => {
   if (handleShortcutEditorKeydown(event)) return;
   if (shortcutEditorOpen) return;
+  if (linkConfirmDialog && !linkConfirmDialog.hidden) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelCustomLinkConfirmDialog();
+    }
+    return;
+  }
   if (handleGlobalShortcut(event)) return;
   if (conditionBuilderOpen) return;
   if (paletteOpen) return;
@@ -18894,6 +19040,14 @@ openCellLink.addEventListener("click", (event) => {
     return;
   }
   executeCommand("cell.openLink");
+});
+cancelOpenLinkButton.addEventListener("click", cancelCustomLinkConfirmDialog);
+confirmOpenLinkButton.addEventListener("click", confirmCustomLinkOpen);
+linkConfirmDialog.addEventListener("mousedown", (event) => {
+  if (event.target === linkConfirmDialog) {
+    event.preventDefault();
+    cancelCustomLinkConfirmDialog();
+  }
 });
 findButton.addEventListener("click", (event) => focusFindInput({ run: true, target: event.target }));
 cancelFindButton.addEventListener("click", cancelFindRequest);

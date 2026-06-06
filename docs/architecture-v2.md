@@ -785,7 +785,7 @@ Output:
 - Column header quick menu can sort, filter by selected value, filter blanks, and clear the active view.
 - Column header quick menu can append a secondary sort key and report the composed sort order.
 - Column header value checklist can load distinct values with counts and filter by multiple selected values.
-- Cell Value panel follows the active cell, applies edits through `/api/edit`, respects read-only mode, and exposes URL-like cell values as links.
+- Cell Value panel follows the active cell, applies edits through `/api/edit`, respects read-only mode, audits URL-like cell values as links, and routes allow-listed custom protocols through a per-protocol confirmation/remember prompt before opening.
 - Link protocol Settings can allow or reset custom cell-link protocols without enabling unsafe schemes.
 - Read-only mode prevents frontend edit entry and backend writes.
 - Clean documents auto-refresh from disk when the backing file changes.
