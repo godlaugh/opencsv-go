@@ -484,6 +484,8 @@ const localeCatalog = {
     "view.filters.saved": "Saved",
     "view.chip.sql": "SQL",
     "view.chip.openSql": "Open this filter in SQL",
+    "view.chip.edit": "Edit",
+    "view.chip.editBuilder": "Edit this filter in Builder",
     "view.chip.save": "Save",
     "view.chip.saveFilter": "Save this filter",
     "view.chip.saveSort": "Save this sort",
@@ -499,6 +501,7 @@ const localeCatalog = {
     "view.chip.applySavedSort": "Apply saved sort {{name}}",
     "view.chip.deleteSavedSort": "Delete saved sort {{name}}",
     "view.status.filterToSql": "Loaded current filter in SQL Console",
+    "view.status.filterToBuilder": "Loaded current filter in Filter Builder",
     "view.status.saveFilterFirst": "Apply a filter before saving it.",
     "view.status.savedFilter": "Saved filter: {{name}}",
     "view.status.savedFilterNotFound": "Saved filter not found.",
@@ -1118,6 +1121,8 @@ const localeCatalog = {
     "view.filters.saved": "保存",
     "view.chip.sql": "SQL",
     "view.chip.openSql": "在 SQL 控制台打开此筛选",
+    "view.chip.edit": "编辑",
+    "view.chip.editBuilder": "在筛选构建器中编辑此筛选",
     "view.chip.save": "保存",
     "view.chip.saveFilter": "保存此筛选",
     "view.chip.saveSort": "保存此排序",
@@ -1133,6 +1138,7 @@ const localeCatalog = {
     "view.chip.applySavedSort": "应用保存的排序 {{name}}",
     "view.chip.deleteSavedSort": "删除保存的排序 {{name}}",
     "view.status.filterToSql": "已将当前筛选载入 SQL 控制台",
+    "view.status.filterToBuilder": "已将当前筛选载入筛选构建器",
     "view.status.saveFilterFirst": "请先应用筛选再保存。",
     "view.status.savedFilter": "已保存筛选：{{name}}",
     "view.status.savedFilterNotFound": "未找到保存的筛选。",
@@ -7800,6 +7806,7 @@ function conditionValuePlaceholder(operator) {
 async function applyConditionBuilder() {
   if (!documentId) return;
   readConditionExtraRowsFromDOM();
+  const builderRows = conditionBuilderRowStatesFromDOM();
   const builders = conditionBuilderRowsFromDOM();
   const nodes = [];
   const groupedTerms = [];
@@ -7832,6 +7839,7 @@ async function applyConditionBuilder() {
       matched: "condition.status.matched",
       failed: "condition.status.failed",
     },
+    { builderRows },
   );
 }
 
@@ -7983,6 +7991,26 @@ function setConditionBuilderRows(rows) {
     groupEnd: conditionGroupCount(row.groupEnd),
   }));
   renderConditionExtraRows();
+}
+
+function normalizeConditionBuilderRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row, index) => {
+      if (!row || typeof row !== "object") return null;
+      const column = String(row.column ?? "");
+      const operator = String(row.operator ?? "contains");
+      if (!column || !conditionOperatorLabelKeys()[operator]) return null;
+      return {
+        join: index === 0 ? "" : (row.join === "OR" ? "OR" : "AND"),
+        column,
+        operator,
+        value: String(row.value ?? ""),
+        groupStart: conditionGroupCount(row.groupStart),
+        groupEnd: conditionGroupCount(row.groupEnd),
+      };
+    })
+    .filter(Boolean);
 }
 
 function setSelectExistingValue(select, value, fallback = "") {
@@ -12563,6 +12591,7 @@ function renderViewChips() {
   if (!activeFilter && !activeSort && saved.length === 0 && savedSortsList.length === 0) {
     viewChips.hidden = true;
     document.body.dataset.activeFilter = "";
+    document.body.dataset.activeFilterBuilderRows = "0";
     document.body.dataset.activeSort = "";
     document.body.dataset.savedFilterCount = "0";
     document.body.dataset.recentFilterCount = String(recent.length);
@@ -12571,6 +12600,7 @@ function renderViewChips() {
   }
   viewChips.hidden = false;
   document.body.dataset.activeFilter = activeFilter?.display ?? "";
+  document.body.dataset.activeFilterBuilderRows = String(normalizeConditionBuilderRows(activeFilter?.builderRows).length);
   document.body.dataset.activeSort = activeSort;
   document.body.dataset.savedFilterCount = String(saved.length);
   document.body.dataset.recentFilterCount = String(recent.length);
@@ -12590,6 +12620,11 @@ function renderViewChips() {
     setChipButtonText(sqlButton, "view.chip.sql", "view.chip.openSql");
     sqlButton.addEventListener("click", openActiveFilterInSQL);
 
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    setChipButtonText(editButton, "view.chip.edit", "view.chip.editBuilder");
+    editButton.addEventListener("click", openActiveFilterInBuilder);
+
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     setChipButtonText(saveButton, "view.chip.save", "view.chip.saveFilter");
@@ -12600,7 +12635,11 @@ function renderViewChips() {
     setChipButtonText(clearButton, "view.chip.clear", "view.chip.clearView");
     clearButton.addEventListener("click", clearView);
 
-    chip.append(label, sqlButton, saveButton, clearButton);
+    chip.append(label, sqlButton);
+    if (normalizeConditionBuilderRows(activeFilter.builderRows).length) {
+      chip.append(editButton);
+    }
+    chip.append(saveButton, clearButton);
     viewChips.append(chip);
   }
 
@@ -12705,6 +12744,7 @@ function normalizeRecentFilter(filter) {
     display,
     expression,
     body,
+    builderRows: normalizeConditionBuilderRows(filter.builderRows),
     createdAt: typeof filter.createdAt === "string" && filter.createdAt ? filter.createdAt : new Date().toISOString(),
   };
 }
@@ -12757,6 +12797,7 @@ function rememberRecentFilter(body, descriptor) {
     display: descriptor.display,
     expression,
     body: normalizedBody,
+    builderRows: normalizeConditionBuilderRows(descriptor.builderRows),
     createdAt: new Date().toISOString(),
   };
   saveRecentFilters([saved, ...recentFilters()]);
@@ -12831,6 +12872,7 @@ async function applyFilterDropdownSelection() {
     `Recent filter ${savedFilterName(filter.display)}`,
     selected.col,
     { matched: "view.status.recentFilterMatched" },
+    { builderRows: filter.builderRows },
   );
 }
 
@@ -12845,6 +12887,7 @@ function savedFilters() {
         name: filter.name || savedFilterName(filter.display || filter.expression),
         display: filter.display || `Filter: where ${filter.expression}`,
         expression: filter.expression,
+        builderRows: normalizeConditionBuilderRows(filter.builderRows),
         createdAt: filter.createdAt || new Date().toISOString(),
       }))
       .slice(0, savedFiltersLimit);
@@ -12878,6 +12921,7 @@ function saveActiveFilter() {
     name: savedFilterName(activeFilter.display),
     display: activeFilter.display,
     expression: activeFilter.expression,
+    builderRows: normalizeConditionBuilderRows(activeFilter.builderRows),
     createdAt: new Date().toISOString(),
   };
   const next = [saved, ...savedFilters().filter((filter) => filter.expression !== saved.expression)];
@@ -12902,6 +12946,7 @@ async function applySavedFilter(filterID) {
     `Saved filter ${filter.name}`,
     selected.col,
     { matched: "view.status.savedFilterMatched" },
+    { builderRows: filter.builderRows },
   );
 }
 
@@ -13123,6 +13168,7 @@ function normalizeSavedFilterImport(filter) {
     name: typeof filter.name === "string" && filter.name.trim() ? filter.name.trim() : savedFilterName(display),
     display,
     expression,
+    builderRows: normalizeConditionBuilderRows(filter.builderRows),
     createdAt: typeof filter.createdAt === "string" && filter.createdAt ? filter.createdAt : new Date().toISOString(),
   };
 }
@@ -13248,17 +13294,29 @@ function openActiveFilterInSQL() {
   status.textContent = t("view.status.filterToSql");
 }
 
-function filterDescriptorFromRequest(body, label) {
+function openActiveFilterInBuilder() {
+  const builderRows = normalizeConditionBuilderRows(activeFilter?.builderRows);
+  if (!builderRows.length) return;
+  setViewMode("grid");
+  openConditionBuilder();
+  setConditionBuilderRows(builderRows);
+  document.body.dataset.conditionBuilderReopened = `${builderRows.length}:${activeFilter.expression || ""}`;
+  status.textContent = t("view.status.filterToBuilder");
+  conditionValue.focus();
+  if (conditionOperatorNeedsValue(conditionOperator.value)) conditionValue.select();
+}
+
+function filterDescriptorFromRequest(body, label, options = {}) {
   if (body.mode === "sql" && body.expression) {
-    return filterDescriptor(`where ${body.expression}`, body.expression);
+    return filterDescriptor(`where ${body.expression}`, body.expression, options);
   }
   if (body.query && Number.isInteger(body.column)) {
     const expression = `${sqlColumnIdentifier(body.column)} LIKE ${sqlStringLiteral(`%${body.query}%`)}`;
-    return filterDescriptor(`${columnNameForSource(body.column)} contains ${body.query}`, expression);
+    return filterDescriptor(`${columnNameForSource(body.column)} contains ${body.query}`, expression, options);
   }
   if (body.query) {
     const expression = containsAnyColumnExpression(body.query);
-    return filterDescriptor(`contains ${body.query}`, expression);
+    return filterDescriptor(`contains ${body.query}`, expression, options);
   }
   return null;
 }
@@ -13278,13 +13336,16 @@ function valueFilterDescriptor(sourceCol, values, includeBlank) {
   return filterDescriptor(`${columnNameForSource(sourceCol)}: ${count} values`, expression);
 }
 
-function filterDescriptor(display, expression) {
+function filterDescriptor(display, expression, options = {}) {
   if (!expression) return null;
-  return {
+  const descriptor = {
     display: `Filter: ${display}`,
     expression,
     sqlQuery: `SELECT * FROM current WHERE ${expression} LIMIT 500`,
   };
+  const builderRows = normalizeConditionBuilderRows(options.builderRows);
+  if (builderRows.length) descriptor.builderRows = builderRows;
+  return descriptor;
 }
 
 function containsAnyColumnExpression(query) {
@@ -13319,7 +13380,7 @@ async function filterCurrentQuery() {
   );
 }
 
-async function applyFilterRequest(body, label, preserveCol = selected.col, statusKeys = {}) {
+async function applyFilterRequest(body, label, preserveCol = selected.col, statusKeys = {}, descriptorOptions = {}) {
   const response = await fetch("/api/filter", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -13337,7 +13398,7 @@ async function applyFilterRequest(body, label, preserveCol = selected.col, statu
   document.body.dataset.filterStreamed = String(Boolean(payload.streamed));
   sortDescending = false;
   sortKeys = [];
-  const descriptor = filterDescriptorFromRequest(body, label);
+  const descriptor = filterDescriptorFromRequest(body, label, descriptorOptions);
   setActiveFilter(descriptor);
   rememberRecentFilter(body, descriptor);
   rows = new Map();

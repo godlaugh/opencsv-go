@@ -209,6 +209,7 @@ flowchart TD
   - Hidden source-column state persists per local file path and is restored on reopen while rejecting stale or all-hidden column sets.
   - Recent and saved filter dropdown for replaying toolbar, SQL, value-checklist, and saved filter expressions without retyping.
   - Filter Builder can generate adjacent nested condition groups such as `A AND (B OR C)` plus direct list predicates such as `region IN (...)` before handing the SQL expression to the shared filter evaluator.
+  - Builder-created active filters keep normalized condition rows, so active chips, recent filters, and saved filters can reopen the visual Builder while SQL-only filters continue to hand off to SQL Console.
   - Length-based column sort entry point and frontend sort-mode inference for numeric/date-looking columns.
   - Column value checklist inside the header quick menu.
   - View-only hidden columns through visible-column to source-column mapping.
