@@ -833,8 +833,11 @@ const localeCatalog = {
     "sql.error.phase": "phase {{phase}}",
     "sql.status.enterQuery": "Enter a SQL query.",
     "sql.status.running": "Running SQL...",
+    "sql.status.runningElapsed": "Running SQL... {{seconds}}s",
     "sql.status.canceled": "SQL canceled.",
+    "sql.status.canceledElapsed": "SQL canceled after {{seconds}}s.",
     "sql.status.returned": "SQL returned {{rows}} of {{total}} rows",
+    "sql.status.returnedTimed": "SQL returned {{rows}} of {{total}} rows in {{seconds}}s",
     "sql.status.historySaveFailed": "SQL query history could not be saved.",
     "sql.status.historyClearFailed": "SQL query history could not be cleared.",
     "sql.status.historyLoaded": "Loaded SQL query from history.",
@@ -1483,8 +1486,11 @@ const localeCatalog = {
     "sql.error.phase": "阶段 {{phase}}",
     "sql.status.enterQuery": "请输入 SQL 查询。",
     "sql.status.running": "正在运行 SQL...",
+    "sql.status.runningElapsed": "正在运行 SQL... {{seconds}} 秒",
     "sql.status.canceled": "SQL 已取消。",
+    "sql.status.canceledElapsed": "SQL 已在 {{seconds}} 秒后取消。",
     "sql.status.returned": "SQL 返回 {{rows}} / {{total}} 行",
+    "sql.status.returnedTimed": "SQL 返回 {{rows}} / {{total}} 行，用时 {{seconds}} 秒",
     "sql.status.historySaveFailed": "无法保存 SQL 查询历史。",
     "sql.status.historyClearFailed": "无法清除 SQL 查询历史。",
     "sql.status.historyLoaded": "已从历史加载 SQL 查询。",
@@ -2121,6 +2127,8 @@ let findInSelection = false;
 let findState = emptyFindState();
 let activeFindController = null;
 let activeSQLController = null;
+let sqlProgressTimer = 0;
+let sqlProgressStartedAt = 0;
 let activeFilter = null;
 let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
@@ -15403,16 +15411,41 @@ function startFileStatusChecks() {
 function startSQLProgress() {
   if (activeSQLController) activeSQLController.abort();
   activeSQLController = new AbortController();
+  if (sqlProgressTimer) window.clearInterval(sqlProgressTimer);
+  sqlProgressStartedAt = performance.now();
   runSqlButton.disabled = true;
   cancelSqlButton.hidden = false;
   cancelSqlButton.disabled = false;
   document.body.dataset.sqlProgress = "running";
-  status.textContent = t("sql.status.running");
+  document.body.dataset.sqlElapsedMs = "0";
+  updateSQLProgressStatus();
+  sqlProgressTimer = window.setInterval(updateSQLProgressStatus, 250);
   return activeSQLController;
+}
+
+function updateSQLProgressStatus() {
+  const elapsed = sqlElapsedMs();
+  document.body.dataset.sqlElapsedMs = String(Math.round(elapsed));
+  status.textContent = tf("sql.status.runningElapsed", { seconds: formatElapsedSeconds(elapsed) });
+}
+
+function sqlElapsedMs() {
+  return sqlProgressStartedAt ? Math.max(0, performance.now() - sqlProgressStartedAt) : 0;
+}
+
+function stopSQLProgressTimer() {
+  if (sqlProgressTimer) {
+    window.clearInterval(sqlProgressTimer);
+    sqlProgressTimer = 0;
+  }
+  const elapsed = sqlElapsedMs();
+  document.body.dataset.sqlElapsedMs = String(Math.round(elapsed));
+  return elapsed;
 }
 
 function finishSQLProgress(controller) {
   if (activeSQLController !== controller) return;
+  stopSQLProgressTimer();
   activeSQLController = null;
   runSqlButton.disabled = false;
   cancelSqlButton.hidden = true;
@@ -15425,12 +15458,13 @@ function finishSQLProgress(controller) {
 function cancelSQLRequest() {
   if (!activeSQLController) return;
   activeSQLController.abort();
+  const elapsed = stopSQLProgressTimer();
   activeSQLController = null;
   runSqlButton.disabled = false;
   cancelSqlButton.hidden = true;
   cancelSqlButton.disabled = true;
   document.body.dataset.sqlProgress = "canceled";
-  status.textContent = t("sql.status.canceled");
+  status.textContent = tf("sql.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
 async function runSQLQuery() {
@@ -15463,8 +15497,9 @@ async function runSQLQuery() {
   } catch (error) {
     if (error.name === "AbortError") {
       if (!activeSQLController || activeSQLController === controller) {
+        const elapsed = stopSQLProgressTimer();
         document.body.dataset.sqlProgress = "canceled";
-        status.textContent = t("sql.status.canceled");
+        status.textContent = tf("sql.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
       }
       return;
     }
@@ -15480,9 +15515,11 @@ async function runSQLQuery() {
   document.body.dataset.sqlStreamed = String(Boolean(payload.streamed));
   renderSQLResult(payload);
   rememberSQLQuery(query);
-  status.textContent = tf("sql.status.returned", {
+  const elapsed = stopSQLProgressTimer();
+  status.textContent = tf("sql.status.returnedTimed", {
     rows: formatCount(payload.rows.length),
     total: formatCount(payload.totalRows),
+    seconds: formatElapsedSeconds(elapsed),
   });
 }
 

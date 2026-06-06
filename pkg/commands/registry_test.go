@@ -489,12 +489,14 @@ func TestSQLConsoleI18nIsWired(t *testing.T) {
 	source := string(appJS)
 	for _, snippet := range []string{
 		`"sql.status.returned"`,
+		`"sql.status.returnedTimed"`,
 		`"sql.context.copySelectionAs"`,
 		`"sql.status.returned": "SQL 返回`,
+		`"sql.status.returnedTimed": "SQL 返回`,
 		"applySQLLocaleStrings",
 		"renderSQLHistory()",
 		"renderSQLResult(lastSQLResult)",
-		"tf(\"sql.status.returned\"",
+		"tf(\"sql.status.returnedTimed\"",
 		"tf(\"sql.status.selected\"",
 		"tf(\"sql.context.copyResultAs\"",
 		"t(\"sql.empty.rows\")",
@@ -573,6 +575,8 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 		"function cancelFindRequest",
 		"function startSQLProgress",
 		"function cancelSQLRequest",
+		"function updateSQLProgressStatus",
+		"document.body.dataset.sqlElapsedMs",
 		"function startProfileProgress",
 		"function cancelProfileRequest",
 		"signal: controller.signal",
@@ -583,7 +587,9 @@ func TestLongOperationCancellationIsWired(t *testing.T) {
 		`document.body.dataset.sqlProgress = "canceled"`,
 		`document.body.dataset.profileProgress = "canceled"`,
 		`"find.status.running": "正在查找`,
-		`"sql.status.canceled": "SQL 已取消。"`,
+		`"sql.status.runningElapsed": "正在运行 SQL... {{seconds}} 秒"`,
+		`"sql.status.canceledElapsed": "SQL 已在 {{seconds}} 秒后取消。"`,
+		`"sql.status.returnedTimed": "SQL 返回 {{rows}} / {{total}} 行，用时 {{seconds}} 秒"`,
 		`"profile.status.canceledElapsed": "概况已在`,
 	} {
 		if !strings.Contains(source, snippet) {

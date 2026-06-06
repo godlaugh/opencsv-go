@@ -444,6 +444,7 @@ The app shall support:
 - Query history.
 - Per-tab console state and split-pane size persistence.
 - Query errors with useful locations/messages.
+- Long-running queries show running, completion, and cancellation elapsed time.
 
 Acceptance:
 

@@ -812,6 +812,7 @@ Output:
 - Replace after Find Next targets the active match cell instead of the first matching cell in the file.
 - Find/Replace can seed the toolbar query from selected cell/editor text through shortcut, toolbar, and command-palette dispatch.
 - SQL Console delegates execution to in-memory SQLite and supports joins, expression projection, subqueries, `GROUP BY`, `HAVING`, and ordering by an expression alias.
+- SQL Console frontend requests use an elapsed-time progress state that updates running status text, records `data-sql-elapsed-ms`, and keeps final elapsed time on completion or cancellation.
 - SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
 - SQL Console result table supports rectangular range selection and selected-range CSV copy through the existing Copy CSV command.
 
