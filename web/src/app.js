@@ -596,11 +596,15 @@ const localeCatalog = {
     "find.replaceAllTitle": "Replace all matches",
     "find.status.enterQuery": "Type text to find.",
     "find.status.running": "Finding {{query}}...",
+    "find.status.runningElapsed": "Finding {{query}}... {{seconds}}s",
     "find.status.canceled": "Find canceled.",
+    "find.status.canceledElapsed": "Find canceled after {{seconds}}s.",
     "find.status.noMatches": "No matches for {{query}}",
+    "find.status.noMatchesTimed": "No matches for {{query}} in {{seconds}}s",
     "find.status.failed": "Find failed: {{message}}",
     "find.status.page": " (showing matches {{start}}-{{end}})",
     "find.status.found": "Found {{current}} of {{total}} for {{query}} at row {{row}}, column {{column}}{{page}}",
+    "find.status.foundTimed": "Found {{current}} of {{total}} for {{query}} at row {{row}}, column {{column}}{{page}} in {{seconds}}s",
     "find.status.selectionLimit": "Selection has {{count}} cells; search-in-selection limit is {{limit}}.",
     "find.status.loadSelection": "Load the selected filtered rows before searching within selection.",
     "replace.status.enterQuery": "Type text to replace.",
@@ -1249,11 +1253,15 @@ const localeCatalog = {
     "find.replaceAllTitle": "替换全部匹配",
     "find.status.enterQuery": "请输入要查找的文本。",
     "find.status.running": "正在查找 {{query}}...",
+    "find.status.runningElapsed": "正在查找 {{query}}... {{seconds}} 秒",
     "find.status.canceled": "查找已取消。",
+    "find.status.canceledElapsed": "查找已在 {{seconds}} 秒后取消。",
     "find.status.noMatches": "没有找到 {{query}} 的匹配项",
+    "find.status.noMatchesTimed": "用时 {{seconds}} 秒，没有找到 {{query}} 的匹配项",
     "find.status.failed": "查找失败：{{message}}",
     "find.status.page": "（显示第 {{start}}-{{end}} 个匹配）",
     "find.status.found": "找到 {{current}} / {{total}} 个 {{query}}，第 {{row}} 行，第 {{column}} 列{{page}}",
+    "find.status.foundTimed": "找到 {{current}} / {{total}} 个 {{query}}，第 {{row}} 行，第 {{column}} 列{{page}}，用时 {{seconds}} 秒",
     "find.status.selectionLimit": "选区有 {{count}} 个单元格；选区内搜索上限是 {{limit}}。",
     "find.status.loadSelection": "请先加载所选筛选行，再在选区中搜索。",
     "replace.status.enterQuery": "请输入要替换的文本。",
@@ -2127,6 +2135,9 @@ let findRegex = false;
 let findInSelection = false;
 let findState = emptyFindState();
 let activeFindController = null;
+let findProgressTimer = 0;
+let findProgressStartedAt = 0;
+let findProgressQuery = "";
 let activeSQLController = null;
 let sqlProgressTimer = 0;
 let sqlProgressStartedAt = 0;
@@ -12380,18 +12391,47 @@ async function findCurrentQuery() {
 function startFindProgress(query) {
   if (activeFindController) activeFindController.abort();
   activeFindController = new AbortController();
+  if (findProgressTimer) window.clearInterval(findProgressTimer);
+  findProgressStartedAt = performance.now();
+  findProgressQuery = query;
   cancelFindButton.hidden = false;
   cancelFindButton.disabled = false;
   findButton.disabled = true;
   findPrevButton.disabled = true;
   findNextButton.disabled = true;
   document.body.dataset.findProgress = "running";
-  status.textContent = tf("find.status.running", { query });
+  document.body.dataset.findElapsedMs = "0";
+  updateFindProgressStatus();
+  findProgressTimer = window.setInterval(updateFindProgressStatus, 250);
   return activeFindController;
+}
+
+function updateFindProgressStatus() {
+  const elapsed = findElapsedMs();
+  document.body.dataset.findElapsedMs = String(Math.round(elapsed));
+  status.textContent = tf("find.status.runningElapsed", {
+    query: findProgressQuery,
+    seconds: formatElapsedSeconds(elapsed),
+  });
+}
+
+function findElapsedMs() {
+  return findProgressStartedAt ? Math.max(0, performance.now() - findProgressStartedAt) : 0;
+}
+
+function stopFindProgressTimer() {
+  if (findProgressTimer) {
+    window.clearInterval(findProgressTimer);
+    findProgressTimer = 0;
+  }
+  const elapsed = findElapsedMs();
+  document.body.dataset.findElapsedMs = String(Math.round(elapsed));
+  return elapsed;
 }
 
 function finishFindProgress(controller) {
   if (activeFindController !== controller) return;
+  stopFindProgressTimer();
   activeFindController = null;
   cancelFindButton.hidden = true;
   cancelFindButton.disabled = true;
@@ -12406,6 +12446,7 @@ function finishFindProgress(controller) {
 function cancelFindRequest() {
   if (!activeFindController) return;
   activeFindController.abort();
+  const elapsed = stopFindProgressTimer();
   activeFindController = null;
   cancelFindButton.hidden = true;
   cancelFindButton.disabled = true;
@@ -12413,7 +12454,7 @@ function cancelFindRequest() {
   findPrevButton.disabled = false;
   findNextButton.disabled = false;
   document.body.dataset.findProgress = "canceled";
-  status.textContent = t("find.status.canceled");
+  status.textContent = tf("find.status.canceledElapsed", { seconds: formatElapsedSeconds(elapsed) });
 }
 
 async function focusFindInput(options = {}) {
@@ -12510,7 +12551,10 @@ async function runFind(direction, forceRefresh) {
     if (!ok) return;
   }
   if (findState.matches.length === 0) {
-    status.textContent = tf("find.status.noMatches", { query });
+    status.textContent = tf("find.status.noMatchesTimed", {
+      query,
+      seconds: formatElapsedSeconds(findState.elapsedMs),
+    });
     updateFindMatchCount();
     return;
   }
@@ -12554,6 +12598,7 @@ async function refreshFindState(search, key, options = {}) {
   if (cells == null) return false;
   const controller = startFindProgress(search.query);
   let payload = null;
+  let elapsed = 0;
   try {
     const response = await fetch("/api/find", {
       method: "POST",
@@ -12572,17 +12617,22 @@ async function refreshFindState(search, key, options = {}) {
     });
     payload = await response.json();
     if (!response.ok) {
+      stopFindProgressTimer();
       status.textContent = tf("find.status.failed", { message: payload.error ?? "unknown error" });
       return false;
     }
+    elapsed = stopFindProgressTimer();
+    document.body.dataset.findStreamed = String(Boolean(payload.streamed));
   } catch (error) {
     if (error.name === "AbortError") {
       if (!activeFindController || activeFindController === controller) {
+        const canceledElapsed = stopFindProgressTimer();
         document.body.dataset.findProgress = "canceled";
-        status.textContent = t("find.status.canceled");
+        status.textContent = tf("find.status.canceledElapsed", { seconds: formatElapsedSeconds(canceledElapsed) });
       }
       return false;
     }
+    stopFindProgressTimer();
     status.textContent = tf("find.status.failed", { message: error.message });
     return false;
   } finally {
@@ -12599,6 +12649,8 @@ async function refreshFindState(search, key, options = {}) {
     truncated: Boolean(payload.truncated),
     index: 0,
     scopeCells: cells,
+    elapsedMs: elapsed,
+    streamed: Boolean(payload.streamed),
   };
   if (options.index === -1) {
     findState.index = Math.max(0, findState.matches.length - 1);
@@ -12628,13 +12680,14 @@ async function selectFindMatch(match, query) {
   const loadedNote = findState.truncated || findState.offset > 0
     ? tf("find.status.page", { start: formatCount(pageStart), end: formatCount(pageEnd) })
     : "";
-  status.textContent = tf("find.status.found", {
+  status.textContent = tf("find.status.foundTimed", {
     current: formatCount(ordinal),
     total: formatCount(total),
     query,
     row: formatCount(displayRow + 1),
     column: formatCount(match.col + 1),
     page: loadedNote,
+    seconds: formatElapsedSeconds(findState.elapsedMs),
   });
 }
 
@@ -12863,7 +12916,7 @@ function selectedSearchScopeKey() {
 }
 
 function emptyFindState() {
-  return { key: "", criteriaKey: "", search: null, matches: [], total: 0, offset: 0, limit: findPageSize, truncated: false, index: 0, scopeCells: [] };
+  return { key: "", criteriaKey: "", search: null, matches: [], total: 0, offset: 0, limit: findPageSize, truncated: false, index: 0, scopeCells: [], elapsedMs: 0, streamed: false };
 }
 
 function invalidateFindState() {

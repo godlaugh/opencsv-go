@@ -220,6 +220,7 @@ flowchart TD
 - `web Search Controls`
   - Find/Replace toolbar toggles for case sensitivity, whole-cell matching, regex mode, and search within selection.
   - Toggles map directly to existing `/api/find` and `/api/replace` request options.
+  - Find requests expose elapsed-time progress, completion/cancel timing, and streaming diagnostics through status text plus `body` data attributes.
   - Search-in-selection sends explicit selected source-cell scopes and keeps that original scope while match navigation changes the active cell.
   - Find/Replace command routing seeds the query from selected inline-editor text, Cell Value panel text, detached cell-dialog text, or the active grid cell when the Find box is empty.
   - Single Replace scopes `/api/replace` to the active Find match cell when the cached find criteria still match the toolbar query; Replace All preserves the full-document or selection scope.
