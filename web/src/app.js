@@ -2085,6 +2085,7 @@ let editorGroupsSplit = editorGroupLayout.split;
 let editorGroupOrientation = editorGroupLayout.orientation;
 let activeEditorGroup = editorGroupLayout.activeGroup;
 let currentEditorTabGroup = editorGroupLayout.currentTabGroup;
+let editorGroupActiveTabs = { primary: "", secondary: "" };
 let pendingEditorTabDrag = null;
 let profileData = null;
 let lastSQLResult = null;
@@ -3395,53 +3396,147 @@ function renderEditorGroups() {
     activeEditorGroup = "primary";
     currentEditorTabGroup = "primary";
   }
+  syncEditorGroupActiveTabs();
   mountCurrentEditorTab();
   editorGroups.classList.toggle("split", editorGroupsSplit);
   editorGroups.dataset.orientation = editorGroupOrientation;
   secondaryEditorGroup.hidden = !editorGroupsSplit;
   primaryEditorGroup.classList.toggle("active", activeEditorGroup === "primary");
   secondaryEditorGroup.classList.toggle("active", editorGroupsSplit && activeEditorGroup === "secondary");
-  const viewLabel = viewModeLabel();
-  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "No file open";
-  const rowLabel = documentId ? `${sourceRowCount.toLocaleString()} rows, ${columns.length} columns` : "Ready";
-  const selectionLabel = documentId
-    ? `row ${selected.row + 1}, ${columns[selected.col]?.name || "Column"}`
-    : "Ready";
-  const tabLabel = `${fileLabel}${dirty ? " *" : ""}`;
-  const primaryHasTab = documentId && currentEditorTabGroup === "primary";
-  const secondaryHasTab = documentId && currentEditorTabGroup === "secondary";
+  const primaryInfo = editorGroupInfo("primary");
+  const secondaryInfo = editorGroupInfo("secondary");
+  const activeInfo = activeEditorGroup === "secondary" ? secondaryInfo : primaryInfo;
+  const primaryHasTab = Boolean(primaryInfo.tab);
+  const secondaryHasTab = editorGroupsSplit && Boolean(secondaryInfo.tab);
   primaryEditorGroup.classList.toggle("has-tab", primaryHasTab);
   secondaryEditorGroup.classList.toggle("has-tab", secondaryHasTab);
-  primaryEditorGroupTitle.textContent = `Group 1${primaryHasTab ? ` · ${viewLabel}` : ""}`;
-  primaryEditorGroupMeta.textContent = primaryHasTab ? selectionLabel : editorGroupsSplit ? "Empty" : "Ready";
-  secondaryEditorGroupTitle.textContent = `Group 2${secondaryHasTab ? ` · ${viewLabel}` : ""}`;
-  secondaryEditorGroupMeta.textContent = secondaryHasTab ? selectionLabel : editorGroupsSplit ? "Empty" : rowLabel;
+  primaryEditorGroupTitle.textContent = `Group 1${primaryHasTab ? ` · ${primaryInfo.viewLabel}` : ""}`;
+  primaryEditorGroupMeta.textContent = primaryHasTab ? primaryInfo.selectionLabel : editorGroupsSplit ? "Empty" : "Ready";
+  secondaryEditorGroupTitle.textContent = `Group 2${secondaryHasTab ? ` · ${secondaryInfo.viewLabel}` : ""}`;
+  secondaryEditorGroupMeta.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : editorGroupsSplit ? "Empty" : primaryInfo.rowLabel;
   primaryEditorTab.hidden = !primaryHasTab;
   secondaryEditorTab.hidden = !secondaryHasTab;
-  primaryEditorTab.textContent = tabLabel;
-  secondaryEditorTab.textContent = tabLabel;
-  primaryEditorTab.title = primaryHasTab ? `${fileLabel} · ${selectionLabel}` : "";
-  secondaryEditorTab.title = secondaryHasTab ? `${fileLabel} · ${selectionLabel}` : "";
+  primaryEditorTab.textContent = primaryInfo.tabLabel;
+  secondaryEditorTab.textContent = secondaryInfo.tabLabel;
+  primaryEditorTab.title = primaryHasTab ? `${primaryInfo.fileLabel} · ${primaryInfo.selectionLabel}` : "";
+  secondaryEditorTab.title = secondaryHasTab ? `${secondaryInfo.fileLabel} · ${secondaryInfo.selectionLabel}` : "";
   primaryEditorGroupEmpty.hidden = !editorGroupsSplit || primaryHasTab || !documentId;
   secondaryEditorGroupEmpty.hidden = !editorGroupsSplit || secondaryHasTab || !documentId;
   secondaryEditorGroupPreview.hidden = !editorGroupsSplit || secondaryHasTab;
-  secondaryEditorGroupFile.textContent = secondaryHasTab || !editorGroupsSplit ? fileLabel : "Empty group";
-  secondaryEditorGroupView.textContent = secondaryHasTab ? `${viewLabel}${activeFilter ? ` · ${activeFilter.display}` : ""}` : "Ready";
-  secondaryEditorGroupSelection.textContent = secondaryHasTab ? selectionLabel : "Ready";
+  secondaryEditorGroupFile.textContent = secondaryHasTab || !editorGroupsSplit ? secondaryInfo.fileLabel : "Empty group";
+  secondaryEditorGroupView.textContent = secondaryHasTab ? secondaryInfo.viewLabel : "Ready";
+  secondaryEditorGroupSelection.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : "Ready";
   document.body.dataset.editorGroupCount = editorGroupsSplit ? "2" : "1";
   document.body.dataset.editorGroupOrientation = editorGroupOrientation;
   document.body.dataset.activeEditorGroup = activeEditorGroup;
   document.body.dataset.currentEditorTabGroup = currentEditorTabGroup;
   document.body.dataset.editorGroupLayout = editorGroupLayoutSignature();
-  document.body.dataset.editorTabLabel = documentId ? `${fileLabel}|${viewLabel}|${selectionLabel}` : "";
-  document.body.dataset.secondaryEditorGroup = editorGroupsSplit
-    ? `${secondaryHasTab ? fileLabel : "Empty"}|${secondaryHasTab ? viewLabel : "Ready"}|${secondaryHasTab ? selectionLabel : "Ready"}`
+  const currentGroupInfo = editorGroupInfo(currentEditorTabGroup);
+  document.body.dataset.editorTabLabel = documentId
+    ? `${currentGroupInfo.fileLabel}|${viewModeLabel()}|${currentGroupInfo.selectionLabel}`
     : "";
+  document.body.dataset.secondaryEditorGroup = editorGroupsSplit
+    ? `${secondaryHasTab ? secondaryInfo.fileLabel : "Empty"}|${secondaryHasTab ? secondaryInfo.viewLabel : "Ready"}|${secondaryHasTab ? secondaryInfo.selectionLabel : "Ready"}`
+    : "";
+  document.body.dataset.editorGroupSwitch = activeInfo.tab
+    ? `${activeEditorGroup}:${activeInfo.fileLabel}`
+    : `${activeEditorGroup}:`;
+  document.body.dataset.editorGroupStacks = editorGroupStackSignature();
   splitEditorButton.disabled = editorGroupsSplit;
   splitOrientationButton.disabled = !editorGroupsSplit;
   focusEditorGroupButton.disabled = !editorGroupsSplit;
   moveEditorTabButton.disabled = !editorGroupsSplit || !documentId;
   closeSplitEditorButton.disabled = !editorGroupsSplit;
+}
+
+function normalizeEditorGroup(group) {
+  return editorGroupsSplit && group === "secondary" ? "secondary" : "primary";
+}
+
+function tabGroup(tab) {
+  return editorGroupsSplit && tab?.group === "secondary" ? "secondary" : "primary";
+}
+
+function tabsForEditorGroup(group) {
+  if (!editorGroupsSplit && group === "secondary") return [];
+  const normalized = normalizeEditorGroup(group);
+  return openFileTabs.filter((tab) => tabGroup(tab) === normalized);
+}
+
+function tabForEditorGroup(group) {
+  const normalized = normalizeEditorGroup(group);
+  const tabs = tabsForEditorGroup(normalized);
+  if (!tabs.length) return null;
+  const activeID = editorGroupActiveTabs[normalized];
+  return tabs.find((tab) => tab.documentId && tab.documentId === activeID) || tabs[tabs.length - 1];
+}
+
+function currentOpenTargetGroup(options = {}) {
+  return normalizeEditorGroup(options.group || activeEditorGroup || currentEditorTabGroup);
+}
+
+function syncEditorGroupActiveTabs() {
+  if (!editorGroupsSplit) {
+    currentEditorTabGroup = "primary";
+    editorGroupActiveTabs.primary = documentId || editorGroupActiveTabs.primary || "";
+    editorGroupActiveTabs.secondary = "";
+    return;
+  }
+  if (documentId) {
+    const currentTab = openFileTabs.find((tab) => tab.documentId === documentId);
+    currentEditorTabGroup = tabGroup(currentTab || { group: currentEditorTabGroup });
+    editorGroupActiveTabs[currentEditorTabGroup] = documentId;
+  }
+  for (const group of ["primary", "secondary"]) {
+    const activeID = editorGroupActiveTabs[group];
+    const activeStillValid = activeID && tabsForEditorGroup(group).some((tab) => tab.documentId === activeID);
+    if (!activeStillValid) {
+      editorGroupActiveTabs[group] = tabForEditorGroup(group)?.documentId || "";
+    }
+  }
+}
+
+function setOpenFileTabGroup(targetDocumentId, group) {
+  const normalized = normalizeEditorGroup(group);
+  openFileTabs = openFileTabs.map((tab) => (
+    tab.documentId === targetDocumentId ? { ...tab, group: normalized } : tab
+  ));
+  if (targetDocumentId === documentId) currentEditorTabGroup = normalized;
+  editorGroupActiveTabs[normalized] = targetDocumentId || editorGroupActiveTabs[normalized] || "";
+}
+
+function editorGroupInfo(group) {
+  const normalized = normalizeEditorGroup(group);
+  const tab = tabForEditorGroup(normalized);
+  const isCurrent = Boolean(tab?.documentId && tab.documentId === documentId);
+  const fileLabel = isCurrent
+    ? tab?.name || activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "No file open"
+    : tab?.name || "No file open";
+  const viewLabel = isCurrent
+    ? viewModeLabel()
+    : viewModeLabel(tab?.viewState?.viewMode || "grid");
+  const rowLabel = isCurrent
+    ? `${sourceRowCount.toLocaleString()} rows, ${columns.length} columns`
+    : `${formatCount(tab?.rowCount || 0)} rows`;
+  const selectionLabel = isCurrent
+    ? `row ${selected.row + 1}, ${columns[selected.col]?.name || "Column"}`
+    : tabSelectionLabel(tab);
+  const tabLabel = tab ? `${fileLabel}${(isCurrent ? dirty : tab.dirty) ? " *" : ""}` : "";
+  return { tab, fileLabel, viewLabel, rowLabel, selectionLabel, tabLabel };
+}
+
+function tabSelectionLabel(tab) {
+  if (!tab?.viewState?.selected) return "Ready";
+  const row = Math.max(0, Number(tab.viewState.selected.row) || 0) + 1;
+  const col = Math.max(0, Number(tab.viewState.selected.col) || 0) + 1;
+  return `row ${row}, column ${col}`;
+}
+
+function editorGroupStackSignature() {
+  const groupSignature = (group) => tabsForEditorGroup(group)
+    .map((tab) => `${tab.documentId === editorGroupActiveTabs[group] ? "*" : ""}${tab.name}`)
+    .join(",");
+  return `primary:${groupSignature("primary")}|secondary:${groupSignature("secondary")}`;
 }
 
 function loadEditorGroupLayout() {
@@ -3522,23 +3617,32 @@ function viewModeLabel(mode = viewMode) {
 function splitEditorGroup() {
   if (editorGroupsSplit) return;
   editorGroupsSplit = true;
-  if (documentId) currentEditorTabGroup = "secondary";
+  if (documentId) {
+    currentEditorTabGroup = "secondary";
+    setOpenFileTabGroup(documentId, "secondary");
+  }
+  editorGroupActiveTabs.primary = tabForEditorGroup("primary")?.documentId || "";
+  editorGroupActiveTabs.secondary = documentId || editorGroupActiveTabs.secondary || "";
   activeEditorGroup = documentId ? currentEditorTabGroup : "secondary";
   renderEditorGroups();
+  renderFileList();
   saveEditorGroupLayout();
-  focusEditorGroup(activeEditorGroup);
+  void focusEditorGroup(activeEditorGroup, { activateTab: false });
   resize();
   status.textContent = "Split editor group opened";
 }
 
 function closeSplitEditorGroup() {
   if (!editorGroupsSplit) return;
+  openFileTabs = openFileTabs.map((tab) => ({ ...tab, group: "primary" }));
+  editorGroupActiveTabs = { primary: documentId || editorGroupActiveTabs.primary || "", secondary: "" };
   currentEditorTabGroup = "primary";
   editorGroupsSplit = false;
   activeEditorGroup = "primary";
   renderEditorGroups();
+  renderFileList();
   saveEditorGroupLayout();
-  focusEditorGroup("primary");
+  void focusEditorGroup("primary", { activateTab: false });
   resize();
   status.textContent = "Split editor group closed";
 }
@@ -3552,14 +3656,26 @@ function toggleSplitOrientation() {
   status.textContent = `Split layout ${editorGroupOrientation}`;
 }
 
-function focusNextEditorGroup() {
+async function focusNextEditorGroup() {
   if (!editorGroupsSplit) return;
-  focusEditorGroup(activeEditorGroup === "primary" ? "secondary" : "primary");
+  await focusEditorGroup(activeEditorGroup === "primary" ? "secondary" : "primary");
 }
 
 function moveCurrentTabToOtherGroup() {
   const targetGroup = currentEditorTabGroup === "primary" ? "secondary" : "primary";
   moveCurrentTabToGroup(targetGroup, "command");
+}
+
+async function moveEditorGroupTabToGroup(sourceGroup, targetGroup, source = "command") {
+  const sourceTab = tabForEditorGroup(sourceGroup);
+  if (!sourceTab?.documentId) {
+    status.textContent = `No tab in group ${sourceGroup === "secondary" ? "2" : "1"}.`;
+    return;
+  }
+  if (sourceTab.documentId !== documentId) {
+    await switchOpenFileTab(sourceTab.documentId, { group: sourceGroup });
+  }
+  moveCurrentTabToGroup(targetGroup, source);
 }
 
 function moveCurrentTabToGroup(group, source = "command") {
@@ -3572,26 +3688,38 @@ function moveCurrentTabToGroup(group, source = "command") {
   }
   if (group !== "secondary") group = "primary";
   if (currentEditorTabGroup === group) {
-    focusEditorGroup(group);
+    void focusEditorGroup(group);
     status.textContent = `Tab already in group ${group === "secondary" ? "2" : "1"}`;
     return;
   }
   const previousGroup = currentEditorTabGroup;
+  setOpenFileTabGroup(documentId, group);
+  editorGroupActiveTabs[group] = documentId;
+  editorGroupActiveTabs[previousGroup] = tabForEditorGroup(previousGroup)?.documentId || "";
   currentEditorTabGroup = group;
   activeEditorGroup = group;
   renderEditorGroups();
+  renderFileList();
   saveEditorGroupLayout();
   resize();
-  focusEditorGroup(group);
+  void focusEditorGroup(group, { activateTab: false });
   const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Current tab";
   document.body.dataset.editorTabMove = `${previousGroup}->${group}:${selectionSummary()}`;
   document.body.dataset.editorTabMoveSource = source;
   status.textContent = `Moved ${fileLabel} to group ${group === "secondary" ? "2" : "1"}`;
 }
 
-function focusEditorGroup(group) {
+async function focusEditorGroup(group, options = {}) {
   activeEditorGroup = editorGroupsSplit && group === "secondary" ? "secondary" : "primary";
+  const targetTab = tabForEditorGroup(activeEditorGroup);
+  if (options.activateTab !== false && targetTab?.documentId && targetTab.documentId !== documentId) {
+    await switchOpenFileTab(targetTab.documentId, { group: activeEditorGroup });
+  }
   renderEditorGroups();
+  const focusedTab = tabForEditorGroup(activeEditorGroup);
+  document.body.dataset.editorGroupSwitch = focusedTab?.documentId
+    ? `${activeEditorGroup}:${focusedTab.name}`
+    : `${activeEditorGroup}:`;
   saveEditorGroupLayout();
   const activeGroupHasTab = currentEditorTabGroup === activeEditorGroup;
   if (activeGroupHasTab && viewMode === "grid") {
@@ -3647,7 +3775,7 @@ function editorGroupDrop(event) {
   event.preventDefault();
   const targetGroup = event.currentTarget.dataset.groupId === "secondary" ? "secondary" : "primary";
   clearEditorTabDropTargets();
-  moveCurrentTabToGroup(targetGroup, "drop");
+  void moveEditorGroupTabToGroup(sourceGroup, targetGroup, "drop");
 }
 
 function editorTabDragEnd() {
@@ -3694,7 +3822,7 @@ function editorTabPointerUp(event) {
   if (!dragState.dragging || !editorGroupsSplit || !documentId) return;
   const targetGroup = editorGroupAtPoint(event.clientX, event.clientY);
   if (!targetGroup) return;
-  moveCurrentTabToGroup(targetGroup, "drop");
+  void moveEditorGroupTabToGroup(dragState.sourceGroup, targetGroup, "drop");
 }
 
 function openEditorTabContextMenu(event) {
@@ -3702,7 +3830,7 @@ function openEditorTabContextMenu(event) {
   if (!documentId) return;
   closeColumnMenu();
   const currentGroup = event.currentTarget === secondaryEditorTab ? "secondary" : "primary";
-  focusEditorGroup(currentGroup);
+  void focusEditorGroup(currentGroup);
   const targetGroup = currentGroup === "primary" ? "secondary" : "primary";
   const heading = document.createElement("strong");
   heading.textContent = "Editor Tab";
@@ -3714,11 +3842,11 @@ function openEditorTabContextMenu(event) {
     button.disabled = Boolean(options.disabled);
     button.addEventListener("click", () => {
       closeGridContextMenu();
-      action();
+      void action();
     });
     gridContextMenu.append(button);
   };
-  addItem(`Move to Group ${targetGroup === "secondary" ? "2" : "1"}`, () => moveCurrentTabToGroup(targetGroup, "context"), {
+  addItem(`Move to Group ${targetGroup === "secondary" ? "2" : "1"}`, () => moveEditorGroupTabToGroup(currentGroup, targetGroup, "context"), {
     disabled: !editorGroupsSplit,
   });
   addItem("Focus Next Group", () => focusNextEditorGroup(), { disabled: !editorGroupsSplit });
@@ -8594,7 +8722,7 @@ async function executeCommand(commandID) {
       closeSplitEditorGroup();
       break;
     case "workbench.focusNextGroup":
-      focusNextEditorGroup();
+      await focusNextEditorGroup();
       break;
     case "workbench.moveTabToOtherGroup":
       moveCurrentTabToOtherGroup();
@@ -11599,15 +11727,19 @@ function parseTSV(text) {
 window.__opencsvParseTSV = parseTSV;
 
 function updateFileList(name, detail, rowCount, options = {}) {
+  const group = currentOpenTargetGroup(options);
   activeFileEntry = {
     name,
     detail,
     rowCount,
     documentId: options.documentId || documentId,
     sourceKind: options.sourceKind || "",
+    group,
     dirty,
     readOnly,
   };
+  currentEditorTabGroup = group;
+  if (activeFileEntry.documentId) editorGroupActiveTabs[group] = activeFileEntry.documentId;
   if (options.tab !== false) upsertOpenFileTab(activeFileEntry);
   if (options.remember) rememberRecentFile(activeFileEntry);
   renderFileList();
@@ -11652,7 +11784,7 @@ function renderOpenFileTabs() {
     fileList.append(fileTabItem(tab, isActive));
   }
   document.body.dataset.openTabCount = String(tabs.length);
-  document.body.dataset.openTabs = tabs.map((tab) => `${tab.documentId || ""}:${tab.name}`).join("|");
+  document.body.dataset.openTabs = tabs.map((tab) => `${tab.documentId || ""}:${tabGroup(tab)}:${tab.name}`).join("|");
   document.body.dataset.activeOpenTab = activeFileEntry?.documentId || documentId || "";
 }
 
@@ -11663,12 +11795,21 @@ function openFileTabKey(entry) {
 function upsertOpenFileTab(entry) {
   const key = openFileTabKey(entry);
   if (!key) return;
+  const existing = openFileTabs.find((item) => (
+    openFileTabKey(item) === key || (entry.detail && item.detail === entry.detail)
+  ));
+  const group = normalizeEditorGroup(entry.group || existing?.group || currentEditorTabGroup || activeEditorGroup);
   const next = {
     ...entry,
+    group,
     dirty,
     readOnly,
     viewState: entry.viewState ?? currentOpenFileTabState(),
   };
+  if (next.documentId === documentId) {
+    currentEditorTabGroup = group;
+    editorGroupActiveTabs[group] = next.documentId;
+  }
   let updated = false;
   openFileTabs = openFileTabs.map((item) => {
     const matches = openFileTabKey(item) === key || (entry.detail && item.detail === entry.detail);
@@ -11700,6 +11841,7 @@ function captureActiveOpenFileTabState() {
         name: activeFileEntry.name,
         detail: activeFileEntry.detail,
         rowCount: totalRows,
+        group: currentEditorTabGroup,
         dirty,
         readOnly,
         viewState: currentOpenFileTabState(),
@@ -11714,6 +11856,7 @@ function syncActiveFileEntryState() {
     ...activeFileEntry,
     documentId: activeFileEntry.documentId || documentId,
     rowCount: totalRows,
+    group: currentEditorTabGroup,
     dirty,
     readOnly,
   };
@@ -11740,10 +11883,15 @@ function restoreOpenFileTabState(tab) {
   if (state.viewMode && state.viewMode !== viewMode) setViewMode(state.viewMode);
 }
 
-async function switchOpenFileTab(targetDocumentId) {
+async function switchOpenFileTab(targetDocumentId, options = {}) {
   const tab = openFileTabs.find((item) => item.documentId === targetDocumentId);
   if (!tab?.documentId) return;
   captureActiveOpenFileTabState();
+  const targetGroup = normalizeEditorGroup(options.group || tab.group || activeEditorGroup);
+  currentEditorTabGroup = targetGroup;
+  activeEditorGroup = targetGroup;
+  editorGroupActiveTabs[targetGroup] = tab.documentId;
+  setOpenFileTabGroup(tab.documentId, targetGroup);
   status.textContent = `Switching to ${tab.name}...`;
   const response = await fetch(`/api/session?id=${encodeURIComponent(tab.documentId)}`);
   const payload = await response.json();
@@ -11776,7 +11924,9 @@ async function switchOpenFileTab(targetDocumentId) {
     documentId,
     sourceKind: session.sourceKind,
     remember: false,
+    group: targetGroup,
   });
+  document.body.dataset.editorGroupSwitch = `${targetGroup}:${activeFileEntry.name}`;
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
@@ -11811,13 +11961,19 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
   }
 
   const closedName = target?.name || payload.displayName || "tab";
+  const closedGroup = tabGroup(target);
   document.body.dataset.closedOpenTab = `${targetDocumentId}:${closedName}`;
   document.body.dataset.closeTabBlocked = "";
   openFileTabs = openFileTabs.filter((item) => item.documentId !== targetDocumentId);
+  if (editorGroupActiveTabs[closedGroup] === targetDocumentId) {
+    editorGroupActiveTabs[closedGroup] = tabForEditorGroup(closedGroup)?.documentId || "";
+  }
   if (targetDocumentId === documentId) {
-    const next = openFileTabs[openFileTabs.length - 1];
+    const next = tabForEditorGroup(closedGroup)
+      || tabForEditorGroup(closedGroup === "primary" ? "secondary" : "primary")
+      || openFileTabs[openFileTabs.length - 1];
     if (next?.documentId) {
-      await switchOpenFileTab(next.documentId);
+      await switchOpenFileTab(next.documentId, { group: tabGroup(next) });
       status.textContent = `Closed ${closedName}.`;
       return true;
     }
@@ -11825,6 +11981,8 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
     return true;
   }
 
+  syncEditorGroupActiveTabs();
+  renderEditorGroups();
   renderFileList();
   status.textContent = `Closed ${closedName}.`;
   return true;
@@ -11837,6 +11995,9 @@ function clearCurrentDocumentState(closedName = "") {
   loadingWindow = false;
   documentId = "";
   activeFileEntry = null;
+  currentEditorTabGroup = "primary";
+  activeEditorGroup = "primary";
+  editorGroupActiveTabs = { primary: "", secondary: "" };
   metadata = null;
   rows = new Map();
   rowSource = new Map();
@@ -11912,15 +12073,16 @@ function fileTabItem(tab, isActive) {
   const row = document.createElement("div");
   row.className = isActive ? "file-tab-row active" : "file-tab-row";
   if (tab.documentId) row.dataset.documentId = tab.documentId;
+  row.dataset.editorGroup = tabGroup(tab);
   row.append(fileButton(tab, {
     active: isActive,
     onClick: () => {
       if (isActive) {
-        canvas.focus();
+        void focusEditorGroup(tabGroup(tab), { activateTab: false });
         draw();
         return;
       }
-      void switchOpenFileTab(tab.documentId);
+      void switchOpenFileTab(tab.documentId, { group: tabGroup(tab) });
     },
   }));
 
@@ -18123,18 +18285,20 @@ focusEditorGroupButton.addEventListener("click", () => executeCommand("workbench
 moveEditorTabButton.addEventListener("click", () => executeCommand("workbench.moveTabToOtherGroup"));
 closeSplitEditorButton.addEventListener("click", () => executeCommand("workbench.closeSplitEditor"));
 primaryEditorGroup.addEventListener("focus", () => {
-  activeEditorGroup = "primary";
-  renderEditorGroups();
+  void focusEditorGroup("primary");
 });
 secondaryEditorGroup.addEventListener("focus", () => {
   if (!editorGroupsSplit) return;
-  activeEditorGroup = "secondary";
-  renderEditorGroups();
+  void focusEditorGroup("secondary");
 });
-focusSecondaryGroupButton.addEventListener("click", () => focusEditorGroup("secondary"));
+focusSecondaryGroupButton.addEventListener("click", () => {
+  void focusEditorGroup("secondary");
+});
 closeSecondaryGroupButton.addEventListener("click", closeSplitEditorGroup);
 for (const tab of [primaryEditorTab, secondaryEditorTab]) {
-  tab.addEventListener("click", () => focusEditorGroup(tab === secondaryEditorTab ? "secondary" : "primary"));
+  tab.addEventListener("click", () => {
+    void focusEditorGroup(tab === secondaryEditorTab ? "secondary" : "primary");
+  });
   tab.addEventListener("mousedown", editorTabPointerDown);
   tab.addEventListener("dragstart", editorTabDragStart);
   tab.addEventListener("dragend", editorTabDragEnd);

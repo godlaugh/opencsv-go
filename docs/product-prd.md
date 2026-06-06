@@ -641,6 +641,7 @@ The app shall support:
 - Overflowing open-file tab lists must remain scrollable and keep the active tab visible after open, switch, close, and reload-like restoration flows.
 - Closing a dirty tab must protect unsaved edits unless the user explicitly chooses a discard path.
 - Split editor area into multiple tab groups arranged horizontally, vertically, or nested.
+- Each split editor group keeps an independent active open-file tab so switching focus restores that group's document/session.
 - Move tabs between groups by drag/drop, tab context menu, and command palette actions.
 - Switch focus between editor groups by command.
 - Persistent window size, position, and maximized state.

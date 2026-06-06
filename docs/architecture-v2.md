@@ -176,8 +176,9 @@ flowchart TD
 - `web Editor Groups`
   - First split-editor group state for primary and secondary editor groups.
   - Horizontal/vertical group layout toggling with active-group focus tracking.
-  - Current document tab can move between editor groups by command, tab context menu, and mouse-drag drop while preserving selection.
-  - The canvas grid frame is mounted into the group that owns the current tab; empty groups render lightweight placeholders while full independent multi-tab stacks per group remain planned.
+  - Open-file tabs carry editor-group ownership, and each group keeps its own active tab so focusing a group restores that session.
+  - Current or group-owned document tabs can move between editor groups by command, tab context menu, and mouse-drag drop while preserving selection.
+  - The canvas grid frame is mounted into the group that owns the active tab; empty groups render lightweight placeholders while richer arbitrary tab-strip management remains planned.
   - Workbench commands dispatch split, orientation, focus, tab move, and close actions.
 
 - `web SQL Console`
