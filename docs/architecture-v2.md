@@ -117,7 +117,7 @@ flowchart TD
   - Column profile metrics: dominant type, nulls, distinct count, min/max, numeric sum/average, and top values.
   - Data quality issues: empty headers, duplicate headers, ragged rows, and type anomalies.
   - User-supplied schema rules for required values, primitive type checks, uniqueness, enum values, regular-expression patterns, numeric ranges, and string length ranges.
-  - Schema JSON normalization for `/api/profile`, accepting opencsv `columns` plus common CSVLint/JSON Table Schema/Frictionless `fields`, `constraints`, `datatype`, `default`, `schema`, `tableSchema`, first-table schema, and first-resource schema shapes.
+  - Schema JSON normalization for `/api/profile`, accepting opencsv `columns` plus common CSVLint/JSON Table Schema/Frictionless `fields`, `constraints`, `datatype`, `default`, `schema`, `tableSchema`, first-table schema, and first-resource schema shapes, including `constraints.type` XML Schema URL aliases.
   - Issue metadata includes source location, rule name, actual/expected widths for ragged rows, and safe quick-fix descriptors with optional target values where available.
   - Shared result model for `/api/profile`, the Profile view, and future richer CSVLint-compatible validation.
 
@@ -129,7 +129,7 @@ flowchart TD
 
 - `web Profile View`
   - Summary, column profile table, issue table, and inspector integration.
-  - Schema JSON editor with local save/reset controls and URL boot support via `profileSchema=` plus `profileRun=1`; input accepts normalized opencsv schemas plus common CSVLint/JSON Table Schema/Frictionless `fields`/`constraints`/`datatype`/`tableSchema`/`resources` shapes.
+  - Schema JSON editor with local save/reset controls and URL boot support via `profileSchema=` plus `profileRun=1`; input accepts normalized opencsv schemas plus common CSVLint/JSON Table Schema/Frictionless `fields`/`constraints`/`datatype`/`tableSchema`/`resources` shapes and normalizes XML Schema type URL aliases for visual rule editing.
   - Named local profile schema library with apply/delete/export/import controls and URL boot saving via `profileSchemaName=` plus `profileSchemaSave=1`.
   - Visual schema rule builder for column name/number, type, required, unique, enum, regex pattern, and numeric range checks; each builder action keeps the JSON schema source in sync.
   - Problems rows navigate back to the grid selection, and safe quick-fix buttons, including deterministic numeric range clamps, single-value enum replacements, and required-field defaults, dispatch through the existing edit-batch mutation path.

@@ -992,6 +992,9 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`data-i18n="profile.run"`,
 		`data-i18n="profile.rule.columnName"`,
 		`data-i18n-placeholder="profile.schemaNamePlaceholder"`,
+		`<option value="time">Time</option>`,
+		`<option value="year">Year</option>`,
+		`<option value="yearmonth">Year-Month</option>`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing profile i18n html anchor %q", snippet)
@@ -1002,9 +1005,13 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`"profile.status.complete": "概况`,
 		`"profile.quickFix.header.unique": "设为唯一"`,
 		`"profile.schema.savedAs": "验证架构已保存为`,
+		`"profile.type.time": "Time"`,
+		`"profile.type.yearmonth": "Year-Month"`,
 		"applyProfileLocaleStrings",
 		"renderProfile(profileData)",
 		"syncProfileSchemaControls()",
+		"constraints.type",
+		"gyearmonth",
 		`summaryNode(t("profile.summary.rows")`,
 		`t("profile.empty.noColumns")`,
 		"profileSeverityLabel(issue.severity)",

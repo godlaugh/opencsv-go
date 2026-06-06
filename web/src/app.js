@@ -958,6 +958,9 @@ const localeCatalog = {
     "profile.type.decimal": "Decimal",
     "profile.type.boolean": "Boolean",
     "profile.type.date": "Date",
+    "profile.type.time": "Time",
+    "profile.type.year": "Year",
+    "profile.type.yearmonth": "Year-Month",
     "profile.type.unknown": "Unknown",
     "profile.severity.error": "Error",
     "profile.severity.warning": "Warning",
@@ -1625,6 +1628,9 @@ const localeCatalog = {
     "profile.type.decimal": "小数",
     "profile.type.boolean": "布尔",
     "profile.type.date": "日期",
+    "profile.type.time": "时间",
+    "profile.type.year": "年份",
+    "profile.type.yearmonth": "年月",
     "profile.type.unknown": "未知",
     "profile.severity.error": "错误",
     "profile.severity.warning": "警告",
@@ -2720,6 +2726,9 @@ function applyProfileLocaleStrings() {
     decimal: "profile.type.decimal",
     boolean: "profile.type.boolean",
     date: "profile.type.date",
+    time: "profile.type.time",
+    year: "profile.type.year",
+    yearmonth: "profile.type.yearmonth",
   });
   if (savedProfileSchemaSelect?.options?.[0]) {
     savedProfileSchemaSelect.options[0].textContent = t("profile.savedSchemas");
@@ -16182,7 +16191,7 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   const rule = {};
   if (name) rule.name = name;
   if (columnNumber) rule.column = columnNumber;
-  const type = normalizeProfileSchemaType(datatypeObject.base ?? datatypeObject.type ?? datatype);
+  const type = normalizeProfileSchemaType(datatypeObject.base ?? datatypeObject.type ?? datatype ?? constraints.type);
   if (type) rule.type = type;
   if (Boolean(column.required ?? constraints.required) || requiredNames.has(name) || primaryKeyNames.has(name)) rule.required = true;
   if (Boolean(column.unique ?? constraints.unique) || primaryKeyNames.has(name)) rule.unique = true;
@@ -16262,13 +16271,24 @@ function schemaString(value) {
 }
 
 function normalizeProfileSchemaType(value) {
-  const type = String(value ?? "").toLowerCase().trim();
+  let type = String(value ?? "").toLowerCase().trim();
   if (!type) return "";
+  const fragmentIndex = type.lastIndexOf("#");
+  const slashIndex = type.lastIndexOf("/");
+  if (fragmentIndex >= 0) {
+    type = type.slice(fragmentIndex + 1);
+  } else if (slashIndex >= 0) {
+    type = type.slice(slashIndex + 1);
+  }
+  type = type.replace(/^xsd:/, "").replace(/^xmlschema:/, "");
   if (["integer", "int", "long"].includes(type)) return "integer";
   if (["number", "numeric", "float", "double"].includes(type)) return "number";
   if (["decimal"].includes(type)) return "decimal";
   if (["boolean", "bool"].includes(type)) return "boolean";
   if (["date", "datetime", "date-time", "timestamp"].includes(type)) return "date";
+  if (["time"].includes(type)) return "time";
+  if (["year", "gyear"].includes(type)) return "year";
+  if (["yearmonth", "year-month", "gyearmonth"].includes(type)) return "yearmonth";
   if (["string", "text", "uri", "url", "email"].includes(type)) return "string";
   return type;
 }

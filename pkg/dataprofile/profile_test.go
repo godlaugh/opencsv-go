@@ -350,6 +350,41 @@ func TestSchemaUnmarshalAcceptsCSVLintFields(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsCSVLintTypeURLs(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"fields": [
+			{"name": "id", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#integer"}},
+			{"name": "seen_at", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#time"}},
+			{"name": "period", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#gYearMonth"}},
+			{"name": "year", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#gYear"}}
+		]
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 4 {
+		t.Fatalf("columns = %#v, want 4", schema.Columns)
+	}
+	wantTypes := []string{"integer", "time", "yearmonth", "year"}
+	for index, want := range wantTypes {
+		if schema.Columns[index].Type != want {
+			t.Fatalf("column %d type = %q, want %q in %#v", index, schema.Columns[index].Type, want, schema.Columns)
+		}
+	}
+	result := AnalyzeWithSchema([][]string{
+		{"id", "seen_at", "period", "year"},
+		{"1", "15:30:00", "2026-06", "2026"},
+		{"bad", "25:61", "2026-13", "20X6"},
+	}, true, schema)
+	if result.SchemaRules != 4 {
+		t.Fatalf("schema rules = %d, want 4", result.SchemaRules)
+	}
+	if typeIssues := countIssues(result.Issues, "schema-type"); typeIssues != 4 {
+		t.Fatalf("schema-type issues = %d, want 4: %#v", typeIssues, result.Issues)
+	}
+}
+
 func TestSchemaUnmarshalAcceptsNestedTableSchema(t *testing.T) {
 	var schema Schema
 	err := json.Unmarshal([]byte(`{

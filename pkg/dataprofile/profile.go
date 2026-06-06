@@ -735,17 +735,35 @@ func defaultQuickFixes(value string) []QuickFix {
 }
 
 func schemaTypeMatches(raw string, expectedType string) bool {
+	if schemaTemporalTypeMatches(raw, expectedType) {
+		return true
+	}
 	kind := detectType(raw)
 	switch expectedType {
 	case "string", "text":
 		return true
 	case "number", "numeric":
 		return kind == "integer" || kind == "decimal"
-	case "integer", "decimal", "boolean", "date":
+	case "integer", "decimal", "boolean", "date", "time", "year", "yearmonth":
 		return kind == expectedType || (expectedType == "decimal" && kind == "integer")
 	default:
 		return true
 	}
+}
+
+func schemaTemporalTypeMatches(raw string, expectedType string) bool {
+	layouts := map[string][]string{
+		"date":      {"2006-01-02", "2006-01-02 15:04:05", time.RFC3339},
+		"time":      {"15:04", "15:04:05", "15:04:05.999999999"},
+		"year":      {"2006"},
+		"yearmonth": {"2006-01"},
+	}
+	for _, layout := range layouts[expectedType] {
+		if _, err := time.Parse(layout, raw); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName string) []Issue {
@@ -892,6 +910,17 @@ func detectType(value string) string {
 		if _, err := time.Parse(layout, value); err == nil {
 			return "date"
 		}
+	}
+	for _, layout := range []string{"15:04", "15:04:05", "15:04:05.999999999"} {
+		if _, err := time.Parse(layout, value); err == nil {
+			return "time"
+		}
+	}
+	if _, err := time.Parse("2006", value); err == nil {
+		return "year"
+	}
+	if _, err := time.Parse("2006-01", value); err == nil {
+		return "yearmonth"
 	}
 	return "string"
 }

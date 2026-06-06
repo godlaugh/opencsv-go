@@ -141,6 +141,8 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 		rule.Type = typ
 	} else if typ := normalizeSchemaType(schemaRawString(datatypeRaw)); typ != "" {
 		rule.Type = typ
+	} else if typ := normalizeSchemaType(firstSchemaString(constraints, "type")); typ != "" {
+		rule.Type = typ
 	}
 	if schemaRawBool(firstSchemaRaw(column, "required")) || schemaRawBool(firstSchemaRaw(constraints, "required")) || schemaNameSetHas(requiredNames, name) || schemaNameSetHas(primaryKeyNames, name) {
 		rule.Required = true
@@ -387,7 +389,8 @@ func schemaRawNumber(raw json.RawMessage) (float64, bool) {
 }
 
 func normalizeSchemaType(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	normalized := normalizeSchemaTypeName(value)
+	switch normalized {
 	case "":
 		return ""
 	case "integer", "int", "long":
@@ -400,9 +403,30 @@ func normalizeSchemaType(value string) string {
 		return "boolean"
 	case "date", "datetime", "date-time", "timestamp":
 		return "date"
+	case "time":
+		return "time"
+	case "year", "gyear":
+		return "year"
+	case "yearmonth", "year-month", "gyearmonth":
+		return "yearmonth"
 	case "string", "text", "uri", "url", "email":
 		return "string"
 	default:
-		return strings.ToLower(strings.TrimSpace(value))
+		return normalized
 	}
+}
+
+func normalizeSchemaTypeName(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return ""
+	}
+	if index := strings.LastIndex(normalized, "#"); index >= 0 {
+		normalized = normalized[index+1:]
+	} else if index := strings.LastIndex(normalized, "/"); index >= 0 {
+		normalized = normalized[index+1:]
+	}
+	normalized = strings.TrimPrefix(normalized, "xsd:")
+	normalized = strings.TrimPrefix(normalized, "xmlschema:")
+	return normalized
 }
