@@ -539,6 +539,43 @@ func TestDiffURLGotoIsWired(t *testing.T) {
 	}
 }
 
+func TestDiffEditableCellsAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stylesCSS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	styles := string(stylesCSS)
+	for _, snippet := range []string{
+		"function editDiffCell",
+		`fetch("/api/diff-edit-cell"`,
+		"appendDiffCellEditor",
+		"input.dataset.diffEditSide",
+		"document.body.dataset.diffEditCell",
+		"document.body.dataset.diffEditBackup",
+		`"diff.action.editCell"`,
+		`"diff.status.editedCell"`,
+		"await runDiffCompare()",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing diff editable-cell wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		".diff-cell-editors",
+		".diff-cell-editor input",
+		"white-space: normal",
+	} {
+		if !strings.Contains(styles, snippet) {
+			t.Fatalf("missing diff editable-cell styles %q", snippet)
+		}
+	}
+}
+
 func TestDiffViewI18nIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

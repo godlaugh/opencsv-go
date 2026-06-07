@@ -1487,6 +1487,8 @@ button:disabled {
 .diff-cells {
   color: var(--muted);
   font-size: 12px;
+  overflow: visible;
+  white-space: normal;
 }
 
 .diff-actions {
@@ -1502,7 +1504,49 @@ button:disabled {
 }
 
 .diff-cell-change {
+  display: block;
   color: var(--text);
+}
+
+.diff-cell-editors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.diff-cell-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px;
+  background: var(--panel);
+}
+
+.diff-cell-editor span {
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.diff-cell-editor input {
+  width: min(150px, 28vw);
+  min-width: 64px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.diff-cell-editor button {
+  min-height: 22px;
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 .diff-inline-change {

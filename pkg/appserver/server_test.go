@@ -3372,6 +3372,54 @@ func TestServerDiffMergeLeftToRight(t *testing.T) {
 	}
 }
 
+func TestServerDiffEditCellCreatesBackup(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "right.csv")
+	original := []byte("id,name\r\n1,Linus\r\n")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/diff-edit-cell", map[string]any{
+		"path":  path,
+		"row":   2,
+		"col":   2,
+		"value": "Linux",
+	})
+	if payload["row"].(float64) != 2 || payload["col"].(float64) != 2 || payload["value"] != "Linux" {
+		t.Fatalf("unexpected edit payload: %#v", payload)
+	}
+	save := payload["save"].(map[string]any)
+	backupPath, ok := save["backupPath"].(string)
+	if !ok || backupPath == "" {
+		t.Fatalf("missing backup path in %#v", payload)
+	}
+	backup, err := os.ReadFile(backupPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(backup, original) {
+		t.Fatalf("backup = %q, want %q", backup, original)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saved) != "id,name\r\n1,Linux\r\n" {
+		t.Fatalf("edited file = %q", saved)
+	}
+
+	response := postJSONResponse(t, New(dir).Handler(), "/api/diff-edit-cell", map[string]any{
+		"path":  path,
+		"row":   20,
+		"col":   2,
+		"value": "Out of range",
+	})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("out-of-range edit status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
 func TestServerDiffMergeRightText(t *testing.T) {
 	dir := t.TempDir()
 	left := filepath.Join(dir, "left.csv")

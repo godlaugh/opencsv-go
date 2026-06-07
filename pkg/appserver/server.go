@@ -98,6 +98,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/view-clear", server.handleViewClear)
 	server.mux.HandleFunc("POST /api/diff", server.handleDiff)
 	server.mux.HandleFunc("POST /api/diff-merge", server.handleDiffMerge)
+	server.mux.HandleFunc("POST /api/diff-edit-cell", server.handleDiffEditCell)
 	server.mux.HandleFunc("POST /api/sql", server.handleSQL)
 	server.mux.HandleFunc("POST /api/profile", server.handleProfile)
 	server.mux.Handle("/", http.FileServer(http.Dir(server.webDir)))
@@ -1482,6 +1483,13 @@ type diffMergeRequest struct {
 	Direction   string `json:"direction"`
 }
 
+type diffEditCellRequest struct {
+	Path  string `json:"path"`
+	Row   int    `json:"row"`
+	Col   int    `json:"col"`
+	Value string `json:"value"`
+}
+
 func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	var request diffRequest
 	if err := readJSON(r, &request); err != nil {
@@ -1520,6 +1528,59 @@ func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleDiffEditCell(w http.ResponseWriter, r *http.Request) {
+	var request diffEditCellRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if request.Path == "" {
+		writeError(w, http.StatusBadRequest, errors.New("path is required"))
+		return
+	}
+	if request.Path == "-" {
+		writeError(w, http.StatusBadRequest, errors.New("diff edit does not support stdin"))
+		return
+	}
+	if request.Row < 1 || request.Col < 1 {
+		writeError(w, http.StatusBadRequest, errors.New("row and col must be 1-based positive numbers"))
+		return
+	}
+
+	document, err := csvcore.OpenDocument(request.Path, csvcore.OpenOptions{PreviewRows: 50, IndexRows: -1})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	records, err := csvcore.ReadAllRecords(request.Path, document.Metadata)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	rowIndex := request.Row - 1
+	colIndex := request.Col - 1
+	if rowIndex >= len(records) {
+		writeError(w, http.StatusBadRequest, errors.New("diff edit row is out of range"))
+		return
+	}
+	for len(records[rowIndex]) <= colIndex {
+		records[rowIndex] = append(records[rowIndex], "")
+	}
+	records[rowIndex][colIndex] = request.Value
+	save, err := csvcore.SaveRecords(request.Path, document.Metadata, records, csvcore.SaveOptions{CreateBackup: true})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"save":  save,
+		"path":  request.Path,
+		"row":   request.Row,
+		"col":   request.Col,
+		"value": request.Value,
+	})
 }
 
 func (server *Server) handleDiffMerge(w http.ResponseWriter, r *http.Request) {

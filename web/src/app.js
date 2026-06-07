@@ -790,8 +790,20 @@ const localeCatalog = {
     "diff.action.openRightRow": "Open right row {{row}} in Grid",
     "diff.action.openLeftShort": "Open L",
     "diff.action.openRightShort": "Open R",
+    "diff.action.editCell": "Save",
+    "diff.action.editLeftCell": "Edit left row {{row}} cell c{{col}}",
+    "diff.action.editRightCell": "Edit right row {{row}} cell c{{col}}",
+    "diff.edit.leftShort": "L",
+    "diff.edit.rightShort": "R",
+    "diff.side.left": "left",
+    "diff.side.right": "right",
     "diff.status.openedSource": "Opened {{side}} row {{row}} from compare.",
     "diff.status.openSourceFailed": "Open compare source failed: {{message}}",
+    "diff.status.editingCell": "Editing {{side}} row {{row}} c{{col}}...",
+    "diff.status.editedCell": "Edited {{side}} row {{row}} c{{col}}{{backup}}.",
+    "diff.status.editFailed": "Diff edit failed: {{message}}",
+    "diff.status.editNoChange": "No diff edit applied; value is unchanged.",
+    "diff.status.backupSuffix": "; backup {{path}}",
     "diff.status.summary": "Diff: {{changed}} changed, {{added}} added, {{deleted}} deleted",
     "diff.status.filteredSuffix": "; showing {{shown}} rows after filter",
     "diff.status.filterShown": "Diff filter shows {{shown}} of {{total}} rows.",
@@ -1469,8 +1481,20 @@ const localeCatalog = {
     "diff.action.openRightRow": "在表格中打开右侧第 {{row}} 行",
     "diff.action.openLeftShort": "打开左侧",
     "diff.action.openRightShort": "打开右侧",
+    "diff.action.editCell": "保存",
+    "diff.action.editLeftCell": "编辑左侧第 {{row}} 行 c{{col}}",
+    "diff.action.editRightCell": "编辑右侧第 {{row}} 行 c{{col}}",
+    "diff.edit.leftShort": "左",
+    "diff.edit.rightShort": "右",
+    "diff.side.left": "左侧",
+    "diff.side.right": "右侧",
     "diff.status.openedSource": "已从比较打开{{side}}第 {{row}} 行。",
     "diff.status.openSourceFailed": "打开比较源失败：{{message}}",
+    "diff.status.editingCell": "正在编辑{{side}}第 {{row}} 行 c{{col}}...",
+    "diff.status.editedCell": "已编辑{{side}}第 {{row}} 行 c{{col}}{{backup}}。",
+    "diff.status.editFailed": "差异编辑失败：{{message}}",
+    "diff.status.editNoChange": "未应用差异编辑；值未改变。",
+    "diff.status.backupSuffix": "；备份 {{path}}",
     "diff.status.summary": "差异：{{changed}} 个更改，{{added}} 个添加，{{deleted}} 个删除",
     "diff.status.filteredSuffix": "；筛选后显示 {{shown}} 行",
     "diff.status.filterShown": "差异筛选显示 {{shown}} / {{total}} 行。",
@@ -17562,7 +17586,7 @@ function renderDiffResult(result) {
     appendCell(tr, (row.rightRecord ?? []).join(" | "));
     const cells = document.createElement("td");
     cells.className = "diff-cells";
-    appendChangedCells(cells, row.changedCells ?? []);
+    appendChangedCells(cells, row);
     tr.append(cells);
     const actions = document.createElement("td");
     actions.className = "diff-actions";
@@ -17922,18 +17946,113 @@ async function mergeDiffChange(resultIndex, mode, col, direction = "right-to-lef
   await runDiffCompare();
 }
 
-function appendChangedCells(container, changedCells) {
+function diffSidePath(side) {
+  return side === "right" ? rightDiffPath.value.trim() : leftDiffPath.value.trim();
+}
+
+function diffSideRow(row, side) {
+  return Number(side === "right" ? row.rightRow : row.leftRow);
+}
+
+function localizedDiffSide(side) {
+  return side === "right" ? t("diff.side.right") : t("diff.side.left");
+}
+
+async function editDiffCell(side, row, col, value, previousValue) {
+  const path = diffSidePath(side);
+  if (!path || !Number.isFinite(row) || row < 1 || !Number.isFinite(col) || col < 1) return;
+  if (value === previousValue) {
+    status.textContent = t("diff.status.editNoChange");
+    return;
+  }
+  const sideLabel = localizedDiffSide(side);
+  status.textContent = tf("diff.status.editingCell", { side: sideLabel, row: formatCount(row), col: formatCount(col) });
+  try {
+    const response = await fetch("/api/diff-edit-cell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, row, col, value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "diff edit failed");
+    document.body.dataset.diffEditCell = `${side}:${row}:${col}`;
+    document.body.dataset.diffEditValue = value;
+    document.body.dataset.diffEditBackup = payload.save?.backupPath || "";
+    delete document.body.dataset.diffEditError;
+    await runDiffCompare();
+    const backup = payload.save?.backupPath ? tf("diff.status.backupSuffix", { path: payload.save.backupPath }) : "";
+    status.textContent = tf("diff.status.editedCell", {
+      side: sideLabel,
+      row: formatCount(row),
+      col: formatCount(col),
+      backup,
+    });
+  } catch (error) {
+    document.body.dataset.diffEditCell = "failed";
+    document.body.dataset.diffEditError = error.message;
+    status.textContent = tf("diff.status.editFailed", { message: error.message });
+  }
+}
+
+function appendChangedCells(container, row) {
+  const changedCells = row.changedCells ?? [];
   if (!changedCells.length) return;
   changedCells.forEach((cell, index) => {
-    if (index > 0) container.append(document.createTextNode("; "));
+    if (index > 0) container.append(document.createTextNode(" "));
     const item = document.createElement("span");
     item.className = "diff-cell-change";
     item.append(document.createTextNode(`c${cell.col}: `));
     appendDiffSpans(item, cell.leftSpans, cell.left);
     item.append(document.createTextNode(" -> "));
     appendDiffSpans(item, cell.rightSpans, cell.right);
+    const editors = document.createElement("span");
+    editors.className = "diff-cell-editors";
+    appendDiffCellEditor(editors, row, cell, "left");
+    appendDiffCellEditor(editors, row, cell, "right");
+    if (editors.childElementCount > 0) item.append(editors);
     container.append(item);
   });
+}
+
+function appendDiffCellEditor(container, row, cell, side) {
+  if (side === "right" && diffRightTextMode.checked) return;
+  const sourceRow = diffSideRow(row, side);
+  if (!Number.isFinite(sourceRow) || sourceRow < 1 || !diffSidePath(side)) return;
+  const col = Number(cell.col);
+  if (!Number.isFinite(col) || col < 1) return;
+  const value = side === "right" ? (cell.right ?? "") : (cell.left ?? "");
+  const wrapper = document.createElement("span");
+  wrapper.className = "diff-cell-editor";
+  const label = document.createElement("span");
+  label.textContent = side === "right" ? t("diff.edit.rightShort") : t("diff.edit.leftShort");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.dataset.diffEditSide = side;
+  input.dataset.diffEditRow = String(sourceRow);
+  input.dataset.diffEditCol = String(col);
+  input.setAttribute(
+    "aria-label",
+    side === "right"
+      ? tf("diff.action.editRightCell", { row: sourceRow, col })
+      : tf("diff.action.editLeftCell", { row: sourceRow, col }),
+  );
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = t("diff.action.editCell");
+  button.title =
+    side === "right"
+      ? tf("diff.action.editRightCell", { row: sourceRow, col })
+      : tf("diff.action.editLeftCell", { row: sourceRow, col });
+  const submit = () => editDiffCell(side, sourceRow, col, input.value, value);
+  button.addEventListener("click", submit);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    submit();
+  });
+  wrapper.append(label, input, button);
+  container.append(wrapper);
 }
 
 function appendDiffSpans(container, spans, fallback) {
