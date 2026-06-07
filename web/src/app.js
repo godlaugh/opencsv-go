@@ -11833,11 +11833,42 @@ async function pasteClipboard() {
   if (!documentId) return;
   if (!ensureEditable("Paste")) return;
   try {
+    if (navigator.clipboard?.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        const html = await clipboardItemsText(items, "text/html");
+        if (html && pasteHTMLTable(html)) return;
+        const plain = await clipboardItemsText(items, "text/plain");
+        if (plain) {
+          pasteText(plain);
+          return;
+        }
+      } catch {
+        // Fall back to plain text read below when rich clipboard access is unavailable.
+      }
+    }
     const text = await navigator.clipboard.readText();
     pasteText(text);
   } catch (error) {
     status.textContent = `Paste failed: ${error.message}`;
   }
+}
+
+async function clipboardItemsText(items, mimeType) {
+  for (const item of items ?? []) {
+    if (!Array.isArray(item.types) || !item.types.includes(mimeType)) continue;
+    const blob = await item.getType(mimeType);
+    return await blob.text();
+  }
+  return "";
+}
+
+function pasteHTMLTable(htmlText) {
+  if (!ensureEditable("Paste")) return false;
+  const matrix = parseHTMLTable(htmlText);
+  if (!matrix.length) return false;
+  pasteParsedMatrix(matrix, "html");
+  return true;
 }
 
 function pasteText(text) {
@@ -11847,7 +11878,12 @@ function pasteText(text) {
     status.textContent = "Clipboard is empty.";
     return;
   }
+  pasteParsedMatrix(matrix, "tsv");
+}
+
+function pasteParsedMatrix(matrix, source) {
   window.__opencsvLastPasteMatrix = matrix;
+  document.body.dataset.pasteSource = source;
   document.body.dataset.pasteMatrix = `${matrix.length}:${Math.max(...matrix.map((row) => row.length), 0)}`;
   document.body.dataset.pastePreview = JSON.stringify(matrix).slice(0, 500);
   pasteMatrix(matrix);
@@ -12037,7 +12073,59 @@ function parseTSV(text) {
   return matrix;
 }
 
+function parseHTMLTable(htmlText) {
+  if (!htmlText || String(htmlText).trim() === "") return [];
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(String(htmlText), "text/html");
+  const table = doc.querySelector("table");
+  if (!table) return [];
+  const matrix = [];
+  const occupied = new Map();
+  const rows = Array.from(table.rows ?? []);
+  rows.forEach((tableRow, rowIndex) => {
+    const row = matrix[rowIndex] ?? [];
+    let colIndex = 0;
+    while (occupied.get(`${rowIndex}:${colIndex}`)) {
+      row[colIndex] = row[colIndex] ?? "";
+      colIndex++;
+    }
+    for (const cell of Array.from(tableRow.cells ?? [])) {
+      while (occupied.get(`${rowIndex}:${colIndex}`)) {
+        row[colIndex] = row[colIndex] ?? "";
+        colIndex++;
+      }
+      const colspan = Math.max(1, Number.parseInt(cell.getAttribute("colspan") || "1", 10) || 1);
+      const rowspan = Math.max(1, Number.parseInt(cell.getAttribute("rowspan") || "1", 10) || 1);
+      row[colIndex] = htmlTableCellText(cell);
+      for (let colOffset = 1; colOffset < colspan; colOffset++) {
+        row[colIndex + colOffset] = row[colIndex + colOffset] ?? "";
+      }
+      for (let rowOffset = 1; rowOffset < rowspan; rowOffset++) {
+        for (let colOffset = 0; colOffset < colspan; colOffset++) {
+          occupied.set(`${rowIndex + rowOffset}:${colIndex + colOffset}`, true);
+        }
+      }
+      colIndex += colspan;
+    }
+    while (occupied.get(`${rowIndex}:${colIndex}`)) {
+      row[colIndex] = row[colIndex] ?? "";
+      colIndex++;
+    }
+    matrix[rowIndex] = row;
+  });
+  return matrix.filter((row) => row.some((value) => value !== ""));
+}
+
+function htmlTableCellText(cell) {
+  const clone = cell.cloneNode(true);
+  for (const br of clone.querySelectorAll("br")) {
+    br.replaceWith("\n");
+  }
+  return clone.textContent.replaceAll("\u00a0", " ");
+}
+
 window.__opencsvParseTSV = parseTSV;
+window.__opencsvParseHTMLTable = parseHTMLTable;
 
 function updateFileList(name, detail, rowCount, options = {}) {
   const group = currentOpenTargetGroup(options);
@@ -18409,6 +18497,11 @@ window.addEventListener("copy", (event) => {
 
 window.addEventListener("paste", (event) => {
   if (!documentId || isTypingTarget(event.target) || !defaultShortcutActive("edit.paste")) return;
+  const html = event.clipboardData.getData("text/html");
+  if (html && pasteHTMLTable(html)) {
+    event.preventDefault();
+    return;
+  }
   const text = event.clipboardData.getData("text/plain");
   if (!text) return;
   event.preventDefault();

@@ -127,6 +127,7 @@ flowchart TD
   - TSV, CSV, Markdown table, JSON, HTML table, SQL `VALUES`, LaTeX tabular, and raw value serialization.
   - Header-row prepending for selected-column copy workflows.
   - TSV matrix parsing for spreadsheet-style paste.
+  - Browser-side spreadsheet HTML table paste parsing for rich clipboard payloads from Excel-like apps.
   - Shared formatter contracts used by selection copy and rich current-view export downloads.
 
 - `web Profile View`
@@ -197,7 +198,7 @@ flowchart TD
   - Cmd/Ctrl mouse drag adds a range to Smart Selection; Cmd/Ctrl+Shift mouse drag subtracts the range from the current multi-range selection.
   - Batch editing of selected ranges through `/api/edit-batch`.
   - Numeric selection aggregation in the status bar.
-  - Clipboard event handlers for TSV copy/paste and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy, including active row/column Copy As variants.
+  - Clipboard event handlers for TSV copy/paste, spreadsheet HTML table paste, and command handlers for TSV-with-headers, CSV, Markdown, JSON, HTML, SQL, LaTeX, and raw copy, including active row/column Copy As variants.
   - Selected-cell and column text transforms for trim, uppercase/lowercase, naming/case conversions, full-width/half-width conversion, and Unicode NFC/NFD/NFKC/NFKD normalization with explicit source-cell mapping.
   - Grid context menu dispatches rich copy, text transform, quote, fill, swap, join/split, transpose, dedupe, row, column, filter, and sort commands through shared command IDs, and preserves an existing selected range when right-clicking inside it.
   - Selected column headers can be dragged to reorder visible columns through the existing `/api/column/move` mutation path.
@@ -767,7 +768,7 @@ Output:
 - Filter/sort/search endpoints.
 - Undo/redo and row/column insert/delete/move/hide endpoints.
 - Batch edit endpoint.
-- Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, header prepending, and TSV paste.
+- Clipboard formatter/parser unit tests for TSV, CSV, Markdown, JSON, HTML, SQL, LaTeX, raw, header prepending, TSV paste, and static spreadsheet HTML paste wiring.
 - Command registry endpoint.
 - Theme command metadata.
 - Find/Replace option request coverage.

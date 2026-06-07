@@ -277,6 +277,30 @@ func TestRowColumnCopyAsFormatsAreWired(t *testing.T) {
 	}
 }
 
+func TestSpreadsheetHTMLPasteIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function parseHTMLTable",
+		"function htmlTableCellText",
+		"function pasteHTMLTable",
+		`clipboardItemsText(items, "text/html")`,
+		`event.clipboardData.getData("text/html")`,
+		`document.body.dataset.pasteSource = source`,
+		`window.__opencsvParseHTMLTable = parseHTMLTable`,
+		`br.replaceWith("\n")`,
+		`cell.getAttribute("colspan")`,
+		`cell.getAttribute("rowspan")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing spreadsheet HTML paste wiring %q", snippet)
+		}
+	}
+}
+
 func TestEditorGroupLayoutPersistenceIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
