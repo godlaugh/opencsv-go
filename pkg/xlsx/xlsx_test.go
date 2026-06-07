@@ -234,6 +234,48 @@ func TestUpdateWorkbookSheetPreservesWorksheetStructure(t *testing.T) {
 	}
 }
 
+func TestUpdateWorkbookSheetPreservesFormulaTypesAndSharedMetadata(t *testing.T) {
+	data := zippedWorkbook(t, map[string]string{
+		"xl/workbook.xml":            `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+		"xl/_rels/workbook.xml.rels": `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+		"xl/worksheets/sheet1.xml":   `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>value</t></is></c><c r="B1" t="inlineStr"><is><t>double</t></is></c><c r="C1" t="inlineStr"><is><t>label</t></is></c></row><row r="2"><c r="A2"><v>1</v></c><c r="B2"><f t="shared" si="0" ref="B2:B3">A2*2</f><v>2</v></c><c r="C2" t="str"><f>CONCAT("row-",A2)</f><v>row-1</v></c></row><row r="3"><c r="A3"><v>3</v></c><c r="B3"><f t="shared" si="0"/><v>6</v></c><c r="C3" t="str"><f>CONCAT("row-",A3)</f><v>row-3</v></c></row></sheetData></worksheet>`,
+	})
+	updated, err := UpdateWorkbookSheet(data, "xl/worksheets/sheet1.xml", [][]string{
+		{"value", "double", "label"},
+		{"2", "4", "row-2"},
+		{"4", "8", "row-4"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sheet := workbookEntry(t, updated, "xl/worksheets/sheet1.xml")
+	for _, fragment := range []string{
+		`t="shared"`,
+		`si="0"`,
+		`ref="B2:B3"`,
+		`>A2*2</f>`,
+		`<v>4</v>`,
+		`<v>8</v>`,
+		`r="C2" t="str"`,
+		`r="C3" t="str"`,
+		`CONCAT(&#34;row-&#34;,A2)`,
+		`CONCAT(&#34;row-&#34;,A3)`,
+		`<v>row-2</v>`,
+		`<v>row-4</v>`,
+	} {
+		if !strings.Contains(sheet, fragment) {
+			t.Fatalf("updated sheet missing %q in %s", fragment, sheet)
+		}
+	}
+	records, err := DecodeWorkbook(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(records[2], ","); got != "4,8,row-4" {
+		t.Fatalf("updated records = %#v", records)
+	}
+}
+
 func workbookEntry(t *testing.T, data []byte, name string) string {
 	t.Helper()
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))

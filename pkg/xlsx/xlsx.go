@@ -326,7 +326,6 @@ func writeWorksheetCell(encoder *xml.Encoder, template worksheetCellTemplate, ro
 	}
 	start.Attr = setAttr(start.Attr, "", "r", cellRef(rowNumber, columnNumber))
 	if template.HasFormula {
-		start.Attr = removeAttr(start.Attr, "", "t")
 		if err := encoder.EncodeToken(start); err != nil {
 			return err
 		}
