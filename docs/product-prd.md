@@ -2,7 +2,7 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-06-07
+Last updated: 2026-06-09
 
 ## 1. Source Baseline
 
@@ -18,7 +18,17 @@ This PRD is derived from public SmoothCSV product materials and official project
 - SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
 - SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
 
-Latest public source check: 2026-06-07. The homepage still centers spreadsheet-like editing, find/replace, sort/filter, SQL queries, multi-cell editing, command palette access, large-file speed, and cross-platform desktop availability. The current feature catalog adds more explicit product-surface requirements: smart selection, auto-fill, swap cells, aggregate rows, quick value filters, multi-column sort with type/direction per column, CSV compare against files or clipboard, quoting control including manual cell-level preservation, file format presets/rules, copy/export formats, CLI/deep links, Windows portable and AUR distribution, auto-backup, and auto-refresh. The GitHub README currently lists v3 feature areas beyond the first homepage pass, including CSV Compare, quote indicators, automatic backup, presets/rules, quick column filters/sorting, shortcut customization, aggregation, read-only mode, transpose, auto-refresh, opening hyperlinks from cells, row/column dedupe, text transforms, join/split, Excel import/export, dark/light themes, and localization. The GitHub release page currently shows v3.21.0 as latest, published 2026-06-02, with recent release notes adding split editor groups, drag/drop tab movement between groups, group focus/move commands, saved and recent filter query history, macOS stay-open behavior after closing all windows, active-tab visibility fixes, URL-cell selection behavior, Windows preset rule matching fixes, and tab overflow behavior. Recent release cadence remains active: v3.20.0 shipped 2026-05-14, v3.20.1 shipped 2026-05-16, v3.20.2 shipped 2026-05-22, and v3.21.0 shipped 2026-06-02.
+Latest public source check: 2026-06-09. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
+
+The most recent public release currently tracked in the official GitHub repository is **v3.21.1** (published 2026-06-07). Its release notes emphasize:
+
+- split editor groups, tab drag/drop/movement, and group-focus/focus-move commands,
+- saved + recent filter query history,
+- macOS stay-open behavior when all windows are closed,
+- active-tab visibility in overflowed tab strips,
+- and URL-cell selection behavior.
+
+Recent release cadence remains active: 3.20.0 (2026-05-14), 3.20.1 (2026-05-16), 3.20.2 (2026-05-22), 3.21.0 (2026-06-02), and 3.21.1 (2026-06-07).
 
 Additional official source details captured from the current public pages:
 
@@ -434,7 +444,7 @@ The app shall support:
 
 - SQL console tab.
 - SQLite-compatible query syntax.
-- SQLCipher-equivalent protection for temporary databases if a temp database is used.
+- Local temporary query databases used by the SQL console stay offline and are disposed when execution finishes.
 - Query current opened files.
 - Query file paths.
 - Query unsaved/temporary documents.
@@ -483,7 +493,7 @@ Acceptance:
 
 ### FR-010 CLI
 
-The app shall provide an `opencsv` command:
+The app shall provide a SmoothCSV-compatible `opencsv` command:
 
 - `opencsv [options] [path ...]`
 - Open one or many files.
@@ -494,7 +504,6 @@ The app shall provide an `opencsv` command:
 - `--quote`, `-q`.
 - `--quote-mode`, `--qm`.
 - `--encoding`, `-e`.
-- `--line-ending`, `--eol`.
 - `--header-rows`.
 - `--header-columns`.
 - `--header`, `--no-header`.
@@ -503,13 +512,13 @@ The app shall provide an `opencsv` command:
 - `--wait`, `-w`.
 - `--version`, `-v`.
 - `--help`, `-h`.
-- `opencsv grep` for cell search from scripts.
 
 Acceptance:
 
 - Invalid CLI usage exits with code 2.
 - General runtime errors exit with code 1.
 - Success exits with code 0.
+- No separate `opencsv grep` subcommand is required by the official SmoothCSV CLI contract.
 
 ### FR-011 URL Protocol
 
@@ -519,20 +528,23 @@ The app shall parse and handle:
   - `smoothcsv://file/path/to/file.csv`
   - `smoothcsv://file/path/to/file.csv:5`
   - `smoothcsv://file/path/to/file.csv:1:2`
-- `opencsv://file/path/to/file.csv`
-- `opencsv://file/path/to/file.csv:5`
-- `opencsv://file/path/to/file.csv:1:2`
-- `opencsv://file/path/to/file.csv:1-5`
-- `opencsv://file/path/to/file.csv:1:2-10:20`
-- Query params for delimiter, quote, quote mode, encoding, line ending.
-- Official URL query aliases such as `quotemode`, `lineending`, `headerrows`, and `headercolumns`, with case-insensitive parameter names.
+- Optional local compatibility alias:
+  - `opencsv://file/path/to/file.csv`
+  - `opencsv://file/path/to/file.csv:5`
+  - `opencsv://file/path/to/file.csv:1:2`
+  - `opencsv://file/path/to/file.csv:1-5`
+  - `opencsv://file/path/to/file.csv:1:2-10:20`
+- Query params for delimiter, quote, quotemode, and encoding.
+- Parameters are case-insensitive.
+- Official SmoothCSV aliases from docs are supported where they are defined (for example delimiter/quote aliases `comma`, `tab`, `semicolon`, `pipe`, `space`, and quote names `double`, `single`, `none`).
+- Legacy/local compatibility aliases (`lineending`, `headerrows`, `headercolumns`, `quote-mode`, dashed/camel/snake variants) may be accepted by the app as non-breaking extensions.
 
 Acceptance:
 
 - Coordinates are 1-indexed.
 - Windows-style paths are accepted.
 - URL open can jump to target row/cell/range.
-- URL format parameters accept official spelling plus existing dashed/camel/snake aliases.
+- URL format parameters accept official names and the app’s local compatibility aliases listed above.
 
 ### FR-012 Command Palette and Shortcuts
 

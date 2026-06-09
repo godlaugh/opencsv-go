@@ -76,7 +76,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  opencsv inspect [-rows 20] <file>")
 	fmt.Fprintln(os.Stderr, "  opencsv generate [-rows 1000] [-cols 12] <file>")
 	fmt.Fprintln(os.Stderr, "  opencsv save [-out copy.csv] [-backup=true] <file>")
-	fmt.Fprintln(os.Stderr, "  opencsv grep [-i] [-regex] [-col name|index] [-limit 100] <query> <file>")
+	fmt.Fprintln(os.Stderr, "  opencsv grep [-i] [-regex] [-col name|index] [-limit 100] <query> <file>   # compatibility extension")
 	fmt.Fprintln(os.Stderr, "  opencsv serve [-addr 127.0.0.1:43255] [-web web]")
 	fmt.Fprintln(os.Stderr, "  opencsv bench [-rows 100000] [-cols 16] [-out /tmp/opencsv-bench.csv]")
 }

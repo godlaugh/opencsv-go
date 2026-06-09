@@ -297,6 +297,13 @@ const confirmTransposeButton = document.querySelector("#confirmTransposeButton")
 const transposeConfirmSummary = document.querySelector("#transposeConfirmSummary");
 const transposeConfirmDetail = document.querySelector("#transposeConfirmDetail");
 const transposeConfirmWarning = document.querySelector("#transposeConfirmWarning");
+const splitConfirmPanel = document.querySelector("#splitConfirmPanel");
+const closeSplitConfirmButton = document.querySelector("#closeSplitConfirmButton");
+const cancelSplitConfirmButton = document.querySelector("#cancelSplitConfirmButton");
+const confirmSplitConfirmButton = document.querySelector("#confirmSplitConfirmButton");
+const splitConfirmSummary = document.querySelector("#splitConfirmSummary");
+const splitConfirmDetail = document.querySelector("#splitConfirmDetail");
+const splitConfirmWarning = document.querySelector("#splitConfirmWarning");
 const cellValueDialog = document.querySelector("#cellValueDialog");
 const closeCellValueDialogButton = document.querySelector("#closeCellValueDialogButton");
 const cellValueDialogInput = document.querySelector("#cellValueDialogInput");
@@ -2217,6 +2224,7 @@ let externalFileChanged = false;
 let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
 let pendingWholeTranspose = null;
+let pendingSplitTool = null;
 let customLinkProtocols = loadCustomLinkProtocols();
 let confirmedCustomLinkProtocols = loadConfirmedCustomLinkProtocols();
 let pendingLinkConfirmation = null;
@@ -15351,13 +15359,100 @@ async function splitActiveCell(direction = "horizontal") {
   const title = vertical ? "Split Cell Vertically" : "Split Cell";
   if (!ensureEditable(title)) return;
   const separator = selectedCellSeparator();
-  await runCellTool("/api/cells/split", {
+  const request = {
     cells: [{ row: selectedSourceRow(), col: sourceColFor(selected.col) }],
     separator,
     direction,
     activeRow: selected.row,
     activeCol: selected.col,
     label: vertical ? "Split cell vertically" : "Split cell",
+  };
+  const result = await runCellTool("/api/cells/split", request);
+  if (result?.ok || !result?.error) return;
+  const conflict = parseSplitOverwriteConflict(result.error);
+  if (conflict) {
+    openSplitOverwriteConfirmPanel(
+      request,
+      {
+        sourceRow: selected.row + 1,
+        sourceCol: selected.col + 1,
+        separator,
+        sourceValue: valueAt(selected.row, selected.col),
+        direction,
+        conflict,
+      },
+    );
+    return;
+  }
+}
+
+function parseSplitOverwriteConflict(error) {
+  const message = String(error ?? "").trim();
+  const prefix = "split would overwrite row ";
+  if (!message.startsWith(prefix)) return null;
+  const body = message.slice(prefix.length);
+  const location = body.match(/^(\d+), column (\d+)/);
+  if (!location) return null;
+  const row = Number.parseInt(location[1], 10);
+  const col = Number.parseInt(location[2], 10);
+  if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
+  const additionalMatch = message.match(/ and (\d+) more;/);
+  const additional = additionalMatch ? Number.parseInt(additionalMatch[1], 10) : 0;
+  return {
+    row,
+    col,
+    additional: Number.isFinite(additional) ? additional : 0,
+  };
+}
+
+function splitCellPreviewParts(value, separator) {
+  return String(value ?? "").split(separator);
+}
+
+function splitWarningMessage(conflictCount, firstRow, firstCol, direction) {
+  const directionLabel = direction === "vertical" ? "vertical" : "horizontal";
+  const plural = conflictCount === 1 ? "cell" : "cells";
+  const directionLabelText = directionLabel === "vertical" ? "vertically" : "horizontally";
+  return `This ${directionLabelText} split will overwrite ${formatCount(conflictCount)} existing ${plural}${firstRow && firstCol ? `, starting at row ${formatCount(firstRow)}, column ${formatCount(firstCol)}.` : "."}`;
+}
+
+function openSplitOverwriteConfirmPanel(request, preview) {
+  if (!splitConfirmPanel || !request) return;
+  pendingSplitTool = { ...request };
+  const direction = request.direction === "vertical" ? "Vertical" : "Horizontal";
+  const sourceRow = preview?.sourceRow || selected.row + 1;
+  const sourceCol = preview?.sourceCol || selected.col + 1;
+  const separator = printableCellSeparator(request.separator);
+  const sourceParts = splitCellPreviewParts(preview?.sourceValue ?? valueAt(selected.row, selected.col), request.separator);
+  const conflictInfo = preview?.conflict;
+  const conflictCount = conflictInfo ? 1 + (conflictInfo.additional || 0) : 1;
+  const firstConflict = conflictInfo ? `row ${formatCount(conflictInfo.row)}, column ${formatCount(conflictInfo.col)}` : null;
+  splitConfirmSummary.textContent = `${direction} Split Overwrite`;
+  splitConfirmDetail.textContent = `Source cell: row ${formatCount(sourceRow)}, column ${formatCount(sourceCol)} · Separator: ${separator} · ${formatCount(sourceParts.length)} values.`;
+  splitConfirmWarning.textContent = conflictInfo
+    ? `${splitWarningMessage(conflictCount, conflictInfo.row, conflictInfo.col, request.direction)}${conflictInfo.additional > 0 ? ` ${formatCount(conflictInfo.additional)} more conflict${conflictInfo.additional === 1 ? "" : "s"} beyond ${firstConflict}.` : ""}`
+    : `This split would overwrite existing data. Review the first target and retry with overwrite enabled.`;
+  splitConfirmPanel.hidden = false;
+  status.textContent = conflictInfo
+    ? `Split blocked by ${formatCount(conflictCount)} existing cells.`
+    : "Split blocked by existing cells. Confirm to overwrite.";
+  confirmSplitConfirmButton.focus();
+}
+
+function closeSplitOverwriteConfirmPanel() {
+  if (!splitConfirmPanel || splitConfirmPanel.hidden) return;
+  splitConfirmPanel.hidden = true;
+  pendingSplitTool = null;
+  canvas.focus();
+}
+
+async function confirmSplitOverwrite() {
+  const pending = pendingSplitTool;
+  closeSplitOverwriteConfirmPanel();
+  if (!pending) return;
+  await runCellTool("/api/cells/split", {
+    ...pending,
+    allowOverwrite: true,
   });
 }
 
@@ -15593,7 +15688,7 @@ async function runCellTool(endpoint, options) {
     const error = payload.error ?? "unknown error";
     document.body.dataset.cellToolFailed = `${endpoint}:${error}`;
     status.textContent = `${options.label} failed: ${error}`;
-    return;
+    return { ok: false, error, status: response.status, endpoint, payload };
   }
   const changed = payload.changed ?? 0;
   applyMutationPayload(payload, changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`);
@@ -15604,6 +15699,7 @@ async function runCellTool(endpoint, options) {
   selectionAnchor = { ...selected };
   draw();
   status.textContent = changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`;
+  return { ok: true, payload, endpoint };
 }
 
 async function mutateStructure(endpoint, body, label) {
@@ -18652,6 +18748,11 @@ function handleGlobalShortcut(event) {
     closeTransposeConfirmPanel();
     return true;
   }
+  if (event.key === "Escape" && splitConfirmPanel && !splitConfirmPanel.hidden) {
+    event.preventDefault();
+    closeSplitOverwriteConfirmPanel();
+    return true;
+  }
   if (event.key === "Escape" && smartSelectionRanges.length > 0) {
     event.preventDefault();
     clearSmartSelectionRanges();
@@ -19315,6 +19416,9 @@ reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDis
 closeTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);
 cancelTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);
 confirmTransposeButton.addEventListener("click", confirmWholeTableTranspose);
+closeSplitConfirmButton.addEventListener("click", closeSplitOverwriteConfirmPanel);
+cancelSplitConfirmButton.addEventListener("click", closeSplitOverwriteConfirmPanel);
+confirmSplitConfirmButton.addEventListener("click", confirmSplitOverwrite);
 closeCellValueDialogButton.addEventListener("click", closeCellValueDialog);
 applyCellValueDialogButton.addEventListener("click", () => {
   cellValueInput.value = cellValueDialogInput.value;
@@ -19343,6 +19447,12 @@ transposeConfirmPanel.addEventListener("mousedown", (event) => {
   if (event.target === transposeConfirmPanel) {
     event.preventDefault();
     closeTransposeConfirmPanel();
+  }
+});
+splitConfirmPanel.addEventListener("mousedown", (event) => {
+  if (event.target === splitConfirmPanel) {
+    event.preventDefault();
+    closeSplitOverwriteConfirmPanel();
   }
 });
 cellValueDialog.addEventListener("mousedown", (event) => {

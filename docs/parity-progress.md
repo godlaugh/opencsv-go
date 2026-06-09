@@ -1,6 +1,6 @@
 # Product Parity Progress
 
-Last updated: 2026-06-05
+Last updated: 2026-06-09
 
 This document tracks implementation status against `docs/product-prd.md`.
 
@@ -182,7 +182,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-014 | Deterministic single-value enum quick fix | Started | `pkg/dataprofile`/`pkg/appserver` tests, Browser Profile enum fix verification |
 | FR-014 | Deterministic required-default quick fix | Started | `pkg/dataprofile`/`pkg/appserver` tests, Browser Profile default quick-fix verification |
 | FR-010/011 | CLI goto, format options, diff argument validation, and SmoothCSV/opencsv URL parsing foundation | Started | `cmd/opencsv` tests, `pkg/protocol` tests, CLI smoke |
-| FR-010 | CLI CSV grep foundation | Started | `cmd/opencsv` tests, CLI smoke |
+| FR-010 | CLI grep compatibility layer | Started | `cmd/opencsv` tests, CLI smoke |
 | FR-010/011 | CLI diff/open web route wiring | Started | `cmd/opencsv` tests, Browser diff URL verification |
 | FR-010/011/020 | CLI launch flag route handoff | Started | `cmd/opencsv` tests, Browser URL launch-flag verification |
 | FR-010/011 | URL format query overrides for browser open | Started | `/api/open`, protocol and CLI route tests, Browser URL/save verification |
@@ -514,7 +514,7 @@ Verified in the in-app browser on local `opencsv serve` instances:
 - `csvcore.RecordWindow` now includes `sourceRows` so UI edits can target the original source row even when a filtered/sorted view is active.
 - `pkg/sqlexpr` provides the first SQL WHERE expression engine for row filters: identifiers/header names, `c1` columns, comparisons, `AND`/`OR`/`NOT`, `LIKE`, `IN`/`NOT IN`, `BETWEEN`/`NOT BETWEEN`, `IS NULL`, arithmetic, `CAST`/`TRY_CAST`, exact bigint literals/casts/comparisons for values above JavaScript's safe-integer range, core string/numeric/conditional functions, typed date/time/timestamp literals, temporal +/- interval arithmetic, temporal subtraction to intervals, and first-pass interval literals/casts with signed composite quantities and field precision qualifiers.
 - `pkg/protocol` parses official-style goto locations plus both `smoothcsv://file/...` and `opencsv://file/...` URLs, including row/cell/range locations and case-insensitive shared format query parameters such as `quotemode`, `lineending`, `headerrows`, and `headercolumns`.
-- Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands. The `opencsv grep` subcommand emits JSON cell matches with case-insensitive, regex, column-targeted, and limited-result options.
+- Root CLI syntax now accepts official-style `opencsv [options] [path ...]`, `--goto`, `--diff`, `--delimiter`, `--encoding`, header flags, window flags, `--wait`, `--version`, and `--help` while retaining developer subcommands. The `opencsv grep` subcommand (compatibility layer) emits JSON cell matches with case-insensitive, regex, column-targeted, and limited-result options.
 - CLI open applies delimiter, encoding, line ending, quote character, quote mode, and header-row overrides to `csvcore.OpenDocument`.
 - CLI/API/URL open now propagate `header-columns`/`headerColumns` into CSV dialect metadata and `line-ending`/`lineEnding` into line-ending metadata. The frontend shows delimiter, header-column count, and line ending in format status and preserves them in saved/imported/exported format presets.
 - Browser URL boot-open now applies `delimiter`, `quote`, official `quotemode`, `quote-mode`, `quote-escape`, `encoding`, official `lineending`, `line-ending`, and header query params to `/api/open`, with explicit URL params taking precedence over matched format rules.
@@ -631,6 +631,6 @@ Verified in the in-app browser on local `opencsv serve` instances:
 - CLI/URL parsing exists as a reusable package, but it is not wired into a desktop protocol handler yet.
 - Read-only and external file refresh foundations exist in local app mode, including active filter/sort preservation on clean refresh, a conflict panel for dirty documents, and a disk/local Diff handoff before reload or Save As, but OS-level file watching and richer merge prompts are still missing.
 - Transpose is implemented as a whole-document materialized operation with a cell-count guard and known large-table confirmation UI, plus rectangular selection transpose that can expand rightward target columns, expand downward target rows, and process non-overlapping multi-range selections; large-file streaming transpose is still missing.
-- Text transforms currently accept explicit selected cells with a frontend safety cap and current-column operations from the header menu, stream clean UTF-8/UTF-8-BOM current-column transforms with file-backed pre-transform undo, and include common naming/case, full-width/half-width conversions, NFC/NFD/NFKC/NFKD normalization, a configurable join/split separator UI, and default split overwrite protection; legacy encoding/non-standard quote/edit-overlay streaming and richer split preview/merge UI are still missing.
+- Text transforms currently accept explicit selected cells with a frontend safety cap and current-column operations from the header menu, stream clean UTF-8/UTF-8-BOM current-column transforms with file-backed pre-transform undo, and include common naming/case, full-width/half-width conversions, NFC/NFD/NFKC/NFKD normalization, a configurable join/split separator UI, and default split overwrite protection plus a split overwrite preview panel; legacy encoding/non-standard quote/edit-overlay streaming and richer merge-preview UX are still missing.
 - Native desktop shell is not implemented yet. Browser prototype now has a local start/recent/support foundation, session-backed open tab list, first split-editor group foundation, independent per-group active tabs, persisted split layout state, current/group tab movement by command/context/drop, and local update-check mode gating, but desktop-backed settings/recent storage, signed remote update feed/downloads, richer arbitrary multi-tab drag/drop between groups, and OS window geometry persistence remain incomplete.
 - Browser verification is currently a mix of DOM/API checks and targeted screenshots for visual regressions.

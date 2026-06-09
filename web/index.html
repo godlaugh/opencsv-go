@@ -806,6 +806,24 @@
       </section>
     </div>
 
+    <div id="splitConfirmPanel" class="command-palette-backdrop" hidden>
+      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm split overwrite">
+        <header class="condition-panel-header">
+          <strong>Split Cell</strong>
+          <button id="closeSplitConfirmButton" type="button">Close</button>
+        </header>
+        <div class="transpose-confirm-body">
+          <strong id="splitConfirmSummary">Split overwrite</strong>
+          <p id="splitConfirmDetail">Review this split before applying.</p>
+          <p id="splitConfirmWarning" class="transpose-confirm-warning">Overwrite conflicts detected.</p>
+        </div>
+        <footer class="condition-actions">
+          <button id="cancelSplitConfirmButton" type="button">Cancel</button>
+          <button id="confirmSplitConfirmButton" type="button">Split anyway</button>
+        </footer>
+      </section>
+    </div>
+
     <div id="cellValueDialog" class="command-palette-backdrop" hidden>
       <section class="cell-value-dialog" role="dialog" aria-modal="true" aria-label="Cell value editor">
         <header class="condition-panel-header">
