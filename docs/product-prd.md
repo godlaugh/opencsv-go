@@ -222,6 +222,67 @@ SQL console:
 - Default columns `c1`, `c2`, ...
 - Explicit casts for reliable numeric comparison.
 
+### 5.4 Official Site Feature Surface Mapping
+
+The following table maps SmoothCSV `/features` entries to PRD requirements:
+
+- Built for real CSV work
+  - Edit it exactly how you want: FR-003 (Grid), FR-004 (Editing), FR-015 (Copy/Paste As).
+  - More than an editor: FR-008, FR-009, FR-016.
+  - Reads your format, keeps your data: FR-002, FR-013.
+- Editing & Navigation
+  - Power Grid Editor: FR-003.
+  - Row/Column Tools: FR-004.
+  - Multi-Cell Edit: FR-003, FR-004.
+  - Auto-Fill: FR-004.
+  - Swap Cells: FR-004.
+  - Cell Value Panel: FR-004, FR-003.
+  - Transpose: FR-017.
+  - Read-Only Mode: FR-004.
+  - Smart Selection: FR-003.
+- Find, Filter & Sort
+  - Find & Replace: FR-005.
+  - Quick Filter: FR-006.
+  - Filtering: FR-006.
+  - Smart Sort: FR-007.
+  - Multi-column Sort: FR-007.
+- Data Tools
+  - SQL Console: FR-008.
+  - CSV Compare: FR-009.
+  - Aggregation: FR-016.
+  - Aggregate Rows: FR-016.
+  - Text Transforms: FR-004.
+  - Join & Split: FR-004.
+- File Formats
+  - Customizable File Formats: FR-002, FR-013.
+  - Quoting Control: FR-002, FR-013, FR-004.
+  - Quote Indicators: FR-002, FR-003.
+  - Format Presets & Rules: FR-013.
+  - Auto-detection: FR-002.
+- Interop & Sharing
+  - Copy / Paste As: FR-015.
+  - Excel Import / Export: FR-015.
+  - Open Hyperlinks: FR-003, FR-004.
+  - CLI: FR-010.
+  - Deep Link: FR-011.
+- Customization
+  - Customizable Keybindings: FR-012.
+  - Themes: FR-019.
+  - Localization: FR-019.
+- Platform & Reliability
+  - macOS, Windows, Linux: NFR-005.
+  - Windows Portable: NFR-005.
+  - Arch Linux (AUR): NFR-005.
+  - Lightning Fast: FR-001, NFR-001, NFR-002.
+  - Auto-backup: FR-004.
+  - Auto-refresh: FR-018.
+
+Also note items from official historical/roadmap references are tracked in open decisions:
+
+- Key macros / macro workflows from earlier versions.
+- Browser-hosted or extension-oriented product models.
+- Additional format support (JSON/Avro/Parquet) beyond the local CSV/TSV/XLSX baseline.
+
 ## 6. Scope
 
 ### 6.1 Must Ship for Product Parity v1
@@ -504,6 +565,7 @@ The app shall provide a SmoothCSV-compatible `opencsv` command:
 - `--quote`, `-q`.
 - `--quote-mode`, `--qm`.
 - `--encoding`, `-e`.
+- `--line-ending` (official contract) and `--eol` (local compatibility).
 - `--header-rows`.
 - `--header-columns`.
 - `--header`, `--no-header`.
