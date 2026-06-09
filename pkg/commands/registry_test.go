@@ -235,6 +235,32 @@ func TestOfficialFilterShortcutDefault(t *testing.T) {
 	}
 }
 
+func TestFileCloseTabShortcutDefault(t *testing.T) {
+	command, ok := ByID("file.closeTab")
+	if !ok {
+		t.Fatal("missing file.closeTab command")
+	}
+	if command.Shortcut != "Cmd+W" {
+		t.Fatalf("file.closeTab shortcut = %q, want Cmd+W", command.Shortcut)
+	}
+}
+
+func TestCloseTabShortcutDispatchWiring(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`if (key === "w" && !event.shiftKey && defaultShortcutActive("file.closeTab"))`,
+		`if (event.key === "F4" && event.ctrlKey && !event.metaKey && defaultShortcutActive("file.closeTab"))`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing close-tab shortcut wiring %q", snippet)
+		}
+	}
+}
+
 func TestRowColumnCopyAsFormatsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

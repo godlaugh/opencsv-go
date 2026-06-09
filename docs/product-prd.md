@@ -8,25 +8,50 @@ Last updated: 2026-06-09
 
 This PRD is derived from public SmoothCSV product materials and official project documentation:
 
-- SmoothCSV homepage: https://smoothcsv.com/
-- SmoothCSV feature catalog: https://smoothcsv.com/features
-- SmoothCSV blog index: https://smoothcsv.com/blog/
-- SmoothCSV GitHub README/release repository: https://github.com/kohii/smoothcsv3
-- SmoothCSV CLI specification: https://github.com/kohii/smoothcsv3/blob/main/docs/cli.md
-- SmoothCSV URL protocol specification: https://github.com/kohii/smoothcsv3/blob/main/docs/smoothcsv-url.md
-- SmoothCSV SQL row filter documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-row-filter.md
-- SmoothCSV SQL console documentation: https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md
-- SmoothCSV technical articles describing Tauri/Rust/React architecture and virtual scrolling.
+- SmoothCSV homepage: [https://smoothcsv.com/](https://smoothcsv.com/)
+- Features catalog: [https://smoothcsv.com/features](https://smoothcsv.com/features)
+- Blog index: [https://smoothcsv.com/blog/](https://smoothcsv.com/blog/)
+- GitHub repository docs/releases: [https://github.com/kohii/smoothcsv3](https://github.com/kohii/smoothcsv3)
+- CLI spec: [https://github.com/kohii/smoothcsv3/blob/main/docs/cli.md](https://github.com/kohii/smoothcsv3/blob/main/docs/cli.md)
+- URL spec: [https://github.com/kohii/smoothcsv3/blob/main/docs/smoothcsv-url.md](https://github.com/kohii/smoothcsv3/blob/main/docs/smoothcsv-url.md)
+- SQL row filter spec: [https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-row-filter.md](https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-row-filter.md)
+- SQL console spec: [https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md](https://github.com/kohii/smoothcsv3/blob/main/docs/sql-in-sql-console.md)
+- Technical context sources:
+  - [The Technology Behind SmoothCSV - The Ultimate CSV Editor](https://dev.to/kohii/the-technology-behind-smoothcsv-the-ultimate-csv-editor-3lg0)
+  - [How to Implement Virtual Scrolling Beyond the Browser's Limit](https://dev.to/kohii/how-to-implement-virtual-scrolling-beyond-the-browsers-limit-16ol)
+  - [Best CSV Editors in 2026](https://smoothcsv.com/blog/best-csv-editors-in-2026)
+  - [Introducing a License for SmoothCSV](https://smoothcsv.com/blog/why-smoothcsv-license)
+- Legal/commercial pages: [https://smoothcsv.com/pricing](https://smoothcsv.com/pricing), [https://smoothcsv.com/refund](https://smoothcsv.com/refund), [https://smoothcsv.com/terms](https://smoothcsv.com/terms), [https://smoothcsv.com/privacy](https://smoothcsv.com/privacy)
+
+Formal snapshot points used in this PRD pass:
+
+- Baseline verification date: 2026-06-09.
+- Most recent public release reviewed: v3.21.1 (published 2026-06-07).
+- Public source policy pages reviewed:
+  - Terms effective date: 2026-04-05.
+  - Privacy effective date: 2026-05-10.
+  - Refund policy effective date: 2026-04-27.
+- Pricing snapshot: optional one-time and team license model with unlimited-device and offline usage as documented on the pricing page; all current features remain available without purchase.
 
 Latest public source check: 2026-06-09. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
 
 The most recent public release currently tracked in the official GitHub repository is **v3.21.1** (published 2026-06-07). Its release notes emphasize:
 
-- split editor groups, tab drag/drop/movement, and group-focus/focus-move commands,
-- saved + recent filter query history,
-- macOS stay-open behavior when all windows are closed,
-- active-tab visibility in overflowed tab strips,
-- and URL-cell selection behavior.
+- platform-native dialog button ordering (Windows confirms on the left, other OS confirms on the right),
+- Windows editor close parity with `Ctrl+F4` in addition to `Ctrl+W`,
+- fixed large selection insertions from losing trailing rows/columns,
+- fixed malformed `smoothcsv://` parsing edge cases (including query parameter handling and reversed ranges),
+- fixed a security issue in external link handling,
+- fixed status bar disappearance in non-grid contexts,
+- fixed window control drift during zoom.
+
+Additional v3.21.1 bug-fix notes worth parity-tracking:
+
+- Fixed inserted copied rows/columns behavior so operations near the document boundary no longer drop rows/columns.
+- Fixed LIKE-filter cases that could freeze matching with certain patterns.
+- Tightened malformed `smoothcsv://` handling for query encoding, `=` parsing, reversed ranges, and unsafe external links.
+- Fixed status bar disappearance in non-grid modes.
+- Fixed macOS traffic-light spacing drift during zoom.
 
 Recent release cadence remains active: 3.20.0 (2026-05-14), 3.20.1 (2026-05-16), 3.20.2 (2026-05-22), 3.21.0 (2026-06-02), and 3.21.1 (2026-06-07).
 
@@ -35,7 +60,8 @@ Additional official source details captured from the current public pages:
 - The homepage positions SmoothCSV as an intuitive spreadsheet-like CSV editor with find/replace, sort/filter, SQL queries, multi-cell editing, command palette access to all features, large-file speed, and Windows/macOS/Linux availability.
 - The feature catalog positions reusable column workflows as first-class product behavior: quick value filters, visual conditions, SQL filters, smart sort, multi-column sort, and type-aware sorting must remain discoverable from column/header surfaces and command workflows. It also defines Smart Selection as explicit range add/subtract/invert behavior, not just ordinary drag selection.
 - The download page publishes macOS Universal, Windows user/MSI/portable builds for x64 and ARM64, Linux `.deb`, `.rpm`, AppImage packages, and AUR distribution. Product parity must therefore keep packaging and CLI assumptions cross-platform.
-- The pricing/license pages state that every feature remains free, licenses are one-time support purchases, work offline, and have no per-person device limit. opencsv does not need to clone SmoothCSV's commercial flow, but it must preserve the same local/offline feature availability principle.
+- The pricing/license pages state that every feature remains free, licenses are one-time support purchases, work offline, and have no per-person device limit. opencsv does not need to copy a paid commercial model, but it must preserve the same local/offline feature availability principle.
+- Privacy policy states purchase/account metadata is handled through Paddle for transactions, while normal app usage does not require account login and is intended to remain local-first; opencsv should keep this posture by avoiding telemetry-by-default behavior and minimizing externally initiated data exchange.
 - The "Best CSV Editors in 2026" blog emphasizes dedicated CSV editing, data preservation, large-file handling, quote preservation, frequent updates, thoughtful UX, and SQL console support as the competitive baseline.
 - The SmoothCSV v1 archive calls out long-running requirements that still matter: multiple encodings, many CSV/TSV styles, Excel-like operation, ragged-row editing, embedded newline cells, SQL `SELECT`, fast large-file open, tabbed UI, macros/key macros, and CSV grep search.
 - The v3 technical article describes a command-centric, VS Code-like architecture with command metadata, keybindings, context-aware enablement, menu/context-menu/button dispatch, lazy-loaded system extensions, and local-first desktop operation with no external communication except update checks.
@@ -282,6 +308,37 @@ Also note items from official historical/roadmap references are tracked in open 
 - Key macros / macro workflows from earlier versions.
 - Browser-hosted or extension-oriented product models.
 - Additional format support (JSON/Avro/Parquet) beyond the local CSV/TSV/XLSX baseline.
+
+### 5.5 Source-Backed FR Matrix
+
+This PRD remains tied to official sources by keeping each FR mapped to both official anchors and current parity progress.
+
+| PRD ID | Source anchor | Current status |
+| --- | --- | --- |
+| FR-001 | README + CLI/URL docs | In progress |
+| FR-002 | README + features page + CLI format options | In progress |
+| FR-003 | README + features page + virtual scrolling baseline | In progress |
+| FR-004 | README + features page | In progress |
+| FR-005 | README + features page | Started |
+| FR-006 | README + features page + row-filter spec | Started |
+| FR-007 | README + features page | Started |
+| FR-008 | README + SQL-console spec + features page | In progress |
+| FR-009 | README + features page + release notes | Started |
+| FR-010 | CLI spec + releases + app protocol wiring | Started |
+| FR-011 | URL spec + CLI wire-up + releases | Started |
+| FR-012 | README + features page + command registry evidence | Started |
+| FR-013 | README + features page | Started |
+| FR-014 | README + features page | Started |
+| FR-015 | README + features page | Started |
+| FR-016 | README + features page | Started |
+| FR-017 | README + features page | Started |
+| FR-018 | README + features page | Started |
+| FR-019 | README + features page + localized surfaces | Started |
+| FR-020 | README + features page + releases | Started |
+
+For implementation depth, the detailed itemized matrix remains in [`docs/parity-progress.md`](/Users/hoo/AIStudio/opencsv/docs/parity-progress.md).
+
+Acceptance target: all rows remain at least `Started`; `In progress` rows are constrained to high-value parity gaps and not feature gaps.
 
 ## 6. Scope
 
@@ -716,6 +773,7 @@ The app shall support:
 - Recent files display with file name as primary label and path as secondary label.
 - Missing recent files are cleaned up automatically.
 - Open-file tabs with session-backed switching and Close Tab entry points from the sidebar and command palette.
+- Close Tab must also support native-style accelerator behavior (`Cmd+W` and `Ctrl+F4` where applicable) as a parity benchmark.
 - Overflowing open-file tab lists must remain scrollable and keep the active tab visible after open, switch, close, and reload-like restoration flows.
 - Closing a dirty tab must protect unsaved edits unless the user explicitly chooses a discard path.
 - Split editor area into multiple tab groups arranged horizontally, vertically, or nested.

@@ -18799,6 +18799,16 @@ function handleGlobalShortcut(event) {
     saveCurrentDocument();
     return true;
   }
+  if (key === "w" && !event.shiftKey && defaultShortcutActive("file.closeTab")) {
+    event.preventDefault();
+    executeCommand("file.closeTab");
+    return true;
+  }
+  if (event.key === "F4" && event.ctrlKey && !event.metaKey && defaultShortcutActive("file.closeTab")) {
+    event.preventDefault();
+    executeCommand("file.closeTab");
+    return true;
+  }
   if (key === "f" && event.shiftKey && defaultShortcutActive("view.filter")) {
     event.preventDefault();
     commandInput.focus();
