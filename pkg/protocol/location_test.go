@@ -1,6 +1,9 @@
 package protocol
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestParseGotoLocations(t *testing.T) {
 	tests := []struct {
@@ -108,6 +111,28 @@ func TestParseSmoothCSVURLOfficialCaseInsensitiveFormatAliases(t *testing.T) {
 	}
 	if target.Format.NoHeader == nil || *target.Format.NoHeader {
 		t.Fatalf("no header = %#v, want false", target.Format.NoHeader)
+	}
+}
+
+func TestParseSmoothCSVURLLineEndingAliases(t *testing.T) {
+	for _, alias := range []string{
+		"lineending",
+		"line-ending",
+		"lineEnding",
+		"line_ending",
+		"newline",
+		"eol",
+		"le",
+	} {
+		t.Run(alias, func(t *testing.T) {
+			target, err := ParseSmoothCSVURL(fmt.Sprintf("smoothcsv://file/tmp/data.csv?%s=crlf", alias))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if target.Format.LineEnding != "crlf" {
+				t.Fatalf("line ending for %s = %q, want %q", alias, target.Format.LineEnding, "crlf")
+			}
+		})
 	}
 }
 

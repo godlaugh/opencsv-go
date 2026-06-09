@@ -49,6 +49,19 @@ func TestParseRootOptionsRejectsConflictingWindowFlags(t *testing.T) {
 	}
 }
 
+func TestParseRootOptionsSupportsEOLAlias(t *testing.T) {
+	options, err := parseRootOptions([]string{"--eol", "lf", "data.csv"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.format.LineEnding != "lf" {
+		t.Fatalf("line ending = %q, want %q", options.format.LineEnding, "lf")
+	}
+	if len(options.paths) != 1 || options.paths[0] != "data.csv" {
+		t.Fatalf("paths = %#v", options.paths)
+	}
+}
+
 func TestOpenOptionsFromFormat(t *testing.T) {
 	headerRows := 1
 	headerColumns := 2
