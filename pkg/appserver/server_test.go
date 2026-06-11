@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -1547,6 +1548,70 @@ func TestServerPasteRowsBelowAndColumnsRightAtSelectionEnd(t *testing.T) {
 	rows = windowPayload["rows"].([]any)
 	if len(rows[0].([]any)) != 6 || rows[0].([]any)[4] != "name" || rows[0].([]any)[5] != "score" {
 		t.Fatalf("rows after self paste columns right = %#v", rows)
+	}
+}
+
+func TestServerPasteBelowRightPreservesSelectionsIncludingLastItem(t *testing.T) {
+	dir := t.TempDir()
+	rowPath := filepath.Join(dir, "paste-last-row.csv")
+	if err := os.WriteFile(rowPath, []byte("id,name\n1,Ada\n2,Linus\n3,Grace\n4,Ken\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        rowPath,
+		"previewRows": 8,
+		"indexRows":   -1,
+	})
+	rowDocumentID := openPayload["documentId"].(string)
+
+	rowCopyPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": rowDocumentID,
+		"sourceRows": []int{3, 4},
+		"targetRow":  5,
+		"cut":        false,
+	})
+	if rowCopyPayload["changed"].(float64) != 2 || rowCopyPayload["totalRows"].(float64) != 7 {
+		t.Fatalf("paste rows including last payload = %#v", rowCopyPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+rowDocumentID+"&start=0&count=7")
+	rows := windowPayload["rows"].([]any)
+	gotNames := make([]string, 0, len(rows)-1)
+	for _, row := range rows[1:] {
+		gotNames = append(gotNames, row.([]any)[1].(string))
+	}
+	wantNames := []string{"Ada", "Linus", "Grace", "Ken", "Grace", "Ken"}
+	if !reflect.DeepEqual(gotNames, wantNames) {
+		t.Fatalf("rows after paste including last = %#v, want %#v", gotNames, wantNames)
+	}
+
+	columnPath := filepath.Join(dir, "paste-last-column.csv")
+	if err := os.WriteFile(columnPath, []byte("id,name,score,city\n1,Ada,10,UK\n2,Linus,20,FI\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	openPayload = postJSON(t, handler, "/api/open", map[string]any{
+		"path":        columnPath,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	columnDocumentID := openPayload["documentId"].(string)
+
+	columnCopyPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": columnDocumentID,
+		"sourceCols": []int{2, 3},
+		"targetCol":  4,
+		"cut":        false,
+	})
+	if columnCopyPayload["changed"].(float64) != 2 {
+		t.Fatalf("paste columns including last payload = %#v", columnCopyPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+columnDocumentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	gotHeader := rows[0].([]any)
+	gotFirst := rows[1].([]any)
+	if !reflect.DeepEqual(gotHeader, []any{"id", "name", "score", "city", "score", "city"}) ||
+		!reflect.DeepEqual(gotFirst, []any{"1", "Ada", "10", "UK", "10", "UK"}) {
+		t.Fatalf("columns after paste including last header=%#v first=%#v", gotHeader, gotFirst)
 	}
 }
 

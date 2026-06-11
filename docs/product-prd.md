@@ -488,6 +488,7 @@ Acceptance:
 - Editing then saving produces expected CSV.
 - Undo restores prior state.
 - Row/column paste after a multi-row or multi-column selection lands after the end of that selection, including when the selection includes the last row or column.
+- Row/column structural paste remains available after an internal Copy Row/Copy Column even when the system clipboard cannot be written.
 - Backup is byte-for-byte original before save.
 - Read-only mode blocks editing, save, undo/redo, structural mutations, and save-affecting format interpretation changes.
 - Save does not silently normalize encoding or line endings.

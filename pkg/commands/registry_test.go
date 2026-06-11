@@ -297,6 +297,9 @@ func TestPasteBelowAndRightCommandsAreWired(t *testing.T) {
 		`await pasteColumnFromClipboard({ placement: "after-selection" });`,
 		`function selectedRowPasteAfterTarget()`,
 		`function selectedColumnPasteRightTarget()`,
+		`onCopyReady: () => {`,
+		`setStructureClipboard("row", rowSelection.sourceRows, false)`,
+		`setStructureClipboard("column", sourceCols, false)`,
 		`addCommand("row.pasteBelow");`,
 		`addCommand("column.pasteRight");`,
 		`document.body.dataset.structurePaste = ` + "`row:${clipboard.cut ? \"cut\" : \"copy\"}:${placement}:${sources.join(\",\")}->${targetRow}`",
@@ -342,7 +345,7 @@ func TestRowColumnCopyAsFormatsAreWired(t *testing.T) {
 		"for (const commandID of copyRowFormatCommands.keys()) addCommand(commandID);",
 		"for (const commandID of copyColumnFormatCommands.keys()) addCommand(commandID);",
 		"status.textContent = `Copied ${label}: ${shape} as ${copyFormatLabel(format)}`",
-		`format === "tsv" && copied`,
+		`if (!copied && !includeHeaders && format === "tsv") clearStructureClipboard()`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing row/column copy-as wiring %q", snippet)

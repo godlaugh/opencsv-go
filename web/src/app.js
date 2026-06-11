@@ -11382,8 +11382,11 @@ async function copyActiveRow(options = {}) {
     },
     cellCount: columns.length * rowCount,
     format,
+    onCopyReady: () => {
+      if (!includeHeaders && format === "tsv") setStructureClipboard("row", rowSelection.sourceRows, false);
+    },
   });
-  if (!includeHeaders && format === "tsv" && copied) setStructureClipboard("row", rowSelection.sourceRows, false);
+  if (!copied && !includeHeaders && format === "tsv") clearStructureClipboard();
 }
 
 async function copyActiveColumn(options = {}) {
@@ -11405,8 +11408,11 @@ async function copyActiveColumn(options = {}) {
     },
     cellCount: sourceRowCount * colCount,
     format,
+    onCopyReady: () => {
+      if (!includeHeaders && format === "tsv") setStructureClipboard("column", sourceCols, false);
+    },
   });
-  if (!includeHeaders && format === "tsv" && copied) setStructureClipboard("column", sourceCols, false);
+  if (!copied && !includeHeaders && format === "tsv") clearStructureClipboard();
 }
 
 function normalizeCopyFormat(format) {
@@ -11426,7 +11432,7 @@ function copyFormatLabel(format) {
   }[normalizeCopyFormat(format)];
 }
 
-async function copyExportViewSlice({ label, body, cellCount, format = "tsv" }) {
+async function copyExportViewSlice({ label, body, cellCount, format = "tsv", onCopyReady = null }) {
   format = normalizeCopyFormat(format);
   const response = await fetch("/api/export-view", {
     method: "POST",
@@ -11446,6 +11452,7 @@ async function copyExportViewSlice({ label, body, cellCount, format = "tsv" }) {
   window.__opencsvLastCopiedText = text;
   document.body.dataset.copyPreview = text.slice(0, 500);
   document.body.dataset.copySlice = label;
+  if (onCopyReady) onCopyReady(text);
   try {
     await writeClipboardText(text);
     const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
