@@ -2175,6 +2175,30 @@ func TestServerFindFilterSort(t *testing.T) {
 	if sqlErrorDetail["caret"] != "       ^" {
 		t.Fatalf("sql error caret = %q, want marker under FROM", sqlErrorDetail["caret"])
 	}
+	repeatedTokenErrorResponse := postJSONResponse(t, handler, "/api/sql", map[string]any{
+		"documentId": documentID,
+		"query":      "SELECT name\nFROM current\nWHERE name = 'FROM'\nFROM current",
+	})
+	if repeatedTokenErrorResponse.Code != http.StatusBadRequest {
+		t.Fatalf("repeated-token sql error status = %d, want %d", repeatedTokenErrorResponse.Code, http.StatusBadRequest)
+	}
+	var repeatedTokenPayload map[string]any
+	if err := json.NewDecoder(repeatedTokenErrorResponse.Body).Decode(&repeatedTokenPayload); err != nil {
+		t.Fatal(err)
+	}
+	repeatedTokenDetail, ok := repeatedTokenPayload["sqlError"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing repeated-token sqlError detail in %#v", repeatedTokenPayload)
+	}
+	if repeatedTokenDetail["line"] != float64(4) || repeatedTokenDetail["column"] != float64(1) {
+		t.Fatalf("repeated-token sql error location = %#v:%#v, want 4:1", repeatedTokenDetail["line"], repeatedTokenDetail["column"])
+	}
+	if repeatedTokenDetail["token"] != "FROM" || repeatedTokenDetail["snippet"] != "FROM current" {
+		t.Fatalf("unexpected repeated-token sql error detail: %#v", repeatedTokenDetail)
+	}
+	if repeatedTokenDetail["caret"] != "^" {
+		t.Fatalf("repeated-token sql error caret = %q, want marker under FROM", repeatedTokenDetail["caret"])
+	}
 
 	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
 		"documentId": documentID,

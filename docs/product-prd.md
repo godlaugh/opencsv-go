@@ -576,7 +576,7 @@ The app shall support:
 - Export/save query result as CSV, TSV, Markdown, and JSON.
 - Query history.
 - Per-tab console state and split-pane size persistence.
-- Query errors with useful locations/messages.
+- Query errors with useful locations/messages, including common SQLite token locations that avoid string-literal false positives.
 - Long-running queries show running, completion, and cancellation elapsed time.
 - Clean-file SQL source loading shows source-row progress while loading CSV data into the query engine.
 

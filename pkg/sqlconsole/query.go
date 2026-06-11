@@ -317,12 +317,13 @@ func queryErrorDetail(query string, phase string, cause error, tokenHint string)
 		Phase:   phase,
 	}
 	token := strings.TrimSpace(tokenHint)
+	tokenOptions := sqlErrorTokenOptions{}
 	if token == "" {
-		token = sqlErrorToken(detail.Message)
+		token, tokenOptions = sqlErrorToken(detail.Message)
 	}
 	offset := -1
 	if token != "" {
-		offset = findQueryTokenOffset(query, token)
+		offset = findQueryTokenOffset(query, token, tokenOptions)
 	}
 	if offset < 0 {
 		offset = fallbackQueryErrorOffset(query, detail.Message)
@@ -341,9 +342,14 @@ func queryErrorDetail(query string, phase string, cause error, tokenHint string)
 	return detail
 }
 
-func sqlErrorToken(message string) string {
+type sqlErrorTokenOptions struct {
+	preferLast         bool
+	skipStringLiterals bool
+}
+
+func sqlErrorToken(message string) (string, sqlErrorTokenOptions) {
 	if token, ok := betweenAfter(message, `near "`, `"`); ok {
-		return token
+		return token, sqlErrorTokenOptions{preferLast: true, skipStringLiterals: true}
 	}
 	for _, marker := range []string{
 		"no such column:",
@@ -351,10 +357,10 @@ func sqlErrorToken(message string) string {
 		"no such table:",
 	} {
 		if token, ok := tokenAfter(message, marker); ok {
-			return token
+			return token, sqlErrorTokenOptions{skipStringLiterals: true}
 		}
 	}
-	return ""
+	return "", sqlErrorTokenOptions{}
 }
 
 func betweenAfter(value string, prefix string, suffix string) (string, bool) {
@@ -405,13 +411,23 @@ func fallbackQueryErrorOffset(query string, message string) int {
 	return firstNonSpaceOffset(query)
 }
 
-func findQueryTokenOffset(query string, token string) int {
+func findQueryTokenOffset(query string, token string, options sqlErrorTokenOptions) int {
 	trimmed := strings.Trim(token, `"'`+"`")
+	matches := make([]sqlToken, 0, 1)
 	for _, sqlToken := range scanSQLTokens(query) {
+		if options.skipStringLiterals && sqlToken.quote == '\'' {
+			continue
+		}
 		tokenText := strings.Trim(sqlToken.text, `"'`+"`")
 		if tokenText == token || strings.EqualFold(tokenText, token) || tokenText == trimmed || strings.EqualFold(tokenText, trimmed) {
-			return sqlToken.start
+			matches = append(matches, sqlToken)
 		}
+	}
+	if len(matches) > 0 {
+		if options.preferLast {
+			return matches[len(matches)-1].start
+		}
+		return matches[0].start
 	}
 	if index := strings.Index(query, token); index >= 0 {
 		return index
@@ -468,11 +484,7 @@ func queryLineSnippet(query string, offset int) (string, string) {
 
 func tokenAtOffset(query string, offset int, fallback string) string {
 	for _, token := range scanSQLTokens(query) {
-		end := token.start + len(token.text)
-		if token.quoted {
-			end += 2
-		}
-		if offset >= token.start && offset <= end {
+		if offset >= token.start && offset <= token.end {
 			return token.text
 		}
 	}
@@ -750,8 +762,10 @@ func isLoadableRef(ref string) bool {
 type sqlToken struct {
 	text   string
 	start  int
+	end    int
 	depth  int
 	quoted bool
+	quote  byte
 }
 
 func scanSQLTokens(query string) []sqlToken {
@@ -764,7 +778,7 @@ func scanSQLTokens(query string) []sqlToken {
 			continue
 		}
 		if r == '(' {
-			tokens = append(tokens, sqlToken{text: "(", start: index, depth: depth})
+			tokens = append(tokens, sqlToken{text: "(", start: index, end: index + 1, depth: depth})
 			depth++
 			index++
 			continue
@@ -773,12 +787,12 @@ func scanSQLTokens(query string) []sqlToken {
 			if depth > 0 {
 				depth--
 			}
-			tokens = append(tokens, sqlToken{text: ")", start: index, depth: depth})
+			tokens = append(tokens, sqlToken{text: ")", start: index, end: index + 1, depth: depth})
 			index++
 			continue
 		}
 		if r == ',' {
-			tokens = append(tokens, sqlToken{text: ",", start: index, depth: depth})
+			tokens = append(tokens, sqlToken{text: ",", start: index, end: index + 1, depth: depth})
 			index++
 			continue
 		}
@@ -800,7 +814,7 @@ func scanSQLTokens(query string) []sqlToken {
 				builder.WriteByte(query[index])
 				index++
 			}
-			tokens = append(tokens, sqlToken{text: builder.String(), start: start, depth: depth, quoted: true})
+			tokens = append(tokens, sqlToken{text: builder.String(), start: start, end: index, depth: depth, quoted: true, quote: quote})
 			continue
 		}
 		start := index
@@ -811,7 +825,7 @@ func scanSQLTokens(query string) []sqlToken {
 			}
 			index++
 		}
-		tokens = append(tokens, sqlToken{text: query[start:index], start: start, depth: depth})
+		tokens = append(tokens, sqlToken{text: query[start:index], start: start, end: index, depth: depth})
 	}
 	return tokens
 }
