@@ -116,9 +116,7 @@ func splitLocation(value string) (string, Location, error) {
 		if err != nil {
 			return "", Location{}, err
 		}
-		if end < start {
-			return "", Location{}, errors.New("end row must be greater than or equal to start row")
-		}
+		start, end = orderedPair(start, end)
 		return match[1], Location{StartRow: start, EndRow: end}, nil
 	}
 	if match := cellPattern.FindStringSubmatch(value); match != nil {
@@ -159,10 +157,16 @@ func makeLocation(startRow string, startCol string, endRow string, endCol string
 	if err != nil {
 		return Location{}, err
 	}
-	if er < sr || (er == sr && ec < sc) {
-		return Location{}, errors.New("range end must be after range start")
-	}
+	sr, er = orderedPair(sr, er)
+	sc, ec = orderedPair(sc, ec)
 	return Location{StartRow: sr, StartCol: sc, EndRow: er, EndCol: ec}, nil
+}
+
+func orderedPair(left int, right int) (int, int) {
+	if right < left {
+		return right, left
+	}
+	return left, right
 }
 
 func parseFormatParams(values url.Values) (FormatParams, error) {

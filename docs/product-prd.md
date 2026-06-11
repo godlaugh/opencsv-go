@@ -665,7 +665,9 @@ Acceptance:
 - Coordinates are 1-indexed.
 - Windows-style paths are accepted.
 - URL open can jump to target row/cell/range.
+- Reversed row/cell ranges normalize to the same selected region as the equivalent forward range.
 - URL format parameters accept official names and the app’s local compatibility aliases listed above.
+- Query option values may contain `=` when the resulting value is valid for that option, such as delimiter `=`.
 
 ### FR-012 Command Palette and Shortcuts
 

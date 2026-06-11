@@ -74,7 +74,7 @@ func TestParseSmoothCSVURL(t *testing.T) {
 }
 
 func TestParseOpenCSVURLNativeScheme(t *testing.T) {
-	target, err := ParseSmoothCSVURL("opencsv://file/tmp/data.csv:5?delimiter=pipe&quotemode=always")
+	target, err := ParseSmoothCSVURL("opencsv://file/tmp/data.csv:5?delimiter=pipe&quotemode=always&encoding=utf=8")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestParseOpenCSVURLNativeScheme(t *testing.T) {
 	if target.Location != (Location{StartRow: 5}) {
 		t.Fatalf("location = %#v", target.Location)
 	}
-	if target.Format.Delimiter != "pipe" || target.Format.QuoteMode != "always" {
+	if target.Format.Delimiter != "pipe" || target.Format.QuoteMode != "always" || target.Format.Encoding != "utf=8" {
 		t.Fatalf("format = %#v", target.Format)
 	}
 	if !IsCSVURL("opencsv://file/tmp/data.csv") || !IsCSVURL("smoothcsv://file/tmp/data.csv") {
@@ -149,13 +149,33 @@ func TestParseSmoothCSVURLWindowsPath(t *testing.T) {
 	}
 }
 
-func TestParseLocationRejectsInvalidRange(t *testing.T) {
-	if _, err := ParseGoto("data.csv:10-1"); err == nil {
-		t.Fatal("expected invalid row range error")
+func TestParseLocationNormalizesReversedRange(t *testing.T) {
+	rowRange, err := ParseGoto("data.csv:10-1")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := ParseGoto("data.csv:10:5-10:1"); err == nil {
-		t.Fatal("expected invalid cell range error")
+	if rowRange.Location != (Location{StartRow: 1, EndRow: 10}) {
+		t.Fatalf("row range = %#v, want 1-10", rowRange.Location)
 	}
+
+	cellRange, err := ParseGoto("data.csv:10:5-1:2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cellRange.Location != (Location{StartRow: 1, StartCol: 2, EndRow: 10, EndCol: 5}) {
+		t.Fatalf("cell range = %#v, want normalized rectangle", cellRange.Location)
+	}
+
+	urlRange, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv:10-1?delimiter==")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if urlRange.Location != (Location{StartRow: 1, EndRow: 10}) || urlRange.Format.Delimiter != "=" {
+		t.Fatalf("url range/format = %#v / %#v", urlRange.Location, urlRange.Format)
+	}
+}
+
+func TestParseLocationRejectsInvalidFormatParameters(t *testing.T) {
 	if _, err := ParseSmoothCSVURL("smoothcsv://file/tmp/data.csv?header-rows=-1"); err == nil {
 		t.Fatal("expected invalid format parameter error")
 	}

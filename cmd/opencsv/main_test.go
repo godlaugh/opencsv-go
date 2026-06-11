@@ -418,6 +418,38 @@ func TestRootOpenParsesOpenCSVURLScheme(t *testing.T) {
 	}
 }
 
+func TestRootOpenNormalizesURLSchemeReversedRangeAndEqualsQueryValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "url-range.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rawURL := "opencsv://file" + path + ":10-1?Delimiter=="
+	output, err := captureStdout(t, func() error {
+		return rootOpen([]string{rawURL})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invocation cliInvocation
+	if err := json.Unmarshal([]byte(output), &invocation); err != nil {
+		t.Fatal(err)
+	}
+	if len(invocation.Files) != 1 || invocation.Files[0].Location != (protocol.Location{StartRow: 1, EndRow: 10}) {
+		t.Fatalf("invocation files = %#v", invocation.Files)
+	}
+	if invocation.Files[0].Format.Delimiter != "=" {
+		t.Fatalf("delimiter = %q, want =", invocation.Files[0].Format.Delimiter)
+	}
+	webURL, err := url.Parse(invocation.WebURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webURL.Query().Get("goto") != "1-10" || webURL.Query().Get("delimiter") != "=" {
+		t.Fatalf("web URL query = %#v", webURL.Query())
+	}
+}
+
 func TestOpenCLITargetReadsStdin(t *testing.T) {
 	input, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
 	if err != nil {

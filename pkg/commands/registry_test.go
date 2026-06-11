@@ -263,6 +263,27 @@ func TestCloseTabShortcutDispatchWiring(t *testing.T) {
 	}
 }
 
+func TestURLLocationReversedRangeNormalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function orderedURLLocation(",
+		`if (match) return orderedURLLocation(match[1], match[2], match[3], match[4]);`,
+		`if (match) return orderedURLLocation(match[1], 1, match[2], "last");`,
+		"Math.min(rowStart, rowEnd)",
+		"Math.max(rowStart, rowEnd)",
+		"Math.min(colStart, colEnd)",
+		"Math.max(colStart, colEnd)",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing URL location reversed-range wiring %q", snippet)
+		}
+	}
+}
+
 func TestPasteBelowAndRightCommandsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

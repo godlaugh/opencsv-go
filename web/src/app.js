@@ -19111,14 +19111,31 @@ function locationFromParams(params) {
 function parseURLLocation(raw) {
   const value = String(raw).trim();
   let match = value.match(/^([0-9]+):([0-9]+)-([0-9]+):([0-9]+)$/);
-  if (match) return { startRow: match[1], startCol: match[2], endRow: match[3], endCol: match[4] };
+  if (match) return orderedURLLocation(match[1], match[2], match[3], match[4]);
   match = value.match(/^([0-9]+)-([0-9]+)$/);
-  if (match) return { startRow: match[1], startCol: 1, endRow: match[2], endCol: "last" };
+  if (match) return orderedURLLocation(match[1], 1, match[2], "last");
   match = value.match(/^([0-9]+):([0-9]+)$/);
   if (match) return { startRow: match[1], startCol: match[2] };
   match = value.match(/^([0-9]+)$/);
   if (match) return { startRow: match[1], startCol: 1 };
   return null;
+}
+
+function orderedURLLocation(startRow, startCol, endRow, endCol) {
+  const rowStart = Number.parseInt(String(startRow), 10);
+  const rowEnd = Number.parseInt(String(endRow), 10);
+  const colStart = Number.parseInt(String(startCol), 10);
+  const colEnd = endCol === "last" ? "last" : Number.parseInt(String(endCol), 10);
+  const orderedStartRow = Number.isFinite(rowStart) && Number.isFinite(rowEnd) ? Math.min(rowStart, rowEnd) : startRow;
+  const orderedEndRow = Number.isFinite(rowStart) && Number.isFinite(rowEnd) ? Math.max(rowStart, rowEnd) : endRow;
+  const orderedStartCol = Number.isFinite(colStart) && Number.isFinite(colEnd) ? Math.min(colStart, colEnd) : startCol;
+  const orderedEndCol = Number.isFinite(colStart) && Number.isFinite(colEnd) ? Math.max(colStart, colEnd) : endCol;
+  return {
+    startRow: String(orderedStartRow),
+    startCol: String(orderedStartCol),
+    endRow: String(orderedEndRow),
+    endCol: orderedEndCol === "last" ? "last" : String(orderedEndCol),
+  };
 }
 
 function normalizeDelimiterOverride(value) {
