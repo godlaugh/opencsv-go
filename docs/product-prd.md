@@ -537,6 +537,7 @@ Acceptance:
 - Header names work when header rows are enabled.
 - `c1`, `c2`, ... work when no header row exists.
 - `CAST` and `TRY_CAST` work for numeric, date, time, timestamp, and interval cases.
+- `LIKE` and `NOT LIKE` support `%` and `_` wildcards with bounded matching behavior even for repeated wildcard patterns.
 - Filtered row count is visible.
 - Reapplying a recent or saved filter restores the query without retyping.
 

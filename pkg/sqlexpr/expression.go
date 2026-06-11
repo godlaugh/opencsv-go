@@ -692,21 +692,55 @@ func compareIntervals(left value, right value) int {
 }
 
 func like(text string, pattern string) bool {
-	var builder strings.Builder
-	builder.WriteString("^")
-	for _, r := range pattern {
-		switch r {
-		case '%':
-			builder.WriteString(".*")
-		case '_':
-			builder.WriteString(".")
-		default:
-			builder.WriteString(regexp.QuoteMeta(string(r)))
+	textRunes := []rune(text)
+	patternRunes := collapseLikePercents([]rune(pattern))
+	previous := make([]bool, len(patternRunes)+1)
+	previous[0] = true
+	for index, patternRune := range patternRunes {
+		if patternRune != '%' {
+			break
 		}
+		previous[index+1] = true
 	}
-	builder.WriteString("$")
-	matched, err := regexp.MatchString(builder.String(), text)
-	return err == nil && matched
+
+	current := make([]bool, len(patternRunes)+1)
+	for _, textRune := range textRunes {
+		for index := range current {
+			current[index] = false
+		}
+		for index, patternRune := range patternRunes {
+			switch patternRune {
+			case '%':
+				current[index+1] = current[index] || previous[index+1]
+			case '_':
+				current[index+1] = previous[index]
+			default:
+				current[index+1] = previous[index] && patternRune == textRune
+			}
+		}
+		previous, current = current, previous
+	}
+	return previous[len(patternRunes)]
+}
+
+func collapseLikePercents(pattern []rune) []rune {
+	if len(pattern) == 0 {
+		return pattern
+	}
+	collapsed := make([]rune, 0, len(pattern))
+	previousPercent := false
+	for _, patternRune := range pattern {
+		if patternRune == '%' {
+			if previousPercent {
+				continue
+			}
+			previousPercent = true
+		} else {
+			previousPercent = false
+		}
+		collapsed = append(collapsed, patternRune)
+	}
+	return collapsed
 }
 
 func callFunction(name string, args []value) (value, error) {

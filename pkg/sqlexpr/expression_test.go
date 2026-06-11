@@ -1,6 +1,9 @@
 package sqlexpr
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestMatchHeaderNamesAndCColumns(t *testing.T) {
 	headers := []string{"id", "First Name", "amount", "status"}
@@ -28,6 +31,42 @@ func TestMatchHeaderNamesAndCColumns(t *testing.T) {
 				t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLikeWildcardSemantics(t *testing.T) {
+	tests := []struct {
+		name    string
+		text    string
+		pattern string
+		want    bool
+	}{
+		{name: "percent matches any run", text: "John Smith", pattern: "John%", want: true},
+		{name: "underscore matches one rune", text: "Jo", pattern: "J_", want: true},
+		{name: "underscore does not match zero runes", text: "J", pattern: "J_", want: false},
+		{name: "regex dot is literal", text: "aXb", pattern: "a.b", want: false},
+		{name: "regex brackets are literal", text: "ab", pattern: "a[bc]", want: false},
+		{name: "unicode underscore", text: "a界b", pattern: "a_b", want: true},
+		{name: "collapsed percents", text: "abcdef", pattern: "a%%%f", want: true},
+		{name: "not enough suffix", text: "aaaaaac", pattern: "%a%a%a%ab", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := like(tt.text, tt.pattern); got != tt.want {
+				t.Fatalf("like(%q, %q) = %v, want %v", tt.text, tt.pattern, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLikeRepeatedWildcardPatternIsBounded(t *testing.T) {
+	text := strings.Repeat("a", 512) + "c"
+	pattern := strings.Repeat("%a", 80) + "%b"
+	for range 1000 {
+		if like(text, pattern) {
+			t.Fatal("repeated LIKE wildcard pattern matched unexpected suffix")
+		}
 	}
 }
 
