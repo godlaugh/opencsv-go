@@ -461,6 +461,73 @@ func TestServerNewDocumentSaveAs(t *testing.T) {
 	}
 }
 
+func TestServerOpenSQLResultDocument(t *testing.T) {
+	handler := New(t.TempDir()).Handler()
+	payload := postJSON(t, handler, "/api/sql-result/open", map[string]any{
+		"name":    "../scores.sql-result.csv",
+		"columns": []string{"name", "score", ""},
+		"rows": [][]string{
+			{"Grace", "10", "top", "ignored"},
+			{"Ada"},
+		},
+	})
+
+	if payload["sourceKind"] != "sql-result" || payload["displayName"] != "scores.sql-result.csv" {
+		t.Fatalf("sql result source/display = %#v", payload)
+	}
+	documentID, ok := payload["documentId"].(string)
+	if !ok || documentID == "" {
+		t.Fatalf("missing documentId in %#v", payload)
+	}
+	document := payload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	if filepath.Base(metadata["path"].(string)) != "scores.sql-result.csv" {
+		t.Fatalf("sql result path = %#v", metadata["path"])
+	}
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["hasHeader"] != true || dialect["estimatedColumns"] != float64(3) {
+		t.Fatalf("sql result dialect = %#v", dialect)
+	}
+	preview := document["preview"].([]any)
+	if len(preview) < 3 {
+		t.Fatalf("sql result preview = %#v", preview)
+	}
+	header := preview[0].([]any)
+	if header[0] != "name" || header[1] != "score" || header[2] != "Column 3" {
+		t.Fatalf("sql result header = %#v", header)
+	}
+	first := preview[1].([]any)
+	if first[0] != "Grace" || first[1] != "10" || first[2] != "top" || len(first) != 3 {
+		t.Fatalf("sql result first row = %#v", first)
+	}
+	second := preview[2].([]any)
+	if second[0] != "Ada" || second[1] != "" || second[2] != "" {
+		t.Fatalf("sql result padded row = %#v", second)
+	}
+
+	sessionPayload := getJSON(t, handler, "/api/session?id="+documentID)
+	if sessionPayload["sourceKind"] != "sql-result" || sessionPayload["displayName"] != "scores.sql-result.csv" {
+		t.Fatalf("sql result session = %#v", sessionPayload)
+	}
+}
+
+func TestServerOpenSQLResultDocumentRequiresColumns(t *testing.T) {
+	response := postJSONResponse(t, New(t.TempDir()).Handler(), "/api/sql-result/open", map[string]any{
+		"name": "empty.csv",
+		"rows": [][]string{{"Ada"}},
+	})
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("empty sql result status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload["error"].(string), "columns are required") {
+		t.Fatalf("empty sql result payload = %#v", payload)
+	}
+}
+
 func TestServerOpenXLSXPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.xlsx")

@@ -253,7 +253,7 @@ flowchart TD
 
 - `pkg/sqlitebridge`
   - Future streaming/virtual-table adapter if in-memory row loading is not enough for 1 GB-scale queries.
-  - Future SQL result document/session model for editable or exportable query outputs.
+  - SQL result document/session opener for editable or exportable query outputs through temporary `SourceSQLResult` CSV sessions.
 
 - `web Diff View`
   - Prototype compare panel.
@@ -298,6 +298,7 @@ Rules:
 - `OriginalPath` is where save writes by default for real files.
 - `WorkingPath` is where the app reads from.
 - Browser uploads use `SourceUpload`; default save writes to the temp copy unless the user chooses Save As.
+- SQL result opens use `SourceSQLResult`; default save writes to the temp copy unless the user chooses Save As.
 - Desktop shell file opens use `SourceFile`; default save writes to original path.
 
 ## 5. API Contract
@@ -836,6 +837,7 @@ Output:
 - SQL Console frontend requests consume `/api/sql` NDJSON progress streaming, update running status text with source-load row counts, record `data-sql-elapsed-ms` plus source-load counters, and keep final elapsed time on completion or cancellation.
 - SQL Console stores successful query history, reloads a selected query into the editor, and clears local query history.
 - SQL Console result table supports rectangular range selection and selected-range CSV copy through the existing Copy CSV command.
+- SQL Console can open the latest query result as an editable temporary CSV document through `/api/sql-result/open`, preserving query output headers as the document header row and marking the session with `SourceSQLResult`.
 
 ### Performance Tests
 

@@ -27,7 +27,11 @@ type Server struct {
 	documents *docstore.Manager
 }
 
-const statusClientClosedRequest = 499
+const (
+	statusClientClosedRequest   = 499
+	maxSQLResultDocumentRows    = 5000
+	maxSQLResultDocumentColumns = 512
+)
 
 func New(webDir string) *Server {
 	server := &Server{
@@ -100,6 +104,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/diff-merge", server.handleDiffMerge)
 	server.mux.HandleFunc("POST /api/diff-edit-cell", server.handleDiffEditCell)
 	server.mux.HandleFunc("POST /api/sql", server.handleSQL)
+	server.mux.HandleFunc("POST /api/sql-result/open", server.handleOpenSQLResult)
 	server.mux.HandleFunc("POST /api/profile", server.handleProfile)
 	server.mux.Handle("/", http.FileServer(http.Dir(server.webDir)))
 }
@@ -157,6 +162,12 @@ type newDocumentRequest struct {
 	Name    string `json:"name"`
 	Rows    int    `json:"rows"`
 	Columns int    `json:"columns"`
+}
+
+type sqlResultOpenRequest struct {
+	Name    string     `json:"name"`
+	Columns []string   `json:"columns"`
+	Rows    [][]string `json:"rows"`
 }
 
 type fileSampleRequest struct {
@@ -508,6 +519,50 @@ func (server *Server) handleNew(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, openResponse{DocumentID: session.ID, Document: session.Document})
 }
 
+func (server *Server) handleOpenSQLResult(w http.ResponseWriter, r *http.Request) {
+	var request sqlResultOpenRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	records, err := sqlResultDocumentRecords(request.Columns, request.Rows)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	filename := sqlResultDocumentFilename(request.Name)
+	tempDir, err := os.MkdirTemp("", "opencsv-sql-result-*")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	targetPath := filepath.Join(tempDir, filename)
+	metadata := csvcore.FileMetadata{
+		Path:       targetPath,
+		Encoding:   csvcore.EncodingInfo{Name: csvcore.EncodingUTF8, Confidence: 1},
+		LineEnding: csvcore.LineEndingInfo{Name: csvcore.LineEndingLF, Sequence: "\n", Confidence: 1},
+		Dialect: csvcore.Dialect{
+			Delimiter:        ',',
+			DelimiterName:    "comma",
+			HasHeader:        true,
+			EstimatedColumns: len(records[0]),
+		},
+	}
+	if _, err := csvcore.SaveRecords(targetPath, metadata, records, csvcore.SaveOptions{}); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	hasHeader := true
+	session, err := server.documents.OpenPath(targetPath, docstore.SourceSQLResult, filename, csvcore.OpenOptions{PreviewRows: 160, IndexRows: -1, HasHeader: &hasHeader})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, openResponseFromSession(session))
+}
+
 func newDocumentFilename(raw string) string {
 	name := strings.TrimSpace(raw)
 	if name == "" {
@@ -521,6 +576,42 @@ func newDocumentFilename(raw string) string {
 		name += ".csv"
 	}
 	return name
+}
+
+func sqlResultDocumentFilename(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return "SQL Result.csv"
+	}
+	return newDocumentFilename(raw)
+}
+
+func sqlResultDocumentRecords(columns []string, rows [][]string) ([][]string, error) {
+	if len(columns) == 0 {
+		return nil, errors.New("columns are required")
+	}
+	if len(columns) > maxSQLResultDocumentColumns {
+		return nil, fmt.Errorf("columns exceed limit of %d", maxSQLResultDocumentColumns)
+	}
+	if len(rows) > maxSQLResultDocumentRows {
+		return nil, fmt.Errorf("rows exceed limit of %d", maxSQLResultDocumentRows)
+	}
+
+	width := len(columns)
+	records := make([][]string, 0, len(rows)+1)
+	header := make([]string, width)
+	for index, column := range columns {
+		header[index] = column
+		if strings.TrimSpace(header[index]) == "" {
+			header[index] = fmt.Sprintf("Column %d", index+1)
+		}
+	}
+	records = append(records, header)
+	for _, row := range rows {
+		record := make([]string, width)
+		copy(record, row)
+		records = append(records, record)
+	}
+	return records, nil
 }
 
 func clampNewDocumentDimension(value int, fallback int, limit int) int {

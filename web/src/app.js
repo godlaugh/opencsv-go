@@ -115,6 +115,7 @@ const sqlInput = document.querySelector("#sqlInput");
 const runSqlButton = document.querySelector("#runSqlButton");
 const cancelSqlButton = document.querySelector("#cancelSqlButton");
 const sqlResultFormatSelect = document.querySelector("#sqlResultFormatSelect");
+const openSqlResultButton = document.querySelector("#openSqlResultButton");
 const copySqlResultButton = document.querySelector("#copySqlResultButton");
 const exportSqlResultButton = document.querySelector("#exportSqlResultButton");
 const sqlHistoryList = document.querySelector("#sqlHistoryList");
@@ -449,6 +450,7 @@ const sqlResultContextCommandIDs = new Set([
   "sql.copyRowWithHeaders",
   "sql.copyColumn",
   "sql.copyColumnWithHeader",
+  "sql.openResult",
   "sql.clearSelection",
 ]);
 const sqlResultTargetCommandIDs = new Set([
@@ -881,6 +883,7 @@ const localeCatalog = {
     "sql.run": "Run",
     "sql.copy": "Copy",
     "sql.export": "Export",
+    "sql.openResult": "Open Result",
     "sql.clear": "Clear",
     "sql.empty.prompt": "Run SQL to inspect results.",
     "sql.empty.history": "No query history",
@@ -906,6 +909,10 @@ const localeCatalog = {
     "sql.status.failedAt": "SQL failed at line {{line}}, column {{column}}: {{message}}",
     "sql.status.runBeforeCopy": "Run a SQL query before copying results.",
     "sql.status.runBeforeExport": "Run a SQL query before exporting results.",
+    "sql.status.runBeforeOpen": "Run a SQL query before opening results.",
+    "sql.status.openingResult": "Opening SQL result...",
+    "sql.status.openedResult": "Opened SQL result as {{name}}: {{rows}} rows, {{cols}} columns",
+    "sql.status.openResultFailed": "Open SQL result failed: {{message}}",
     "sql.status.selectCell": "Select a SQL result cell first.",
     "sql.status.selectRow": "Select a SQL result row first.",
     "sql.status.selectColumn": "Select a SQL result column first.",
@@ -930,6 +937,7 @@ const localeCatalog = {
     "sql.context.copySelectionAs": "Copy Selection as {{format}}",
     "sql.context.copyResultAs": "Copy Result as {{format}}",
     "sql.context.exportResultAs": "Export Result as {{format}}",
+    "sql.context.openResult": "Open Result as Document",
     "sql.context.clearSelection": "Clear Selection",
     "profile.run": "Run Profile",
     "profile.schema": "Schema",
@@ -1572,6 +1580,7 @@ const localeCatalog = {
     "sql.run": "运行",
     "sql.copy": "复制",
     "sql.export": "导出",
+    "sql.openResult": "打开结果",
     "sql.clear": "清除",
     "sql.empty.prompt": "运行 SQL 以查看结果。",
     "sql.empty.history": "没有查询历史",
@@ -1597,6 +1606,10 @@ const localeCatalog = {
     "sql.status.failedAt": "SQL 在第 {{line}} 行、第 {{column}} 列失败：{{message}}",
     "sql.status.runBeforeCopy": "复制结果前请先运行 SQL 查询。",
     "sql.status.runBeforeExport": "导出结果前请先运行 SQL 查询。",
+    "sql.status.runBeforeOpen": "打开结果前请先运行 SQL 查询。",
+    "sql.status.openingResult": "正在打开 SQL 结果...",
+    "sql.status.openedResult": "已将 SQL 结果打开为 {{name}}：{{rows}} 行，{{cols}} 列",
+    "sql.status.openResultFailed": "打开 SQL 结果失败：{{message}}",
     "sql.status.selectCell": "请先选择一个 SQL 结果单元格。",
     "sql.status.selectRow": "请先选择一个 SQL 结果行。",
     "sql.status.selectColumn": "请先选择一个 SQL 结果列。",
@@ -1621,6 +1634,7 @@ const localeCatalog = {
     "sql.context.copySelectionAs": "复制选区为 {{format}}",
     "sql.context.copyResultAs": "复制结果为 {{format}}",
     "sql.context.exportResultAs": "导出结果为 {{format}}",
+    "sql.context.openResult": "将结果打开为文档",
     "sql.context.clearSelection": "清除选择",
     "profile.run": "运行概况",
     "profile.schema": "架构",
@@ -9524,6 +9538,9 @@ async function executeCommand(commandID) {
     case "view.sql":
       setViewMode("sql");
       break;
+    case "sql.openResult":
+      await openSQLResultAsDocument();
+      break;
     case "sql.copyCell":
       await copySQLContextCell();
       break;
@@ -11000,6 +11017,7 @@ function loadDocument(document) {
   profileSummary.replaceChildren();
   sqlResult.replaceChildren(emptySQLNode(t("sql.empty.prompt")));
   delete window.document.body.dataset.sqlResultPreview;
+  delete window.document.body.dataset.sqlResultOpened;
   syncSQLResultActions();
   dataStartRow = document.metadata.dialect.hasHeader ? 1 : 0;
   viewMapped = false;
@@ -11622,6 +11640,68 @@ async function exportSQLResult(format = "csv") {
   });
 }
 
+async function openSQLResultAsDocument() {
+  const result = lastSQLResult;
+  const columns = sqlResultColumns(result).map((column, index) => String(column || `Column ${index + 1}`));
+  if (!result || !columns.length) {
+    status.textContent = t("sql.status.runBeforeOpen");
+    return;
+  }
+  const rows = (result.rows ?? []).map((row) =>
+    columns.map((_, index) => {
+      const value = row?.[index] ?? "";
+      return typeof value === "string" ? value : String(value);
+    }),
+  );
+  const name = sqlResultFilename("csv");
+  const bodyRows = rows.length;
+  const colCount = columns.length;
+  captureActiveOpenFileTabState();
+  saveCurrentScrollPosition();
+  status.textContent = t("sql.status.openingResult");
+  try {
+    const response = await fetch("/api/sql-result/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, columns, rows }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "open SQL result failed");
+
+    documentId = payload.documentId;
+    metadata = payload.document.metadata;
+    readOnly = false;
+    externalFileChanged = false;
+    clearStructureClipboard();
+    loadDocument(payload.document);
+    const displayName = payload.displayName || name;
+    const sourceKind = payload.sourceKind || "sql-result";
+    pathInput.value = displayName;
+    updateFormatRulePlaceholder(displayName);
+    updateFileList(displayName, "temporary upload", totalRows, {
+      documentId,
+      sourceKind,
+    });
+    document.body.dataset.openSourceKind = sourceKind;
+    document.body.dataset.openDisplayName = displayName;
+    document.body.dataset.sqlResultOpened = `${bodyRows}:${colCount}:${displayName}`;
+    delete document.body.dataset.stdinUrlBoot;
+    delete document.body.dataset.newFile;
+    setViewMode("grid");
+    draw();
+    startFileStatusChecks();
+    await checkFileStatus(false);
+    status.textContent = tf("sql.status.openedResult", {
+      name: displayName,
+      rows: formatCount(bodyRows),
+      cols: formatCount(colCount),
+    });
+    canvas.focus();
+  } catch (error) {
+    status.textContent = tf("sql.status.openResultFailed", { message: error.message });
+  }
+}
+
 function sqlResultMatrix(result) {
   const sqlColumns = sqlResultColumns(result);
   if (!result || (!sqlColumns.length && !result.rows?.length)) return [];
@@ -11729,8 +11809,10 @@ function syncSQLResultActions() {
     sqlResultFormatSelect.disabled = !available;
     document.body.dataset.sqlResultFormat = format;
   }
+  openSqlResultButton.textContent = t("sql.openResult");
   copySqlResultButton.textContent = t("sql.copy");
   exportSqlResultButton.textContent = t("sql.export");
+  openSqlResultButton.disabled = !available;
   copySqlResultButton.disabled = !available;
   exportSqlResultButton.disabled = !available;
   updateCommandState();
@@ -11898,6 +11980,8 @@ function renderSQLResultContextMenu(target, clientX, clientY) {
     const formatLabel = sqlResultFormatLabel(format);
     addCommand(`sql.exportResult${sqlResultFormatCommandSuffix(format)}`, tf("sql.context.exportResultAs", { format: formatLabel }));
   }
+  addSeparator();
+  addCommand("sql.openResult", t("sql.context.openResult"));
   addCommand("sql.clearSelection", t("sql.context.clearSelection"), { disabled: !selectedMatrix });
 
   gridContextMenu.hidden = false;
@@ -12483,7 +12567,7 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
 function pathInputValueForOpenSession(session, detail, fallbackName = "") {
   const sourceKind = String(session?.sourceKind || "").toLowerCase();
   if (sourceKind === "stdin") return "stdin";
-  if (sourceKind === "upload") return session?.displayName || fallbackName || detail || "";
+  if (sourceKind === "upload" || sourceKind === "sql-result") return session?.displayName || fallbackName || detail || "";
   return detail || session?.displayName || fallbackName || "";
 }
 
@@ -19473,6 +19557,7 @@ quoteEscapeSelect.addEventListener("change", () => {
 runSqlButton.addEventListener("click", runSQLQuery);
 cancelSqlButton.addEventListener("click", cancelSQLRequest);
 sqlResultFormatSelect?.addEventListener("change", syncSQLResultActions);
+openSqlResultButton.addEventListener("click", openSQLResultAsDocument);
 copySqlResultButton.addEventListener("click", copyCurrentSQLResult);
 exportSqlResultButton.addEventListener("click", exportCurrentSQLResult);
 clearSqlHistoryButton.addEventListener("click", clearSQLHistory);

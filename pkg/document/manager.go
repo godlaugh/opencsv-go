@@ -29,9 +29,10 @@ import (
 type SourceKind string
 
 const (
-	SourceFile   SourceKind = "file"
-	SourceUpload SourceKind = "upload"
-	SourceStdin  SourceKind = "stdin"
+	SourceFile      SourceKind = "file"
+	SourceUpload    SourceKind = "upload"
+	SourceStdin     SourceKind = "stdin"
+	SourceSQLResult SourceKind = "sql-result"
 )
 
 type Cell struct {
