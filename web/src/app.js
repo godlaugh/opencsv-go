@@ -4058,6 +4058,43 @@ function syncStatusbarSurface(mode = viewMode) {
   document.body.dataset.statusbarVisible = String(!statusbar.hidden);
 }
 
+function syncPlatformDialogButtonOrder() {
+  const platform = platformDialogButtonOrder();
+  const confirmLeft = platform === "windows";
+  const orderName = confirmLeft ? "confirm-left" : "confirm-right";
+  let actionCount = 0;
+  for (const actions of document.querySelectorAll("[data-dialog-actions]")) {
+    actionCount++;
+    actions.dataset.dialogButtonOrder = orderName;
+    for (const button of actions.querySelectorAll("button")) {
+      const role = button.dataset.dialogRole || "secondary";
+      button.style.order = String(dialogButtonOrderValue(role, confirmLeft));
+    }
+  }
+  document.body.dataset.dialogButtonPlatform = platform;
+  document.body.dataset.dialogButtonOrder = orderName;
+  document.body.dataset.dialogActionCount = String(actionCount);
+}
+
+function platformDialogButtonOrder() {
+  const params = new URLSearchParams(window.location.search);
+  const override = params.get("dialogPlatform") || params.get("dialog-platform") || "";
+  const platform = String(
+    override ||
+    navigator.userAgentData?.platform ||
+    navigator.platform ||
+    navigator.userAgent ||
+    "",
+  ).toLowerCase();
+  return platform.startsWith("win") || platform.includes("windows") ? "windows" : "standard";
+}
+
+function dialogButtonOrderValue(role, confirmLeft) {
+  if (role === "confirm") return confirmLeft ? 0 : 2;
+  if (role === "cancel") return confirmLeft ? 2 : 0;
+  return 1;
+}
+
 async function loadCommandRegistry() {
   try {
     const response = await fetch("/api/commands");
@@ -19776,5 +19813,6 @@ renderFormatPresetSelect();
 refreshFilterDropdown();
 renderSettingsPanel();
 syncStatusbarSurface("grid");
+syncPlatformDialogButtonOrder();
 openInitialURLTarget();
 maybeRunStartupUpdateCheck();

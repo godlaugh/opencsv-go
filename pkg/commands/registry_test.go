@@ -1098,6 +1098,48 @@ func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
 	}
 }
 
+func TestPlatformDialogButtonOrderIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		"function syncPlatformDialogButtonOrder()",
+		"function platformDialogButtonOrder()",
+		"function dialogButtonOrderValue(role, confirmLeft)",
+		`document.querySelectorAll("[data-dialog-actions]")`,
+		`actions.dataset.dialogButtonOrder = orderName`,
+		`document.body.dataset.dialogButtonPlatform = platform`,
+		`document.body.dataset.dialogButtonOrder = orderName`,
+		`params.get("dialogPlatform")`,
+		`platform.startsWith("win") || platform.includes("windows") ? "windows" : "standard"`,
+		"syncPlatformDialogButtonOrder()",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing platform dialog button order wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`data-dialog-actions`,
+		`id="confirmSaveAsButton" type="button" data-dialog-role="confirm"`,
+		`id="cancelSaveAsButton" type="button" data-dialog-role="cancel"`,
+		`id="confirmTransposeButton" type="button" data-dialog-role="confirm"`,
+		`id="cancelTransposeConfirmButton" type="button" data-dialog-role="cancel"`,
+		`id="confirmOpenLinkButton" type="button" data-i18n="link.prompt.open" data-dialog-role="confirm"`,
+		`id="cancelOpenLinkButton" type="button" data-i18n="link.prompt.cancel" data-dialog-role="cancel"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing platform dialog button order html %q", snippet)
+		}
+	}
+}
+
 func TestLaunchURLFlagsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

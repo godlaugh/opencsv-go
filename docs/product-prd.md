@@ -786,6 +786,7 @@ The app shall support:
 - Move tabs between groups by drag/drop, tab context menu, and command palette actions.
 - Switch focus between editor groups by command.
 - The status bar remains visible and reports the active surface while Grid, SQL, Diff, Profile, or Settings editors are active.
+- Dialog action buttons follow platform-native ordering: confirming actions appear on the left on Windows and on the right on other platforms.
 - Persistent window size, position, and maximized state.
 - Title/menu entry points for Settings and Keyboard Shortcuts.
 - Settings search, section-level modified/default indicators, and reset-to-default controls.
@@ -801,6 +802,7 @@ Acceptance:
 - Opening many files does not push the app chrome out of the viewport, and the active open-file tab stays visible in the sidebar.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
 - Switching between grid and non-grid editor surfaces never hides the status bar.
+- Confirmation dialogs expose a verifiable platform order and keep cancel/confirm actions in the expected native order.
 - Settings sections changed from defaults are visibly marked and can be reset independently.
 - Disabling automatic update checks prevents startup update network calls.
 

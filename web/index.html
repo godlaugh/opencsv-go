@@ -695,9 +695,9 @@
         <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" />
         <div id="shortcutImportPanel" class="shortcut-import-panel" hidden>
           <textarea id="shortcutImportText" spellcheck="false" aria-label="Shortcut import JSON" placeholder='{"kind":"opencsv-shortcuts","shortcuts":{}}'></textarea>
-          <div class="shortcut-import-actions">
-            <button id="applyShortcutImportButton" type="button">Apply Import</button>
-            <button id="cancelShortcutImportButton" type="button">Cancel</button>
+          <div class="shortcut-import-actions" data-dialog-actions>
+            <button id="applyShortcutImportButton" type="button" data-dialog-role="confirm">Apply Import</button>
+            <button id="cancelShortcutImportButton" type="button" data-dialog-role="cancel">Cancel</button>
           </div>
         </div>
         <div id="shortcutsList" class="shortcut-list" role="list" aria-label="Shortcut commands"></div>
@@ -749,9 +749,9 @@
           <span>Path</span>
           <input id="saveAsPath" type="text" spellcheck="false" placeholder="/tmp/output.csv" aria-label="Save as path" />
         </label>
-        <footer class="condition-actions">
-          <button id="cancelSaveAsButton" type="button">Cancel</button>
-          <button id="confirmSaveAsButton" type="button">Save</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="cancelSaveAsButton" type="button" data-dialog-role="cancel">Cancel</button>
+          <button id="confirmSaveAsButton" type="button" data-dialog-role="confirm">Save</button>
         </footer>
       </section>
     </div>
@@ -779,11 +779,11 @@
         <div class="external-change-body">
           <p id="externalChangeMessage">The backing file changed on disk.</p>
         </div>
-        <footer class="condition-actions">
-          <button id="keepExternalChangeButton" type="button">Keep Editing</button>
-          <button id="compareExternalChangeButton" type="button">Compare Disk</button>
-          <button id="saveAsExternalChangeButton" type="button">Save As</button>
-          <button id="reloadExternalChangeButton" type="button">Reload from Disk</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="keepExternalChangeButton" type="button" data-dialog-role="cancel">Keep Editing</button>
+          <button id="compareExternalChangeButton" type="button" data-dialog-role="secondary">Compare Disk</button>
+          <button id="saveAsExternalChangeButton" type="button" data-dialog-role="secondary">Save As</button>
+          <button id="reloadExternalChangeButton" type="button" data-dialog-role="confirm">Reload from Disk</button>
         </footer>
       </section>
     </div>
@@ -799,9 +799,9 @@
           <p id="transposeConfirmDetail">This operation rewrites the current table and can be undone before Save.</p>
           <p id="transposeConfirmWarning" class="transpose-confirm-warning">Large transposes can take time and memory.</p>
         </div>
-        <footer class="condition-actions">
-          <button id="cancelTransposeConfirmButton" type="button">Cancel</button>
-          <button id="confirmTransposeButton" type="button">Transpose</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="cancelTransposeConfirmButton" type="button" data-dialog-role="cancel">Cancel</button>
+          <button id="confirmTransposeButton" type="button" data-dialog-role="confirm">Transpose</button>
         </footer>
       </section>
     </div>
@@ -817,9 +817,9 @@
           <p id="splitConfirmDetail">Review this split before applying.</p>
           <p id="splitConfirmWarning" class="transpose-confirm-warning">Overwrite conflicts detected.</p>
         </div>
-        <footer class="condition-actions">
-          <button id="cancelSplitConfirmButton" type="button">Cancel</button>
-          <button id="confirmSplitConfirmButton" type="button">Split anyway</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="cancelSplitConfirmButton" type="button" data-dialog-role="cancel">Cancel</button>
+          <button id="confirmSplitConfirmButton" type="button" data-dialog-role="confirm">Split anyway</button>
         </footer>
       </section>
     </div>
@@ -836,9 +836,9 @@
           </div>
           <textarea id="cellValueDialogInput" spellcheck="false" aria-label="Large cell value"></textarea>
         </div>
-        <footer class="condition-actions">
-          <button id="revertCellValueDialogButton" type="button" disabled>Revert</button>
-          <button id="applyCellValueDialogButton" type="button">Apply</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="revertCellValueDialogButton" type="button" disabled data-dialog-role="cancel">Revert</button>
+          <button id="applyCellValueDialogButton" type="button" data-dialog-role="confirm">Apply</button>
         </footer>
       </section>
     </div>
@@ -847,7 +847,6 @@
       <section class="link-confirm-dialog" role="dialog" aria-modal="true" aria-label="Open custom link">
         <header class="condition-panel-header">
           <strong data-i18n="link.prompt.title">Open Custom Link</strong>
-          <button id="cancelOpenLinkButton" type="button" data-i18n="link.prompt.cancel">Cancel</button>
         </header>
         <div class="link-confirm-body">
           <span id="linkConfirmProtocol">Custom protocol</span>
@@ -857,8 +856,9 @@
             <span data-i18n="link.prompt.remember">Remember this protocol</span>
           </label>
         </div>
-        <footer class="condition-actions">
-          <button id="confirmOpenLinkButton" type="button" data-i18n="link.prompt.open">Open Link</button>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="cancelOpenLinkButton" type="button" data-i18n="link.prompt.cancel" data-dialog-role="cancel">Cancel</button>
+          <button id="confirmOpenLinkButton" type="button" data-i18n="link.prompt.open" data-dialog-role="confirm">Open Link</button>
         </footer>
       </section>
     </div>
@@ -946,10 +946,10 @@
           </fieldset>
           <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
         </div>
-        <footer class="condition-actions">
+        <footer class="condition-actions" data-dialog-actions>
           <button id="addConditionButton" type="button" data-i18n="condition.add">Add Condition</button>
-          <button id="applyConditionButton" type="button" data-i18n="condition.apply">Apply</button>
-          <button id="clearConditionButton" type="button" data-i18n="condition.clearView">Clear View</button>
+          <button id="applyConditionButton" type="button" data-i18n="condition.apply" data-dialog-role="confirm">Apply</button>
+          <button id="clearConditionButton" type="button" data-i18n="condition.clearView" data-dialog-role="cancel">Clear View</button>
         </footer>
       </section>
     </div>
