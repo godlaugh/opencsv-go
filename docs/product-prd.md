@@ -2,7 +2,7 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-06-09
+Last updated: 2026-06-11
 
 ## 1. Source Baseline
 
@@ -25,7 +25,7 @@ This PRD is derived from public SmoothCSV product materials and official project
 
 Formal snapshot points used in this PRD pass:
 
-- Baseline verification date: 2026-06-09.
+- Baseline verification date: 2026-06-11.
 - Most recent public release reviewed: v3.21.1 (published 2026-06-07).
 - Public source policy pages reviewed:
   - Terms effective date: 2026-04-05.
@@ -33,7 +33,7 @@ Formal snapshot points used in this PRD pass:
   - Refund policy effective date: 2026-04-27.
 - Pricing snapshot: optional one-time and team license model with unlimited-device and offline usage as documented on the pricing page; all current features remain available without purchase.
 
-Latest public source check: 2026-06-09. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
+Latest public source check: 2026-06-11. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
 
 The most recent public release currently tracked in the official GitHub repository is **v3.21.1** (published 2026-06-07). Its release notes emphasize:
 
@@ -469,7 +469,7 @@ The app shall support:
 - Insert/delete columns.
 - Move rows/columns through commands and native-feeling drag reordering where available.
 - Swap selected cells with adjacent cells in any direction.
-- Copy/cut/paste rows and columns.
+- Copy/cut/paste rows and columns before the active row/column and after the selected row/column range.
 - Remove duplicate rows and columns.
 - Transform selected text cells: trim, uppercase, lowercase, naming/case conversions, full-width/half-width conversions, and join/split horizontally and vertically with a configurable separator. Split operations shall protect non-empty target cells unless overwrite is explicitly requested.
 - Undo/redo.
@@ -486,6 +486,7 @@ Acceptance:
 
 - Editing then saving produces expected CSV.
 - Undo restores prior state.
+- Row/column paste after a multi-row or multi-column selection lands after the end of that selection, including when the selection includes the last row or column.
 - Backup is byte-for-byte original before save.
 - Read-only mode blocks editing, save, undo/redo, structural mutations, and save-affecting format interpretation changes.
 - Save does not silently normalize encoding or line endings.

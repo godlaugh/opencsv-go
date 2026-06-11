@@ -4203,12 +4203,12 @@ function isCommandDisabled(command) {
     command.id === "selection.insertAggregateRow" ||
     aggregateRowCommandMetrics.has(command.id);
   const needsColumn = command.id === "format.toggleColumnQuote" || needsColumnAction;
-  const needsBodyRow = command.id === "row.cut" || command.id === "row.paste";
+  const needsBodyRow = command.id === "row.cut" || command.id === "row.paste" || command.id === "row.pasteBelow";
   const needsMappedRows = command.id === "row.showAll";
-  const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste";
+  const needsVisibleColumn = command.id === "column.cut" || command.id === "column.paste" || command.id === "column.pasteRight";
   const needsHiddenColumn = command.id === "column.showAll";
-  const needsRowClipboard = command.id === "row.paste";
-  const needsColumnClipboard = command.id === "column.paste";
+  const needsRowClipboard = command.id === "row.paste" || command.id === "row.pasteBelow";
+  const needsColumnClipboard = command.id === "column.paste" || command.id === "column.pasteRight";
   const needsUpdateChecksEnabled = command.id === "settings.checkForUpdates";
   const needsWorkbookSheet = command.id === "format.switchWorksheet";
   const needsProfileIdle = command.id === "profile.run";
@@ -4234,6 +4234,7 @@ function isCommandDisabled(command) {
       command.id === "row.delete" ||
       command.id === "row.cut" ||
       command.id === "row.paste" ||
+      command.id === "row.pasteBelow" ||
       command.id === "row.hide" ||
       command.id === "row.moveUp" ||
       command.id === "row.moveDown" ||
@@ -4241,6 +4242,7 @@ function isCommandDisabled(command) {
       command.id === "column.delete" ||
       command.id === "column.cut" ||
       command.id === "column.paste" ||
+      command.id === "column.pasteRight" ||
       command.id === "column.hide" ||
       command.id === "column.moveLeft" ||
       command.id === "column.moveRight" ||
@@ -6947,6 +6949,7 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("row.delete");
     addCommand("row.cut");
     addCommand("row.paste");
+    addCommand("row.pasteBelow");
     addCommand("row.hide");
     addCommand("row.showAll");
   }
@@ -6956,6 +6959,7 @@ function renderGridContextMenu(target, clientX, clientY) {
     addCommand("column.delete");
     addCommand("column.cut");
     addCommand("column.paste");
+    addCommand("column.pasteRight");
     addCommand("column.hide");
     addCommand("column.showAll");
   }
@@ -9219,6 +9223,9 @@ async function executeCommand(commandID) {
     case "row.paste":
       await pasteRowFromClipboard();
       break;
+    case "row.pasteBelow":
+      await pasteRowFromClipboard({ placement: "after-selection" });
+      break;
     case "row.hide":
       await hideSelectedRow();
       break;
@@ -9242,6 +9249,9 @@ async function executeCommand(commandID) {
       break;
     case "column.paste":
       await pasteColumnFromClipboard();
+      break;
+    case "column.pasteRight":
+      await pasteColumnFromClipboard({ placement: "after-selection" });
       break;
     case "column.hide":
       hideSelectedColumn();
@@ -10985,6 +10995,12 @@ function selectedRowsForStructure() {
   return displayRows.length ? { displayRows, sourceRows } : null;
 }
 
+function selectedRowPasteAfterTarget() {
+  const rowSelection = selectedRowsForStructure();
+  if (!rowSelection) return null;
+  return Math.max(...rowSelection.sourceRows) + 1;
+}
+
 function selectedColumnsForStructure() {
   const sourceCols = [];
   const seen = new Set();
@@ -10997,6 +11013,12 @@ function selectedColumnsForStructure() {
     }
   }
   return sourceCols.length ? sourceCols : null;
+}
+
+function selectedColumnPasteRightTarget() {
+  const sourceCols = selectedColumnsForStructure();
+  if (!sourceCols) return null;
+  return Math.min(Math.max(...sourceCols) + 1, Math.max(...allColumns.map((column) => column.sourceCol), -1) + 1);
 }
 
 function selectedMatrix() {
@@ -14532,7 +14554,7 @@ function cutSelectedRow() {
   status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "row" : "rows"} for paste.`;
 }
 
-async function pasteRowFromClipboard() {
+async function pasteRowFromClipboard(options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Paste Row")) return;
   if (aggregateRowAt(selected.row)) {
@@ -14545,9 +14567,13 @@ async function pasteRowFromClipboard() {
     updateCommandState();
     return;
   }
-  const targetRow = selectedSourceRow();
+  const placement = options.placement || "before-active";
+  const targetRow = placement === "after-selection" ? selectedRowPasteAfterTarget() : selectedSourceRow();
+  if (targetRow == null) return;
   const sources = clipboard.sources ?? [clipboard.source];
-  const action = clipboard.cut ? "Move row" : "Paste row";
+  const action = clipboard.cut
+    ? placement === "after-selection" ? "Move row below" : "Move row"
+    : placement === "after-selection" ? "Paste row below" : "Paste row";
   status.textContent = `${action}...`;
   const response = await fetch("/api/row/paste", {
     method: "POST",
@@ -14568,9 +14594,11 @@ async function pasteRowFromClipboard() {
   const changed = payload.changed ?? 0;
   const count = sources.length;
   const label = `${formatCount(count)} ${count === 1 ? "row" : "rows"}`;
-  const message = changed > 0 ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}`) : "Row paste did not change the document";
+  const message = changed > 0
+    ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}${placement === "after-selection" ? " below" : ""}`)
+    : "Row paste did not change the document";
   applyMutationPayload(payload, message);
-  document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${sources.join(",")}->${targetRow}`;
+  document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${placement}:${sources.join(",")}->${targetRow}`;
   if (clipboard.cut) clearStructureClipboard();
 }
 
@@ -14757,7 +14785,7 @@ function cutSelectedColumn() {
   status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "column" : "columns"} for paste.`;
 }
 
-async function pasteColumnFromClipboard() {
+async function pasteColumnFromClipboard(options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Paste Column")) return;
   if (!columns[selected.col]) {
@@ -14770,9 +14798,13 @@ async function pasteColumnFromClipboard() {
     updateCommandState();
     return;
   }
-  const targetCol = sourceColFor(selected.col);
+  const placement = options.placement || "before-active";
+  const targetCol = placement === "after-selection" ? selectedColumnPasteRightTarget() : sourceColFor(selected.col);
+  if (targetCol == null) return;
   const sources = clipboard.sources ?? [clipboard.source];
-  const action = clipboard.cut ? "Move column" : "Paste column";
+  const action = clipboard.cut
+    ? placement === "after-selection" ? "Move column right" : "Move column"
+    : placement === "after-selection" ? "Paste column right" : "Paste column";
   status.textContent = `${action}...`;
   const response = await fetch("/api/column/paste", {
     method: "POST",
@@ -14793,9 +14825,11 @@ async function pasteColumnFromClipboard() {
   const changed = payload.changed ?? 0;
   const count = sources.length;
   const label = `${formatCount(count)} ${count === 1 ? "column" : "columns"}`;
-  const message = changed > 0 ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}`) : "Column paste did not change the document";
+  const message = changed > 0
+    ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}${placement === "after-selection" ? " right" : ""}`)
+    : "Column paste did not change the document";
   applyMutationPayload(payload, message);
-  document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${sources.join(",")}->${targetCol}`;
+  document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${placement}:${sources.join(",")}->${targetCol}`;
   if (clipboard.cut) clearStructureClipboard();
 }
 

@@ -1462,6 +1462,94 @@ func TestServerPasteMultipleRowsAndColumns(t *testing.T) {
 	}
 }
 
+func TestServerPasteRowsBelowAndColumnsRightAtSelectionEnd(t *testing.T) {
+	dir := t.TempDir()
+	rowPath := filepath.Join(dir, "paste-below.csv")
+	if err := os.WriteFile(rowPath, []byte("id,name\n1,Ada\n2,Linus\n3,Grace\n4,Ken\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        rowPath,
+		"previewRows": 8,
+		"indexRows":   -1,
+	})
+	rowDocumentID := openPayload["documentId"].(string)
+
+	rowCopyPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": rowDocumentID,
+		"sourceRows": []int{1, 2},
+		"targetRow":  5,
+		"cut":        false,
+	})
+	if rowCopyPayload["changed"].(float64) != 2 || rowCopyPayload["totalRows"].(float64) != 7 {
+		t.Fatalf("paste rows below payload = %#v", rowCopyPayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+rowDocumentID+"&start=0&count=7")
+	rows := windowPayload["rows"].([]any)
+	if rows[4].([]any)[1] != "Ken" || rows[5].([]any)[1] != "Ada" || rows[6].([]any)[1] != "Linus" {
+		t.Fatalf("rows after paste below = %#v", rows)
+	}
+
+	rowNoopPayload := postJSON(t, handler, "/api/row/paste", map[string]any{
+		"documentId": rowDocumentID,
+		"sourceRows": []int{5, 6},
+		"targetRow":  7,
+		"cut":        true,
+	})
+	rowNoopChanged, _ := rowNoopPayload["changed"].(float64)
+	if rowNoopChanged != 0 || rowNoopPayload["totalRows"].(float64) != 7 {
+		t.Fatalf("self paste rows below payload = %#v", rowNoopPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+rowDocumentID+"&start=0&count=7")
+	rows = windowPayload["rows"].([]any)
+	if len(rows) != 7 || rows[5].([]any)[1] != "Ada" || rows[6].([]any)[1] != "Linus" {
+		t.Fatalf("rows after self paste below = %#v", rows)
+	}
+
+	columnPath := filepath.Join(dir, "paste-right.csv")
+	if err := os.WriteFile(columnPath, []byte("id,name,score,city\n1,Ada,10,UK\n2,Linus,20,FI\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	openPayload = postJSON(t, handler, "/api/open", map[string]any{
+		"path":        columnPath,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	columnDocumentID := openPayload["documentId"].(string)
+
+	columnCopyPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": columnDocumentID,
+		"sourceCols": []int{1, 2},
+		"targetCol":  4,
+		"cut":        false,
+	})
+	if columnCopyPayload["changed"].(float64) != 2 {
+		t.Fatalf("paste columns right payload = %#v", columnCopyPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+columnDocumentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if len(rows[0].([]any)) != 6 || rows[0].([]any)[4] != "name" || rows[0].([]any)[5] != "score" || rows[1].([]any)[4] != "Ada" || rows[1].([]any)[5] != "10" {
+		t.Fatalf("rows after paste columns right = %#v", rows)
+	}
+
+	columnNoopPayload := postJSON(t, handler, "/api/column/paste", map[string]any{
+		"documentId": columnDocumentID,
+		"sourceCols": []int{4, 5},
+		"targetCol":  6,
+		"cut":        true,
+	})
+	columnNoopChanged, _ := columnNoopPayload["changed"].(float64)
+	if columnNoopChanged != 0 {
+		t.Fatalf("self paste columns right payload = %#v", columnNoopPayload)
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+columnDocumentID+"&start=0&count=3")
+	rows = windowPayload["rows"].([]any)
+	if len(rows[0].([]any)) != 6 || rows[0].([]any)[4] != "name" || rows[0].([]any)[5] != "score" {
+		t.Fatalf("rows after self paste columns right = %#v", rows)
+	}
+}
+
 func TestServerHideRowAndClearView(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hide.csv")

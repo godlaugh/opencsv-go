@@ -111,12 +111,14 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"edit.replaceAll",
 		"row.cut",
 		"row.paste",
+		"row.pasteBelow",
 		"row.hide",
 		"row.showAll",
 		"row.moveUp",
 		"row.moveDown",
 		"column.cut",
 		"column.paste",
+		"column.pasteRight",
 		"column.hide",
 		"column.showAll",
 		"column.moveLeft",
@@ -257,6 +259,30 @@ func TestCloseTabShortcutDispatchWiring(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing close-tab shortcut wiring %q", snippet)
+		}
+	}
+}
+
+func TestPasteBelowAndRightCommandsAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`case "row.pasteBelow":`,
+		`await pasteRowFromClipboard({ placement: "after-selection" });`,
+		`case "column.pasteRight":`,
+		`await pasteColumnFromClipboard({ placement: "after-selection" });`,
+		`function selectedRowPasteAfterTarget()`,
+		`function selectedColumnPasteRightTarget()`,
+		`addCommand("row.pasteBelow");`,
+		`addCommand("column.pasteRight");`,
+		`document.body.dataset.structurePaste = ` + "`row:${clipboard.cut ? \"cut\" : \"copy\"}:${placement}:${sources.join(\",\")}->${targetRow}`",
+		`document.body.dataset.structurePaste = ` + "`column:${clipboard.cut ? \"cut\" : \"copy\"}:${placement}:${sources.join(\",\")}->${targetCol}`",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing paste below/right wiring %q", snippet)
 		}
 	}
 }
