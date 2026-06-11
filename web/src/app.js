@@ -12411,6 +12411,8 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
   readOnly = Boolean(session.readOnly);
   externalFileChanged = false;
   const detail = session.originalPath || session.workingPath || session.document?.metadata?.path || tab.detail;
+  pathInput.value = pathInputValueForOpenSession(session, detail, tab.name);
+  updateFormatRulePlaceholder(detail);
   const document = {
     ...session.document,
     metadata: { ...session.document.metadata, path: detail },
@@ -12436,6 +12438,13 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
   startFileStatusChecks();
   await checkFileStatus(false);
   status.textContent = `Switched to ${activeFileEntry.name}.`;
+}
+
+function pathInputValueForOpenSession(session, detail, fallbackName = "") {
+  const sourceKind = String(session?.sourceKind || "").toLowerCase();
+  if (sourceKind === "stdin") return "stdin";
+  if (sourceKind === "upload") return session?.displayName || fallbackName || detail || "";
+  return detail || session?.displayName || fallbackName || "";
 }
 
 async function closeActiveOpenFileTab() {

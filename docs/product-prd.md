@@ -799,6 +799,7 @@ Acceptance:
 - Relaunch restores window geometry and recent file list.
 - Closing a clean open-file tab removes that document session and switches to the next remaining tab or returns to the start surface.
 - Attempting to close a dirty open-file tab does not discard edits silently.
+- `Ctrl+F4` closes the active clean editor tab through the same Close Tab command path and preserves dirty-tab protection.
 - Opening many files does not push the app chrome out of the viewport, and the active open-file tab stays visible in the sidebar.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
 - Switching between grid and non-grid editor surfaces never hides the status bar.
