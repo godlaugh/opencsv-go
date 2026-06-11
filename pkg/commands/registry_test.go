@@ -1269,6 +1269,30 @@ func TestCustomCellLinkPromptIsWired(t *testing.T) {
 	}
 }
 
+func TestExternalLinkSecurityAuditIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function unsafeLinkPreflightReason(candidate)",
+		"function unsafeParsedLinkReason(parsed)",
+		"unsafeLinkPreflightReason(candidate)",
+		"unsafeParsedLinkReason(parsed)",
+		"Contains control characters",
+		"Contains encoded control characters",
+		"Contains unsafe path separators",
+		"Contains embedded credentials",
+		`/%(?:0[0-9a-f]|1[0-9a-f]|7f)/i`,
+		`parsed.username || parsed.password`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing external link security audit wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

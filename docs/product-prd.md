@@ -451,6 +451,7 @@ Acceptance:
 - Missing cells in rows shorter than the estimated table width must not look like editable empty cells.
 - Unsafe protocols such as `javascript:` and `data:` must not be opened from cells.
 - Unknown custom protocols must stay blocked until explicitly allowed in Settings.
+- Links with control characters, encoded control characters, backslash path separators, or embedded HTTP(S) credentials must be blocked before external opening.
 - Multiline values edited from the Cell Value panel must keep embedded line breaks after apply and save.
 - 1M rows must scroll without DOM row explosion.
 

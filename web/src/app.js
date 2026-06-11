@@ -6474,6 +6474,10 @@ function analyzeCellLink(value) {
   }
   const candidate = bareDomain.test(text) ? `https://${text}` : text;
   if (!/^[a-z][a-z0-9+.-]*:/i.test(candidate)) return emptyCellLink();
+  const preflightReason = unsafeLinkPreflightReason(candidate);
+  if (preflightReason) {
+    return blockedCellLink(text, protocolNameFromText(candidate), preflightReason);
+  }
   let parsed;
   try {
     parsed = new URL(candidate);
@@ -6482,6 +6486,10 @@ function analyzeCellLink(value) {
   }
   const protocol = parsed.protocol.toLowerCase();
   const protocolName = protocol.replace(/:$/, "");
+  const parsedReason = unsafeParsedLinkReason(parsed);
+  if (parsedReason) {
+    return blockedCellLink(text, protocolName, parsedReason);
+  }
   if (blockedLinkProtocols.has(protocol)) {
     return blockedCellLink(text, protocolName, "Unsafe protocol");
   }
@@ -6503,6 +6511,21 @@ function analyzeCellLink(value) {
     status: trustedLinkProtocols.has(protocol) ? "trusted" : "custom",
     target: linkTargetLabel(parsed, candidate),
   };
+}
+
+function unsafeLinkPreflightReason(candidate) {
+  if (/[\u0000-\u001f\u007f]/.test(candidate)) return "Contains control characters";
+  if (/%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(candidate)) return "Contains encoded control characters";
+  if (candidate.includes("\\")) return "Contains unsafe path separators";
+  return "";
+}
+
+function unsafeParsedLinkReason(parsed) {
+  const protocol = parsed.protocol.toLowerCase();
+  if ((protocol === "http:" || protocol === "https:") && (parsed.username || parsed.password)) {
+    return "Contains embedded credentials";
+  }
+  return "";
 }
 
 function emptyCellLink() {
