@@ -784,6 +784,7 @@ The app shall support:
 - Each split editor group keeps an independent active open-file tab so switching focus restores that group's document/session.
 - Move tabs between groups by drag/drop, tab context menu, and command palette actions.
 - Switch focus between editor groups by command.
+- The status bar remains visible and reports the active surface while Grid, SQL, Diff, Profile, or Settings editors are active.
 - Persistent window size, position, and maximized state.
 - Title/menu entry points for Settings and Keyboard Shortcuts.
 - Settings search, section-level modified/default indicators, and reset-to-default controls.
@@ -798,6 +799,7 @@ Acceptance:
 - Attempting to close a dirty open-file tab does not discard edits silently.
 - Opening many files does not push the app chrome out of the viewport, and the active open-file tab stays visible in the sidebar.
 - Splitting, moving tabs, and switching editor groups preserves open documents and selections.
+- Switching between grid and non-grid editor surfaces never hides the status bar.
 - Settings sections changed from defaults are visibly marked and can be reset independently.
 - Disabling automatic update checks prevents startup update network calls.
 

@@ -4,6 +4,7 @@ const headerCanvas = document.querySelector("#gridHeader");
 const headerCtx = headerCanvas.getContext("2d");
 const editor = document.querySelector("#editor");
 const status = document.querySelector("#status");
+const statusbar = document.querySelector("#statusbar");
 const encodingStatus = document.querySelector("#encodingStatus");
 const delimiterStatus = document.querySelector("#delimiterStatus");
 const quoteStatus = document.querySelector("#quoteStatus");
@@ -4027,6 +4028,7 @@ function setViewMode(mode) {
   sqlTabButton.classList.toggle("active", mode === "sql");
   profileTabButton.classList.toggle("active", mode === "profile");
   settingsTabButton.classList.toggle("active", mode === "settings");
+  syncStatusbarSurface(mode);
   renderEditorGroups();
   if (mode === "grid") {
     resize();
@@ -4042,6 +4044,18 @@ function setViewMode(mode) {
     settingsSearch.focus();
   }
   updateCommandState();
+}
+
+function syncStatusbarSurface(mode = viewMode) {
+  if (!statusbar) return;
+  statusbar.hidden = false;
+  const surface = mode === "grid" ? "grid" : "non-grid";
+  statusbar.dataset.viewMode = mode;
+  statusbar.dataset.editorSurface = surface;
+  statusbar.setAttribute("aria-label", `${viewModeLabel(mode)} status`);
+  document.body.dataset.statusbarView = mode;
+  document.body.dataset.statusbarSurface = surface;
+  document.body.dataset.statusbarVisible = String(!statusbar.hidden);
 }
 
 async function loadCommandRegistry() {
@@ -19738,5 +19752,6 @@ renderSQLHistory();
 renderFormatPresetSelect();
 refreshFilterDropdown();
 renderSettingsPanel();
+syncStatusbarSurface("grid");
 openInitialURLTarget();
 maybeRunStartupUpdateCheck();

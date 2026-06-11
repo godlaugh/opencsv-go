@@ -1061,6 +1061,43 @@ func TestStartPageSupportSurfaceIsWired(t *testing.T) {
 	}
 }
 
+func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="statusbar"`,
+		`class="statusbar"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing statusbar html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`const statusbar = document.querySelector("#statusbar")`,
+		"function syncStatusbarSurface(",
+		"statusbar.hidden = false",
+		"statusbar.dataset.viewMode = mode",
+		"statusbar.dataset.editorSurface = surface",
+		"document.body.dataset.statusbarView = mode",
+		"document.body.dataset.statusbarSurface = surface",
+		"document.body.dataset.statusbarVisible = String(!statusbar.hidden)",
+		"syncStatusbarSurface(mode)",
+		`syncStatusbarSurface("grid")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing non-grid statusbar wiring %q", snippet)
+		}
+	}
+}
+
 func TestLaunchURLFlagsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
