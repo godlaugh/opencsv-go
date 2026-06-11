@@ -2695,6 +2695,54 @@ func TestServerProfileRequiredDefaultQuickFix(t *testing.T) {
 	}
 }
 
+func TestServerProfileSemanticDefaultQuickFix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "semantic-default.csv")
+	if err := os.WriteFile(path, []byte("id,age,code\n1,n/a,bad\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	profilePayload := postJSON(t, handler, "/api/profile", map[string]any{
+		"documentId": documentID,
+		"schema": map[string]any{
+			"columns": []map[string]any{
+				{"name": "age", "type": "integer", "default": "42"},
+				{"name": "code", "pattern": "^A-", "default": "A-1"},
+			},
+		},
+	})
+	issues := profilePayload["issues"].([]any)
+	for _, check := range []struct {
+		typ   string
+		col   float64
+		value string
+	}{
+		{typ: "schema-type", col: 2, value: "42"},
+		{typ: "schema-pattern", col: 3, value: "A-1"},
+	} {
+		issue := jsonIssueByTypeCol(issues, check.typ, check.col)
+		if issue == nil {
+			t.Fatalf("expected %s issue at col %.0f in %#v", check.typ, check.col, issues)
+		}
+		quickFixes, ok := issue["quickFixes"].([]any)
+		if !ok || len(quickFixes) != 1 {
+			t.Fatalf("%s quick fixes = %#v, want one default fix", check.typ, issue["quickFixes"])
+		}
+		quickFix, ok := quickFixes[0].(map[string]any)
+		if !ok || quickFix["id"] != "schema.default.use" || quickFix["value"] != check.value {
+			t.Fatalf("%s quick fix = %#v, want default %s", check.typ, quickFixes[0], check.value)
+		}
+	}
+}
+
 func TestServerProfileStreamsCleanFileOnly(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile-stream.csv")
@@ -3741,6 +3789,16 @@ func jsonIssueByType(issues []any, typ string) map[string]any {
 	for _, raw := range issues {
 		issue, ok := raw.(map[string]any)
 		if ok && issue["type"] == typ {
+			return issue
+		}
+	}
+	return nil
+}
+
+func jsonIssueByTypeCol(issues []any, typ string, col float64) map[string]any {
+	for _, raw := range issues {
+		issue, ok := raw.(map[string]any)
+		if ok && issue["type"] == typ && issue["col"] == col {
 			return issue
 		}
 	}

@@ -330,6 +330,39 @@ func TestAnalyzeWithSchemaRequiredDefaultQuickFix(t *testing.T) {
 	}
 }
 
+func TestAnalyzeWithSchemaSemanticDefaultQuickFixes(t *testing.T) {
+	minLength := 2
+	maxLength := 4
+	min := 0.0
+	max := 10.0
+	result := AnalyzeWithSchema([][]string{
+		{"age", "code", "short", "long", "score", "status", "unique"},
+		{"n/a", "bad", "x", "too-long", "oops", "pending", "bad"},
+		{"2", "A-2", "ok", "fine", "5", "active", "fallback"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "age", Type: "integer", Default: "42"},
+		{Name: "code", Pattern: "^A-", Default: "A-1"},
+		{Name: "short", MinLength: &minLength, Default: "ok"},
+		{Name: "long", MaxLength: &maxLength, Default: "fine"},
+		{Name: "score", Min: &min, Max: &max, Default: "5"},
+		{Name: "status", Enum: []string{"active", "paused"}, Default: "active"},
+		{Name: "unique", Type: "integer", Unique: true, Default: "1"},
+	}})
+	for _, typ := range []string{"schema-type", "schema-pattern", "schema-min-length", "schema-max-length", "schema-range", "schema-enum"} {
+		issue := issueByType(result.Issues, typ)
+		if issue == nil || !hasQuickFix(issue, "schema.default.use") {
+			t.Fatalf("%s issue = %#v, want schema.default.use quick fix in %#v", typ, issue, result.Issues)
+		}
+	}
+	uniqueIssue := issueByTypeCol(result.Issues, "schema-type", 7)
+	if uniqueIssue == nil {
+		t.Fatalf("expected unique column type issue in %#v", result.Issues)
+	}
+	if hasQuickFix(uniqueIssue, "schema.default.use") {
+		t.Fatalf("unique column issue = %#v, should not offer default quick fix", uniqueIssue)
+	}
+}
+
 func TestAnalyzeWithSchemaStringLengthRules(t *testing.T) {
 	minLength := 2
 	maxLength := 3
@@ -523,4 +556,25 @@ func issueByType(issues []Issue, typ string) *Issue {
 		}
 	}
 	return nil
+}
+
+func issueByTypeCol(issues []Issue, typ string, col int) *Issue {
+	for i := range issues {
+		if issues[i].Type == typ && issues[i].Col == col {
+			return &issues[i]
+		}
+	}
+	return nil
+}
+
+func hasQuickFix(issue *Issue, id string) bool {
+	if issue == nil {
+		return false
+	}
+	for _, fix := range issue.QuickFixes {
+		if fix.ID == id {
+			return true
+		}
+	}
+	return false
 }

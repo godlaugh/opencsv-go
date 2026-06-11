@@ -136,7 +136,7 @@ flowchart TD
   - Named local profile schema library with apply/delete/export/import controls and URL boot saving via `profileSchemaName=` plus `profileSchemaSave=1`.
   - Visual schema rule builder for column name/number, type, required, unique, enum, regex pattern, and numeric range checks; each builder action keeps the JSON schema source in sync.
   - Profile runs request `/api/profile` NDJSON progress streaming, update the status bar with current pass row counts, and expose progress counters through `document.body.dataset` for regression verification.
-  - Problems rows navigate back to the grid selection, and safe quick-fix buttons, including deterministic numeric range clamps, single-value enum replacements, and required-field defaults, dispatch through the existing edit-batch mutation path.
+  - Problems rows navigate back to the grid selection, and safe quick-fix buttons, including deterministic numeric range clamps, single-value enum replacements, required-field defaults, and valid schema-default replacements for type/pattern/range/enum/string-length issues, dispatch through the existing edit-batch mutation path.
 
 - `web Command Palette`
   - Searchable command runner backed by `/api/commands`.

@@ -622,7 +622,7 @@ func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumn
 				Col:        compiled.col + 1,
 				Rule:       compiled.ruleName,
 				Message:    fmt.Sprintf("%q is required.", compiled.ruleName),
-				QuickFixes: defaultQuickFixes(compiled.rule.Default),
+				QuickFixes: defaultQuickFixesForRule(compiled.rule),
 			}}
 		}
 		return nil
@@ -630,12 +630,13 @@ func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumn
 	var issues []Issue
 	if compiled.expectedType != "" && !schemaTypeMatches(raw, compiled.expectedType) {
 		issues = append(issues, Issue{
-			Type:     "schema-type",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      compiled.col + 1,
-			Rule:     compiled.ruleName,
-			Message:  fmt.Sprintf("Value %q does not match schema type %s.", raw, compiled.expectedType),
+			Type:       "schema-type",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        compiled.col + 1,
+			Rule:       compiled.ruleName,
+			Message:    fmt.Sprintf("Value %q does not match schema type %s.", raw, compiled.expectedType),
+			QuickFixes: defaultQuickFixesForRule(compiled.rule),
 		})
 	}
 	if compiled.rule.Unique {
@@ -661,18 +662,19 @@ func streamedColumnRuleIssues(record []string, row int, compiled *compiledColumn
 				Col:        compiled.col + 1,
 				Rule:       compiled.ruleName,
 				Message:    fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
-				QuickFixes: enumQuickFixes(compiled.rule.Enum),
+				QuickFixes: mergeQuickFixes(enumQuickFixes(compiled.rule.Enum), defaultQuickFixesForRule(compiled.rule)),
 			})
 		}
 	}
 	if compiled.pattern != nil && !compiled.pattern.MatchString(raw) {
 		issues = append(issues, Issue{
-			Type:     "schema-pattern",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      compiled.col + 1,
-			Rule:     compiled.ruleName,
-			Message:  fmt.Sprintf("Value %q does not match schema pattern.", raw),
+			Type:       "schema-pattern",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        compiled.col + 1,
+			Rule:       compiled.ruleName,
+			Message:    fmt.Sprintf("Value %q does not match schema pattern.", raw),
+			QuickFixes: defaultQuickFixesForRule(compiled.rule),
 		})
 	}
 	issues = append(issues, stringLengthIssues(raw, row, compiled.col, compiled.rule, compiled.ruleName)...)
@@ -765,19 +767,20 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 					Col:        col + 1,
 					Rule:       ruleName,
 					Message:    fmt.Sprintf("%q is required.", ruleName),
-					QuickFixes: defaultQuickFixes(rule.Default),
+					QuickFixes: defaultQuickFixesForRule(rule),
 				})
 			}
 			continue
 		}
 		if expectedType != "" && !schemaTypeMatches(raw, expectedType) {
 			issues = append(issues, Issue{
-				Type:     "schema-type",
-				Severity: "error",
-				Row:      row + 1,
-				Col:      col + 1,
-				Rule:     ruleName,
-				Message:  fmt.Sprintf("Value %q does not match schema type %s.", raw, expectedType),
+				Type:       "schema-type",
+				Severity:   "error",
+				Row:        row + 1,
+				Col:        col + 1,
+				Rule:       ruleName,
+				Message:    fmt.Sprintf("Value %q does not match schema type %s.", raw, expectedType),
+				QuickFixes: defaultQuickFixesForRule(rule),
 			})
 		}
 		if rule.Unique {
@@ -803,18 +806,19 @@ func validateColumnRule(records [][]string, hasHeader bool, col int, rule Column
 					Col:        col + 1,
 					Rule:       ruleName,
 					Message:    fmt.Sprintf("Value %q is not allowed by schema enum.", raw),
-					QuickFixes: enumQuickFixes(rule.Enum),
+					QuickFixes: mergeQuickFixes(enumQuickFixes(rule.Enum), defaultQuickFixesForRule(rule)),
 				})
 			}
 		}
 		if pattern != nil && !pattern.MatchString(raw) {
 			issues = append(issues, Issue{
-				Type:     "schema-pattern",
-				Severity: "error",
-				Row:      row + 1,
-				Col:      col + 1,
-				Rule:     ruleName,
-				Message:  fmt.Sprintf("Value %q does not match schema pattern.", raw),
+				Type:       "schema-pattern",
+				Severity:   "error",
+				Row:        row + 1,
+				Col:        col + 1,
+				Rule:       ruleName,
+				Message:    fmt.Sprintf("Value %q does not match schema pattern.", raw),
+				QuickFixes: defaultQuickFixesForRule(rule),
 			})
 		}
 		issues = append(issues, stringLengthIssues(raw, row, col, rule, ruleName)...)
@@ -835,6 +839,78 @@ func defaultQuickFixes(value string) []QuickFix {
 		return nil
 	}
 	return []QuickFix{{ID: "schema.default.use", Label: "Use default", Value: value}}
+}
+
+func defaultQuickFixesForRule(rule ColumnRule) []QuickFix {
+	if !schemaDefaultMatchesRule(rule) {
+		return nil
+	}
+	return defaultQuickFixes(rule.Default)
+}
+
+func schemaDefaultMatchesRule(rule ColumnRule) bool {
+	value := strings.TrimSpace(rule.Default)
+	if value == "" || rule.Unique {
+		return false
+	}
+	expectedType := strings.ToLower(strings.TrimSpace(rule.Type))
+	if expectedType != "" && !schemaTypeMatches(value, expectedType) {
+		return false
+	}
+	if len(rule.Enum) > 0 {
+		allowed := false
+		for _, enumValue := range rule.Enum {
+			if value == enumValue {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return false
+		}
+	}
+	if strings.TrimSpace(rule.Pattern) != "" {
+		pattern, err := regexp.Compile(rule.Pattern)
+		if err != nil || !pattern.MatchString(value) {
+			return false
+		}
+	}
+	if rule.Min != nil || rule.Max != nil {
+		number, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return false
+		}
+		if rule.Min != nil && number < *rule.Min {
+			return false
+		}
+		if rule.Max != nil && number > *rule.Max {
+			return false
+		}
+	}
+	length := utf8.RuneCountInString(value)
+	if rule.MinLength != nil && length < *rule.MinLength {
+		return false
+	}
+	if rule.MaxLength != nil && length > *rule.MaxLength {
+		return false
+	}
+	return true
+}
+
+func mergeQuickFixes(groups ...[]QuickFix) []QuickFix {
+	var fixes []QuickFix
+	seen := make(map[string]bool)
+	for _, group := range groups {
+		for _, fix := range group {
+			key := fix.ID + "\x00" + fix.Value
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			fixes = append(fixes, fix)
+		}
+	}
+	return fixes
 }
 
 func schemaTypeMatches(raw string, expectedType string) bool {
@@ -876,12 +952,13 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 	number, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		return []Issue{{
-			Type:     "schema-range",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      col + 1,
-			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is not numeric for schema range check.", raw),
+			Type:       "schema-range",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        col + 1,
+			Rule:       ruleName,
+			Message:    fmt.Sprintf("Value %q is not numeric for schema range check.", raw),
+			QuickFixes: defaultQuickFixesForRule(rule),
 		}}
 	}
 	if rule.Min != nil && number < *rule.Min {
@@ -893,9 +970,9 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 			Col:      col + 1,
 			Rule:     ruleName,
 			Message:  fmt.Sprintf("Value %q is below schema minimum %s.", raw, target),
-			QuickFixes: []QuickFix{
+			QuickFixes: mergeQuickFixes([]QuickFix{
 				{ID: "schema.range.clampMin", Label: "Use minimum", Value: target},
-			},
+			}, defaultQuickFixesForRule(rule)),
 		}}
 	}
 	if rule.Max != nil && number > *rule.Max {
@@ -907,9 +984,9 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 			Col:      col + 1,
 			Rule:     ruleName,
 			Message:  fmt.Sprintf("Value %q is above schema maximum %s.", raw, target),
-			QuickFixes: []QuickFix{
+			QuickFixes: mergeQuickFixes([]QuickFix{
 				{ID: "schema.range.clampMax", Label: "Use maximum", Value: target},
-			},
+			}, defaultQuickFixesForRule(rule)),
 		}}
 	}
 	return nil
@@ -922,22 +999,24 @@ func stringLengthIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 	length := utf8.RuneCountInString(raw)
 	if rule.MinLength != nil && length < *rule.MinLength {
 		return []Issue{{
-			Type:     "schema-min-length",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      col + 1,
-			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is shorter than schema minimum length %d.", raw, *rule.MinLength),
+			Type:       "schema-min-length",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        col + 1,
+			Rule:       ruleName,
+			Message:    fmt.Sprintf("Value %q is shorter than schema minimum length %d.", raw, *rule.MinLength),
+			QuickFixes: defaultQuickFixesForRule(rule),
 		}}
 	}
 	if rule.MaxLength != nil && length > *rule.MaxLength {
 		return []Issue{{
-			Type:     "schema-max-length",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      col + 1,
-			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is longer than schema maximum length %d.", raw, *rule.MaxLength),
+			Type:       "schema-max-length",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        col + 1,
+			Rule:       ruleName,
+			Message:    fmt.Sprintf("Value %q is longer than schema maximum length %d.", raw, *rule.MaxLength),
+			QuickFixes: defaultQuickFixesForRule(rule),
 		}}
 	}
 	return nil
