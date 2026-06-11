@@ -768,6 +768,7 @@ The app shall support:
 Acceptance:
 
 - Selecting numeric cells updates aggregate metrics without blocking scroll.
+- Large selections use a bounded aggregate scan, continue reporting selection count, and expose diagnostics proving the UI did not scan the full range synchronously.
 - Aggregate rows can be removed without changing source data.
 
 ### FR-020 App Shell, Settings, and Recent Files

@@ -2108,6 +2108,7 @@ const aggregateRowCommandMetrics = new Map([
   ["selection.insertMaxRow", "max"],
   ["selection.insertCountRow", "count"],
 ]);
+const aggregateScanCellLimit = 5000;
 const columnTextTransformSpecs = [
   { id: "text.column.trim", mode: "trim", label: "Trim Column" },
   { id: "text.column.uppercase", mode: "upper", label: "Uppercase Column" },
@@ -2250,6 +2251,8 @@ let sqlProgressEventCount = 0;
 let activeFilter = null;
 let includeHeadersInSelection = false;
 let activeAggregateMetric = "sum";
+let aggregateStatsCacheKey = "";
+let aggregateStatsCache = null;
 let diffRows = [];
 let activeDiffIndex = -1;
 let lastDiffResult = null;
@@ -3520,7 +3523,7 @@ function draw() {
   const selectedColumn = columns[selected.col]?.name ?? "";
   const path = metadata?.path ? ` - ${metadata.path}` : "";
   const dirtyLabel = dirty ? " - edited" : "";
-  const aggregateStats = selectionAggregateStats();
+  const aggregateStats = currentSelectionAggregateStats();
   const aggregate = selectionAggregateSummary(aggregateStats);
   const modeLabel = readOnly ? " - read-only" : "";
   const externalLabel = externalFileChanged ? " - external change" : "";
@@ -4354,7 +4357,7 @@ function isCommandDisabled(command) {
     (needsSQLTarget && !sqlResultTargetForCommand()) ||
     (needsSQLSelection && !sqlSelectedResultMatrix(lastSQLResult)) ||
     (needsActiveFilter && !activeFilter) ||
-    (needsAggregate && selectionAggregateStats().count <= 1) ||
+    (needsAggregate && currentSelectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
     (needsVisibleColumn && columns.length === 0) ||
     (needsMappedRows && !viewMapped) ||
@@ -7140,20 +7143,42 @@ function selectionSummary(range = null) {
   return includeHeadersInSelection ? `${base}:headers` : base;
 }
 
+function aggregateStatsKey() {
+  return [
+    documentId || "",
+    windowGeneration,
+    sourceRowCount,
+    columns.length,
+    selectionSummary(),
+  ].join("|");
+}
+
+function currentSelectionAggregateStats() {
+  const key = aggregateStatsKey();
+  if (aggregateStatsCacheKey === key && aggregateStatsCache) return aggregateStatsCache;
+  aggregateStatsCache = selectionAggregateStats();
+  aggregateStatsCacheKey = key;
+  return aggregateStatsCache;
+}
+
 function selectionAggregateStats() {
+  const startedAt = Date.now();
   const count = selectionCellCount();
   const stats = {
     count,
     numericCount: 0,
     limited: false,
+    scannedCells: 0,
+    elapsedMs: 0,
     sum: 0,
     avg: 0,
     min: 0,
     max: 0,
   };
   if (count <= 1) return stats;
-  if (count > 5000) {
+  if (count > aggregateScanCellLimit) {
     stats.limited = true;
+    stats.elapsedMs = Date.now() - startedAt;
     return stats;
   }
   let minValue = Number.POSITIVE_INFINITY;
@@ -7161,10 +7186,12 @@ function selectionAggregateStats() {
   for (const range of activeSelectionRanges()) {
     if (range.endRow >= sourceRowCount) {
       stats.limited = true;
+      stats.elapsedMs = Date.now() - startedAt;
       return stats;
     }
     for (let row = range.startRow; row <= range.endRow; row++) {
       for (let col = range.startCol; col <= range.endCol; col++) {
+        stats.scannedCells++;
         const raw = valueAt(row, col).trim();
         if (raw === "") continue;
         const value = Number(raw);
@@ -7181,10 +7208,11 @@ function selectionAggregateStats() {
     stats.min = minValue;
     stats.max = maxValue;
   }
+  stats.elapsedMs = Date.now() - startedAt;
   return stats;
 }
 
-function selectionAggregateSummary(stats = selectionAggregateStats()) {
+function selectionAggregateSummary(stats = currentSelectionAggregateStats()) {
   if (stats.count <= 1) return "";
   if (stats.limited) {
     const headerNote = includeHeadersInSelection ? ", headers included" : "";
@@ -7196,20 +7224,20 @@ function selectionAggregateSummary(stats = selectionAggregateStats()) {
   return ` - selected ${formatCount(stats.count)} cells, sum ${formatNumber(stats.sum)}, avg ${formatNumber(stats.avg)}, min ${formatNumber(stats.min)}, max ${formatNumber(stats.max)}`;
 }
 
-function aggregateMetricOptions(stats = selectionAggregateStats()) {
+function aggregateMetricOptions(stats = currentSelectionAggregateStats()) {
   if (stats.count <= 1) return [];
   if (!stats.numericCount) return ["count"];
   return ["sum", "avg", "min", "max", "count"];
 }
 
-function normalizeAggregateMetric(stats = selectionAggregateStats()) {
+function normalizeAggregateMetric(stats = currentSelectionAggregateStats()) {
   const options = aggregateMetricOptions(stats);
   if (!options.length) return "";
   if (!options.includes(activeAggregateMetric)) activeAggregateMetric = options[0];
   return activeAggregateMetric;
 }
 
-function activeAggregate(stats = selectionAggregateStats()) {
+function activeAggregate(stats = currentSelectionAggregateStats()) {
   const metric = normalizeAggregateMetric(stats);
   if (!metric) return null;
   const value = metric === "count" ? stats.count : stats[metric];
@@ -7231,7 +7259,12 @@ function aggregateMetricLabel(metric) {
   }[metric] ?? metric;
 }
 
-function updateAggregateStatus(stats = selectionAggregateStats()) {
+function updateAggregateStatus(stats = currentSelectionAggregateStats()) {
+  document.body.dataset.aggregateCellCount = String(stats.count);
+  document.body.dataset.aggregateNumericCount = String(stats.numericCount);
+  document.body.dataset.aggregateLimited = String(Boolean(stats.limited));
+  document.body.dataset.aggregateScannedCells = String(stats.scannedCells);
+  document.body.dataset.aggregateElapsedMs = String(stats.elapsedMs);
   const aggregate = activeAggregate(stats);
   if (!aggregate) {
     aggregateStatusButton.hidden = true;

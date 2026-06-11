@@ -402,6 +402,29 @@ func TestEditorGroupLayoutPersistenceIsWired(t *testing.T) {
 	}
 }
 
+func TestSelectionAggregateStatsAreCachedAndLimited(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"const aggregateScanCellLimit = 5000",
+		"let aggregateStatsCacheKey = \"\"",
+		"function currentSelectionAggregateStats()",
+		"aggregateStatsCache = selectionAggregateStats()",
+		"if (count > aggregateScanCellLimit)",
+		"document.body.dataset.aggregateLimited = String(Boolean(stats.limited))",
+		"document.body.dataset.aggregateScannedCells = String(stats.scannedCells)",
+		"document.body.dataset.aggregateElapsedMs = String(stats.elapsedMs)",
+		"currentSelectionAggregateStats().count <= 1",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing aggregate cache/limit wiring %q", snippet)
+		}
+	}
+}
+
 func TestOpenFileTabsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
