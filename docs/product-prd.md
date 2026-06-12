@@ -554,6 +554,7 @@ The app shall support:
 
 - Sort ascending/descending by column.
 - Multi-column sort.
+- Active multi-column sorts can remove the last secondary key without clearing the entire view.
 - Smart sort modes for text, number, date, and length.
 - Full-width numeral support.
 - Stable sort option.

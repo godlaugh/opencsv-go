@@ -524,6 +524,8 @@ const localeCatalog = {
     "view.chip.save": "Save",
     "view.chip.saveFilter": "Save this filter",
     "view.chip.saveSort": "Save this sort",
+    "view.chip.removeSortKey": "Remove Key",
+    "view.chip.removeLastSortKey": "Remove the last sort key",
     "view.chip.clear": "Clear",
     "view.chip.clearView": "Clear filter and sort",
     "view.chip.apply": "Apply",
@@ -563,6 +565,8 @@ const localeCatalog = {
     "view.status.savedSortNoColumns": "Saved sort has no matching columns.",
     "view.status.savedSortApplied": "Saved sort {{name}} applied: {{sort}}",
     "view.status.deletedSavedSort": "Deleted saved sort.",
+    "view.status.removeSortKeyFirst": "Add a secondary sort key before removing one.",
+    "view.status.removedSortKey": "Removed {{key}}; sorted {{sort}}",
     "view.status.sorted": "Sorted {{sort}}",
     "view.status.sortFailed": "Sort failed: {{message}}",
     "view.status.exportedSavedViews": "Exported {{filters}} filters, {{sorts}} sorts.",
@@ -1223,6 +1227,8 @@ const localeCatalog = {
     "view.chip.save": "保存",
     "view.chip.saveFilter": "保存此筛选",
     "view.chip.saveSort": "保存此排序",
+    "view.chip.removeSortKey": "移除键",
+    "view.chip.removeLastSortKey": "移除最后一个排序键",
     "view.chip.clear": "清除",
     "view.chip.clearView": "清除筛选和排序",
     "view.chip.apply": "应用",
@@ -1262,6 +1268,8 @@ const localeCatalog = {
     "view.status.savedSortNoColumns": "保存的排序没有匹配列。",
     "view.status.savedSortApplied": "已应用保存的排序 {{name}}：{{sort}}",
     "view.status.deletedSavedSort": "已删除保存的排序。",
+    "view.status.removeSortKeyFirst": "请先添加次级排序键再移除。",
+    "view.status.removedSortKey": "已移除 {{key}}；已排序：{{sort}}",
     "view.status.sorted": "已排序：{{sort}}",
     "view.status.sortFailed": "排序失败：{{message}}",
     "view.status.exportedSavedViews": "已导出 {{filters}} 个筛选、{{sorts}} 个排序。",
@@ -1822,6 +1830,8 @@ const localeCatalog = {
     "command.column.addSortAscending.description": "将当前列追加为升序次级排序键。",
     "command.column.addSortDescending.title": "追加列降序排序",
     "command.column.addSortDescending.description": "将当前列追加为降序次级排序键。",
+    "command.view.removeLastSortKey.title": "移除最后一个排序键",
+    "command.view.removeLastSortKey.description": "从当前多列排序中移除最后一个排序键。",
     "command.column.filterBySelectedValue.title": "按选中值筛选",
     "command.column.filterBySelectedValue.description": "将当前列筛选为选中单元格的值。",
     "command.column.filterBlanks.title": "只显示空值",
@@ -4267,6 +4277,7 @@ function isCommandDisabled(command) {
   const needsSQLTarget = sqlResultTargetCommandIDs.has(command.id);
   const needsSQLSelection = sqlResultSelectionCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
+  const needsMultiSort = command.id === "view.removeLastSortKey";
   const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
   const needsColumnAction = needsColumnTextTransform || columnSortCommands.has(command.id) || columnFilterCommands.has(command.id);
@@ -4376,6 +4387,7 @@ function isCommandDisabled(command) {
     (needsSQLTarget && !sqlResultTargetForCommand()) ||
     (needsSQLSelection && !sqlSelectedResultMatrix(lastSQLResult)) ||
     (needsActiveFilter && !activeFilter) ||
+    (needsMultiSort && sortKeys.length <= 1) ||
     (needsAggregate && currentSelectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
     (needsVisibleColumn && columns.length === 0) ||
@@ -9530,6 +9542,9 @@ async function executeCommand(commandID) {
     case "view.saveSort":
       saveActiveSort();
       break;
+    case "view.removeLastSortKey":
+      await removeLastSortKey();
+      break;
     case "view.exportSavedSets":
       exportSavedViews();
       break;
@@ -13730,12 +13745,18 @@ function renderViewChips() {
     setChipButtonText(saveButton, "view.chip.save", "view.chip.saveSort");
     saveButton.addEventListener("click", saveActiveSort);
 
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    setChipButtonText(removeButton, "view.chip.removeSortKey", "view.chip.removeLastSortKey");
+    removeButton.disabled = sortKeys.length <= 1;
+    removeButton.addEventListener("click", removeLastSortKey);
+
     const clearButton = document.createElement("button");
     clearButton.type = "button";
     setChipButtonText(clearButton, "view.chip.clear", "view.chip.clearView");
     clearButton.addEventListener("click", clearView);
 
-    chip.append(label, saveButton, clearButton);
+    chip.append(label, saveButton, removeButton, clearButton);
     viewChips.append(chip);
   }
 
@@ -14526,6 +14547,65 @@ async function sortColumn(column, descending, append, modeOverride = "") {
   await applySortKeys(nextKeys, column);
 }
 
+async function removeLastSortKey() {
+  if (!documentId || sortKeys.length <= 1) {
+    status.textContent = t("view.status.removeSortKeyFirst");
+    return false;
+  }
+  const removed = sortKeys[sortKeys.length - 1];
+  const nextKeys = sortKeys.slice(0, -1).map((key) => ({ ...key }));
+  const snapshot = {
+    filter: activeFilter ? { ...activeFilter } : null,
+    sortKeys: nextKeys,
+    sortStable,
+    selectedSourceCol: nextKeys[nextKeys.length - 1]?.column ?? nextKeys[0]?.column ?? selected.col,
+  };
+  const reset = await resetViewMappingForReplay(snapshot.selectedSourceCol);
+  if (!reset) return false;
+  const restored = await restoreViewSnapshot(snapshot);
+  if (!restored.includes("sort")) return false;
+  const removedLabel = formatSortKeysLocalized([removed]);
+  const remainingLabel = formatSortKeysLocalized(nextKeys);
+  document.body.dataset.sortRemovedKey = `${formatSortKeys([removed])}->${formatSortKeys(nextKeys)}`;
+  document.body.dataset.sortKeyCount = String(nextKeys.length);
+  status.textContent = tf("view.status.removedSortKey", {
+    key: removedLabel,
+    sort: remainingLabel,
+  });
+  renderViewChips();
+  return true;
+}
+
+async function resetViewMappingForReplay(selectedSourceCol = selected.col) {
+  const response = await fetch("/api/view-clear", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = tf("view.status.clearFailed", { message: payload.error ?? "unknown error" });
+    return false;
+  }
+  viewMapped = false;
+  sortDescending = false;
+  sortKeys = [];
+  rows = new Map();
+  rowSource = new Map();
+  aggregateRows = [];
+  sourceRowCount = Math.max(0, (payload.totalRows ?? 0) - dataStartRow);
+  syncTotalRows();
+  windowStart = 0;
+  windowEnd = 0;
+  const visibleCol = visibleColForSource(selectedSourceCol);
+  selected = { row: 0, col: visibleCol >= 0 ? visibleCol : Math.max(0, Math.min(columns.length - 1, selected.col)) };
+  selectionAnchor = { ...selected };
+  scrollY = 0;
+  wheelRemainderY = 0;
+  await maybeLoadWindow(0);
+  return true;
+}
+
 async function applySortKeys(nextKeys, selectedColumn, successMessage = "", options = {}) {
   if (!documentId || columns.length === 0 || nextKeys.length === 0) return false;
   const primaryKey = nextKeys[0];
@@ -14567,6 +14647,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "", opti
   await maybeLoadWindow(0);
   renderViewChips();
   document.body.dataset.sortStable = String(sortStable);
+  document.body.dataset.sortKeyCount = String(sortKeys.length);
   status.textContent = successMessage || tf("view.status.sorted", { sort: formatSortKeysLocalized(sortKeys) });
   return true;
 }
