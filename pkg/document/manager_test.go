@@ -40,12 +40,18 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	if len(matches) != 1 || matches[0].Row != 1 || matches[0].Col != 1 {
 		t.Fatalf("unexpected matches: %#v", matches)
 	}
+	if matches[0].Range == nil || matches[0].Range.Start != 4 || matches[0].Range.End != 12 {
+		t.Fatalf("match range = %#v, want 4-12", matches[0].Range)
+	}
 	regexMatches, err := manager.Find(session.ID, FindOptions{Query: `A.+lace`, Regex: true, WholeCell: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(regexMatches) != 1 {
 		t.Fatalf("regex matches = %#v, want one match", regexMatches)
+	}
+	if regexMatches[0].Range == nil || regexMatches[0].Range.Start != 0 || regexMatches[0].Range.End != 12 {
+		t.Fatalf("regex match range = %#v, want 0-12", regexMatches[0].Range)
 	}
 	previewResult, err := manager.Replace(session.ID, ReplaceOptions{
 		FindOptions: FindOptions{Query: "Lovelace", CaseSensitive: true},
@@ -179,6 +185,30 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 	if string(saved[:3]) != "\xef\xbb\xbf" {
 		t.Fatal("saved file lost UTF-8 BOM")
+	}
+}
+
+func TestManagerFindDetailedReturnsUTF16TextRange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-range.csv")
+	if err := os.WriteFile(path, []byte("id,value\n1,A😀B\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find-range.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FindDetailed(session.ID, FindOptions{Query: "B", Regex: true, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 1 || len(result.Matches) != 1 {
+		t.Fatalf("find result = %#v, want one match", result)
+	}
+	if result.Matches[0].Range == nil || result.Matches[0].Range.Start != 3 || result.Matches[0].Range.End != 4 {
+		t.Fatalf("UTF-16 range = %#v, want 3-4", result.Matches[0].Range)
 	}
 }
 

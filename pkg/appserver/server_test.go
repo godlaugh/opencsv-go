@@ -2047,6 +2047,11 @@ func TestServerFindFilterSort(t *testing.T) {
 	if !ok || len(matches) != 1 {
 		t.Fatalf("matches = %#v, want one match", findPayload["matches"])
 	}
+	match := matches[0].(map[string]any)
+	textRange, ok := match["range"].(map[string]any)
+	if !ok || textRange["start"].(float64) != 0 || textRange["end"].(float64) != 5 {
+		t.Fatalf("match range = %#v, want 0-5", match["range"])
+	}
 	if findPayload["total"].(float64) != 1 || findPayload["truncated"].(bool) {
 		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
 	}
@@ -2064,7 +2069,7 @@ func TestServerFindFilterSort(t *testing.T) {
 	if !ok || len(matches) != 1 {
 		t.Fatalf("offset matches = %#v, want one match", findPayload["matches"])
 	}
-	match := matches[0].(map[string]any)
+	match = matches[0].(map[string]any)
 	if findPayload["offset"].(float64) != 1 || match["row"].(float64) != 2 {
 		t.Fatalf("offset find payload = %#v, want second matching row", findPayload)
 	}

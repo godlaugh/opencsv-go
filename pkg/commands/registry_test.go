@@ -813,6 +813,9 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		`tf("find.status.foundTimed"`,
 		`tf("replace.status.noReplacements"`,
 		`tf("replace.status.preview"`,
+		"normalizeServerFindRange",
+		"match.range",
+		"document.body.dataset.findHighlight",
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing find/replace i18n wiring %q", snippet)

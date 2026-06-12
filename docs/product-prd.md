@@ -2,7 +2,7 @@
 
 Status: Active product specification for parity development
 
-Last updated: 2026-06-11
+Last updated: 2026-06-12
 
 ## 1. Source Baseline
 
@@ -33,7 +33,7 @@ Formal snapshot points used in this PRD pass:
   - Refund policy effective date: 2026-04-27.
 - Pricing snapshot: optional one-time and team license model with unlimited-device and offline usage as documented on the pricing page; all current features remain available without purchase.
 
-Latest public source check: 2026-06-11. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
+Latest public source check: 2026-06-12. The homepage and feature catalog still set the core baseline: spreadsheet-style editing, query/filter/sort, SQL workflows, command palette, large-file performance, and cross-platform desktop availability.
 
 The most recent public release currently tracked in the official GitHub repository is **v3.21.1** (published 2026-06-07). Its release notes emphasize:
 
@@ -501,6 +501,7 @@ The app shall support:
 - Replace current match.
 - Replace all.
 - Exact match highlighting inside cells.
+- Backend-authoritative match ranges for text highlighting, including regex matches.
 - Case sensitivity toggle.
 - Whole cell toggle.
 - Regex toggle.

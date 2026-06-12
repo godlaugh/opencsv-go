@@ -1891,9 +1891,15 @@ type FindOptions struct {
 }
 
 type Match struct {
-	Row   int    `json:"row"`
-	Col   int    `json:"col"`
-	Value string `json:"value"`
+	Row   int        `json:"row"`
+	Col   int        `json:"col"`
+	Value string     `json:"value"`
+	Range *TextRange `json:"range,omitempty"`
+}
+
+type TextRange struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 type FindResult struct {
@@ -1966,13 +1972,13 @@ func (manager *Manager) FindDetailedContext(ctx context.Context, id string, opti
 			if !cellInScope(scope, row, col) {
 				continue
 			}
-			if matcher.matches(value) {
+			if matched, textRange := matcher.firstRange(value); matched {
 				total++
 				if total <= options.Offset {
 					continue
 				}
 				if len(matches) < options.Limit {
-					matches = append(matches, Match{Row: row, Col: col, Value: value})
+					matches = append(matches, Match{Row: row, Col: col, Value: value, Range: textRange})
 				}
 			}
 		}
@@ -2002,13 +2008,13 @@ func findDetailedInStream(ctx context.Context, session *Session, options FindOpt
 			if !cellInScope(scope, row, col) {
 				continue
 			}
-			if matcher.matches(value) {
+			if matched, textRange := matcher.firstRange(value); matched {
 				total++
 				if total <= options.Offset {
 					continue
 				}
 				if len(matches) < options.Limit {
-					matches = append(matches, Match{Row: row, Col: col, Value: value})
+					matches = append(matches, Match{Row: row, Col: col, Value: value, Range: textRange})
 				}
 			}
 		}
@@ -4156,6 +4162,58 @@ func (matcher matcher) matches(value string) bool {
 		return haystack == matcher.query
 	}
 	return strings.Contains(haystack, matcher.query)
+}
+
+func (matcher matcher) firstRange(value string) (bool, *TextRange) {
+	if matcher.regex != nil {
+		indexes := matcher.regex.FindStringIndex(value)
+		if indexes == nil {
+			return false, nil
+		}
+		if indexes[1] <= indexes[0] {
+			return true, nil
+		}
+		return true, byteRangeToTextRange(value, indexes[0], indexes[1])
+	}
+	haystack := value
+	needle := matcher.options.Query
+	if !matcher.options.CaseSensitive {
+		haystack = strings.ToLower(haystack)
+		needle = matcher.query
+	}
+	if matcher.options.WholeCell {
+		if haystack != needle {
+			return false, nil
+		}
+		return true, &TextRange{Start: 0, End: utf16UnitCount(value)}
+	}
+	index := strings.Index(haystack, needle)
+	if index < 0 {
+		return false, nil
+	}
+	return true, byteRangeToTextRange(value, index, index+len(needle))
+}
+
+func byteRangeToTextRange(value string, startByte int, endByte int) *TextRange {
+	if startByte < 0 || endByte <= startByte || endByte > len(value) {
+		return nil
+	}
+	return &TextRange{
+		Start: utf16UnitCount(value[:startByte]),
+		End:   utf16UnitCount(value[:endByte]),
+	}
+}
+
+func utf16UnitCount(value string) int {
+	units := 0
+	for _, char := range value {
+		if char > 0xFFFF {
+			units += 2
+		} else {
+			units++
+		}
+	}
+	return units
 }
 
 func (matcher matcher) replace(value string, replacement string, all bool) string {

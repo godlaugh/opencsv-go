@@ -9875,10 +9875,25 @@ function findRangesForCell(value, displayRow, visibleCol) {
   if (!findState.matches.length || !findState.search) return [];
   const sourceRow = rowSource.get(displayRow) ?? displayRow + dataStartRow;
   const sourceCol = sourceColFor(visibleCol);
-  if (!findState.matches.some((match) => match.row === sourceRow && match.col === sourceCol)) {
+  const matches = findState.matches.filter((match) => match.row === sourceRow && match.col === sourceCol);
+  if (!matches.length) {
     return [];
   }
+  const serverRanges = matches
+    .map((match) => normalizeServerFindRange(value, match.range))
+    .filter(Boolean);
+  if (serverRanges.length) return serverRanges;
   return findTextRanges(String(value ?? ""), findState.search);
+}
+
+function normalizeServerFindRange(value, range) {
+  if (!range || typeof range !== "object") return null;
+  const text = String(value ?? "");
+  const start = Number(range.start);
+  const end = Number(range.end);
+  if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
+  if (start < 0 || end <= start || end > text.length) return null;
+  return { start, end };
 }
 
 function isActiveFindCell(displayRow, visibleCol) {
@@ -13512,7 +13527,8 @@ function updateFindHighlightDataset() {
   const displayRow = Math.max(0, match.row - dataStartRow);
   const visibleCol = visibleColForSource(match.col);
   const value = visibleCol >= 0 ? valueAt(displayRow, visibleCol) : "";
-  const ranges = findTextRanges(value, findState.search);
+  const serverRange = normalizeServerFindRange(value, match.range);
+  const ranges = serverRange ? [serverRange] : findTextRanges(value, findState.search);
   document.body.dataset.findHighlight = ranges
     .map((range) => `${displayRow}:${visibleCol}:${range.start}-${range.end}`)
     .join(",");
