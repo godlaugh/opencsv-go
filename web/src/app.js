@@ -996,6 +996,7 @@ const localeCatalog = {
     "profile.type.decimal": "Decimal",
     "profile.type.boolean": "Boolean",
     "profile.type.date": "Date",
+    "profile.type.datetime": "Date-Time",
     "profile.type.time": "Time",
     "profile.type.year": "Year",
     "profile.type.yearmonth": "Year-Month",
@@ -1699,6 +1700,7 @@ const localeCatalog = {
     "profile.type.decimal": "小数",
     "profile.type.boolean": "布尔",
     "profile.type.date": "日期",
+    "profile.type.datetime": "日期时间",
     "profile.type.time": "时间",
     "profile.type.year": "年份",
     "profile.type.yearmonth": "年月",
@@ -2811,6 +2813,7 @@ function applyProfileLocaleStrings() {
     decimal: "profile.type.decimal",
     boolean: "profile.type.boolean",
     date: "profile.type.date",
+    datetime: "profile.type.datetime",
     time: "profile.type.time",
     year: "profile.type.year",
     yearmonth: "profile.type.yearmonth",
@@ -17037,15 +17040,16 @@ function normalizeProfileSchemaType(value) {
     type = type.slice(slashIndex + 1);
   }
   type = type.replace(/^xsd:/, "").replace(/^xmlschema:/, "");
-  if (["integer", "int", "long"].includes(type)) return "integer";
+  if (["integer", "int", "long", "short", "byte", "nonnegativeinteger", "nonpositiveinteger", "positiveinteger", "negativeinteger", "unsignedlong", "unsignedint", "unsignedshort", "unsignedbyte"].includes(type)) return "integer";
   if (["number", "numeric", "float", "double"].includes(type)) return "number";
   if (["decimal"].includes(type)) return "decimal";
   if (["boolean", "bool"].includes(type)) return "boolean";
-  if (["date", "datetime", "date-time", "timestamp"].includes(type)) return "date";
+  if (["date"].includes(type)) return "date";
+  if (["datetime", "date-time", "timestamp"].includes(type)) return "datetime";
   if (["time"].includes(type)) return "time";
   if (["year", "gyear"].includes(type)) return "year";
   if (["yearmonth", "year-month", "gyearmonth"].includes(type)) return "yearmonth";
-  if (["string", "text", "uri", "url", "email"].includes(type)) return "string";
+  if (["string", "text", "normalizedstring", "token", "uri", "url", "anyuri", "email"].includes(type)) return "string";
   return type;
 }
 

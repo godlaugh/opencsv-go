@@ -923,7 +923,7 @@ func schemaTypeMatches(raw string, expectedType string) bool {
 		return true
 	case "number", "numeric":
 		return kind == "integer" || kind == "decimal"
-	case "integer", "decimal", "boolean", "date", "time", "year", "yearmonth":
+	case "integer", "decimal", "boolean", "date", "datetime", "time", "year", "yearmonth":
 		return kind == expectedType || (expectedType == "decimal" && kind == "integer")
 	default:
 		return true
@@ -933,6 +933,7 @@ func schemaTypeMatches(raw string, expectedType string) bool {
 func schemaTemporalTypeMatches(raw string, expectedType string) bool {
 	layouts := map[string][]string{
 		"date":      {"2006-01-02", "2006-01-02 15:04:05", time.RFC3339},
+		"datetime":  {"2006-01-02 15:04:05", time.RFC3339},
 		"time":      {"15:04", "15:04:05", "15:04:05.999999999"},
 		"year":      {"2006"},
 		"yearmonth": {"2006-01"},

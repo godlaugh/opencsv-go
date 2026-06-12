@@ -393,7 +393,7 @@ func normalizeSchemaType(value string) string {
 	switch normalized {
 	case "":
 		return ""
-	case "integer", "int", "long":
+	case "integer", "int", "long", "short", "byte", "nonnegativeinteger", "nonpositiveinteger", "positiveinteger", "negativeinteger", "unsignedlong", "unsignedint", "unsignedshort", "unsignedbyte":
 		return "integer"
 	case "number", "numeric", "float", "double":
 		return "number"
@@ -401,15 +401,17 @@ func normalizeSchemaType(value string) string {
 		return "decimal"
 	case "boolean", "bool":
 		return "boolean"
-	case "date", "datetime", "date-time", "timestamp":
+	case "date":
 		return "date"
+	case "datetime", "date-time", "timestamp":
+		return "datetime"
 	case "time":
 		return "time"
 	case "year", "gyear":
 		return "year"
 	case "yearmonth", "year-month", "gyearmonth":
 		return "yearmonth"
-	case "string", "text", "uri", "url", "email":
+	case "string", "text", "normalizedstring", "token", "uri", "url", "anyuri", "email":
 		return "string"
 	default:
 		return normalized

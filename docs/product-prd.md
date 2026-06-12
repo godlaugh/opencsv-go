@@ -731,7 +731,7 @@ The app shall validate:
 - Type-profile anomalies.
 - User-supplied schema rules for required columns, primitive type checks, uniqueness, allowed values, regular-expression patterns, numeric ranges, and string length ranges.
 - CSVLint/JSON Table Schema/Frictionless Data Package style field definitions with common `fields`, `constraints`, `datatype`, `default`, `tableSchema`, `schema`, `tables`, and `resources` shapes.
-- CSVLint XML Schema type URL aliases, including `constraints.type` values such as `#integer`, `#time`, `#gYear`, and `#gYearMonth`.
+- CSVLint XML Schema type URL aliases, including `constraints.type` values such as `#integer`, integer subtypes, `#decimal`, `#boolean`, `#dateTime`, `#time`, `#gYear`, `#gYearMonth`, and string/URI aliases.
 - Validation schemas supplied through the Profile UI, URL boot parameters, saved-schema import, or profile API requests.
 - Saved schema/rule sets with JSON import and export.
 - Visual rule editing for common schema checks without hand-writing JSON.

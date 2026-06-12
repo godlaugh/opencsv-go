@@ -430,31 +430,36 @@ func TestSchemaUnmarshalAcceptsCSVLintTypeURLs(t *testing.T) {
 			{"name": "id", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#integer"}},
 			{"name": "seen_at", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#time"}},
 			{"name": "period", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#gYearMonth"}},
-			{"name": "year", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#gYear"}}
+			{"name": "year", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#gYear"}},
+			{"name": "stamp", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#dateTime"}},
+			{"name": "amount", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#decimal"}},
+			{"name": "flag", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#boolean"}},
+			{"name": "count", "constraints": {"type": "xsd:unsignedInt"}},
+			{"name": "link", "constraints": {"type": "http://www.w3.org/2001/XMLSchema#anyURI"}}
 		]
 	}`), &schema)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(schema.Columns) != 4 {
-		t.Fatalf("columns = %#v, want 4", schema.Columns)
+	if len(schema.Columns) != 9 {
+		t.Fatalf("columns = %#v, want 9", schema.Columns)
 	}
-	wantTypes := []string{"integer", "time", "yearmonth", "year"}
+	wantTypes := []string{"integer", "time", "yearmonth", "year", "datetime", "decimal", "boolean", "integer", "string"}
 	for index, want := range wantTypes {
 		if schema.Columns[index].Type != want {
 			t.Fatalf("column %d type = %q, want %q in %#v", index, schema.Columns[index].Type, want, schema.Columns)
 		}
 	}
 	result := AnalyzeWithSchema([][]string{
-		{"id", "seen_at", "period", "year"},
-		{"1", "15:30:00", "2026-06", "2026"},
-		{"bad", "25:61", "2026-13", "20X6"},
+		{"id", "seen_at", "period", "year", "stamp", "amount", "flag", "count", "link"},
+		{"1", "15:30:00", "2026-06", "2026", "2026-06-12T15:30:00Z", "12.5", "true", "3", "https://example.com"},
+		{"bad", "25:61", "2026-13", "20X6", "2026-06-12", "oops", "maybe", "many", "not checked"},
 	}, true, schema)
-	if result.SchemaRules != 4 {
-		t.Fatalf("schema rules = %d, want 4", result.SchemaRules)
+	if result.SchemaRules != 9 {
+		t.Fatalf("schema rules = %d, want 9", result.SchemaRules)
 	}
-	if typeIssues := countIssues(result.Issues, "schema-type"); typeIssues != 4 {
-		t.Fatalf("schema-type issues = %d, want 4: %#v", typeIssues, result.Issues)
+	if typeIssues := countIssues(result.Issues, "schema-type"); typeIssues != 8 {
+		t.Fatalf("schema-type issues = %d, want 8: %#v", typeIssues, result.Issues)
 	}
 }
 
