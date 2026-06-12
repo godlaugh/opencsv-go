@@ -860,6 +860,7 @@ button:disabled {
 }
 
 .quote-rule-grid input[type="number"],
+.quote-rule-grid input[type="text"],
 .quote-rule-grid select {
   height: 30px;
   min-width: 0;

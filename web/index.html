@@ -506,6 +506,18 @@
                 <button id="noQuoteSelectionRuleButton" type="button">No Quote Selection</button>
                 <button id="clearSelectionQuoteRuleButton" type="button">Clear Selection</button>
                 <label>
+                  <span>Source Column</span>
+                  <input id="quoteRuleColumnInput" type="text" aria-label="Quote column rule source" />
+                </label>
+                <label>
+                  <span>Column Action</span>
+                  <select id="quoteRuleColumnActionSelect" aria-label="Quote column rule action">
+                    <option value="quote">Quote column</option>
+                    <option value="clear">Clear column</option>
+                  </select>
+                </label>
+                <button id="applyQuoteColumnRuleButton" type="button">Apply Column</button>
+                <label>
                   <span>Source Row</span>
                   <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" />
                 </label>
