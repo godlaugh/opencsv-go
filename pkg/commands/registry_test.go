@@ -1329,6 +1329,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"isPlainSchemaObject(source.properties)",
 		"Object.entries(source.properties)",
 		"normalizeProfileSchemaFormat(column.format)",
+		"schemaAllowedValues(column, constraints)",
+		"schemaAllowedValue(source?.const ?? source?.constant)",
 		`["date-time", "datetime", "timestamp"]`,
 		"Array.isArray(value)",
 		`type === "null"`,

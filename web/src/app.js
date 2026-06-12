@@ -17038,7 +17038,7 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   if (formatType && (!rule.type || rule.type === "string")) rule.type = formatType;
   if (Boolean(column.required ?? constraints.required) || requiredNames.has(name) || primaryKeyNames.has(name)) rule.required = true;
   if (Boolean(column.unique ?? constraints.unique) || primaryKeyNames.has(name)) rule.unique = true;
-  const enumValues = schemaArrayValues(column.enum ?? constraints.enum ?? constraints.oneOf ?? constraints.values ?? constraints.in);
+  const enumValues = schemaAllowedValues(column, constraints);
   if (enumValues.length) rule.enum = enumValues;
   const pattern = String(column.pattern ?? constraints.pattern ?? constraints.regex ?? "").trim();
   if (pattern) rule.pattern = pattern;
@@ -17100,12 +17100,27 @@ function schemaNonNegativeInteger(value) {
 
 function schemaArrayValues(value) {
   if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
+    return value.map(schemaAllowedValue).filter(Boolean);
   }
   if (typeof value === "string") {
     return value.split(",").map((item) => item.trim()).filter(Boolean);
   }
   return [];
+}
+
+function schemaAllowedValues(column, constraints) {
+  for (const source of [column, constraints]) {
+    const value = schemaAllowedValue(source?.const ?? source?.constant);
+    if (value) return [value];
+  }
+  return schemaArrayValues(column.enum ?? constraints.enum ?? constraints.oneOf ?? constraints.values ?? constraints.in);
+}
+
+function schemaAllowedValue(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return schemaString(value.const ?? value.constant);
+  }
+  return schemaString(value);
 }
 
 function schemaString(value) {

@@ -205,7 +205,7 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	if schemaRawBool(firstSchemaRaw(column, "unique")) || schemaRawBool(firstSchemaRaw(constraints, "unique")) || schemaNameSetHas(primaryKeyNames, name) {
 		rule.Unique = true
 	}
-	rule.Enum = firstSchemaArrayValues(column, constraints, []string{"enum", "oneOf", "values", "in"})
+	rule.Enum = firstSchemaAllowedValues(column, constraints)
 	rule.Pattern = firstSchemaString(column, "pattern")
 	if rule.Pattern == "" {
 		rule.Pattern = firstSchemaString(constraints, "pattern", "regex")
@@ -359,6 +359,17 @@ func firstSchemaArrayValues(column map[string]json.RawMessage, constraints map[s
 	return nil
 }
 
+func firstSchemaAllowedValues(column map[string]json.RawMessage, constraints map[string]json.RawMessage) []string {
+	for _, source := range []map[string]json.RawMessage{column, constraints} {
+		for _, key := range []string{"const", "constant"} {
+			if value := schemaAllowedValue(firstSchemaRaw(source, key)); value != "" {
+				return []string{value}
+			}
+		}
+	}
+	return firstSchemaArrayValues(column, constraints, []string{"enum", "oneOf", "values", "in"})
+}
+
 func schemaArrayValues(raw json.RawMessage) []string {
 	if len(raw) == 0 {
 		return nil
@@ -379,11 +390,22 @@ func schemaArrayValues(raw json.RawMessage) []string {
 	}
 	values := make([]string, 0, len(items))
 	for _, item := range items {
-		if value := schemaRawString(item); value != "" {
+		if value := schemaAllowedValue(item); value != "" {
 			values = append(values, value)
 		}
 	}
 	return values
+}
+
+func schemaAllowedValue(raw json.RawMessage) string {
+	if value := schemaRawString(raw); value != "" {
+		return value
+	}
+	object, ok, err := schemaRawObject(raw)
+	if err != nil || !ok {
+		return ""
+	}
+	return schemaRawString(firstSchemaRaw(object, "const", "constant"))
 }
 
 func firstSchemaNumber(sources []map[string]json.RawMessage, keys ...string) (float64, bool) {

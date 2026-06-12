@@ -636,6 +636,43 @@ func TestSchemaUnmarshalAcceptsJSONSchemaFormats(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsJSONSchemaConstValues(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"properties": {
+			"status": {"type": "string", "const": "active"},
+			"approved": {"type": "boolean", "oneOf": [{"const": true}]}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 2 {
+		t.Fatalf("columns = %#v, want 2", schema.Columns)
+	}
+	approved := schema.Columns[0]
+	if approved.Name != "approved" || approved.Type != "boolean" || len(approved.Enum) != 1 || approved.Enum[0] != "true" {
+		t.Fatalf("approved rule = %#v", approved)
+	}
+	status := schema.Columns[1]
+	if status.Name != "status" || status.Type != "string" || len(status.Enum) != 1 || status.Enum[0] != "active" {
+		t.Fatalf("status rule = %#v", status)
+	}
+	result := AnalyzeWithSchema([][]string{
+		{"approved", "status"},
+		{"false", "pending"},
+	}, true, schema)
+	approvedIssue := issueByTypeCol(result.Issues, "schema-enum", 1)
+	if approvedIssue == nil || !hasQuickFix(approvedIssue, "schema.enum.useValue") || approvedIssue.QuickFixes[0].Value != "true" {
+		t.Fatalf("approved issue = %#v, want use allowed true quick fix", approvedIssue)
+	}
+	statusIssue := issueByTypeCol(result.Issues, "schema-enum", 2)
+	if statusIssue == nil || !hasQuickFix(statusIssue, "schema.enum.useValue") || statusIssue.QuickFixes[0].Value != "active" {
+		t.Fatalf("status issue = %#v, want use allowed active quick fix", statusIssue)
+	}
+}
+
 func TestSchemaUnmarshalAcceptsJSONSchemaNullableTypes(t *testing.T) {
 	var schema Schema
 	err := json.Unmarshal([]byte(`{
