@@ -1301,6 +1301,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"renderProfile(profileData)",
 		"syncProfileSchemaControls()",
 		"constraints.type",
+		"isPlainSchemaObject(source.properties)",
+		"Object.entries(source.properties)",
 		"unsignedint",
 		`datetime: "profile.type.datetime"`,
 		"gyearmonth",

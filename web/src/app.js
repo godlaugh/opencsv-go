@@ -16916,7 +16916,7 @@ function normalizeProfileSchemaObject(value) {
 }
 
 function profileSchemaSourceObject(value) {
-  if (Array.isArray(value.fields) || Array.isArray(value.columns)) return value;
+  if (Array.isArray(value.fields) || Array.isArray(value.columns) || isPlainSchemaObject(value.properties)) return value;
   if (value.schema && typeof value.schema === "object") return profileSchemaSourceObject(value.schema);
   if (value.tableSchema && typeof value.tableSchema === "object") return profileSchemaSourceObject(value.tableSchema);
   for (const collectionKey of ["tables", "resources"]) {
@@ -16931,7 +16931,22 @@ function profileSchemaSourceObject(value) {
 function profileSchemaSourceColumns(source) {
   if (Array.isArray(source.columns)) return source.columns;
   if (Array.isArray(source.fields)) return source.fields;
+  if (isPlainSchemaObject(source.properties)) {
+    return Object.entries(source.properties)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, property]) => {
+        if (!isPlainSchemaObject(property)) return null;
+        const column = { ...property };
+        if (!schemaString(column.name ?? column.title ?? column.label)) column.name = name;
+        return column;
+      })
+      .filter(Boolean);
+  }
   return [];
+}
+
+function isPlainSchemaObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function schemaNameSet(value) {

@@ -522,6 +522,47 @@ func TestSchemaUnmarshalAcceptsFrictionlessResources(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsJSONSchemaProperties(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"required": ["id", "status"],
+		"properties": {
+			"status": {"type": "string", "enum": ["active"], "default": "active"},
+			"score": {"type": "number", "minimum": 0, "maximum": 100},
+			"id": {"type": "integer"}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 3 {
+		t.Fatalf("columns = %#v, want 3", schema.Columns)
+	}
+	id := schema.Columns[0]
+	if id.Name != "id" || id.Type != "integer" || !id.Required {
+		t.Fatalf("id rule = %#v", id)
+	}
+	score := schema.Columns[1]
+	if score.Name != "score" || score.Type != "number" || score.Min == nil || *score.Min != 0 || score.Max == nil || *score.Max != 100 {
+		t.Fatalf("score rule = %#v", score)
+	}
+	status := schema.Columns[2]
+	if status.Name != "status" || status.Type != "string" || !status.Required || len(status.Enum) != 1 || status.Enum[0] != "active" || status.Default != "active" {
+		t.Fatalf("status rule = %#v", status)
+	}
+	result := AnalyzeWithSchema([][]string{
+		{"id", "score", "status"},
+		{"1", "95", "active"},
+		{"bad", "105", ""},
+	}, true, schema)
+	for _, typ := range []string{"schema-type", "schema-range", "schema-required"} {
+		if !hasIssue(result.Issues, typ) {
+			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
+		}
+	}
+}
+
 func TestAnalyzeWithSchemaInvalidPattern(t *testing.T) {
 	result := AnalyzeWithSchema([][]string{
 		{"code"},

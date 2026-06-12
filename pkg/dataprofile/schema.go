@@ -3,6 +3,7 @@ package dataprofile
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -112,7 +113,52 @@ func schemaSourceColumns(source map[string]json.RawMessage) ([]json.RawMessage, 
 		}
 		return columns, nil
 	}
-	return nil, nil
+	raw, ok := source["properties"]
+	if !ok || len(raw) == 0 || strings.TrimSpace(string(raw)) == "null" {
+		return nil, nil
+	}
+	var properties map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &properties); err != nil {
+		return nil, fmt.Errorf("properties must be an object: %w", err)
+	}
+	names := make([]string, 0, len(properties))
+	for name := range properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	columns := make([]json.RawMessage, 0, len(names))
+	for _, name := range names {
+		column, ok, err := schemaPropertyColumnRaw(name, properties[name])
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			columns = append(columns, column)
+		}
+	}
+	return columns, nil
+}
+
+func schemaPropertyColumnRaw(name string, raw json.RawMessage) (json.RawMessage, bool, error) {
+	property, ok, err := schemaRawObject(raw)
+	if err != nil {
+		return nil, false, fmt.Errorf("properties.%s must be an object: %w", name, err)
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	if firstSchemaString(property, "name", "title", "label") == "" {
+		nameBytes, err := json.Marshal(name)
+		if err != nil {
+			return nil, false, err
+		}
+		property["name"] = nameBytes
+	}
+	column, err := json.Marshal(property)
+	if err != nil {
+		return nil, false, err
+	}
+	return column, true, nil
 }
 
 func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]struct{}, primaryKeyNames map[string]struct{}) (ColumnRule, bool, error) {
