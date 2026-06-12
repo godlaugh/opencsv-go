@@ -539,6 +539,34 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	}
 }
 
+func TestFormatPresetsPersistQuoteRules(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"const quoteSettings = currentQuoteRuleSettings()",
+		"...quoteSettings",
+		"...formatPresetQuoteSettings(preset)",
+		"function formatPresetQuoteSettings(preset)",
+		"function formatPresetQuoteRuleCount(preset)",
+		"quoteHeader: normalizeQuoteRuleBoolean(raw.quoteHeader)",
+		"quoteColumns: normalizeIntegerList(raw.quoteColumns)",
+		"quoteCells: normalizeQuoteRuleCells(raw.quoteCells)",
+		"noQuoteCells: normalizeQuoteRuleCells(raw.noQuoteCells)",
+		"const presetQuoteRulesApplied = preset ? await applyPresetQuoteSettings(preset) : false",
+		`fetch("/api/quote-settings"`,
+		"document.body.dataset.formatPresetQuoteRules = quoteRulesSignature(settings)",
+		"|qr:${formatPresetQuoteRuleCount(preset)}",
+		"quoteRulesSummary(formatPresetQuoteSettings(preset))",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing format preset quote rule wiring %q", snippet)
+		}
+	}
+}
+
 func TestDirtyDraftRecoveryIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

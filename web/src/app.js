@@ -5107,6 +5107,7 @@ function documentFormatSummary() {
 
 function currentFormatPreset() {
   if (!metadata?.dialect) return null;
+  const quoteSettings = currentQuoteRuleSettings();
   return {
     id: "",
     name: documentFormatSummary(),
@@ -5116,9 +5117,7 @@ function currentFormatPreset() {
     headerColumns: headerColumnsValue(metadata.dialect),
     encodingName: metadata.encoding?.name ?? "utf-8",
     lineEndingName: lineEndingValue(metadata.lineEnding),
-    quoteChar: quoteCharValue(metadata.dialect),
-    quoteMode: quoteModeValue(metadata.dialect),
-    quoteEscape: quoteEscapeValue(metadata.dialect),
+    ...quoteSettings,
     rules: [],
   };
 }
@@ -5135,6 +5134,7 @@ function formatPresets() {
         quoteChar: preset.quoteChar || "double",
         quoteMode: preset.quoteMode || "minimal",
         quoteEscape: normalizeQuoteEscapeValue(preset.quoteEscape),
+        ...formatPresetQuoteSettings(preset),
         lineEndingName: normalizeLineEndingName(preset.lineEndingName),
         rules: normalizeFormatRules(preset.rules),
       }))
@@ -5234,6 +5234,7 @@ async function applySelectedFormatPreset() {
 function exportFormatPresets() {
   const presets = formatPresets();
   const ruleCount = presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0);
+  const quoteRuleCount = presets.reduce((sum, preset) => sum + formatPresetQuoteRuleCount(preset), 0);
   const payload = {
     kind: formatPresetExportKind,
     version: 1,
@@ -5250,12 +5251,17 @@ function exportFormatPresets() {
       quoteChar: preset.quoteChar || "double",
       quoteMode: preset.quoteMode || "minimal",
       quoteEscape: normalizeQuoteEscapeValue(preset.quoteEscape),
+      quoteHeader: Boolean(preset.quoteHeader),
+      quoteBody: Boolean(preset.quoteBody),
+      quoteColumns: normalizeIntegerList(preset.quoteColumns),
+      quoteCells: normalizeQuoteRuleCells(preset.quoteCells),
+      noQuoteCells: normalizeQuoteRuleCells(preset.noQuoteCells),
       rules: normalizeFormatRules(preset.rules),
     })),
   };
   const text = `${JSON.stringify(payload, null, 2)}\n`;
   window.__opencsvLastFormatPresetExportText = text;
-  document.body.dataset.formatPresetExport = `${presets.length}:${ruleCount}`;
+  document.body.dataset.formatPresetExport = `${presets.length}:${ruleCount}:${quoteRuleCount}`;
   document.body.dataset.formatPresetExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-format-presets.json", "application/json;charset=utf-8");
   status.textContent = `Exported ${formatCount(presets.length)} format presets.`;
@@ -5339,6 +5345,11 @@ function normalizeImportedFormatPreset(raw) {
     quoteChar,
     quoteMode,
     quoteEscape,
+    quoteHeader: normalizeQuoteRuleBoolean(raw.quoteHeader),
+    quoteBody: normalizeQuoteRuleBoolean(raw.quoteBody),
+    quoteColumns: normalizeIntegerList(raw.quoteColumns),
+    quoteCells: normalizeQuoteRuleCells(raw.quoteCells),
+    noQuoteCells: normalizeQuoteRuleCells(raw.noQuoteCells),
     rules: normalizeFormatRules(raw.rules),
   };
   preset.id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim().slice(0, 160) : formatPresetID(preset);
@@ -5401,7 +5412,7 @@ function renderSettingsPanel() {
     : presets;
   const sectionState = settingsSectionModifiedState({ presets, filters, recent, sorts });
   settingsModifiedBadge.textContent = sectionState.modified.length ? t("settings.modified") : t("settings.defaults");
-  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules`;
+  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules, ${presets.reduce((sum, preset) => sum + formatPresetQuoteRuleCount(preset), 0)} quote rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
   if (resetSavedViewsButton) {
@@ -5561,6 +5572,7 @@ function formatPresetSearchText(preset) {
     preset.quoteMode,
     preset.quoteChar,
     preset.quoteEscape,
+    quoteRulesSummary(formatPresetQuoteSettings(preset)),
     ...(preset.rules ?? []).map((rule) => rule.pattern),
   ].filter(Boolean).join(" ").toLowerCase();
 }
@@ -5581,8 +5593,9 @@ function formatPresetSettingsRow(preset) {
   const title = document.createElement("strong");
   title.textContent = preset.name || preset.id;
   const presetRules = normalizeFormatRules(preset.rules);
+  const quoteRuleCount = formatPresetQuoteRuleCount(preset);
   const meta = document.createElement("span");
-  meta.textContent = `${formatPresetPreview(preset)} · ${presetRules.length} rules`;
+  meta.textContent = `${formatPresetPreview(preset)} · ${presetRules.length} rules · ${quoteRuleCount} quote rules`;
   const actions = document.createElement("div");
   actions.className = "settings-preset-actions";
   const presets = formatPresets();
@@ -6945,6 +6958,32 @@ function normalizeQuoteRuleCells(values) {
   return cells.sort((left, right) => left.row === right.row ? left.col - right.col : left.row - right.row);
 }
 
+function formatPresetQuoteSettings(preset) {
+  return {
+    quoteChar: normalizeQuoteRuleChar(preset?.quoteChar),
+    quoteMode: ["minimal", "always", "never", "manual"].includes(String(preset?.quoteMode || "").toLowerCase())
+      ? String(preset.quoteMode).toLowerCase()
+      : "minimal",
+    quoteEscape: normalizeQuoteEscapeValue(preset?.quoteEscape),
+    quoteHeader: normalizeQuoteRuleBoolean(preset?.quoteHeader),
+    quoteBody: normalizeQuoteRuleBoolean(preset?.quoteBody),
+    quoteColumns: normalizeIntegerList(preset?.quoteColumns),
+    quoteCells: normalizeQuoteRuleCells(preset?.quoteCells),
+    noQuoteCells: normalizeQuoteRuleCells(preset?.noQuoteCells),
+  };
+}
+
+function formatPresetQuoteRuleCount(preset) {
+  const settings = formatPresetQuoteSettings(preset);
+  return (
+    (settings.quoteHeader ? 1 : 0) +
+    (settings.quoteBody ? 1 : 0) +
+    settings.quoteColumns.length +
+    settings.quoteCells.length +
+    settings.noQuoteCells.length
+  );
+}
+
 function quoteRulesSignature(settings) {
   return [
     settings.quoteMode,
@@ -7250,7 +7289,7 @@ function formatPresetName(preset) {
 }
 
 function formatPresetPreview(preset) {
-  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${normalizeLineEndingName(preset.lineEndingName)}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}|${normalizeQuoteEscapeValue(preset.quoteEscape)}`;
+  return `${preset.delimiter === "\t" ? "\\t" : preset.delimiter}|${preset.hasHeader ? "header" : "no-header"}|hcols:${normalizeHeaderColumns(preset.headerColumns)}|${preset.encodingName || "utf-8"}|${normalizeLineEndingName(preset.lineEndingName)}|${preset.quoteMode || "minimal"}|${preset.quoteChar || "double"}|${normalizeQuoteEscapeValue(preset.quoteEscape)}|qr:${formatPresetQuoteRuleCount(preset)}`;
 }
 
 function formatPresetHeaderLabel(preset) {
@@ -11964,9 +12003,11 @@ async function openPath(path, options = {}) {
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
+  const presetQuoteRulesApplied = preset ? await applyPresetQuoteSettings(preset) : false;
   const locationApplied = await applyURLLocation(urlLocation);
   const statusMessages = [];
   if (hasFormatOverride(formatOverride)) statusMessages.push(`Applied URL format: ${documentFormatSummary()}`);
+  if (presetQuoteRulesApplied) statusMessages.push(`Applied preset quote rules: ${quoteRulesSummary(formatPresetQuoteSettings(preset))}`);
   if (locationApplied) statusMessages.push(`Applied URL location: ${selectionSummary()}`);
   if (statusMessages.length) {
     status.textContent = statusMessages.join(" · ");
@@ -11985,6 +12026,25 @@ function applyFormatOverride(body, override) {
       body[key] = value;
     }
   }
+}
+
+async function applyPresetQuoteSettings(preset) {
+  const settings = formatPresetQuoteSettings(preset);
+  const ruleCount = formatPresetQuoteRuleCount(preset);
+  if (!documentId || ruleCount === 0) {
+    document.body.dataset.formatPresetQuoteRules = ruleCount === 0 ? "none" : "";
+    return false;
+  }
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...settings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error ?? "quote settings failed");
+  applyMutationPayload(payload, `Applied preset quote rules: ${quoteRulesSummary(settings)}.`);
+  document.body.dataset.formatPresetQuoteRules = quoteRulesSignature(settings);
+  return true;
 }
 
 function hasFormatOverride(override) {
