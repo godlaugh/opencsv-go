@@ -11,20 +11,23 @@ import (
 )
 
 type Dialect struct {
-	Delimiter        rune   `json:"delimiter"`
-	DelimiterName    string `json:"delimiterName"`
-	QuoteChar        string `json:"quoteChar"`
-	QuoteMode        string `json:"quoteMode"`
-	QuoteEscape      string `json:"quoteEscape,omitempty"`
-	QuoteHeader      bool   `json:"quoteHeader,omitempty"`
-	QuoteBody        bool   `json:"quoteBody,omitempty"`
-	QuoteColumns     []int  `json:"quoteColumns,omitempty"`
-	QuoteCells       []Cell `json:"quoteCells,omitempty"`
-	NoQuoteCells     []Cell `json:"noQuoteCells,omitempty"`
-	HasHeader        bool   `json:"hasHeader"`
-	HeaderColumns    int    `json:"headerColumns,omitempty"`
-	UTF8BOM          bool   `json:"utf8Bom"`
-	EstimatedColumns int    `json:"estimatedColumns"`
+	Delimiter         rune   `json:"delimiter"`
+	DelimiterName     string `json:"delimiterName"`
+	QuoteChar         string `json:"quoteChar"`
+	QuoteMode         string `json:"quoteMode"`
+	QuoteEscape       string `json:"quoteEscape,omitempty"`
+	QuoteHeader       bool   `json:"quoteHeader,omitempty"`
+	QuoteBody         bool   `json:"quoteBody,omitempty"`
+	QuoteColumns      []int  `json:"quoteColumns,omitempty"`
+	QuoteCells        []Cell `json:"quoteCells,omitempty"`
+	NoQuoteCells      []Cell `json:"noQuoteCells,omitempty"`
+	QuoteMapDetected  int    `json:"quoteMapDetected,omitempty"`
+	QuoteMapLimit     int    `json:"quoteMapLimit,omitempty"`
+	QuoteMapTruncated bool   `json:"quoteMapTruncated,omitempty"`
+	HasHeader         bool   `json:"hasHeader"`
+	HeaderColumns     int    `json:"headerColumns,omitempty"`
+	UTF8BOM           bool   `json:"utf8Bom"`
+	EstimatedColumns  int    `json:"estimatedColumns"`
 }
 
 type Cell struct {

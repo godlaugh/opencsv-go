@@ -219,11 +219,11 @@ func SetQuoteColumn(dialect Dialect, col int, quoted bool) (Dialect, bool) {
 	return dialect, !sameInts(before, dialect.QuoteColumns)
 }
 
-const maxDetectedQuoteCells = 100_000
+const MaxQuoteCellRules = 100_000
 
 func DetectQuoteRules(sample []byte, dialect Dialect) Dialect {
 	flags := quotedFieldFlags(sample, dialect, 80)
-	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect)
+	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect, false)
 }
 
 func DetectQuoteRulesForFile(path string, dialect Dialect, encoding EncodingInfo) (Dialect, error) {
@@ -250,19 +250,20 @@ func DetectQuoteRulesForFile(path string, dialect Dialect, encoding EncodingInfo
 	if err != nil {
 		return Dialect{}, err
 	}
-	return applyDetectedQuoteRules(stats, dialect), nil
+	return applyDetectedQuoteRules(stats, dialect, true), nil
 }
 
 func DetectQuoteRulesAll(input []byte, dialect Dialect) Dialect {
 	flags := quotedFieldFlags(input, dialect, 0)
-	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect)
+	return applyDetectedQuoteRules(quoteRuleStatsFromFlags(flags, dialect), dialect, true)
 }
 
 type quoteRuleStats struct {
-	header      []bool
-	seen        map[int]int
-	quoted      map[int]int
-	quotedCells []Cell
+	header          []bool
+	seen            map[int]int
+	quoted          map[int]int
+	quotedCells     []Cell
+	quotedCellCount int
 }
 
 func quoteRuleStatsFromFlags(flags [][]bool, dialect Dialect) quoteRuleStats {
@@ -292,15 +293,25 @@ func (stats *quoteRuleStats) addRecord(row int, record []bool, dialect Dialect) 
 		}
 	}
 	for col, wasQuoted := range record {
-		if wasQuoted && len(stats.quotedCells) < maxDetectedQuoteCells {
-			stats.quotedCells = append(stats.quotedCells, Cell{Row: row, Col: col})
+		if wasQuoted {
+			stats.quotedCellCount++
+			if len(stats.quotedCells) < MaxQuoteCellRules {
+				stats.quotedCells = append(stats.quotedCells, Cell{Row: row, Col: col})
+			}
 		}
 	}
 }
 
-func applyDetectedQuoteRules(stats quoteRuleStats, dialect Dialect) Dialect {
+func applyDetectedQuoteRules(stats quoteRuleStats, dialect Dialect, reportQuoteMap bool) Dialect {
 	if len(stats.header) == 0 && len(stats.seen) == 0 && len(stats.quotedCells) == 0 {
 		return dialect
+	}
+	if reportQuoteMap && stats.quotedCellCount > 0 {
+		dialect.QuoteMapDetected = stats.quotedCellCount
+		if stats.quotedCellCount > MaxQuoteCellRules {
+			dialect.QuoteMapLimit = MaxQuoteCellRules
+			dialect.QuoteMapTruncated = true
+		}
 	}
 	coveredHeader := false
 	if dialect.HasHeader && len(stats.header) > 0 && allTrue(stats.header) {

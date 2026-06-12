@@ -2212,6 +2212,7 @@ const aggregateRowCommandMetrics = new Map([
   ["selection.insertCountRow", "count"],
 ]);
 const aggregateScanCellLimit = 5000;
+const quoteRuleListRenderLimit = 500;
 const columnTextTransformSpecs = [
   { id: "text.column.trim", mode: "trim", label: "Trim Column" },
   { id: "text.column.uppercase", mode: "upper", label: "Uppercase Column" },
@@ -4649,6 +4650,9 @@ function updateFormatStatus() {
     document.body.dataset.readOnly = "false";
     document.body.dataset.workbookSheet = "";
     document.body.dataset.workbookSheetCount = "";
+    document.body.dataset.quoteMapTruncated = "";
+    document.body.dataset.quoteMapDetected = "";
+    document.body.dataset.quoteMapLimit = "";
     readOnlyStatus.textContent = "Editable";
     syncWorkbookSheetControls();
     syncExternalChangeControls(false);
@@ -4667,6 +4671,9 @@ function updateFormatStatus() {
   document.body.dataset.readOnly = readOnly ? "true" : "false";
   document.body.dataset.workbookSheet = metadata.workbook?.selectedSheetName || "";
   document.body.dataset.workbookSheetCount = String(metadata.workbook?.sheets?.length || "");
+  document.body.dataset.quoteMapTruncated = metadata.dialect?.quoteMapTruncated ? "true" : "false";
+  document.body.dataset.quoteMapDetected = metadata.dialect?.quoteMapDetected ? String(metadata.dialect.quoteMapDetected) : "";
+  document.body.dataset.quoteMapLimit = metadata.dialect?.quoteMapLimit ? String(metadata.dialect.quoteMapLimit) : "";
   readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
   syncWorkbookSheetControls();
   syncExternalChangeControls();
@@ -4821,7 +4828,20 @@ function selectedQuotePolicySummary() {
 }
 
 function quotePolicyLabel(dialect = metadata?.dialect) {
-  return `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)} ${quoteEscapeLabel(dialect)}`;
+  const base = `Quote ${quoteModeValue(dialect)} ${quoteCharLabel(dialect)} ${quoteEscapeLabel(dialect)}`;
+  const limit = quoteMapLimitLabel(dialect);
+  return limit ? `${base} · ${limit}` : base;
+}
+
+function quoteMapLimitLabel(dialect = metadata?.dialect) {
+  if (!dialect?.quoteMapTruncated) return "";
+  const detected = Number.parseInt(dialect.quoteMapDetected, 10);
+  const limit = Number.parseInt(dialect.quoteMapLimit, 10);
+  if (Number.isInteger(detected) && Number.isInteger(limit) && detected > limit) {
+    return `quote map limited ${formatCount(limit)} of ${formatCount(detected)}`;
+  }
+  if (Number.isInteger(limit) && limit > 0) return `quote map limited to ${formatCount(limit)}`;
+  return "quote map limited";
 }
 
 function headerColumnsValue(dialect = metadata?.dialect) {
@@ -4986,7 +5006,10 @@ function syncQuotePolicyControls() {
     quoteModeSelect.value = quoteModeValue();
     quoteCharSelect.value = quoteCharValue();
     quoteEscapeSelect.value = quoteEscapeValue();
-    settingsQuoteSummary.textContent = metadata ? `${quoteModeValue()} ${quoteCharLabel()} ${quoteEscapeLabel()}` : "minimal double double escape";
+    const mapLimit = quoteMapLimitLabel();
+    settingsQuoteSummary.textContent = metadata
+      ? `${quoteModeValue()} ${quoteCharLabel()} ${quoteEscapeLabel()}${mapLimit ? ` · ${mapLimit}` : ""}`
+      : "minimal double double escape";
   }
   const dialect = metadata?.dialect;
   quoteHeaderRuleToggle.checked = Boolean(dialect?.quoteHeader);
@@ -7016,9 +7039,11 @@ function renderQuoteRuleList() {
     return;
   }
   const settings = currentQuoteRuleSettings();
-  const items = activeQuoteRuleItems(settings);
-  document.body.dataset.quoteRuleList = String(items.length);
-  if (!items.length) {
+  const totalItems = quoteRuleItemCount(settings);
+  const items = activeQuoteRuleItems(settings, quoteRuleListRenderLimit);
+  document.body.dataset.quoteRuleList = String(totalItems);
+  document.body.dataset.quoteRuleListRendered = String(items.length);
+  if (!totalItems) {
     quoteRuleList.append(emptyQuoteRuleNode("No active quote rules."));
     return;
   }
@@ -7043,6 +7068,9 @@ function renderQuoteRuleList() {
     row.append(meta, remove);
     quoteRuleList.append(row);
   }
+  if (totalItems > items.length) {
+    quoteRuleList.append(emptyQuoteRuleNode(`Showing first ${formatCount(items.length)} of ${formatCount(totalItems)} quote rules.`));
+  }
 }
 
 function emptyQuoteRuleNode(message) {
@@ -7052,50 +7080,68 @@ function emptyQuoteRuleNode(message) {
   return node;
 }
 
-function activeQuoteRuleItems(settings) {
+function quoteRuleItemCount(settings) {
+  return (
+    (settings.quoteHeader ? 1 : 0) +
+    (settings.quoteBody ? 1 : 0) +
+    settings.quoteColumns.length +
+    settings.quoteCells.length +
+    settings.noQuoteCells.length
+  );
+}
+
+function activeQuoteRuleItems(settings, limit = Number.POSITIVE_INFINITY) {
   const items = [];
+  const pushItem = (item) => {
+    if (items.length < limit) items.push(item);
+  };
   if (settings.quoteHeader) {
-    items.push({
+    pushItem({
       kind: "header",
       key: "header",
       title: "Quote header row",
       detail: "Force all header fields to be quoted.",
     });
+    if (items.length >= limit) return items;
   }
   if (settings.quoteBody) {
-    items.push({
+    pushItem({
       kind: "body",
       key: "body",
       title: "Quote body rows",
       detail: "Force all data fields to be quoted.",
     });
+    if (items.length >= limit) return items;
   }
   for (const col of settings.quoteColumns) {
-    items.push({
+    pushItem({
       kind: "column",
       key: String(col),
       col,
       title: `Quote ${quoteRuleColumnLabel(col)}`,
       detail: `Source column ${col + 1}`,
     });
+    if (items.length >= limit) return items;
   }
   for (const cell of settings.quoteCells) {
-    items.push({
+    pushItem({
       kind: "cell",
       key: quoteCellKey(cell),
       cell,
       title: `Quote cell ${quoteRuleCellLabel(cell)}`,
       detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
     });
+    if (items.length >= limit) return items;
   }
   for (const cell of settings.noQuoteCells) {
-    items.push({
+    pushItem({
       kind: "no-cell",
       key: quoteCellKey(cell),
       cell,
       title: `No quote cell ${quoteRuleCellLabel(cell)}`,
       detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
     });
+    if (items.length >= limit) return items;
   }
   return items;
 }

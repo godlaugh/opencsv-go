@@ -732,13 +732,16 @@ func normalizeQuoteColumns(columns []int) []int {
 
 func normalizeQuoteCells(cells []csvcore.Cell) []csvcore.Cell {
 	seen := make(map[csvcore.Cell]bool)
-	normalized := make([]csvcore.Cell, 0, len(cells))
+	normalized := make([]csvcore.Cell, 0, min(len(cells), csvcore.MaxQuoteCellRules))
 	for _, cell := range cells {
 		if cell.Row < 0 || cell.Col < 0 || seen[cell] {
 			continue
 		}
 		seen[cell] = true
 		normalized = append(normalized, cell)
+		if len(normalized) >= csvcore.MaxQuoteCellRules {
+			break
+		}
 	}
 	sort.Slice(normalized, func(i, j int) bool {
 		if normalized[i].Row == normalized[j].Row {
