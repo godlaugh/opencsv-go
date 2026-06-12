@@ -1226,6 +1226,39 @@ func TestStartPageSupportSurfaceIsWired(t *testing.T) {
 	}
 }
 
+func TestKeyboardShortcutsShellEntryIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="shortcutsTabButton"`,
+		`data-command="settings.keyboardShortcuts"`,
+		`aria-label="Keyboard Shortcuts"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing keyboard shortcuts shell html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`const shortcutsTabButton = document.querySelector("#shortcutsTabButton")`,
+		`"nav.shortcuts": "Keys"`,
+		`[shortcutsTabButton, "nav.shortcuts"]`,
+		`shortcutsTabButton.title = t("settings.keyboardShortcuts")`,
+		`shortcutsTabButton.addEventListener("click", () => executeCommand("settings.keyboardShortcuts"))`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing keyboard shortcuts shell frontend wiring %q", snippet)
+		}
+	}
+}
+
 func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

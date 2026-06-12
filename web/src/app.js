@@ -109,6 +109,7 @@ const gridTabButton = document.querySelector("#gridTabButton");
 const sqlTabButton = document.querySelector("#sqlTabButton");
 const profileTabButton = document.querySelector("#profileTabButton");
 const settingsTabButton = document.querySelector("#settingsTabButton");
+const shortcutsTabButton = document.querySelector("#shortcutsTabButton");
 const paletteButton = document.querySelector("#paletteButton");
 const sqlPanel = document.querySelector("#sqlPanel");
 const sqlInput = document.querySelector("#sqlInput");
@@ -515,6 +516,7 @@ const localeCatalog = {
     "nav.sql": "SQL",
     "nav.profile": "Profile",
     "nav.settings": "Settings",
+    "nav.shortcuts": "Keys",
     "nav.command": "Cmd",
     "common.close": "Close",
     "common.cancel": "Cancel",
@@ -1232,6 +1234,7 @@ const localeCatalog = {
     "nav.grid": "网格",
     "nav.profile": "概况",
     "nav.settings": "设置",
+    "nav.shortcuts": "快捷键",
     "common.close": "关闭",
     "common.cancel": "取消",
     "file.open": "打开",
@@ -2742,6 +2745,7 @@ function applyLocaleStrings() {
     [sqlTabButton, "nav.sql"],
     [profileTabButton, "nav.profile"],
     [settingsTabButton, "nav.settings"],
+    [shortcutsTabButton, "nav.shortcuts"],
     [paletteButton, "nav.command"],
     [openButton, "file.open"],
     [copyFormatButton, "edit.copy"],
@@ -2777,6 +2781,10 @@ function applyLocaleStrings() {
   ];
   for (const [element, key] of textTargets) {
     if (element) element.textContent = t(key);
+  }
+  if (shortcutsTabButton) {
+    shortcutsTabButton.title = t("settings.keyboardShortcuts");
+    shortcutsTabButton.setAttribute("aria-label", t("settings.keyboardShortcuts"));
   }
   const copyHeaderLabel = copyHeadersToggle?.nextElementSibling;
   if (copyHeaderLabel) copyHeaderLabel.textContent = t("edit.headers");
@@ -20277,6 +20285,7 @@ cancelProfileSchemaImportButton.addEventListener("click", cancelProfileSchemaImp
 saveProfileRuleButton.addEventListener("click", saveProfileRuleFromBuilder);
 clearProfileRuleButton.addEventListener("click", () => clearProfileRuleBuilder());
 settingsTabButton.addEventListener("click", openSettingsPanel);
+shortcutsTabButton.addEventListener("click", () => executeCommand("settings.keyboardShortcuts"));
 closeAboutSupportButton.addEventListener("click", closeAboutSupportPanel);
 aboutOpenSettingsButton.addEventListener("click", () => {
   closeAboutSupportPanel();
