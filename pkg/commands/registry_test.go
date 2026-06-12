@@ -482,22 +482,41 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(appJS)
+	html := string(indexHTML)
 	css := string(styles)
+	for _, snippet := range []string{
+		`id="resetSavedViewsButton"`,
+		`Reset Views`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing settings reset html wiring %q", snippet)
+		}
+	}
 	for _, snippet := range []string{
 		"function settingsSectionModifiedState",
 		"function syncSettingsSectionBadges",
+		"function savedViewsSettingsModified",
+		"function resetSavedViewsSettings",
 		"function quotePolicySettingsModified",
 		"document.body.dataset.settingsModifiedSections",
 		"document.body.dataset.settingsModifiedSectionCount",
+		"document.body.dataset.savedViewsReset",
 		`badge.className = "settings-section-state"`,
 		`badge.dataset.state = modified ? "modified" : "default"`,
+		`"Saved filters and sorts": savedViewsSettingsModified({ filters, recent, sorts })`,
 		`"Editor appearance": editorAppearanceModified()`,
 		`"File format presets": presets.length > 0`,
+		`resetSavedViewsButton.disabled = !sectionState.state["Saved filters and sorts"]`,
+		`resetSavedViewsButton.addEventListener("click", resetSavedViewsSettings)`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing settings section modified wiring %q", snippet)

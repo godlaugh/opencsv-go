@@ -240,6 +240,7 @@ const settingsViewsSummary = document.querySelector("#settingsViewsSummary");
 const settingsSavedViewList = document.querySelector("#settingsSavedViewList");
 const filterHistoryLimitSelect = document.querySelector("#filterHistoryLimitSelect");
 const clearRecentFiltersButton = document.querySelector("#clearRecentFiltersButton");
+const resetSavedViewsButton = document.querySelector("#resetSavedViewsButton");
 const exportSavedViewsButton = document.querySelector("#exportSavedViewsButton");
 const showImportSavedViewsButton = document.querySelector("#showImportSavedViewsButton");
 const savedViewImportPanel = document.querySelector("#savedViewImportPanel");
@@ -3317,6 +3318,10 @@ function filterHistoryLimitModified() {
   return filterHistoryLimit !== defaultFilterHistoryLimit;
 }
 
+function savedViewsSettingsModified({ filters = savedFilters(), recent = recentFilters(), sorts = savedSorts() } = {}) {
+  return filters.length > 0 || recent.length > 0 || sorts.length > 0 || filterHistoryLimitModified();
+}
+
 function updateFilterHistoryLimitFromSettings() {
   setFilterHistoryLimit(filterHistoryLimitSelect.value);
   renderSettingsPanel();
@@ -3330,6 +3335,28 @@ function clearRecentFilters() {
   refreshFilterDropdown();
   renderSettingsPanel();
   status.textContent = t("view.status.clearedRecentFilters");
+}
+
+function resetSavedViewsSettings() {
+  const before = {
+    filters: savedFilters().length,
+    recent: recentFilters().length,
+    sorts: savedSorts().length,
+    history: filterHistoryLimit,
+  };
+  saveSavedFilters([]);
+  saveSavedSorts([]);
+  filterHistoryLimit = defaultFilterHistoryLimit;
+  localStorage.setItem(filterHistoryLimitStorageKey, String(filterHistoryLimit));
+  saveRecentFilters([]);
+  if (savedViewImportPanel) savedViewImportPanel.hidden = true;
+  if (savedViewImportText) savedViewImportText.value = "";
+  document.body.dataset.savedViewImportPanel = "closed";
+  document.body.dataset.savedViewsReset = `${before.filters}:${before.recent}:${before.sorts}:${before.history}->0:0:0:${filterHistoryLimit}`;
+  refreshFilterDropdown([], []);
+  renderViewChips();
+  renderSettingsPanel();
+  status.textContent = "Saved filters, recent filters, and saved sorts reset.";
 }
 
 function loadCustomLinkProtocols() {
@@ -5265,6 +5292,9 @@ function renderSettingsPanel() {
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules`;
   settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
   resetFormatPresetsButton.disabled = presets.length === 0;
+  if (resetSavedViewsButton) {
+    resetSavedViewsButton.disabled = !sectionState.state["Saved filters and sorts"];
+  }
   syncSettingsSectionBadges(sectionState);
   renderSavedViewSettingsList(filters, sorts, query);
   settingsPresetList.replaceChildren();
@@ -5283,7 +5313,7 @@ function renderSettingsPanel() {
 function settingsSectionModifiedState({ presets = formatPresets(), filters = savedFilters(), recent = recentFilters(), sorts = savedSorts() } = {}) {
   const state = {
     Language: localePreferenceModified(),
-    "Saved filters and sorts": filters.length > 0 || recent.length > 0 || sorts.length > 0 || filterHistoryLimitModified(),
+    "Saved filters and sorts": savedViewsSettingsModified({ filters, recent, sorts }),
     Theme: themePreferenceModified(),
     "External changes": autoRefreshModeModified(),
     Updates: updateCheckModeModified() || Boolean(updateCheckState?.checkedAt),
@@ -20308,6 +20338,7 @@ checkForUpdatesButton.addEventListener("click", () => executeCommand("settings.c
 resetUpdateChecksButton.addEventListener("click", resetUpdateCheckMode);
 filterHistoryLimitSelect.addEventListener("change", updateFilterHistoryLimitFromSettings);
 clearRecentFiltersButton.addEventListener("click", clearRecentFilters);
+resetSavedViewsButton.addEventListener("click", resetSavedViewsSettings);
 applyCustomLinkProtocolsButton.addEventListener("click", updateCustomLinkProtocolsFromSettings);
 resetCustomLinkProtocolsButton.addEventListener("click", resetCustomLinkProtocols);
 gridFontSelect.addEventListener("change", updateEditorAppearanceFromControls);
