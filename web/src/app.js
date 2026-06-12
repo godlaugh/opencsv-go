@@ -2350,6 +2350,7 @@ applyEditorAppearance(editorAppearance, false);
 setCellSeparatorToken(cellSeparatorToken, false);
 document.body.dataset.editorGroupLayoutRestored = editorGroupLayoutSignature(editorGroupLayout);
 syncProfileSchemaControls();
+syncAppTitle();
 
 function resize() {
   draw();
@@ -3578,6 +3579,7 @@ function applyHiddenColumns() {
 function draw() {
   if (viewMode !== "grid") {
     updateCommandState();
+    syncAppTitle();
     return;
   }
   const { width, height } = syncCanvasSize();
@@ -3613,6 +3615,7 @@ function draw() {
       ? `${sourceRowCount.toLocaleString()} rows${aggregateLabel}, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
       : "Ready";
   renderEditorGroups();
+  syncAppTitle();
   updateFormatStatus();
   updateInspector();
   updateCommandState();
@@ -3840,6 +3843,23 @@ function viewModeLabel(mode = viewMode) {
     default:
       return "Grid";
   }
+}
+
+function syncAppTitle() {
+  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "";
+  const dirtyLabel = dirty ? " *" : "";
+  const surfaceLabel = documentId || viewMode !== "grid" ? viewModeLabel(viewMode) : "";
+  const parts = [
+    fileLabel ? `${fileLabel}${dirtyLabel}` : "",
+    surfaceLabel,
+    "opencsv",
+  ].filter(Boolean);
+  const title = parts.join(" - ");
+  document.title = title;
+  document.body.dataset.appTitle = title;
+  document.body.dataset.appTitleFile = fileLabel;
+  document.body.dataset.appTitleDirty = dirty ? "true" : "false";
+  document.body.dataset.appTitleSurface = surfaceLabel;
 }
 
 function splitEditorGroup() {
@@ -4120,6 +4140,7 @@ function setViewMode(mode) {
     settingsSearch.focus();
   }
   updateCommandState();
+  syncAppTitle();
 }
 
 function syncStatusbarSurface(mode = viewMode) {
@@ -12533,6 +12554,7 @@ function updateFileList(name, detail, rowCount, options = {}) {
   if (options.tab !== false) upsertOpenFileTab(activeFileEntry);
   if (options.remember) rememberRecentFile(activeFileEntry);
   renderFileList();
+  syncAppTitle();
 }
 
 function renderFileList() {

@@ -1244,6 +1244,28 @@ func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
 	}
 }
 
+func TestAppTitleStateIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function syncAppTitle",
+		"document.title = title",
+		"document.body.dataset.appTitle = title",
+		"document.body.dataset.appTitleDirty",
+		"document.body.dataset.appTitleSurface",
+		"syncAppTitle();",
+		"viewMode !== \"grid\" ? viewModeLabel(viewMode) : \"\"",
+		"fileLabel ? `${fileLabel}${dirtyLabel}` : \"\"",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing app title wiring %q", snippet)
+		}
+	}
+}
+
 func TestDirtyCloseDiscardPanelIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
