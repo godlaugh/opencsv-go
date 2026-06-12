@@ -444,6 +444,9 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 		"function ensureActiveOpenFileTabVisible",
 		"function scrollOpenFileTabIntoView",
 		"function syncOpenFileTabOverflowState",
+		"function openDirtyClosePanel",
+		"function closeDirtyClosePanel",
+		"async function confirmDirtyCloseDiscard",
 		"function upsertOpenFileTab",
 		"function captureActiveOpenFileTabState",
 		"async function switchOpenFileTab",
@@ -458,6 +461,9 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 		"file-tab-close",
 		"file-tab-row active",
 		"document.body.dataset.closeTabBlocked",
+		"document.body.dataset.closeTabConfirm",
+		"document.body.dataset.closeTabDiscarded",
+		"closeOpenFileTab(target.documentId, { force: true })",
 		"document.body.dataset.openTabOverflow",
 		"document.body.dataset.activeOpenTabVisible",
 		"document.body.dataset.openTabCount",
@@ -1234,6 +1240,46 @@ func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing non-grid statusbar wiring %q", snippet)
+		}
+	}
+}
+
+func TestDirtyCloseDiscardPanelIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="dirtyClosePanel"`,
+		`aria-label="Close unsaved tab"`,
+		`id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel"`,
+		`id="discardDirtyCloseButton" type="button" data-dialog-role="confirm"`,
+		`Discard Tab`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing dirty-close html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`const dirtyClosePanel = document.querySelector("#dirtyClosePanel")`,
+		"let pendingDirtyCloseTab = null",
+		`message === "document has unsaved changes" && !options.force`,
+		"openDirtyClosePanel(target, message)",
+		"closeOpenFileTab(target.documentId, { force: true })",
+		"document.body.dataset.closeTabConfirm",
+		"document.body.dataset.closeTabConfirmReason",
+		"document.body.dataset.closeTabDiscarded",
+		`dirtyClosePanel.addEventListener("mousedown"`,
+		`discardDirtyCloseButton.addEventListener("click", confirmDirtyCloseDiscard)`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing dirty-close frontend wiring %q", snippet)
 		}
 	}
 }

@@ -776,6 +776,24 @@
       </section>
     </div>
 
+    <div id="dirtyClosePanel" class="command-palette-backdrop" hidden>
+      <section class="save-as-panel dirty-close-panel" role="dialog" aria-modal="true" aria-label="Close unsaved tab">
+        <header class="condition-panel-header">
+          <strong>Close Unsaved Tab</strong>
+          <button id="closeDirtyCloseButton" type="button">Close</button>
+        </header>
+        <div class="transpose-confirm-body">
+          <strong id="dirtyCloseName">Unsaved document</strong>
+          <p id="dirtyCloseDetail">This tab has unsaved edits. Save it before closing, or discard the tab explicitly.</p>
+          <p class="transpose-confirm-warning">Discarding closes the tab and removes its recovery draft for this session.</p>
+        </div>
+        <footer class="condition-actions" data-dialog-actions>
+          <button id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel">Keep Editing</button>
+          <button id="discardDirtyCloseButton" type="button" data-dialog-role="confirm">Discard Tab</button>
+        </footer>
+      </section>
+    </div>
+
     <div id="externalChangePanel" class="command-palette-backdrop" hidden>
       <section class="save-as-panel external-change-panel" role="dialog" aria-modal="true" aria-label="External file change">
         <header class="condition-panel-header">

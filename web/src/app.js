@@ -285,6 +285,12 @@ const restoreBackupList = document.querySelector("#restoreBackupList");
 const closeRestoreBackupButton = document.querySelector("#closeRestoreBackupButton");
 const cancelRestoreBackupButton = document.querySelector("#cancelRestoreBackupButton");
 const refreshRestoreBackupsButton = document.querySelector("#refreshRestoreBackupsButton");
+const dirtyClosePanel = document.querySelector("#dirtyClosePanel");
+const closeDirtyCloseButton = document.querySelector("#closeDirtyCloseButton");
+const cancelDirtyCloseButton = document.querySelector("#cancelDirtyCloseButton");
+const discardDirtyCloseButton = document.querySelector("#discardDirtyCloseButton");
+const dirtyCloseName = document.querySelector("#dirtyCloseName");
+const dirtyCloseDetail = document.querySelector("#dirtyCloseDetail");
 const externalChangePanel = document.querySelector("#externalChangePanel");
 const externalChangeTitle = document.querySelector("#externalChangeTitle");
 const externalChangeMessage = document.querySelector("#externalChangeMessage");
@@ -2292,6 +2298,7 @@ let externalChangePanelDismissed = false;
 let fileStatusTimer = 0;
 let pendingWholeTranspose = null;
 let pendingSplitTool = null;
+let pendingDirtyCloseTab = null;
 let customLinkProtocols = loadCustomLinkProtocols();
 let confirmedCustomLinkProtocols = loadConfirmedCustomLinkProtocols();
 let pendingLinkConfirmation = null;
@@ -12746,6 +12753,9 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
   if (!response.ok) {
     const message = payload.error ?? "close failed";
     document.body.dataset.closeTabBlocked = `${targetDocumentId}:${message}`;
+    if (message === "document has unsaved changes" && !options.force) {
+      openDirtyClosePanel(target, message);
+    }
     status.textContent = message === "document has unsaved changes"
       ? `Save ${target?.name ?? "the file"} before closing.`
       : `Close tab failed: ${message}`;
@@ -12782,6 +12792,41 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
   renderFileList();
   status.textContent = `Closed ${closedName}.`;
   return true;
+}
+
+function openDirtyClosePanel(tab, message = "document has unsaved changes") {
+  if (!tab?.documentId || !dirtyClosePanel) return;
+  pendingDirtyCloseTab = {
+    documentId: tab.documentId,
+    name: tab.name || "Unsaved document",
+    detail: tab.detail || "",
+  };
+  dirtyCloseName.textContent = pendingDirtyCloseTab.name;
+  dirtyCloseDetail.textContent = pendingDirtyCloseTab.detail
+    ? `${pendingDirtyCloseTab.detail} has unsaved edits. Save it before closing, or discard the tab explicitly.`
+    : "This tab has unsaved edits. Save it before closing, or discard the tab explicitly.";
+  dirtyClosePanel.hidden = false;
+  document.body.dataset.closeTabConfirm = `${pendingDirtyCloseTab.documentId}:${pendingDirtyCloseTab.name}`;
+  document.body.dataset.closeTabConfirmReason = message;
+  discardDirtyCloseButton.focus();
+}
+
+function closeDirtyClosePanel() {
+  if (!dirtyClosePanel) return;
+  dirtyClosePanel.hidden = true;
+  pendingDirtyCloseTab = null;
+  document.body.dataset.closeTabConfirm = "";
+  document.body.dataset.closeTabConfirmReason = "";
+}
+
+async function confirmDirtyCloseDiscard() {
+  if (!pendingDirtyCloseTab) return;
+  const target = { ...pendingDirtyCloseTab };
+  closeDirtyClosePanel();
+  const closed = await closeOpenFileTab(target.documentId, { force: true });
+  if (closed) {
+    document.body.dataset.closeTabDiscarded = `${target.documentId}:${target.name}`;
+  }
 }
 
 function clearCurrentDocumentState(closedName = "") {
@@ -19642,6 +19687,11 @@ function handleGlobalShortcut(event) {
     closeExternalChangePanel();
     return true;
   }
+  if (event.key === "Escape" && dirtyClosePanel && !dirtyClosePanel.hidden) {
+    event.preventDefault();
+    closeDirtyClosePanel();
+    return true;
+  }
   if (event.key === "Escape" && transposeConfirmPanel && !transposeConfirmPanel.hidden) {
     event.preventDefault();
     closeTransposeConfirmPanel();
@@ -20332,6 +20382,9 @@ shortcutsPanel.addEventListener("mousedown", (event) => {
 closeSaveAsButton.addEventListener("click", closeSaveAsDialog);
 cancelSaveAsButton.addEventListener("click", closeSaveAsDialog);
 confirmSaveAsButton.addEventListener("click", confirmSaveAs);
+closeDirtyCloseButton.addEventListener("click", closeDirtyClosePanel);
+cancelDirtyCloseButton.addEventListener("click", closeDirtyClosePanel);
+discardDirtyCloseButton.addEventListener("click", confirmDirtyCloseDiscard);
 closeRestoreBackupButton.addEventListener("click", closeRestoreBackupPanel);
 cancelRestoreBackupButton.addEventListener("click", closeRestoreBackupPanel);
 refreshRestoreBackupsButton.addEventListener("click", loadRestoreBackups);
@@ -20369,6 +20422,12 @@ externalChangePanel.addEventListener("mousedown", (event) => {
   if (event.target === externalChangePanel) {
     event.preventDefault();
     closeExternalChangePanel();
+  }
+});
+dirtyClosePanel.addEventListener("mousedown", (event) => {
+  if (event.target === dirtyClosePanel) {
+    event.preventDefault();
+    closeDirtyClosePanel();
   }
 });
 transposeConfirmPanel.addEventListener("mousedown", (event) => {
