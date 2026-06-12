@@ -1019,6 +1019,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "Fill Header",
     "profile.quickFix.header.unique": "Make Unique",
     "profile.quickFix.row.pad": "Pad Row",
+    "profile.quickFix.schema.column.add": "Add Column",
     "profile.quickFix.schema.default.use": "Use Default",
     "profile.quickFix.schema.enum.useValue": "Use Allowed Value",
     "profile.quickFix.schema.range.clampMin": "Use Minimum",
@@ -1732,6 +1733,7 @@ const localeCatalog = {
     "profile.quickFix.header.fill": "填充表头",
     "profile.quickFix.header.unique": "设为唯一",
     "profile.quickFix.row.pad": "补齐行",
+    "profile.quickFix.schema.column.add": "添加列",
     "profile.quickFix.schema.default.use": "使用默认值",
     "profile.quickFix.schema.enum.useValue": "使用允许值",
     "profile.quickFix.schema.range.clampMin": "使用最小值",
@@ -18096,6 +18098,10 @@ async function applyProfileQuickFix(issue, fix) {
     return;
   }
   const fixID = typeof fix === "string" ? fix : fix?.id;
+  if (fixID === "schema.column.add") {
+    await applyProfileMissingColumnQuickFix(issue, fix);
+    return;
+  }
   const edits = profileQuickFixEdits(issue, fix);
   if (!edits.length) {
     status.textContent = t("profile.quickFix.unavailable");
@@ -18125,6 +18131,66 @@ async function applyProfileQuickFix(issue, fix) {
     }
     draw();
     document.body.dataset.profileQuickFix = `${fixID}:${edits.length}`;
+    status.textContent = tf("profile.quickFix.applied", { count: formatCount(edits.length) });
+    await loadProfile(true);
+  } catch (error) {
+    status.textContent = tf("profile.quickFix.failed", { message: error.message });
+  }
+}
+
+function profileMissingColumnEdits(issue, fix, sourceCol) {
+  const name = String(issue?.rule || "").trim();
+  if (!name || !Number.isInteger(sourceCol) || sourceCol < 0) return [];
+  const edits = dataStartRow > 0 ? [{ row: 0, col: sourceCol, value: name }] : [];
+  const defaultValue = typeof fix?.value === "string" ? fix.value : "";
+  if (defaultValue !== "") {
+    for (let sourceRow = dataStartRow; sourceRow < dataStartRow + sourceRowCount; sourceRow++) {
+      edits.push({ row: sourceRow, col: sourceCol, value: defaultValue });
+    }
+  }
+  return edits;
+}
+
+async function applyProfileMissingColumnQuickFix(issue, fix) {
+  const name = String(issue?.rule || "").trim();
+  if (!name || dataStartRow <= 0) {
+    status.textContent = t("profile.quickFix.unavailable");
+    return;
+  }
+  const sourceCol = allColumns.length;
+  try {
+    const insertResponse = await fetch("/api/column/insert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId, col: sourceCol }),
+    });
+    const insertPayload = await insertResponse.json();
+    if (!insertResponse.ok) throw new Error(insertPayload.error ?? "add column failed");
+    applyMutationPayload(insertPayload, "");
+    const edits = profileMissingColumnEdits(issue, fix, sourceCol);
+    if (edits.length) {
+      const editResponse = await fetch("/api/edit-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId, edits }),
+      });
+      const editPayload = await editResponse.json();
+      if (!editResponse.ok) throw new Error(editPayload.error ?? "fill column failed");
+      dirty = true;
+      profileData = null;
+      rows = new Map();
+      rowSource = new Map();
+      windowStart = 0;
+      windowEnd = 0;
+      windowGeneration++;
+      selected = { row: 0, col: Math.max(0, visibleColForSource(sourceCol)) };
+      selectionAnchor = { ...selected };
+      await maybeLoadWindow(0);
+      applyEditsToLoadedRows(edits);
+      renameSourceColumn(sourceCol, name);
+    }
+    draw();
+    document.body.dataset.profileQuickFix = `schema.column.add:${edits.length}:col${sourceCol + 1}`;
     status.textContent = tf("profile.quickFix.applied", { count: formatCount(edits.length) });
     await loadProfile(true);
   } catch (error) {

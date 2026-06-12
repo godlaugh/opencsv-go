@@ -330,6 +330,40 @@ func TestAnalyzeWithSchemaRequiredDefaultQuickFix(t *testing.T) {
 	}
 }
 
+func TestAnalyzeWithSchemaMissingColumnQuickFix(t *testing.T) {
+	result := AnalyzeWithSchema([][]string{
+		{"id", "owner"},
+		{"1", "Ada"},
+		{"2", "Linus"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "status", Required: true, Enum: []string{"active"}, Default: "active"},
+		{Name: "score", Type: "integer", Default: "bad"},
+	}})
+	statusIssue := issueByRule(result.Issues, "schema-missing-column", "status")
+	if statusIssue == nil || len(statusIssue.QuickFixes) != 1 {
+		t.Fatalf("status missing-column issue = %#v, want add-column quick fix", statusIssue)
+	}
+	statusFix := statusIssue.QuickFixes[0]
+	if statusFix.ID != "schema.column.add" || statusFix.Value != "active" {
+		t.Fatalf("status missing-column fix = %#v, want add column with default active", statusFix)
+	}
+	scoreIssue := issueByRule(result.Issues, "schema-missing-column", "score")
+	if scoreIssue == nil || len(scoreIssue.QuickFixes) != 1 {
+		t.Fatalf("score missing-column issue = %#v, want add-column quick fix", scoreIssue)
+	}
+	scoreFix := scoreIssue.QuickFixes[0]
+	if scoreFix.ID != "schema.column.add" || scoreFix.Value != "" {
+		t.Fatalf("score missing-column fix = %#v, want add column without invalid default", scoreFix)
+	}
+	noHeader := AnalyzeWithSchema([][]string{{"1", "Ada"}}, false, Schema{Columns: []ColumnRule{
+		{Name: "status", Required: true, Default: "active"},
+	}})
+	noHeaderIssue := issueByRule(noHeader.Issues, "schema-missing-column", "status")
+	if noHeaderIssue == nil || len(noHeaderIssue.QuickFixes) != 0 {
+		t.Fatalf("no-header missing-column issue = %#v, want no structural quick fix", noHeaderIssue)
+	}
+}
+
 func TestAnalyzeWithSchemaSemanticDefaultQuickFixes(t *testing.T) {
 	minLength := 2
 	maxLength := 4
@@ -688,6 +722,15 @@ func issueByType(issues []Issue, typ string) *Issue {
 func issueByTypeCol(issues []Issue, typ string, col int) *Issue {
 	for i := range issues {
 		if issues[i].Type == typ && issues[i].Col == col {
+			return &issues[i]
+		}
+	}
+	return nil
+}
+
+func issueByRule(issues []Issue, typ string, rule string) *Issue {
+	for i := range issues {
+		if issues[i].Type == typ && issues[i].Rule == rule {
 			return &issues[i]
 		}
 	}

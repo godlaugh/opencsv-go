@@ -482,11 +482,12 @@ func schemaValidationIssues(records [][]string, hasHeader bool, headers []string
 		ruleName := columnRuleName(rule)
 		if !ok {
 			issues = append(issues, Issue{
-				Type:     "schema-missing-column",
-				Severity: "error",
-				Row:      1,
-				Rule:     ruleName,
-				Message:  fmt.Sprintf("Schema column %q was not found.", ruleName),
+				Type:       "schema-missing-column",
+				Severity:   "error",
+				Row:        1,
+				Rule:       ruleName,
+				Message:    fmt.Sprintf("Schema column %q was not found.", ruleName),
+				QuickFixes: missingColumnQuickFixes(rule, hasHeader),
 			})
 			continue
 		}
@@ -509,7 +510,7 @@ func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHe
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	compiledRules, ruleCount, issues := compileColumnRules(headers, schema)
+	compiledRules, ruleCount, issues := compileColumnRules(headers, hasHeader, schema)
 	result.SchemaRules = ruleCount
 	result.Issues = append(result.Issues, issues...)
 	if len(result.Columns) == 0 && len(compiledRules) == 0 {
@@ -534,7 +535,7 @@ func streamProfileValidationPass(ctx context.Context, stream RecordStream, hasHe
 	return err
 }
 
-func compileColumnRules(headers []string, schema Schema) ([]compiledColumnRule, int, []Issue) {
+func compileColumnRules(headers []string, hasHeader bool, schema Schema) ([]compiledColumnRule, int, []Issue) {
 	var compiled []compiledColumnRule
 	var issues []Issue
 	rules := 0
@@ -547,11 +548,12 @@ func compileColumnRules(headers []string, schema Schema) ([]compiledColumnRule, 
 		ruleName := columnRuleName(rule)
 		if !ok {
 			issues = append(issues, Issue{
-				Type:     "schema-missing-column",
-				Severity: "error",
-				Row:      1,
-				Rule:     ruleName,
-				Message:  fmt.Sprintf("Schema column %q was not found.", ruleName),
+				Type:       "schema-missing-column",
+				Severity:   "error",
+				Row:        1,
+				Rule:       ruleName,
+				Message:    fmt.Sprintf("Schema column %q was not found.", ruleName),
+				QuickFixes: missingColumnQuickFixes(rule, hasHeader),
 			})
 			continue
 		}
@@ -839,6 +841,18 @@ func defaultQuickFixes(value string) []QuickFix {
 		return nil
 	}
 	return []QuickFix{{ID: "schema.default.use", Label: "Use default", Value: value}}
+}
+
+func missingColumnQuickFixes(rule ColumnRule, hasHeader bool) []QuickFix {
+	name := strings.TrimSpace(rule.Name)
+	if !hasHeader || name == "" {
+		return nil
+	}
+	fix := QuickFix{ID: "schema.column.add", Label: "Add column"}
+	if schemaDefaultMatchesRule(rule) {
+		fix.Value = rule.Default
+	}
+	return []QuickFix{fix}
 }
 
 func defaultQuickFixesForRule(rule ColumnRule) []QuickFix {

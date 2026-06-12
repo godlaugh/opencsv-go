@@ -1318,6 +1318,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`"profile.type.yearmonth": "Year-Month"`,
 		`"profile.rule.default": "Default"`,
 		`"profile.rule.default": "默认值"`,
+		`"profile.quickFix.schema.column.add": "Add Column"`,
+		`"profile.quickFix.schema.column.add": "添加列"`,
 		"applyProfileProgressSummary(result.progress)",
 		"readProfileResponse(response)",
 		"applyProfileLocaleStrings",
@@ -1340,6 +1342,9 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"uniqueHeaderNameForSourceCol",
 		"profileRuleDefaultInput.value",
 		"rule.default",
+		"applyProfileMissingColumnQuickFix(issue, fix)",
+		`fetch("/api/column/insert"`,
+		"document.body.dataset.profileQuickFix = `schema.column.add:",
 		`tf("profile.quickFix.applied"`,
 	} {
 		if !strings.Contains(source, snippet) {
