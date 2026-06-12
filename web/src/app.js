@@ -171,6 +171,7 @@ const profileRuleRequiredToggle = document.querySelector("#profileRuleRequiredTo
 const profileRuleUniqueToggle = document.querySelector("#profileRuleUniqueToggle");
 const profileRuleEnumInput = document.querySelector("#profileRuleEnumInput");
 const profileRulePatternInput = document.querySelector("#profileRulePatternInput");
+const profileRuleDefaultInput = document.querySelector("#profileRuleDefaultInput");
 const profileRuleMinInput = document.querySelector("#profileRuleMinInput");
 const profileRuleMaxInput = document.querySelector("#profileRuleMaxInput");
 const profileRuleMinLengthInput = document.querySelector("#profileRuleMinLengthInput");
@@ -978,6 +979,7 @@ const localeCatalog = {
     "profile.rule.unique": "Unique",
     "profile.rule.enum": "Enum",
     "profile.rule.pattern": "Pattern",
+    "profile.rule.default": "Default",
     "profile.rule.min": "Min",
     "profile.rule.max": "Max",
     "profile.rule.minLength": "Min Length",
@@ -1690,6 +1692,7 @@ const localeCatalog = {
     "profile.rule.unique": "唯一",
     "profile.rule.enum": "枚举",
     "profile.rule.pattern": "模式",
+    "profile.rule.default": "默认值",
     "profile.rule.min": "最小值",
     "profile.rule.max": "最大值",
     "profile.rule.minLength": "最小长度",
@@ -17441,6 +17444,8 @@ function profileRuleFromBuilder() {
   if (enumValues.length) rule.enum = enumValues;
   const pattern = profileRulePatternInput.value.trim();
   if (pattern) rule.pattern = pattern;
+  const defaultValue = profileRuleDefaultInput.value.trim();
+  if (defaultValue) rule.default = defaultValue;
   const minValue = Number.parseFloat(profileRuleMinInput.value);
   const maxValue = Number.parseFloat(profileRuleMaxInput.value);
   const minLengthValue = Number.parseInt(profileRuleMinLengthInput.value, 10);
@@ -17488,6 +17493,7 @@ function ruleHasValidation(rule) {
       rule.unique ||
       rule.type ||
       rule.pattern ||
+      rule.default ||
       rule.min != null ||
       rule.max != null ||
       rule.minLength != null ||
@@ -17532,6 +17538,7 @@ function clearProfileRuleBuilder(resetStatus = true) {
   profileRuleUniqueToggle.checked = false;
   profileRuleEnumInput.value = "";
   profileRulePatternInput.value = "";
+  profileRuleDefaultInput.value = "";
   profileRuleMinInput.value = "";
   profileRuleMaxInput.value = "";
   profileRuleMinLengthInput.value = "";
@@ -17555,6 +17562,7 @@ function editProfileRule(index) {
   profileRuleUniqueToggle.checked = Boolean(rule.unique);
   profileRuleEnumInput.value = Array.isArray(rule.enum) ? rule.enum.join(", ") : "";
   profileRulePatternInput.value = rule.pattern || "";
+  profileRuleDefaultInput.value = rule.default || "";
   profileRuleMinInput.value = rule.min ?? "";
   profileRuleMaxInput.value = rule.max ?? "";
   profileRuleMinLengthInput.value = rule.minLength ?? "";

@@ -1294,6 +1294,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		`data-i18n="profile.run"`,
 		`data-i18n="profile.rule.columnName"`,
+		`data-i18n="profile.rule.default"`,
+		`id="profileRuleDefaultInput"`,
 		`data-i18n-placeholder="profile.schemaNamePlaceholder"`,
 		`<option value="time">Time</option>`,
 		`<option value="datetime">Date-Time</option>`,
@@ -1314,6 +1316,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		`"profile.type.time": "Time"`,
 		`"profile.type.datetime": "Date-Time"`,
 		`"profile.type.yearmonth": "Year-Month"`,
+		`"profile.rule.default": "Default"`,
+		`"profile.rule.default": "默认值"`,
 		"applyProfileProgressSummary(result.progress)",
 		"readProfileResponse(response)",
 		"applyProfileLocaleStrings",
@@ -1334,6 +1338,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"profileSeverityLabel(issue.severity)",
 		"profileQuickFixLabel(fix)",
 		"uniqueHeaderNameForSourceCol",
+		"profileRuleDefaultInput.value",
+		"rule.default",
 		`tf("profile.quickFix.applied"`,
 	} {
 		if !strings.Contains(source, snippet) {
