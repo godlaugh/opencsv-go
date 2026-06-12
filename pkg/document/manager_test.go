@@ -493,7 +493,11 @@ func TestManagerOpenEditAndSaveXLSX(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacyTempPath := path + ".tmp"
+	if err := os.WriteFile(legacyTempPath, []byte("sentinel"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -531,6 +535,20 @@ func TestManagerOpenEditAndSaveXLSX(t *testing.T) {
 	}
 	if got := records[1][1]; got != "Ada Lovelace" {
 		t.Fatalf("saved xlsx cell = %q, want Ada Lovelace", got)
+	}
+	legacyTemp, err := os.ReadFile(legacyTempPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(legacyTemp) != "sentinel" {
+		t.Fatalf("legacy xlsx temp file was overwritten: %q", legacyTemp)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("saved xlsx mode = %#o, want 0600", got)
 	}
 }
 

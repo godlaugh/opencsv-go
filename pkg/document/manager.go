@@ -1756,12 +1756,7 @@ func saveXLSXRecords(path string, records [][]string, createBackup bool, sheetPa
 			return csvcore.SaveResult{}, err
 		}
 	}
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return csvcore.SaveResult{}, err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := csvcore.AtomicWriteFile(path, data); err != nil {
 		return csvcore.SaveResult{}, err
 	}
 	info, err := os.Stat(path)

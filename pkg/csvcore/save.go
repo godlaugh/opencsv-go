@@ -41,12 +41,7 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 		return SaveResult{}, err
 	}
 
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, output, 0o644); err != nil {
-		return SaveResult{}, err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := AtomicWriteFile(path, output); err != nil {
 		return SaveResult{}, err
 	}
 
@@ -55,6 +50,60 @@ func SaveRecords(path string, metadata FileMetadata, records [][]string, options
 		return SaveResult{}, err
 	}
 	return SaveResult{Path: path, BackupPath: backupPath, SizeBytes: info.Size()}, nil
+}
+
+func AtomicWriteFile(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	temp, err := os.CreateTemp(dir, "."+base+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	keepTemp := false
+	defer func() {
+		if !keepTemp {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	if err := temp.Chmod(mode); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if _, err := temp.Write(data); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return err
+	}
+	keepTemp = true
+	syncParentDir(path)
+	return nil
+}
+
+func syncParentDir(path string) {
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return
+	}
+	defer dir.Close()
+	_ = dir.Sync()
 }
 
 // EncodeRecords formats records as UTF-8 text using the document dialect and
@@ -139,11 +188,22 @@ func CreateBackup(path string, requestedPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer target.Close()
 
 	if _, err := io.Copy(target, source); err != nil {
+		_ = target.Close()
+		_ = os.Remove(backupPath)
 		return "", err
 	}
+	if err := target.Sync(); err != nil {
+		_ = target.Close()
+		_ = os.Remove(backupPath)
+		return "", err
+	}
+	if err := target.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return "", err
+	}
+	syncParentDir(backupPath)
 	return backupPath, nil
 }
 

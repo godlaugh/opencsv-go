@@ -387,3 +387,52 @@ func TestSaveRecordsDefaultBackupAvoidsNameCollision(t *testing.T) {
 		t.Fatalf("backup paths were not unique: first=%q second=%q", first.BackupPath, second.BackupPath)
 	}
 }
+
+func TestSaveRecordsAtomicWriteKeepsExistingTempAndMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacyTempPath := path + ".tmp"
+	if err := os.WriteFile(legacyTempPath, []byte("sentinel"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := SaveRecords(path, document.Metadata, [][]string{{"id", "name"}, {"1", "Grace"}}, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saved) != "id,name\n1,Grace\n" {
+		t.Fatalf("saved data = %q", saved)
+	}
+	legacyTemp, err := os.ReadFile(legacyTempPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(legacyTemp) != "sentinel" {
+		t.Fatalf("legacy temp file was overwritten: %q", legacyTemp)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("saved mode = %#o, want 0600", got)
+	}
+	leftovers, err := filepath.Glob(filepath.Join(dir, ".sample.csv.*.tmp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(leftovers) != 0 {
+		t.Fatalf("atomic temp files were not cleaned up: %v", leftovers)
+	}
+}
