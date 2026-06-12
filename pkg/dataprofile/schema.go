@@ -210,11 +210,24 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	if rule.Pattern == "" {
 		rule.Pattern = firstSchemaString(constraints, "pattern", "regex")
 	}
-	if min, ok := firstSchemaNumber([]map[string]json.RawMessage{column, constraints, datatypeObject}, "min", "minimum"); ok {
+	rangeSources := []map[string]json.RawMessage{column, constraints, datatypeObject}
+	if min, ok := firstSchemaNumber(rangeSources, "exclusiveMinimum", "exclusive_minimum", "exclusiveMin"); ok {
+		rule.Min = &min
+		rule.ExclusiveMin = true
+	} else if min, ok := firstSchemaNumber(rangeSources, "min", "minimum"); ok {
 		rule.Min = &min
 	}
-	if max, ok := firstSchemaNumber([]map[string]json.RawMessage{column, constraints, datatypeObject}, "max", "maximum"); ok {
+	if max, ok := firstSchemaNumber(rangeSources, "exclusiveMaximum", "exclusive_maximum", "exclusiveMax"); ok {
 		rule.Max = &max
+		rule.ExclusiveMax = true
+	} else if max, ok := firstSchemaNumber(rangeSources, "max", "maximum"); ok {
+		rule.Max = &max
+	}
+	if rule.Min != nil && firstSchemaBool(rangeSources, "exclusiveMinimum", "exclusive_minimum", "exclusiveMin") {
+		rule.ExclusiveMin = true
+	}
+	if rule.Max != nil && firstSchemaBool(rangeSources, "exclusiveMaximum", "exclusive_maximum", "exclusiveMax") {
+		rule.ExclusiveMax = true
 	}
 	if minLength, ok := firstSchemaInteger([]map[string]json.RawMessage{column, constraints, datatypeObject}, "minLength", "minimumLength", "min_length", "minimum_length"); ok {
 		rule.MinLength = &minLength
@@ -420,6 +433,20 @@ func firstSchemaNumber(sources []map[string]json.RawMessage, keys ...string) (fl
 		}
 	}
 	return 0, false
+}
+
+func firstSchemaBool(sources []map[string]json.RawMessage, keys ...string) bool {
+	for _, source := range sources {
+		if source == nil {
+			continue
+		}
+		for _, key := range keys {
+			if schemaRawBool(firstSchemaRaw(source, key)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func firstSchemaInteger(sources []map[string]json.RawMessage, keys ...string) (int, bool) {

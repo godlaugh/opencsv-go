@@ -3,6 +3,7 @@ package dataprofile
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -269,6 +270,38 @@ func TestAnalyzeWithSchemaRangeQuickFixes(t *testing.T) {
 	}
 	if nonNumeric == nil || len(nonNumeric.QuickFixes) != 0 {
 		t.Fatalf("non-numeric range issue = %#v, want no semantic quick fix", nonNumeric)
+	}
+}
+
+func TestAnalyzeWithSchemaExclusiveRange(t *testing.T) {
+	minScore := 0.0
+	maxScore := 10.0
+	result := AnalyzeWithSchema([][]string{
+		{"score"},
+		{"0"},
+		{"10"},
+		{"5"},
+	}, true, Schema{Columns: []ColumnRule{
+		{Name: "score", Type: "number", Min: &minScore, Max: &maxScore, ExclusiveMin: true, ExclusiveMax: true},
+	}})
+	var minIssue, maxIssue *Issue
+	for i := range result.Issues {
+		issue := &result.Issues[i]
+		if issue.Type != "schema-range" {
+			continue
+		}
+		switch issue.Row {
+		case 2:
+			minIssue = issue
+		case 3:
+			maxIssue = issue
+		}
+	}
+	if minIssue == nil || len(minIssue.QuickFixes) != 0 || !strings.Contains(minIssue.Message, "greater than schema minimum 0") {
+		t.Fatalf("exclusive min issue = %#v, want strict lower-bound issue without clamp", minIssue)
+	}
+	if maxIssue == nil || len(maxIssue.QuickFixes) != 0 || !strings.Contains(maxIssue.Message, "less than schema maximum 10") {
+		t.Fatalf("exclusive max issue = %#v, want strict upper-bound issue without clamp", maxIssue)
 	}
 }
 
@@ -593,6 +626,28 @@ func TestSchemaUnmarshalAcceptsJSONSchemaProperties(t *testing.T) {
 	for _, typ := range []string{"schema-type", "schema-range", "schema-required"} {
 		if !hasIssue(result.Issues, typ) {
 			t.Fatalf("expected %s issue in %#v", typ, result.Issues)
+		}
+	}
+}
+
+func TestSchemaUnmarshalAcceptsJSONSchemaExclusiveRanges(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"properties": {
+			"legacy": {"type": "number", "minimum": 0, "exclusiveMinimum": true, "maximum": 10, "exclusiveMaximum": true},
+			"score": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 10}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 2 {
+		t.Fatalf("columns = %#v, want 2", schema.Columns)
+	}
+	for _, rule := range schema.Columns {
+		if rule.Type != "number" || rule.Min == nil || *rule.Min != 0 || rule.Max == nil || *rule.Max != 10 || !rule.ExclusiveMin || !rule.ExclusiveMax {
+			t.Fatalf("exclusive range rule = %#v", rule)
 		}
 	}
 }

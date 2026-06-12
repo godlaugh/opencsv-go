@@ -1000,6 +1000,8 @@ const localeCatalog = {
     "profile.rule.patternSummary": "pattern {{pattern}}",
     "profile.rule.minSummary": "min {{value}}",
     "profile.rule.maxSummary": "max {{value}}",
+    "profile.rule.exclusiveMinSummary": "min > {{value}}",
+    "profile.rule.exclusiveMaxSummary": "max < {{value}}",
     "profile.rule.minLengthSummary": "min length {{value}}",
     "profile.rule.maxLengthSummary": "max length {{value}}",
     "profile.type.any": "Any",
@@ -1714,6 +1716,8 @@ const localeCatalog = {
     "profile.rule.patternSummary": "模式 {{pattern}}",
     "profile.rule.minSummary": "最小值 {{value}}",
     "profile.rule.maxSummary": "最大值 {{value}}",
+    "profile.rule.exclusiveMinSummary": "最小值 > {{value}}",
+    "profile.rule.exclusiveMaxSummary": "最大值 < {{value}}",
     "profile.rule.minLengthSummary": "最小长度 {{value}}",
     "profile.rule.maxLengthSummary": "最大长度 {{value}}",
     "profile.type.any": "任意",
@@ -17042,10 +17046,19 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   if (enumValues.length) rule.enum = enumValues;
   const pattern = String(column.pattern ?? constraints.pattern ?? constraints.regex ?? "").trim();
   if (pattern) rule.pattern = pattern;
-  const min = schemaNumber(column.min ?? column.minimum ?? constraints.min ?? constraints.minimum ?? datatypeObject.min ?? datatypeObject.minimum);
-  const max = schemaNumber(column.max ?? column.maximum ?? constraints.max ?? constraints.maximum ?? datatypeObject.max ?? datatypeObject.maximum);
+  const rangeSources = [column, constraints, datatypeObject];
+  const exclusiveMin = schemaNumberFromSources(rangeSources, ["exclusiveMinimum", "exclusive_minimum", "exclusiveMin"]);
+  const exclusiveMax = schemaNumberFromSources(rangeSources, ["exclusiveMaximum", "exclusive_maximum", "exclusiveMax"]);
+  const min = exclusiveMin ?? schemaNumberFromSources(rangeSources, ["min", "minimum"]);
+  const max = exclusiveMax ?? schemaNumberFromSources(rangeSources, ["max", "maximum"]);
   if (min != null) rule.min = min;
   if (max != null) rule.max = max;
+  if (exclusiveMin != null || (min != null && schemaBoolFromSources(rangeSources, ["exclusiveMinimum", "exclusive_minimum", "exclusiveMin"]))) {
+    rule.exclusiveMinimum = true;
+  }
+  if (exclusiveMax != null || (max != null && schemaBoolFromSources(rangeSources, ["exclusiveMaximum", "exclusive_maximum", "exclusiveMax"]))) {
+    rule.exclusiveMaximum = true;
+  }
   const minLength = schemaNonNegativeInteger(
     column.minLength ??
       column.minimumLength ??
@@ -17088,8 +17101,36 @@ function schemaPositiveInteger(value) {
 
 function schemaNumber(value) {
   if (value == null || value === "") return null;
+  if (typeof value === "boolean") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function schemaNumberFromSources(sources, keys) {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const key of keys) {
+      const number = schemaNumber(source[key]);
+      if (number != null) return number;
+    }
+  }
+  return null;
+}
+
+function schemaBoolFromSources(sources, keys) {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const key of keys) {
+      if (schemaBool(source[key])) return true;
+    }
+  }
+  return false;
+}
+
+function schemaBool(value) {
+  if (value === true) return true;
+  const text = schemaString(value).toLowerCase();
+  return text === "true" || text === "1" || text === "yes";
 }
 
 function schemaNonNegativeInteger(value) {
@@ -17657,8 +17698,12 @@ function profileRuleSummary(rule) {
   if (rule.type) parts.push(tf("profile.rule.typeSummary", { type: profileTypeLabel(rule.type) }));
   if (Array.isArray(rule.enum) && rule.enum.length) parts.push(tf("profile.rule.enumSummary", { values: rule.enum.join("|") }));
   if (rule.pattern) parts.push(tf("profile.rule.patternSummary", { pattern: rule.pattern }));
-  if (rule.min != null) parts.push(tf("profile.rule.minSummary", { value: rule.min }));
-  if (rule.max != null) parts.push(tf("profile.rule.maxSummary", { value: rule.max }));
+  if (rule.min != null) {
+    parts.push(tf(rule.exclusiveMinimum ? "profile.rule.exclusiveMinSummary" : "profile.rule.minSummary", { value: rule.min }));
+  }
+  if (rule.max != null) {
+    parts.push(tf(rule.exclusiveMaximum ? "profile.rule.exclusiveMaxSummary" : "profile.rule.maxSummary", { value: rule.max }));
+  }
   if (rule.minLength != null) parts.push(tf("profile.rule.minLengthSummary", { value: rule.minLength }));
   if (rule.maxLength != null) parts.push(tf("profile.rule.maxLengthSummary", { value: rule.maxLength }));
   if (rule.default != null && String(rule.default).trim() !== "") {

@@ -45,18 +45,20 @@ type StreamOptions struct {
 }
 
 type ColumnRule struct {
-	Name      string   `json:"name,omitempty"`
-	Column    int      `json:"column,omitempty"`
-	Required  bool     `json:"required,omitempty"`
-	Type      string   `json:"type,omitempty"`
-	Unique    bool     `json:"unique,omitempty"`
-	Enum      []string `json:"enum,omitempty"`
-	Pattern   string   `json:"pattern,omitempty"`
-	Min       *float64 `json:"min,omitempty"`
-	Max       *float64 `json:"max,omitempty"`
-	MinLength *int     `json:"minLength,omitempty"`
-	MaxLength *int     `json:"maxLength,omitempty"`
-	Default   string   `json:"default,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Column       int      `json:"column,omitempty"`
+	Required     bool     `json:"required,omitempty"`
+	Type         string   `json:"type,omitempty"`
+	Unique       bool     `json:"unique,omitempty"`
+	Enum         []string `json:"enum,omitempty"`
+	Pattern      string   `json:"pattern,omitempty"`
+	Min          *float64 `json:"min,omitempty"`
+	Max          *float64 `json:"max,omitempty"`
+	ExclusiveMin bool     `json:"exclusiveMinimum,omitempty"`
+	ExclusiveMax bool     `json:"exclusiveMaximum,omitempty"`
+	MinLength    *int     `json:"minLength,omitempty"`
+	MaxLength    *int     `json:"maxLength,omitempty"`
+	Default      string   `json:"default,omitempty"`
 }
 
 type ColumnProfile struct {
@@ -894,10 +896,10 @@ func schemaDefaultMatchesRule(rule ColumnRule) bool {
 		if err != nil {
 			return false
 		}
-		if rule.Min != nil && number < *rule.Min {
+		if rule.Min != nil && (number < *rule.Min || (rule.ExclusiveMin && number <= *rule.Min)) {
 			return false
 		}
-		if rule.Max != nil && number > *rule.Max {
+		if rule.Max != nil && (number > *rule.Max || (rule.ExclusiveMax && number >= *rule.Max)) {
 			return false
 		}
 	}
@@ -976,32 +978,42 @@ func numericRangeIssues(raw string, row int, col int, rule ColumnRule, ruleName 
 			QuickFixes: defaultQuickFixesForRule(rule),
 		}}
 	}
-	if rule.Min != nil && number < *rule.Min {
+	if rule.Min != nil && (number < *rule.Min || (rule.ExclusiveMin && number <= *rule.Min)) {
 		target := formatRuleNumber(*rule.Min)
+		message := fmt.Sprintf("Value %q is below schema minimum %s.", raw, target)
+		fixes := defaultQuickFixesForRule(rule)
+		if !rule.ExclusiveMin {
+			fixes = mergeQuickFixes([]QuickFix{{ID: "schema.range.clampMin", Label: "Use minimum", Value: target}}, fixes)
+		} else {
+			message = fmt.Sprintf("Value %q must be greater than schema minimum %s.", raw, target)
+		}
 		return []Issue{{
-			Type:     "schema-range",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      col + 1,
-			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is below schema minimum %s.", raw, target),
-			QuickFixes: mergeQuickFixes([]QuickFix{
-				{ID: "schema.range.clampMin", Label: "Use minimum", Value: target},
-			}, defaultQuickFixesForRule(rule)),
+			Type:       "schema-range",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        col + 1,
+			Rule:       ruleName,
+			Message:    message,
+			QuickFixes: fixes,
 		}}
 	}
-	if rule.Max != nil && number > *rule.Max {
+	if rule.Max != nil && (number > *rule.Max || (rule.ExclusiveMax && number >= *rule.Max)) {
 		target := formatRuleNumber(*rule.Max)
+		message := fmt.Sprintf("Value %q is above schema maximum %s.", raw, target)
+		fixes := defaultQuickFixesForRule(rule)
+		if !rule.ExclusiveMax {
+			fixes = mergeQuickFixes([]QuickFix{{ID: "schema.range.clampMax", Label: "Use maximum", Value: target}}, fixes)
+		} else {
+			message = fmt.Sprintf("Value %q must be less than schema maximum %s.", raw, target)
+		}
 		return []Issue{{
-			Type:     "schema-range",
-			Severity: "error",
-			Row:      row + 1,
-			Col:      col + 1,
-			Rule:     ruleName,
-			Message:  fmt.Sprintf("Value %q is above schema maximum %s.", raw, target),
-			QuickFixes: mergeQuickFixes([]QuickFix{
-				{ID: "schema.range.clampMax", Label: "Use maximum", Value: target},
-			}, defaultQuickFixesForRule(rule)),
+			Type:       "schema-range",
+			Severity:   "error",
+			Row:        row + 1,
+			Col:        col + 1,
+			Rule:       ruleName,
+			Message:    message,
+			QuickFixes: fixes,
 		}}
 	}
 	return nil

@@ -1331,6 +1331,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"normalizeProfileSchemaFormat(column.format)",
 		"schemaAllowedValues(column, constraints)",
 		"schemaAllowedValue(source?.const ?? source?.constant)",
+		"schemaNumberFromSources(rangeSources",
+		"profile.rule.exclusiveMinSummary",
 		`["date-time", "datetime", "timestamp"]`,
 		"Array.isArray(value)",
 		`type === "null"`,
