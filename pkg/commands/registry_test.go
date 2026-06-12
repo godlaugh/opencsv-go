@@ -1630,6 +1630,12 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`id="quoteRuleList"`,
 		`class="quote-rule-list"`,
 		`aria-label="Active quote rules"`,
+		`id="addQuoteCellRuleButton"`,
+		`id="addNoQuoteCellRuleButton"`,
+		`id="clearCellQuoteRuleButton"`,
+		`Quote Cell`,
+		`No Quote Cell`,
+		`Clear Cell`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing quote rule list html wiring %q", snippet)
@@ -1637,12 +1643,18 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 	}
 	for _, snippet := range []string{
 		`const quoteRuleList = document.querySelector("#quoteRuleList")`,
+		`const addQuoteCellRuleButton = document.querySelector("#addQuoteCellRuleButton")`,
 		"function renderQuoteRuleList()",
 		"function activeQuoteRuleItems(settings)",
+		"function applyActiveCellQuoteRule(mode)",
 		"function removeQuoteRule(item)",
 		`document.body.dataset.quoteRuleList = String(items.length)`,
+		"document.body.dataset.quoteCellRule = `${mode}:${row}:${col}:${signature}`",
 		"document.body.dataset.quoteRuleRemove = `${item.kind}:${item.key}`",
 		`fetch("/api/quote-settings"`,
+		`addQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("quote"))`,
+		`addNoQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("no-quote"))`,
+		`clearCellQuoteRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("clear"))`,
 		`remove.addEventListener("click", () => removeQuoteRule(item))`,
 		"renderQuoteRuleList()",
 	} {
@@ -1654,6 +1666,7 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		".quote-rule-list",
 		".quote-rule-item",
 		".quote-rule-empty",
+		".quote-rule-grid button",
 	} {
 		if !strings.Contains(css, snippet) {
 			t.Fatalf("missing quote rule list styles %q", snippet)

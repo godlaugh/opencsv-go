@@ -851,6 +851,15 @@ button:disabled {
   margin: 0;
 }
 
+.quote-rule-grid button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
 .quote-rule-list {
   display: grid;
   max-height: 180px;

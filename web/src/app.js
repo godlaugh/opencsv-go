@@ -207,6 +207,9 @@ const applyLineEndingButton = document.querySelector("#applyLineEndingButton");
 const quoteHeaderRuleToggle = document.querySelector("#quoteHeaderRuleToggle");
 const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
+const addQuoteCellRuleButton = document.querySelector("#addQuoteCellRuleButton");
+const addNoQuoteCellRuleButton = document.querySelector("#addNoQuoteCellRuleButton");
+const clearCellQuoteRuleButton = document.querySelector("#clearCellQuoteRuleButton");
 const exportQuoteRulesButton = document.querySelector("#exportQuoteRulesButton");
 const showImportQuoteRulesButton = document.querySelector("#showImportQuoteRulesButton");
 const resetQuotePolicyButton = document.querySelector("#resetQuotePolicyButton");
@@ -4967,9 +4970,13 @@ function syncQuotePolicyControls() {
   quoteHeaderRuleToggle.checked = Boolean(dialect?.quoteHeader);
   quoteBodyRuleToggle.checked = Boolean(dialect?.quoteBody);
   quoteColumnRuleToggle.checked = Boolean(dialect && isSourceColumnQuoted(sourceColFor(selected.col)));
+  const activeSourceCellAvailable = Boolean(documentId && columns.length > 0 && selected.row < sourceRowCount);
   quoteHeaderRuleToggle.disabled = !documentId || readOnly;
   quoteBodyRuleToggle.disabled = !documentId || readOnly;
   quoteColumnRuleToggle.disabled = !documentId || readOnly || columns.length === 0;
+  addQuoteCellRuleButton.disabled = readOnly || !activeSourceCellAvailable;
+  addNoQuoteCellRuleButton.disabled = readOnly || !activeSourceCellAvailable;
+  clearCellQuoteRuleButton.disabled = readOnly || !activeSourceCellAvailable;
   if (resetQuotePolicyButton) {
     resetQuotePolicyButton.disabled = !documentId || readOnly || !quoteOnlyPolicyModified();
   }
@@ -6190,6 +6197,67 @@ async function setSelectedCellQuoteOverrides(mode) {
   quotePolicyDraftDirty = false;
   applyMutationPayload(payload, `${label}: ${formatCount(cells.length)} cells updated.`);
   syncQuotePolicyControls();
+}
+
+async function applyActiveCellQuoteRule(mode) {
+  const labels = {
+    quote: "Quote Cell",
+    "no-quote": "No Quote Cell",
+    clear: "Clear Cell Quote",
+  };
+  const label = labels[mode] || "Cell Quote";
+  if (!documentId) {
+    status.textContent = "Open a file before changing cell quote rules.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = `${label} blocked: document is read-only`;
+    return;
+  }
+  if (selected.row >= sourceRowCount || columns.length === 0) {
+    status.textContent = "Select a source cell before changing cell quote rules.";
+    return;
+  }
+  const row = selectedSourceRow();
+  const col = sourceColFor(selected.col);
+  const key = `${row}:${col}`;
+  const settings = currentQuoteRuleSettings();
+  const nextSettings = {
+    ...settings,
+    quoteCells: settings.quoteCells.filter((cell) => quoteCellKey(cell) !== key),
+    noQuoteCells: settings.noQuoteCells.filter((cell) => quoteCellKey(cell) !== key),
+  };
+  if (mode === "quote") {
+    nextSettings.quoteCells.push({ row, col });
+  } else if (mode === "no-quote") {
+    nextSettings.noQuoteCells.push({ row, col });
+  }
+  nextSettings.quoteCells = normalizeQuoteRuleCells(nextSettings.quoteCells);
+  nextSettings.noQuoteCells = normalizeQuoteRuleCells(nextSettings.noQuoteCells);
+  const signature = quoteRulesSignature(nextSettings);
+  document.body.dataset.quoteCellRule = `${mode}:${row}:${col}:${signature}`;
+  if (signature === quoteRulesSignature(settings)) {
+    status.textContent = `${label}: no cell quote rules changed.`;
+    return;
+  }
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...nextSettings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    document.body.dataset.quoteCellRule = "error";
+    syncQuotePolicyControls();
+    return;
+  }
+  quotePolicyDraftDirty = false;
+  applyMutationPayload(payload, `${label}: ${quoteRuleCellLabel({ row, col })}.`);
+  syncQuotePolicyControls();
+  updateFormatStatus();
+  updateInspector();
+  renderSettingsPanel();
 }
 
 function quoteCellKey(cell) {
@@ -20621,6 +20689,9 @@ showHiddenColumnsButton.addEventListener("click", () => executeCommand("column.s
 quoteHeaderRuleToggle.addEventListener("change", () => toggleQuoteRule("header", quoteHeaderRuleToggle.checked));
 quoteBodyRuleToggle.addEventListener("change", () => toggleQuoteRule("body", quoteBodyRuleToggle.checked));
 quoteColumnRuleToggle.addEventListener("change", () => toggleQuoteRule("column", quoteColumnRuleToggle.checked));
+addQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("quote"));
+addNoQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("no-quote"));
+clearCellQuoteRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("clear"));
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
   settingsQuoteSummary.textContent = selectedQuotePolicySummary();
