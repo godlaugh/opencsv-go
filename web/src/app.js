@@ -209,6 +209,7 @@ const quoteBodyRuleToggle = document.querySelector("#quoteBodyRuleToggle");
 const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
 const exportQuoteRulesButton = document.querySelector("#exportQuoteRulesButton");
 const showImportQuoteRulesButton = document.querySelector("#showImportQuoteRulesButton");
+const resetQuotePolicyButton = document.querySelector("#resetQuotePolicyButton");
 const quoteRulesImportPanel = document.querySelector("#quoteRulesImportPanel");
 const quoteRulesImportText = document.querySelector("#quoteRulesImportText");
 const applyQuoteRulesImportButton = document.querySelector("#applyQuoteRulesImportButton");
@@ -4967,6 +4968,9 @@ function syncQuotePolicyControls() {
   quoteHeaderRuleToggle.disabled = !documentId || readOnly;
   quoteBodyRuleToggle.disabled = !documentId || readOnly;
   quoteColumnRuleToggle.disabled = !documentId || readOnly || columns.length === 0;
+  if (resetQuotePolicyButton) {
+    resetQuotePolicyButton.disabled = !documentId || readOnly || !quoteOnlyPolicyModified();
+  }
 }
 
 function syncLineEndingControls() {
@@ -4983,6 +4987,11 @@ function syncLineEndingControls() {
 
 function quotePolicySettingsModified() {
   if (delimiterDraftDirty || encodingDraftDirty || lineEndingDraftDirty || quotePolicyDraftDirty) return true;
+  return quoteOnlyPolicyModified();
+}
+
+function quoteOnlyPolicyModified() {
+  if (quotePolicyDraftDirty) return true;
   if (!documentId) return false;
   const settings = currentQuoteRuleSettings();
   return (
@@ -5977,6 +5986,53 @@ async function applyQuotePolicy() {
   updateInspector();
   status.textContent = `Quote policy set to ${quoteMode} ${quoteChar} ${quoteEscape} escape.`;
   document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}:${quoteEscape}`;
+}
+
+async function resetQuotePolicySettings() {
+  if (!documentId) {
+    status.textContent = "Open a file before resetting quote policy.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Quote policy reset blocked: document is read-only";
+    return;
+  }
+  const settings = {
+    quoteChar: "double",
+    quoteMode: "minimal",
+    quoteEscape: "double",
+    quoteHeader: false,
+    quoteBody: false,
+    quoteColumns: [],
+    quoteCells: [],
+    noQuoteCells: [],
+  };
+  const before = quoteRulesSignature(currentQuoteRuleSettings());
+  quotePolicyDraftDirty = false;
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...settings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Quote policy reset failed: ${payload.error ?? "unknown error"}`;
+    document.body.dataset.quotePolicyReset = "error";
+    syncQuotePolicyControls();
+    renderSettingsPanel();
+    return;
+  }
+  quoteRulesImportPanel.hidden = true;
+  quoteRulesImportText.value = "";
+  document.body.dataset.quoteRulesImportPanel = "closed";
+  document.body.dataset.quotePolicyReset = `${before}->${quoteRulesSignature(settings)}`;
+  applyMutationPayload(payload, "Quote policy reset.");
+  syncQuoteRulesImportControls();
+  syncQuotePolicyControls();
+  updateFormatStatus();
+  updateInspector();
+  renderSettingsPanel();
+  status.textContent = "Quote policy reset.";
 }
 
 async function applyLineEnding() {
@@ -20382,6 +20438,7 @@ lineEndingSelect.addEventListener("change", () => {
 });
 exportQuoteRulesButton.addEventListener("click", () => executeCommand("format.exportQuoteRules"));
 showImportQuoteRulesButton.addEventListener("click", () => executeCommand("format.importQuoteRules"));
+resetQuotePolicyButton.addEventListener("click", resetQuotePolicySettings);
 quoteRulesImportText.addEventListener("input", syncQuoteRulesImportControls);
 applyQuoteRulesImportButton.addEventListener("click", applyQuoteRulesImport);
 cancelQuoteRulesImportButton.addEventListener("click", cancelQuoteRulesImport);

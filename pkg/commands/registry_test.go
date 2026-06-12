@@ -496,6 +496,8 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	for _, snippet := range []string{
 		`id="resetSavedViewsButton"`,
 		`Reset Views`,
+		`id="resetQuotePolicyButton"`,
+		`Reset Quotes`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings reset html wiring %q", snippet)
@@ -506,10 +508,12 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 		"function syncSettingsSectionBadges",
 		"function savedViewsSettingsModified",
 		"function resetSavedViewsSettings",
+		"function resetQuotePolicySettings",
 		"function quotePolicySettingsModified",
 		"document.body.dataset.settingsModifiedSections",
 		"document.body.dataset.settingsModifiedSectionCount",
 		"document.body.dataset.savedViewsReset",
+		"document.body.dataset.quotePolicyReset",
 		`badge.className = "settings-section-state"`,
 		`badge.dataset.state = modified ? "modified" : "default"`,
 		`"Saved filters and sorts": savedViewsSettingsModified({ filters, recent, sorts })`,
@@ -517,6 +521,9 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 		`"File format presets": presets.length > 0`,
 		`resetSavedViewsButton.disabled = !sectionState.state["Saved filters and sorts"]`,
 		`resetSavedViewsButton.addEventListener("click", resetSavedViewsSettings)`,
+		`function quoteOnlyPolicyModified`,
+		`resetQuotePolicyButton.disabled = !documentId || readOnly || !quoteOnlyPolicyModified()`,
+		`resetQuotePolicyButton.addEventListener("click", resetQuotePolicySettings)`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing settings section modified wiring %q", snippet)
