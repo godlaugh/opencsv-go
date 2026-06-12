@@ -2134,6 +2134,8 @@ const quoteRulesExportKind = "opencsv-quote-rules";
 const editorAppearanceStorageKey = "opencsv-editor-appearance";
 const scrollPositionsStorageKey = "opencsv-scroll-positions";
 const scrollPositionsLimit = 32;
+const windowGeometryStorageKey = "opencsv-window-geometry";
+const windowGeometrySaveDelay = 200;
 const hiddenColumnsStorageKey = "opencsv-hidden-columns";
 const hiddenColumnsLimit = 64;
 const editorGroupLayoutStorageKey = "opencsv-editor-group-layout";
@@ -2221,6 +2223,8 @@ let scrollX = 0;
 let scrollY = 0;
 let wheelRemainderY = 0;
 let scrollPositionSaveTimer = 0;
+let windowGeometrySaveTimer = 0;
+let restoredWindowGeometry = loadWindowGeometry();
 let selected = { row: 0, col: 0 };
 let selectionAnchor = { row: 0, col: 0 };
 let smartSelectionRanges = [];
@@ -2351,8 +2355,10 @@ setCellSeparatorToken(cellSeparatorToken, false);
 document.body.dataset.editorGroupLayoutRestored = editorGroupLayoutSignature(editorGroupLayout);
 syncProfileSchemaControls();
 syncAppTitle();
+syncWindowGeometryDataset();
 
 function resize() {
+  queueWindowGeometrySave();
   draw();
 }
 
@@ -2458,6 +2464,78 @@ function saveCurrentScrollPosition() {
     scrollPositionSaveTimer = 0;
   }
   saveScrollPositionEntry(scrollPositionEntry());
+}
+
+function normalizeWindowGeometry(value) {
+  if (!value || typeof value !== "object") return null;
+  const width = Math.round(Number(value.width));
+  const height = Math.round(Number(value.height));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  const x = Math.round(Number(value.x));
+  const y = Math.round(Number(value.y));
+  return {
+    width,
+    height,
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0,
+    maximized: Boolean(value.maximized),
+    updatedAt: Math.max(0, Math.round(Number(value.updatedAt)) || 0),
+  };
+}
+
+function loadWindowGeometry() {
+  try {
+    return normalizeWindowGeometry(JSON.parse(localStorage.getItem(windowGeometryStorageKey) || "null"));
+  } catch {
+    return null;
+  }
+}
+
+function currentWindowGeometry() {
+  const width = Math.max(1, Math.round(window.outerWidth || window.innerWidth || document.documentElement.clientWidth || 1));
+  const height = Math.max(1, Math.round(window.outerHeight || window.innerHeight || document.documentElement.clientHeight || 1));
+  const x = Math.round(Number.isFinite(window.screenX) ? window.screenX : window.screenLeft || 0);
+  const y = Math.round(Number.isFinite(window.screenY) ? window.screenY : window.screenTop || 0);
+  const availableWidth = Math.round(window.screen?.availWidth || 0);
+  const availableHeight = Math.round(window.screen?.availHeight || 0);
+  const maximized = availableWidth > 0 && availableHeight > 0
+    && Math.abs(width - availableWidth) <= 12
+    && Math.abs(height - availableHeight) <= 96;
+  return { width, height, x, y, maximized, updatedAt: Date.now() };
+}
+
+function windowGeometrySignature(entry) {
+  const geometry = normalizeWindowGeometry(entry);
+  if (!geometry) return "";
+  return `${geometry.width}x${geometry.height}+${geometry.x}+${geometry.y}:${geometry.maximized ? "max" : "normal"}`;
+}
+
+function syncWindowGeometryDataset(current = currentWindowGeometry()) {
+  document.body.dataset.windowGeometry = windowGeometrySignature(current);
+  document.body.dataset.windowGeometryRestored = windowGeometrySignature(restoredWindowGeometry);
+  document.body.dataset.windowGeometryMaximized = String(Boolean(current?.maximized));
+  document.body.dataset.windowGeometryUpdatedAt = String(Math.max(0, Math.round(Number(current?.updatedAt)) || 0));
+}
+
+function saveWindowGeometryNow() {
+  if (windowGeometrySaveTimer) {
+    window.clearTimeout(windowGeometrySaveTimer);
+    windowGeometrySaveTimer = 0;
+  }
+  const entry = currentWindowGeometry();
+  try {
+    localStorage.setItem(windowGeometryStorageKey, JSON.stringify(entry));
+    document.body.dataset.windowGeometrySaved = windowGeometrySignature(entry);
+  } catch {
+    status.textContent = "Window geometry could not be saved.";
+  }
+  syncWindowGeometryDataset(entry);
+}
+
+function queueWindowGeometrySave() {
+  syncWindowGeometryDataset();
+  if (windowGeometrySaveTimer) window.clearTimeout(windowGeometrySaveTimer);
+  windowGeometrySaveTimer = window.setTimeout(saveWindowGeometryNow, windowGeometrySaveDelay);
 }
 
 function restoreScrollPosition() {
@@ -20677,6 +20755,7 @@ commandInput.addEventListener("keydown", async (event) => {
 commandInput.addEventListener("input", invalidateFindState);
 replaceInput.addEventListener("input", clearReplacePreview);
 window.addEventListener("resize", resize);
+window.addEventListener("pagehide", saveWindowGeometryNow);
 if ("ResizeObserver" in window) {
   const gridResizeObserver = new ResizeObserver(resize);
   gridResizeObserver.observe(gridFrame);

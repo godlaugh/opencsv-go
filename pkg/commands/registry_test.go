@@ -1266,6 +1266,31 @@ func TestAppTitleStateIsWired(t *testing.T) {
 	}
 }
 
+func TestWindowGeometryStateIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`const windowGeometryStorageKey = "opencsv-window-geometry"`,
+		"function loadWindowGeometry",
+		"function currentWindowGeometry",
+		"function saveWindowGeometryNow",
+		"function queueWindowGeometrySave",
+		"document.body.dataset.windowGeometry",
+		"document.body.dataset.windowGeometryRestored",
+		"document.body.dataset.windowGeometryMaximized",
+		"document.body.dataset.windowGeometrySaved",
+		`window.addEventListener("pagehide", saveWindowGeometryNow)`,
+		"queueWindowGeometrySave();",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing window geometry wiring %q", snippet)
+		}
+	}
+}
+
 func TestDirtyCloseDiscardPanelIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
