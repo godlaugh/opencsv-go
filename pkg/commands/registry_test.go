@@ -507,6 +507,40 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	}
 }
 
+func TestDirtyDraftRecoveryIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	css := string(styles)
+	for _, snippet := range []string{
+		`const dirtyDraftsStorageKey = "opencsv-dirty-drafts"`,
+		"function scheduleDirtyDraftSave()",
+		"function restoreDirtyDraft(id)",
+		`body: JSON.stringify({ documentId, row, col, value })`,
+		`label.textContent = "Recovery Drafts"`,
+		"document.body.dataset.recoveryDraftRestored",
+		"clearDirtyDraft(draftIDBeforeSave)",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing dirty draft recovery wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		".recovery-draft-row",
+		".recovery-draft-row .file-button",
+	} {
+		if !strings.Contains(css, snippet) {
+			t.Fatalf("missing dirty draft recovery style %q", snippet)
+		}
+	}
+}
+
 func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

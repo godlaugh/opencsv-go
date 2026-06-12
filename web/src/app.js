@@ -2130,6 +2130,9 @@ const scrollPositionsLimit = 32;
 const hiddenColumnsStorageKey = "opencsv-hidden-columns";
 const hiddenColumnsLimit = 64;
 const editorGroupLayoutStorageKey = "opencsv-editor-group-layout";
+const dirtyDraftsStorageKey = "opencsv-dirty-drafts";
+const dirtyDraftsLimit = 5;
+const dirtyDraftMaxBytes = 1_000_000;
 const cellSeparatorStorageKey = "opencsv-cell-separator";
 const defaultCellSeparatorToken = "space";
 const autoRefreshStorageKey = "opencsv-auto-refresh-mode";
@@ -2242,6 +2245,8 @@ let windowEnd = 0;
 let loadingWindow = false;
 let windowGeneration = 0;
 let dirty = false;
+let dirtyDraftSaveTimer = 0;
+let dirtyDraftSaveInFlight = false;
 let dataStartRow = 0;
 let viewMapped = false;
 let sortDescending = false;
@@ -10920,6 +10925,7 @@ function submitCellEdits(edits, windowRow, message) {
       applyEditsToLoadedRows(edits);
       draw();
       if (message) status.textContent = message;
+      scheduleDirtyDraftSave();
     })
     .catch((error) => {
       status.textContent = `Edit failed: ${error.message}`;
@@ -11235,6 +11241,7 @@ function applyMutationPayload(payload, message) {
   });
   draw();
   status.textContent = message;
+  if (dirty) scheduleDirtyDraftSave();
 }
 
 function selectedSourceRow() {
@@ -12746,6 +12753,10 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
 
   const closedName = target?.name || payload.displayName || "tab";
   const closedGroup = tabGroup(target);
+  const targetDraftID = target?.detail && target.detail !== "temporary upload"
+    ? target.detail
+    : [target?.name || "untitled", targetDocumentId].filter(Boolean).join(":");
+  clearDirtyDraft(targetDraftID);
   document.body.dataset.closedOpenTab = `${targetDocumentId}:${closedName}`;
   document.body.dataset.closeTabBlocked = "";
   openFileTabs = openFileTabs.filter((item) => item.documentId !== targetDocumentId);
@@ -12851,6 +12862,44 @@ function renderStartActions() {
   supportButton.addEventListener("click", () => openAboutSupportPanel());
 
   fileList.append(newFileButton, openPathButton, chooseButton, settingsButton, supportButton);
+
+  const drafts = dirtyDrafts();
+  if (drafts.length > 0) {
+    const label = document.createElement("div");
+    label.className = "file-section-label";
+    label.textContent = "Recovery Drafts";
+    fileList.append(label);
+    for (const draft of drafts) {
+      fileList.append(recoveryDraftItem(draft));
+    }
+  }
+}
+
+function recoveryDraftItem(draft) {
+  const row = document.createElement("div");
+  row.className = "recovery-draft-row";
+  row.dataset.draftId = draft.id || "";
+  const restoreButton = fileButton({
+    name: draft.name || "Recovered draft",
+    detail: draft.detail || "unsaved recovery draft",
+    rowCount: Number.isFinite(draft.rowCount) ? draft.rowCount : null,
+  }, {
+    onClick: () => {
+      void restoreDirtyDraft(draft.id);
+    },
+  });
+  const discardButton = document.createElement("button");
+  discardButton.className = "file-tab-close";
+  discardButton.type = "button";
+  discardButton.textContent = "x";
+  discardButton.title = `Discard ${draft.name || "recovery draft"}`;
+  discardButton.setAttribute("aria-label", discardButton.title);
+  discardButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    discardDirtyDraft(draft.id);
+  });
+  row.append(restoreButton, discardButton);
+  return row;
 }
 
 function fileTabItem(tab, isActive) {
@@ -12997,6 +13046,142 @@ function removeRecentFile(detail) {
   } catch {
     status.textContent = "Recent files could not be updated.";
   }
+}
+
+function dirtyDrafts() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(dirtyDraftsStorageKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.id === "string" && typeof item.csv === "string" && item.csv)
+      .map((item) => ({
+        id: item.id,
+        name: String(item.name || "Recovered draft.csv"),
+        detail: String(item.detail || "unsaved recovery draft"),
+        csv: item.csv,
+        rowCount: Number.isFinite(item.rowCount) ? item.rowCount : null,
+        columnCount: Number.isFinite(item.columnCount) ? item.columnCount : null,
+        updatedAt: Number.isFinite(item.updatedAt) ? item.updatedAt : 0,
+      }))
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .slice(0, dirtyDraftsLimit);
+  } catch {
+    return [];
+  }
+}
+
+function dirtyDraftID() {
+  const detail = activeFileEntry?.detail || metadata?.path || "";
+  if (detail && detail !== "temporary upload") return detail;
+  return [activeFileEntry?.name || metadata?.path || "untitled", documentId].filter(Boolean).join(":");
+}
+
+function dirtyDraftName() {
+  const name = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Recovered draft.csv";
+  return name.toLowerCase().endsWith(".csv") ? name : `${name}.csv`;
+}
+
+function scheduleDirtyDraftSave() {
+  if (!dirty || !documentId) return;
+  if (dirtyDraftSaveTimer) window.clearTimeout(dirtyDraftSaveTimer);
+  dirtyDraftSaveTimer = window.setTimeout(() => {
+    dirtyDraftSaveTimer = 0;
+    void saveDirtyDraft();
+  }, 300);
+}
+
+async function saveDirtyDraft() {
+  if (!dirty || !documentId || dirtyDraftSaveInFlight) return;
+  const id = dirtyDraftID();
+  if (!id) return;
+  dirtyDraftSaveInFlight = true;
+  try {
+    const response = await fetch("/api/export-view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        documentId,
+        columns: (allColumns.length ? allColumns : columns).map((column) => column.sourceCol),
+        format: "csv",
+        fullDocument: true,
+      }),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(errorFromResponseText(text));
+    if (!dirty || !documentId) return;
+    if (text.length > dirtyDraftMaxBytes) {
+      document.body.dataset.dirtyDraft = `too-large:${text.length}`;
+      return;
+    }
+    const draft = {
+      id,
+      name: dirtyDraftName(),
+      detail: activeFileEntry?.detail || metadata?.path || "temporary upload",
+      csv: text,
+      rowCount: sourceRowCount,
+      columnCount: columns.length,
+      updatedAt: Date.now(),
+    };
+    const next = [
+      draft,
+      ...dirtyDrafts().filter((item) => item.id !== id),
+    ].slice(0, dirtyDraftsLimit);
+    localStorage.setItem(dirtyDraftsStorageKey, JSON.stringify(next));
+    document.body.dataset.dirtyDraft = `${draft.name}:${draft.rowCount}:${draft.columnCount}`;
+  } catch (error) {
+    document.body.dataset.dirtyDraft = `failed:${error.message}`;
+  } finally {
+    dirtyDraftSaveInFlight = false;
+  }
+}
+
+function clearDirtyDraft(id = dirtyDraftID()) {
+  if (!id) return;
+  try {
+    const next = dirtyDrafts().filter((item) => item.id !== id);
+    localStorage.setItem(dirtyDraftsStorageKey, JSON.stringify(next));
+    document.body.dataset.dirtyDraftCleared = id;
+  } catch {
+    status.textContent = "Recovery draft could not be cleared.";
+  }
+}
+
+function discardDirtyDraft(id) {
+  clearDirtyDraft(id);
+  renderFileList();
+  status.textContent = "Recovery draft discarded.";
+}
+
+async function restoreDirtyDraft(id) {
+  const draft = dirtyDrafts().find((item) => item.id === id);
+  if (!draft) {
+    status.textContent = "Recovery draft was not found.";
+    renderFileList();
+    return;
+  }
+  const file = new File([draft.csv], draft.name || "Recovered draft.csv", { type: "text/csv" });
+  await uploadAndOpen(file);
+  await markRecoveredDraftDirty();
+  clearDirtyDraft(id);
+  document.body.dataset.recoveryDraftRestored = `${draft.name}:${draft.rowCount ?? ""}:${draft.columnCount ?? ""}`;
+  status.textContent = `Recovered draft ${draft.name}. Save As to keep it.`;
+}
+
+async function markRecoveredDraftDirty() {
+  if (!documentId || sourceRowCount <= 0 || columns.length === 0) return;
+  const row = rowSource.get(0) ?? dataStartRow;
+  const col = sourceColFor(0);
+  const value = valueAt(0, 0);
+  const response = await fetch("/api/edit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, row, col, value }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error ?? "recovery dirty mark failed");
+  dirty = true;
+  syncActiveFileEntryState();
+  scheduleDirtyDraftSave();
 }
 
 async function openRecentFile(entry) {
@@ -16443,6 +16628,7 @@ async function saveDocumentToPath(path = "", options = {}) {
     return;
   }
   if (!ensureEditable(options.saveAs ? "Save As" : "Save")) return;
+  const draftIDBeforeSave = dirtyDraftID();
   status.textContent = options.saveAs ? `Saving as ${path}...` : "Saving...";
   const response = await fetch("/api/save", {
     method: "POST",
@@ -16455,6 +16641,7 @@ async function saveDocumentToPath(path = "", options = {}) {
     return;
   }
   dirty = false;
+  clearDirtyDraft(draftIDBeforeSave);
   externalFileChanged = false;
   if (payload.path) {
     metadata = metadata ? { ...metadata, path: payload.path } : metadata;
