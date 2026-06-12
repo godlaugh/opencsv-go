@@ -851,6 +851,61 @@ button:disabled {
   margin: 0;
 }
 
+.quote-rule-list {
+  display: grid;
+  max-height: 180px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  padding: 6px 12px 12px;
+}
+
+.quote-rule-item,
+.quote-rule-empty {
+  min-height: 34px;
+  border-radius: 6px;
+}
+
+.quote-rule-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.quote-rule-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quote-rule-item strong,
+.quote-rule-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-rule-item span,
+.quote-rule-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quote-rule-item button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.quote-rule-empty {
+  display: flex;
+  align-items: center;
+}
+
 .settings-preset-list {
   display: grid;
 }

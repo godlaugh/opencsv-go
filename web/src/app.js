@@ -210,6 +210,7 @@ const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
 const exportQuoteRulesButton = document.querySelector("#exportQuoteRulesButton");
 const showImportQuoteRulesButton = document.querySelector("#showImportQuoteRulesButton");
 const resetQuotePolicyButton = document.querySelector("#resetQuotePolicyButton");
+const quoteRuleList = document.querySelector("#quoteRuleList");
 const quoteRulesImportPanel = document.querySelector("#quoteRulesImportPanel");
 const quoteRulesImportText = document.querySelector("#quoteRulesImportText");
 const applyQuoteRulesImportButton = document.querySelector("#applyQuoteRulesImportButton");
@@ -4972,6 +4973,7 @@ function syncQuotePolicyControls() {
   if (resetQuotePolicyButton) {
     resetQuotePolicyButton.disabled = !documentId || readOnly || !quoteOnlyPolicyModified();
   }
+  renderQuoteRuleList();
 }
 
 function syncLineEndingControls() {
@@ -6390,6 +6392,156 @@ function quoteRulesSummary(settings) {
   if (settings.quoteCells.length) parts.push(`${settings.quoteCells.length} quoted cells`);
   if (settings.noQuoteCells.length) parts.push(`${settings.noQuoteCells.length} no-quote cells`);
   return parts.join(", ");
+}
+
+function renderQuoteRuleList() {
+  if (!quoteRuleList) return;
+  quoteRuleList.replaceChildren();
+  if (!documentId) {
+    quoteRuleList.append(emptyQuoteRuleNode("Open a file to inspect quote rules."));
+    document.body.dataset.quoteRuleList = "closed";
+    return;
+  }
+  const settings = currentQuoteRuleSettings();
+  const items = activeQuoteRuleItems(settings);
+  document.body.dataset.quoteRuleList = String(items.length);
+  if (!items.length) {
+    quoteRuleList.append(emptyQuoteRuleNode("No active quote rules."));
+    return;
+  }
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "quote-rule-item";
+    row.dataset.ruleKind = item.kind;
+    row.dataset.ruleKey = item.key;
+
+    const meta = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("span");
+    detail.textContent = item.detail;
+    meta.append(title, detail);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Remove";
+    remove.disabled = readOnly;
+    remove.addEventListener("click", () => removeQuoteRule(item));
+    row.append(meta, remove);
+    quoteRuleList.append(row);
+  }
+}
+
+function emptyQuoteRuleNode(message) {
+  const node = document.createElement("div");
+  node.className = "quote-rule-empty";
+  node.textContent = message;
+  return node;
+}
+
+function activeQuoteRuleItems(settings) {
+  const items = [];
+  if (settings.quoteHeader) {
+    items.push({
+      kind: "header",
+      key: "header",
+      title: "Quote header row",
+      detail: "Force all header fields to be quoted.",
+    });
+  }
+  if (settings.quoteBody) {
+    items.push({
+      kind: "body",
+      key: "body",
+      title: "Quote body rows",
+      detail: "Force all data fields to be quoted.",
+    });
+  }
+  for (const col of settings.quoteColumns) {
+    items.push({
+      kind: "column",
+      key: String(col),
+      col,
+      title: `Quote ${quoteRuleColumnLabel(col)}`,
+      detail: `Source column ${col + 1}`,
+    });
+  }
+  for (const cell of settings.quoteCells) {
+    items.push({
+      kind: "cell",
+      key: quoteCellKey(cell),
+      cell,
+      title: `Quote cell ${quoteRuleCellLabel(cell)}`,
+      detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
+    });
+  }
+  for (const cell of settings.noQuoteCells) {
+    items.push({
+      kind: "no-cell",
+      key: quoteCellKey(cell),
+      cell,
+      title: `No quote cell ${quoteRuleCellLabel(cell)}`,
+      detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
+    });
+  }
+  return items;
+}
+
+function quoteRuleColumnLabel(sourceCol) {
+  const column = allColumns.find((candidate) => candidate.sourceCol === sourceCol);
+  return column?.name ? `${column.name}` : `column ${sourceCol + 1}`;
+}
+
+function quoteRuleCellLabel(cell) {
+  return `R${cell.row + 1}C${cell.col + 1}`;
+}
+
+async function removeQuoteRule(item) {
+  if (!documentId) {
+    status.textContent = "Open a file before changing quote rules.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = "Quote rule removal blocked: document is read-only";
+    return;
+  }
+  const settings = currentQuoteRuleSettings();
+  const nextSettings = {
+    ...settings,
+    quoteColumns: [...settings.quoteColumns],
+    quoteCells: [...settings.quoteCells],
+    noQuoteCells: [...settings.noQuoteCells],
+  };
+  if (item.kind === "header") nextSettings.quoteHeader = false;
+  if (item.kind === "body") nextSettings.quoteBody = false;
+  if (item.kind === "column") {
+    nextSettings.quoteColumns = nextSettings.quoteColumns.filter((col) => col !== item.col);
+  }
+  if (item.kind === "cell") {
+    nextSettings.quoteCells = nextSettings.quoteCells.filter((cell) => quoteCellKey(cell) !== item.key);
+  }
+  if (item.kind === "no-cell") {
+    nextSettings.noQuoteCells = nextSettings.noQuoteCells.filter((cell) => quoteCellKey(cell) !== item.key);
+  }
+  document.body.dataset.quoteRuleRemove = `${item.kind}:${item.key}`;
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...nextSettings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `Quote rule removal failed: ${payload.error ?? "unknown error"}`;
+    document.body.dataset.quoteRuleRemove = "error";
+    syncQuotePolicyControls();
+    return;
+  }
+  quotePolicyDraftDirty = false;
+  applyMutationPayload(payload, `Removed quote rule: ${item.title}.`);
+  syncQuotePolicyControls();
+  updateFormatStatus();
+  updateInspector();
+  renderSettingsPanel();
 }
 
 function normalizeFormatRules(rules) {

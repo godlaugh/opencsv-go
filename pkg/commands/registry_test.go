@@ -1610,6 +1610,57 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 	}
 }
 
+func TestQuoteRuleListEditingIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	css := string(styles)
+	for _, snippet := range []string{
+		`id="quoteRuleList"`,
+		`class="quote-rule-list"`,
+		`aria-label="Active quote rules"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing quote rule list html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`const quoteRuleList = document.querySelector("#quoteRuleList")`,
+		"function renderQuoteRuleList()",
+		"function activeQuoteRuleItems(settings)",
+		"function removeQuoteRule(item)",
+		`document.body.dataset.quoteRuleList = String(items.length)`,
+		"document.body.dataset.quoteRuleRemove = `${item.kind}:${item.key}`",
+		`fetch("/api/quote-settings"`,
+		`remove.addEventListener("click", () => removeQuoteRule(item))`,
+		"renderQuoteRuleList()",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing quote rule list frontend wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		".quote-rule-list",
+		".quote-rule-item",
+		".quote-rule-empty",
+	} {
+		if !strings.Contains(css, snippet) {
+			t.Fatalf("missing quote rule list styles %q", snippet)
+		}
+	}
+}
+
 func TestCustomCellLinkPromptIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
