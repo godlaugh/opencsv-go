@@ -292,6 +292,7 @@ const closeExternalChangeButton = document.querySelector("#closeExternalChangeBu
 const keepExternalChangeButton = document.querySelector("#keepExternalChangeButton");
 const compareExternalChangeButton = document.querySelector("#compareExternalChangeButton");
 const saveAsExternalChangeButton = document.querySelector("#saveAsExternalChangeButton");
+const overwriteExternalChangeButton = document.querySelector("#overwriteExternalChangeButton");
 const reloadExternalChangeButton = document.querySelector("#reloadExternalChangeButton");
 const transposeConfirmPanel = document.querySelector("#transposeConfirmPanel");
 const closeTransposeConfirmButton = document.querySelector("#closeTransposeConfirmButton");
@@ -16528,10 +16529,11 @@ function updateExternalChangePanel() {
   const conflict = Boolean(dirty);
   externalChangeTitle.textContent = conflict ? "Unsaved Edits Conflict" : "File Changed on Disk";
   externalChangeMessage.textContent = conflict
-    ? "The backing file changed on disk while this document has unsaved edits."
+    ? "The backing file changed on disk while this document has unsaved edits. Save As keeps both versions; Overwrite Disk replaces the changed file."
     : "The backing file changed on disk and can be refreshed now.";
   compareExternalChangeButton.hidden = !metadata?.path;
   saveAsExternalChangeButton.hidden = !conflict;
+  overwriteExternalChangeButton.hidden = !conflict;
   reloadExternalChangeButton.textContent = conflict ? "Reload from Disk" : "Refresh from Disk";
   reloadExternalChangeButton.title = conflict ? "Discard unsaved edits and load the disk file" : "Load the disk file";
 }
@@ -16552,6 +16554,16 @@ function closeExternalChangePanel() {
 function saveAsExternalChange() {
   externalChangePanel.hidden = true;
   openSaveAsDialog();
+}
+
+async function overwriteExternalChangeOnDisk() {
+  if (!documentId || !externalFileChanged) return;
+  document.body.dataset.externalOverwrite = "confirm";
+  await saveDocumentToPath("", { allowExternalOverwrite: true });
+  if (!externalFileChanged) {
+    externalChangePanel.hidden = true;
+    document.body.dataset.externalOverwrite = "saved";
+  }
 }
 
 async function compareExternalChangeWithDisk() {
@@ -16633,11 +16645,26 @@ async function saveDocumentToPath(path = "", options = {}) {
   const response = await fetch("/api/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, path, backup: true }),
+    body: JSON.stringify({
+      documentId,
+      path,
+      backup: true,
+      allowExternalOverwrite: Boolean(options.allowExternalOverwrite),
+    }),
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${options.saveAs ? "Save As" : "Save"} failed: ${payload.error ?? "unknown error"}`;
+    const message = payload.error ?? "unknown error";
+    if (String(message).includes("file changed on disk")) {
+      externalFileChanged = true;
+      externalChangePanelDismissed = false;
+      document.body.dataset.externalSaveBlocked = "changed";
+      updateExternalChangePanel();
+      openExternalChangePanel();
+      status.textContent = "Save blocked: file changed on disk.";
+      return;
+    }
+    status.textContent = `${options.saveAs ? "Save As" : "Save"} failed: ${message}`;
     return;
   }
   dirty = false;
@@ -20312,6 +20339,7 @@ closeExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 keepExternalChangeButton.addEventListener("click", closeExternalChangePanel);
 compareExternalChangeButton.addEventListener("click", compareExternalChangeWithDisk);
 saveAsExternalChangeButton.addEventListener("click", saveAsExternalChange);
+overwriteExternalChangeButton.addEventListener("click", overwriteExternalChangeOnDisk);
 reloadExternalChangeButton.addEventListener("click", reloadExternalChangeFromDisk);
 closeTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);
 cancelTransposeConfirmButton.addEventListener("click", closeTransposeConfirmPanel);

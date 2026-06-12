@@ -1268,9 +1268,10 @@ func (server *Server) handleSplitCells(w http.ResponseWriter, r *http.Request) {
 }
 
 type saveRequest struct {
-	DocumentID string `json:"documentId"`
-	Path       string `json:"path"`
-	Backup     *bool  `json:"backup"`
+	DocumentID             string `json:"documentId"`
+	Path                   string `json:"path"`
+	Backup                 *bool  `json:"backup"`
+	AllowExternalOverwrite bool   `json:"allowExternalOverwrite"`
 }
 
 type restoreBackupRequest struct {
@@ -1286,7 +1287,9 @@ func (server *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createBackup := request.Backup == nil || *request.Backup
-	result, err := server.documents.Save(request.DocumentID, request.Path, createBackup)
+	result, err := server.documents.SaveWithOptions(request.DocumentID, request.Path, createBackup, docstore.SaveOptions{
+		AllowExternalOverwrite: request.AllowExternalOverwrite,
+	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

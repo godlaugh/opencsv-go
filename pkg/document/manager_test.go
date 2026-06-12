@@ -2300,6 +2300,59 @@ func TestManagerReadOnlyAndFileStatusRefresh(t *testing.T) {
 	}
 }
 
+func TestManagerSaveBlocksChangedExternalFileUntilExplicitOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sample.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "sample.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Edit(session.ID, 1, 1, "Local"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("id,name\n1,Disk\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := manager.Save(session.ID, "", true); err == nil || !strings.Contains(err.Error(), "file changed on disk") {
+		t.Fatalf("save err = %v, want external-change protection", err)
+	}
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Disk\n" {
+		t.Fatalf("blocked save changed disk bytes: %q", bytes)
+	}
+
+	result, err := manager.SaveWithOptions(session.ID, "", true, SaveOptions{AllowExternalOverwrite: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Path != path {
+		t.Fatalf("save path = %q, want %q", result.Path, path)
+	}
+	bytes, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bytes) != "id,name\n1,Local\n" {
+		t.Fatalf("explicit overwrite bytes = %q", bytes)
+	}
+	status, err := manager.FileStatus(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.ChangedExternally {
+		t.Fatalf("status after explicit overwrite = %#v, want clean", status)
+	}
+}
+
 func recordsEqual(left [][]string, right [][]string) bool {
 	if len(left) != len(right) {
 		return false

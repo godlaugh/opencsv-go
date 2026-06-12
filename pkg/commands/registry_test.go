@@ -541,6 +541,38 @@ func TestDirtyDraftRecoveryIsWired(t *testing.T) {
 	}
 }
 
+func TestExternalOverwriteGuardIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	html, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	markup := string(html)
+	for _, snippet := range []string{
+		`id="overwriteExternalChangeButton"`,
+		`data-dialog-role="confirm">Overwrite Disk`,
+	} {
+		if !strings.Contains(markup, snippet) {
+			t.Fatalf("missing external overwrite markup %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`allowExternalOverwrite: Boolean(options.allowExternalOverwrite)`,
+		`document.body.dataset.externalSaveBlocked = "changed"`,
+		"overwriteExternalChangeButton.hidden = !conflict",
+		"overwriteExternalChangeOnDisk",
+		`document.body.dataset.externalOverwrite = "saved"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing external overwrite wiring %q", snippet)
+		}
+	}
+}
+
 func TestImplementedCommandsHaveFrontendDispatch(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

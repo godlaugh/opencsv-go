@@ -1635,6 +1635,14 @@ func (manager *Manager) splitCells(id string, cells []Cell, separator string, di
 }
 
 func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore.SaveResult, error) {
+	return manager.SaveWithOptions(id, path, createBackup, SaveOptions{})
+}
+
+type SaveOptions struct {
+	AllowExternalOverwrite bool
+}
+
+func (manager *Manager) SaveWithOptions(id string, path string, createBackup bool, options SaveOptions) (csvcore.SaveResult, error) {
 	session, ok := manager.snapshot(id)
 	if !ok {
 		return csvcore.SaveResult{}, errors.New("document not found")
@@ -1653,6 +1661,9 @@ func (manager *Manager) Save(id string, path string, createBackup bool) (csvcore
 	}
 	if outputPath == "" {
 		outputPath = session.WorkingPath
+	}
+	if !options.AllowExternalOverwrite && session.outputPathChangedExternally(outputPath) {
+		return csvcore.SaveResult{}, errors.New("file changed on disk; confirm overwrite or save as a new path")
 	}
 	if outputPath != session.OriginalPath {
 		if _, statErr := os.Stat(outputPath); errors.Is(statErr, os.ErrNotExist) {
@@ -3458,6 +3469,32 @@ func (session *Session) recordKnownFileState() {
 	}
 	session.LastKnownSizeBytes = info.Size()
 	session.LastKnownModTimeUnixNano = info.ModTime().UnixNano()
+}
+
+func (session *Session) outputPathChangedExternally(outputPath string) bool {
+	if outputPath == "" || session.LastKnownPath == "" {
+		return false
+	}
+	if !sameFilePath(outputPath, session.LastKnownPath) {
+		return false
+	}
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		return os.IsNotExist(err)
+	}
+	return info.Size() != session.LastKnownSizeBytes || info.ModTime().UnixNano() != session.LastKnownModTimeUnixNano
+}
+
+func sameFilePath(left string, right string) bool {
+	leftAbs, leftErr := filepath.Abs(left)
+	rightAbs, rightErr := filepath.Abs(right)
+	if leftErr == nil {
+		left = leftAbs
+	}
+	if rightErr == nil {
+		right = rightAbs
+	}
+	return filepath.Clean(left) == filepath.Clean(right)
 }
 
 func cloneSession(session *Session) *Session {
