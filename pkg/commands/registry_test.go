@@ -1633,9 +1633,15 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`id="addQuoteCellRuleButton"`,
 		`id="addNoQuoteCellRuleButton"`,
 		`id="clearCellQuoteRuleButton"`,
+		`id="quoteSelectionRuleButton"`,
+		`id="noQuoteSelectionRuleButton"`,
+		`id="clearSelectionQuoteRuleButton"`,
 		`Quote Cell`,
 		`No Quote Cell`,
 		`Clear Cell`,
+		`Quote Selection`,
+		`No Quote Selection`,
+		`Clear Selection`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing quote rule list html wiring %q", snippet)
@@ -1644,6 +1650,7 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		`const quoteRuleList = document.querySelector("#quoteRuleList")`,
 		`const addQuoteCellRuleButton = document.querySelector("#addQuoteCellRuleButton")`,
+		`const quoteSelectionRuleButton = document.querySelector("#quoteSelectionRuleButton")`,
 		"function renderQuoteRuleList()",
 		"function activeQuoteRuleItems(settings)",
 		"function applyActiveCellQuoteRule(mode)",
@@ -1655,6 +1662,9 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`addQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("quote"))`,
 		`addNoQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("no-quote"))`,
 		`clearCellQuoteRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("clear"))`,
+		`quoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("quote"))`,
+		`noQuoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("no-quote"))`,
+		`clearSelectionQuoteRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("clear"))`,
 		`remove.addEventListener("click", () => removeQuoteRule(item))`,
 		"renderQuoteRuleList()",
 	} {

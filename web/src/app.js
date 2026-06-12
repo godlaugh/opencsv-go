@@ -210,6 +210,9 @@ const quoteColumnRuleToggle = document.querySelector("#quoteColumnRuleToggle");
 const addQuoteCellRuleButton = document.querySelector("#addQuoteCellRuleButton");
 const addNoQuoteCellRuleButton = document.querySelector("#addNoQuoteCellRuleButton");
 const clearCellQuoteRuleButton = document.querySelector("#clearCellQuoteRuleButton");
+const quoteSelectionRuleButton = document.querySelector("#quoteSelectionRuleButton");
+const noQuoteSelectionRuleButton = document.querySelector("#noQuoteSelectionRuleButton");
+const clearSelectionQuoteRuleButton = document.querySelector("#clearSelectionQuoteRuleButton");
 const exportQuoteRulesButton = document.querySelector("#exportQuoteRulesButton");
 const showImportQuoteRulesButton = document.querySelector("#showImportQuoteRulesButton");
 const resetQuotePolicyButton = document.querySelector("#resetQuotePolicyButton");
@@ -4971,12 +4974,16 @@ function syncQuotePolicyControls() {
   quoteBodyRuleToggle.checked = Boolean(dialect?.quoteBody);
   quoteColumnRuleToggle.checked = Boolean(dialect && isSourceColumnQuoted(sourceColFor(selected.col)));
   const activeSourceCellAvailable = Boolean(documentId && columns.length > 0 && selected.row < sourceRowCount);
+  const selectionRuleAvailable = Boolean(documentId && columns.length > 0 && sourceRowCount > 0);
   quoteHeaderRuleToggle.disabled = !documentId || readOnly;
   quoteBodyRuleToggle.disabled = !documentId || readOnly;
   quoteColumnRuleToggle.disabled = !documentId || readOnly || columns.length === 0;
   addQuoteCellRuleButton.disabled = readOnly || !activeSourceCellAvailable;
   addNoQuoteCellRuleButton.disabled = readOnly || !activeSourceCellAvailable;
   clearCellQuoteRuleButton.disabled = readOnly || !activeSourceCellAvailable;
+  quoteSelectionRuleButton.disabled = readOnly || !selectionRuleAvailable;
+  noQuoteSelectionRuleButton.disabled = readOnly || !selectionRuleAvailable;
+  clearSelectionQuoteRuleButton.disabled = readOnly || !selectionRuleAvailable;
   if (resetQuotePolicyButton) {
     resetQuotePolicyButton.disabled = !documentId || readOnly || !quoteOnlyPolicyModified();
   }
@@ -20692,6 +20699,9 @@ quoteColumnRuleToggle.addEventListener("change", () => toggleQuoteRule("column",
 addQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("quote"));
 addNoQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("no-quote"));
 clearCellQuoteRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("clear"));
+quoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("quote"));
+noQuoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("no-quote"));
+clearSelectionQuoteRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("clear"));
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
   settingsQuoteSummary.textContent = selectedQuotePolicySummary();
