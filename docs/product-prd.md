@@ -500,6 +500,7 @@ The app shall support:
 - Find within current file.
 - Replace current match.
 - Replace all.
+- Replace preview exposes the matched text ranges that would change before mutation.
 - Exact match highlighting inside cells.
 - Backend-authoritative match ranges for text highlighting, including multiple regex matches in the same cell.
 - Case sensitivity toggle.

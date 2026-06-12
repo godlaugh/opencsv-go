@@ -9887,12 +9887,16 @@ function findRangesForCell(value, displayRow, visibleCol) {
 
 function normalizeServerFindRanges(value, match) {
   if (!match || typeof match !== "object") return [];
-  const ranges = Array.isArray(match.ranges) && match.ranges.length
-    ? match.ranges
-    : [match.range];
-  return ranges
+  return rawServerMatchRanges(match)
     .map((range) => normalizeServerFindRange(value, range))
     .filter(Boolean);
+}
+
+function rawServerMatchRanges(match) {
+  if (!match || typeof match !== "object") return [];
+  return Array.isArray(match.ranges) && match.ranges.length
+    ? match.ranges
+    : [match.range];
 }
 
 function normalizeServerFindRange(value, range) {
@@ -9903,6 +9907,18 @@ function normalizeServerFindRange(value, range) {
   if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
   if (start < 0 || end <= start || end > text.length) return null;
   return { start, end };
+}
+
+function formatServerMatchRanges(match) {
+  if (!match || typeof match !== "object") return [];
+  return rawServerMatchRanges(match)
+    .map((range) => {
+      const start = Number(range?.start);
+      const end = Number(range?.end);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) return "";
+      return `${match.row}:${match.col}:${start}-${end}`;
+    })
+    .filter(Boolean);
 }
 
 function isActiveFindCell(displayRow, visibleCol) {
@@ -13418,6 +13434,9 @@ async function previewReplace(options = {}) {
   document.body.dataset.replacePreview = first
     ? `${first.row}:${first.col}:${before}->${after}`
     : String(payload.count);
+  document.body.dataset.replacePreviewRanges = (payload.changes ?? [])
+    .flatMap((change) => formatServerMatchRanges(change))
+    .join(",");
   status.textContent = tf("replace.status.preview", {
     count: formatCount(payload.count),
     rowLabel,
@@ -13429,6 +13448,7 @@ async function previewReplace(options = {}) {
 function clearReplacePreview() {
   document.body.dataset.replacePreview = "";
   document.body.dataset.replacePreviewCount = "";
+  document.body.dataset.replacePreviewRanges = "";
 }
 
 function parseSearchQuery(raw) {

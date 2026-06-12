@@ -2092,6 +2092,16 @@ func TestServerFindFilterSort(t *testing.T) {
 	if previewPayload["preview"] != true || previewPayload["count"].(float64) != 1 {
 		t.Fatalf("replace preview payload = %#v, want one-change preview", previewPayload)
 	}
+	previewChanges := previewPayload["changes"].([]any)
+	previewChange := previewChanges[0].(map[string]any)
+	previewRanges := previewChange["ranges"].([]any)
+	if len(previewRanges) != 1 {
+		t.Fatalf("replace preview ranges = %#v, want one range", previewChange["ranges"])
+	}
+	previewRange := previewRanges[0].(map[string]any)
+	if previewRange["start"].(float64) != 0 || previewRange["end"].(float64) != 5 {
+		t.Fatalf("replace preview range = %#v, want 0-5", previewRange)
+	}
 	findPayload = postJSON(t, handler, "/api/find", map[string]any{
 		"documentId": documentID,
 		"query":      "Ken",

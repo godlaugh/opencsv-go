@@ -815,9 +815,11 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		`tf("replace.status.preview"`,
 		"normalizeServerFindRanges",
 		"normalizeServerFindRange",
+		"formatServerMatchRanges",
 		"match.ranges",
 		"match.range",
 		"flatMap((match) => normalizeServerFindRanges",
+		"document.body.dataset.replacePreviewRanges",
 		"document.body.dataset.findHighlight",
 	} {
 		if !strings.Contains(source, snippet) {

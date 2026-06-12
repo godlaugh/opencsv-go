@@ -75,6 +75,9 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	if got := previewResult.Changes[0].Value; got != "Ada Byron" {
 		t.Fatalf("preview replacement = %q, want Ada Byron", got)
 	}
+	if len(previewResult.Changes[0].Ranges) != 1 || previewResult.Changes[0].Ranges[0].Start != 4 || previewResult.Changes[0].Ranges[0].End != 12 {
+		t.Fatalf("preview ranges = %#v, want [4-12]", previewResult.Changes[0].Ranges)
+	}
 	matches, err = manager.Find(session.ID, FindOptions{Query: "Ada Byron"})
 	if err != nil {
 		t.Fatal(err)
@@ -245,6 +248,42 @@ func TestManagerFindDetailedReturnsMultipleTextRangesPerCell(t *testing.T) {
 	}
 	if result.Matches[0].Range == nil || *result.Matches[0].Range != want[0] {
 		t.Fatalf("first range = %#v, want %#v", result.Matches[0].Range, want[0])
+	}
+}
+
+func TestManagerReplacePreviewReturnsMatchedRanges(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "replace-ranges.csv")
+	if err := os.WriteFile(path, []byte("id,value\n1,Ada and Ava\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "replace-ranges.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.Replace(session.ID, ReplaceOptions{
+		FindOptions: FindOptions{Query: `A(?:da|va)`, Regex: true, CaseSensitive: true},
+		Replacement: "Lin",
+		All:         true,
+		Preview:     true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Preview || result.Count != 1 || len(result.Changes) != 1 {
+		t.Fatalf("replace preview = %#v, want one preview change", result)
+	}
+	if got := result.Changes[0].Value; got != "Lin and Lin" {
+		t.Fatalf("preview replacement = %q, want Lin and Lin", got)
+	}
+	want := []TextRange{{Start: 0, End: 3}, {Start: 8, End: 11}}
+	if !reflect.DeepEqual(result.Changes[0].Ranges, want) {
+		t.Fatalf("replace ranges = %#v, want %#v", result.Changes[0].Ranges, want)
+	}
+	if result.Changes[0].Range == nil || *result.Changes[0].Range != want[0] {
+		t.Fatalf("first replace range = %#v, want %#v", result.Changes[0].Range, want[0])
 	}
 }
 

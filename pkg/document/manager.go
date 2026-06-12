@@ -2085,7 +2085,8 @@ func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResul
 			if !cellInScope(scope, row, col) {
 				continue
 			}
-			if !matcher.matches(value) {
+			matched, textRanges := matcher.ranges(value)
+			if !matched {
 				continue
 			}
 			replaced := matcher.replace(value, options.Replacement, options.All)
@@ -2093,7 +2094,7 @@ func (manager *Manager) Replace(id string, options ReplaceOptions) (ReplaceResul
 				continue
 			}
 			edits[Cell{Row: row, Col: col}] = replaced
-			changes = append(changes, Match{Row: row, Col: col, Value: replaced})
+			changes = append(changes, newFindMatch(row, col, replaced, textRanges))
 			if !options.All {
 				if options.Preview {
 					return ReplaceResult{Changes: changes, Count: len(changes), Dirty: session.Dirty, Preview: true}, nil
