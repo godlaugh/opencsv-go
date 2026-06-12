@@ -813,8 +813,11 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		`tf("find.status.foundTimed"`,
 		`tf("replace.status.noReplacements"`,
 		`tf("replace.status.preview"`,
+		"normalizeServerFindRanges",
 		"normalizeServerFindRange",
+		"match.ranges",
 		"match.range",
+		"flatMap((match) => normalizeServerFindRanges",
 		"document.body.dataset.findHighlight",
 	} {
 		if !strings.Contains(source, snippet) {

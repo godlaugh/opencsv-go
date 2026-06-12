@@ -2052,6 +2052,14 @@ func TestServerFindFilterSort(t *testing.T) {
 	if !ok || textRange["start"].(float64) != 0 || textRange["end"].(float64) != 5 {
 		t.Fatalf("match range = %#v, want 0-5", match["range"])
 	}
+	textRanges, ok := match["ranges"].([]any)
+	if !ok || len(textRanges) != 1 {
+		t.Fatalf("match ranges = %#v, want one range", match["ranges"])
+	}
+	firstRange := textRanges[0].(map[string]any)
+	if firstRange["start"].(float64) != 0 || firstRange["end"].(float64) != 5 {
+		t.Fatalf("match ranges[0] = %#v, want 0-5", firstRange)
+	}
 	if findPayload["total"].(float64) != 1 || findPayload["truncated"].(bool) {
 		t.Fatalf("find total/truncated = %#v/%#v, want 1/false", findPayload["total"], findPayload["truncated"])
 	}

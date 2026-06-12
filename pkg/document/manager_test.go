@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,9 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	if matches[0].Range == nil || matches[0].Range.Start != 4 || matches[0].Range.End != 12 {
 		t.Fatalf("match range = %#v, want 4-12", matches[0].Range)
 	}
+	if len(matches[0].Ranges) != 1 || matches[0].Ranges[0].Start != 4 || matches[0].Ranges[0].End != 12 {
+		t.Fatalf("match ranges = %#v, want [4-12]", matches[0].Ranges)
+	}
 	regexMatches, err := manager.Find(session.ID, FindOptions{Query: `A.+lace`, Regex: true, WholeCell: true})
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +56,9 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 	if regexMatches[0].Range == nil || regexMatches[0].Range.Start != 0 || regexMatches[0].Range.End != 12 {
 		t.Fatalf("regex match range = %#v, want 0-12", regexMatches[0].Range)
+	}
+	if len(regexMatches[0].Ranges) != 1 || regexMatches[0].Ranges[0].Start != 0 || regexMatches[0].Ranges[0].End != 12 {
+		t.Fatalf("regex match ranges = %#v, want [0-12]", regexMatches[0].Ranges)
 	}
 	previewResult, err := manager.Replace(session.ID, ReplaceOptions{
 		FindOptions: FindOptions{Query: "Lovelace", CaseSensitive: true},
@@ -209,6 +216,35 @@ func TestManagerFindDetailedReturnsUTF16TextRange(t *testing.T) {
 	}
 	if result.Matches[0].Range == nil || result.Matches[0].Range.Start != 3 || result.Matches[0].Range.End != 4 {
 		t.Fatalf("UTF-16 range = %#v, want 3-4", result.Matches[0].Range)
+	}
+}
+
+func TestManagerFindDetailedReturnsMultipleTextRangesPerCell(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "find-ranges.csv")
+	if err := os.WriteFile(path, []byte("id,value\n1,Ada and Ava\n2,Grace\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "find-ranges.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.FindDetailed(session.ID, FindOptions{Query: `A(?:da|va)`, Regex: true, CaseSensitive: true, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 1 || len(result.Matches) != 1 {
+		t.Fatalf("find result = %#v, want one matching cell", result)
+	}
+	got := result.Matches[0].Ranges
+	want := []TextRange{{Start: 0, End: 3}, {Start: 8, End: 11}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ranges = %#v, want %#v", got, want)
+	}
+	if result.Matches[0].Range == nil || *result.Matches[0].Range != want[0] {
+		t.Fatalf("first range = %#v, want %#v", result.Matches[0].Range, want[0])
 	}
 }
 

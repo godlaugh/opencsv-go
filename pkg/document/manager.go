@@ -1891,10 +1891,11 @@ type FindOptions struct {
 }
 
 type Match struct {
-	Row   int        `json:"row"`
-	Col   int        `json:"col"`
-	Value string     `json:"value"`
-	Range *TextRange `json:"range,omitempty"`
+	Row    int         `json:"row"`
+	Col    int         `json:"col"`
+	Value  string      `json:"value"`
+	Range  *TextRange  `json:"range,omitempty"`
+	Ranges []TextRange `json:"ranges,omitempty"`
 }
 
 type TextRange struct {
@@ -1909,6 +1910,8 @@ type FindResult struct {
 	Truncated bool    `json:"truncated"`
 	Streamed  bool    `json:"streamed,omitempty"`
 }
+
+const maxFindTextRanges = 20
 
 func (manager *Manager) Find(id string, options FindOptions) ([]Match, error) {
 	result, err := manager.FindDetailed(id, options)
@@ -1972,13 +1975,13 @@ func (manager *Manager) FindDetailedContext(ctx context.Context, id string, opti
 			if !cellInScope(scope, row, col) {
 				continue
 			}
-			if matched, textRange := matcher.firstRange(value); matched {
+			if matched, textRanges := matcher.ranges(value); matched {
 				total++
 				if total <= options.Offset {
 					continue
 				}
 				if len(matches) < options.Limit {
-					matches = append(matches, Match{Row: row, Col: col, Value: value, Range: textRange})
+					matches = append(matches, newFindMatch(row, col, value, textRanges))
 				}
 			}
 		}
@@ -2008,13 +2011,13 @@ func findDetailedInStream(ctx context.Context, session *Session, options FindOpt
 			if !cellInScope(scope, row, col) {
 				continue
 			}
-			if matched, textRange := matcher.firstRange(value); matched {
+			if matched, textRanges := matcher.ranges(value); matched {
 				total++
 				if total <= options.Offset {
 					continue
 				}
 				if len(matches) < options.Limit {
-					matches = append(matches, Match{Row: row, Col: col, Value: value, Range: textRange})
+					matches = append(matches, newFindMatch(row, col, value, textRanges))
 				}
 			}
 		}
@@ -2024,6 +2027,14 @@ func findDetailedInStream(ctx context.Context, session *Session, options FindOpt
 		return FindResult{}, err
 	}
 	return FindResult{Matches: matches, Total: total, Offset: options.Offset, Truncated: total > options.Offset+len(matches), Streamed: true}, nil
+}
+
+func newFindMatch(row int, col int, value string, textRanges []TextRange) Match {
+	match := Match{Row: row, Col: col, Value: value, Ranges: textRanges}
+	if len(match.Ranges) > 0 {
+		match.Range = &match.Ranges[0]
+	}
+	return match
 }
 
 type ReplaceOptions struct {
@@ -4164,16 +4175,22 @@ func (matcher matcher) matches(value string) bool {
 	return strings.Contains(haystack, matcher.query)
 }
 
-func (matcher matcher) firstRange(value string) (bool, *TextRange) {
+func (matcher matcher) ranges(value string) (bool, []TextRange) {
 	if matcher.regex != nil {
-		indexes := matcher.regex.FindStringIndex(value)
-		if indexes == nil {
+		matches := matcher.regex.FindAllStringIndex(value, maxFindTextRanges)
+		if len(matches) == 0 {
 			return false, nil
 		}
-		if indexes[1] <= indexes[0] {
-			return true, nil
+		ranges := make([]TextRange, 0, len(matches))
+		for _, indexes := range matches {
+			if indexes[1] <= indexes[0] {
+				continue
+			}
+			if textRange := byteRangeToTextRange(value, indexes[0], indexes[1]); textRange != nil {
+				ranges = append(ranges, *textRange)
+			}
 		}
-		return true, byteRangeToTextRange(value, indexes[0], indexes[1])
+		return true, ranges
 	}
 	haystack := value
 	needle := matcher.options.Query
@@ -4185,13 +4202,26 @@ func (matcher matcher) firstRange(value string) (bool, *TextRange) {
 		if haystack != needle {
 			return false, nil
 		}
-		return true, &TextRange{Start: 0, End: utf16UnitCount(value)}
+		return true, []TextRange{{Start: 0, End: utf16UnitCount(value)}}
 	}
-	index := strings.Index(haystack, needle)
-	if index < 0 {
+	ranges := make([]TextRange, 0, 1)
+	start := 0
+	for start <= len(haystack) && len(ranges) < maxFindTextRanges {
+		index := strings.Index(haystack[start:], needle)
+		if index < 0 {
+			break
+		}
+		matchStart := start + index
+		matchEnd := matchStart + len(needle)
+		if textRange := byteRangeToTextRange(value, matchStart, matchEnd); textRange != nil {
+			ranges = append(ranges, *textRange)
+		}
+		start = matchStart + max(1, len(needle))
+	}
+	if len(ranges) == 0 {
 		return false, nil
 	}
-	return true, byteRangeToTextRange(value, index, index+len(needle))
+	return true, ranges
 }
 
 func byteRangeToTextRange(value string, startByte int, endByte int) *TextRange {

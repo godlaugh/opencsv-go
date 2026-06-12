@@ -9880,10 +9880,19 @@ function findRangesForCell(value, displayRow, visibleCol) {
     return [];
   }
   const serverRanges = matches
-    .map((match) => normalizeServerFindRange(value, match.range))
-    .filter(Boolean);
+    .flatMap((match) => normalizeServerFindRanges(value, match));
   if (serverRanges.length) return serverRanges;
   return findTextRanges(String(value ?? ""), findState.search);
+}
+
+function normalizeServerFindRanges(value, match) {
+  if (!match || typeof match !== "object") return [];
+  const ranges = Array.isArray(match.ranges) && match.ranges.length
+    ? match.ranges
+    : [match.range];
+  return ranges
+    .map((range) => normalizeServerFindRange(value, range))
+    .filter(Boolean);
 }
 
 function normalizeServerFindRange(value, range) {
@@ -13527,8 +13536,8 @@ function updateFindHighlightDataset() {
   const displayRow = Math.max(0, match.row - dataStartRow);
   const visibleCol = visibleColForSource(match.col);
   const value = visibleCol >= 0 ? valueAt(displayRow, visibleCol) : "";
-  const serverRange = normalizeServerFindRange(value, match.range);
-  const ranges = serverRange ? [serverRange] : findTextRanges(value, findState.search);
+  const serverRanges = normalizeServerFindRanges(value, match);
+  const ranges = serverRanges.length ? serverRanges : findTextRanges(value, findState.search);
   document.body.dataset.findHighlight = ranges
     .map((range) => `${displayRow}:${visibleCol}:${range.start}-${range.end}`)
     .join(",");

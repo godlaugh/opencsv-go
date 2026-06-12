@@ -501,7 +501,7 @@ The app shall support:
 - Replace current match.
 - Replace all.
 - Exact match highlighting inside cells.
-- Backend-authoritative match ranges for text highlighting, including regex matches.
+- Backend-authoritative match ranges for text highlighting, including multiple regex matches in the same cell.
 - Case sensitivity toggle.
 - Whole cell toggle.
 - Regex toggle.
