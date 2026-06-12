@@ -1365,6 +1365,28 @@ func TestExternalLinkSecurityAuditIsWired(t *testing.T) {
 	}
 }
 
+func TestAutoFillNamedSequencesAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"autoFillNamedSequences",
+		"function namedSequenceAutoFill(seed, length)",
+		"function namedSequenceMatch(value, sequence)",
+		"function applyNamedSequenceCase(value, sample)",
+		"const named = namedSequenceAutoFill(seed, values.length)",
+		"window.__opencsvAutoFillSeries = autoFillSeries",
+		`["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]`,
+		`["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing named auto-fill wiring %q", snippet)
+		}
+	}
+}
+
 func sqlResultCommandSuffixForTest(format string) string {
 	switch format {
 	case "csv":

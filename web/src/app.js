@@ -15819,6 +15819,8 @@ function autoFillSeries(values) {
   if (numeric) return numeric;
   const dates = dateAutoFill(seed, values.length);
   if (dates) return dates;
+  const named = namedSequenceAutoFill(seed, values.length);
+  if (named) return named;
   const numberedText = numberedTextAutoFill(seed, values.length);
   if (numberedText) return numberedText;
   return Array.from({ length: values.length }, (_, index) => seed[index % seed.length]);
@@ -15888,6 +15890,49 @@ function parseISODate(value) {
   return time;
 }
 
+const autoFillNamedSequences = [
+  ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+];
+
+function namedSequenceAutoFill(seed, length) {
+  for (const sequence of autoFillNamedSequences) {
+    const matches = seed.map((value) => namedSequenceMatch(value, sequence));
+    if (matches.some((match) => !match)) continue;
+    const step = matches.length >= 2
+      ? positiveModulo(matches[1].index - matches[0].index, sequence.length)
+      : 1;
+    const consistent = matches.every((match, index) =>
+      match.index === positiveModulo(matches[0].index + step * index, sequence.length),
+    );
+    if (!consistent) continue;
+    const sample = matches[0].text;
+    return Array.from({ length }, (_, index) =>
+      applyNamedSequenceCase(sequence[positiveModulo(matches[0].index + step * index, sequence.length)], sample),
+    );
+  }
+  return null;
+}
+
+function namedSequenceMatch(value, sequence) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const index = sequence.findIndex((candidate) => candidate.toLowerCase() === text.toLowerCase());
+  return index >= 0 ? { index, text } : null;
+}
+
+function positiveModulo(value, size) {
+  return ((value % size) + size) % size;
+}
+
+function applyNamedSequenceCase(value, sample) {
+  if (sample === sample.toUpperCase()) return value.toUpperCase();
+  if (sample === sample.toLowerCase()) return value.toLowerCase();
+  return value;
+}
+
 function numberedTextAutoFill(seed, length) {
   const parsed = seed.map((value) => String(value).match(/^(.*?)(-?\d+)(\D*)$/));
   if (parsed.some((match) => !match)) return null;
@@ -15904,6 +15949,8 @@ function numberedTextAutoFill(seed, length) {
     return `${firstPrefix}${sign}${digits}${firstSuffix}`;
   });
 }
+
+window.__opencsvAutoFillSeries = autoFillSeries;
 
 async function runCellTool(endpoint, options) {
   status.textContent = `${options.label}...`;
