@@ -319,6 +319,7 @@ const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
+const clearConditionGroupsButton = document.querySelector("#clearConditionGroupsButton");
 const conditionPrimaryOpenGroup = document.querySelector("#conditionPrimaryOpenGroup");
 const conditionPrimaryCloseGroup = document.querySelector("#conditionPrimaryCloseGroup");
 const conditionRows = document.querySelector("#conditionRows");
@@ -677,6 +678,7 @@ const localeCatalog = {
     "condition.add": "Add Condition",
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
+    "condition.clearGroups": "Clear Groups",
     "condition.remove": "Remove",
     "condition.duplicate": "Duplicate",
     "condition.groupPrevious": "Group",
@@ -729,6 +731,7 @@ const localeCatalog = {
     "condition.status.groupedPrevious": "Grouped conditions {{from}} and {{to}}.",
     "condition.status.ungroupedPrevious": "Ungrouped conditions {{from}} and {{to}}.",
     "condition.status.reordered": "Moved condition {{from}} to position {{to}}.",
+    "condition.status.clearedGroups": "Cleared {{count}} condition group markers.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
     "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
@@ -1374,6 +1377,7 @@ const localeCatalog = {
     "condition.add": "添加条件",
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
+    "condition.clearGroups": "清除分组",
     "condition.remove": "移除",
     "condition.duplicate": "复制",
     "condition.groupPrevious": "分组",
@@ -1426,6 +1430,7 @@ const localeCatalog = {
     "condition.status.groupedPrevious": "已将条件 {{from}} 与 {{to}} 分组。",
     "condition.status.ungroupedPrevious": "已取消条件 {{from}} 与 {{to}} 的分组。",
     "condition.status.reordered": "已将条件 {{from}} 移到位置 {{to}}。",
+    "condition.status.clearedGroups": "已清除 {{count}} 个条件分组标记。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
     "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
@@ -8600,6 +8605,21 @@ function groupConditionWithPrevious(extraIndex, direction) {
   );
   const field = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${extraIndex}"] .condition-value`);
   field?.focus();
+}
+
+function clearConditionGroups() {
+  const rows = conditionBuilderRowStatesFromDOM();
+  const cleared = rows.reduce(
+    (count, row) => count + conditionGroupCount(row.groupStart) + conditionGroupCount(row.groupEnd),
+    0,
+  );
+  const flattened = rows.map((row) => ({ ...row, groupStart: 0, groupEnd: 0 }));
+  setConditionBuilderRows(flattened);
+  document.body.dataset.conditionGroupAction = "clear";
+  document.body.dataset.conditionGroupClear = `${cleared}->0`;
+  document.body.dataset.conditionGroupingMode = "implicit";
+  status.textContent = tf("condition.status.clearedGroups", { count: formatCount(cleared) });
+  conditionValue.focus();
 }
 
 function moveConditionRow(extraIndex, direction) {
@@ -19981,6 +20001,7 @@ conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
+clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
 conditionRows.addEventListener("change", updateConditionValueState);
 conditionRows.addEventListener("input", () => {
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);

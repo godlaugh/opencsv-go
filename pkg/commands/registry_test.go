@@ -939,6 +939,8 @@ func TestConditionBuilderI18nIsWired(t *testing.T) {
 		`data-i18n="condition.template.selectedEquals"`,
 		`data-i18n="condition.operator.contains"`,
 		`data-i18n="condition.add"`,
+		`id="clearConditionGroupsButton"`,
+		`data-i18n="condition.clearGroups"`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing condition builder i18n html anchor %q", snippet)
@@ -951,10 +953,12 @@ func TestConditionBuilderI18nIsWired(t *testing.T) {
 		`"condition.duplicate": "复制"`,
 		`"condition.groupPrevious": "分组"`,
 		`"condition.ungroupPrevious": "解组"`,
+		`"condition.clearGroups": "清除分组"`,
 		`"condition.status.ready": "快速条件已就绪`,
 		`"condition.status.duplicated": "已复制条件`,
 		`"condition.status.groupedPrevious": "已将条件`,
 		`"condition.status.ungroupedPrevious": "已取消条件`,
+		`"condition.status.clearedGroups": "已清除`,
 		"applyConditionLocaleStrings",
 		"setSelectOptionLabels(conditionOperator",
 		"setSelectOptionLabels(conditionTemplateSelect",
@@ -962,6 +966,7 @@ func TestConditionBuilderI18nIsWired(t *testing.T) {
 		"moveConditionRow",
 		"duplicateConditionRow",
 		"groupConditionWithPrevious",
+		"clearConditionGroups",
 		`button.dataset.conditionAction === "move-up"`,
 		`button.dataset.conditionAction === "duplicate"`,
 		`button.dataset.conditionAction === "group-previous"`,
@@ -969,6 +974,8 @@ func TestConditionBuilderI18nIsWired(t *testing.T) {
 		"document.body.dataset.conditionReorder",
 		"document.body.dataset.conditionDuplicate",
 		"document.body.dataset.conditionGroupAction",
+		"document.body.dataset.conditionGroupClear",
+		`clearConditionGroupsButton.addEventListener("click", clearConditionGroups)`,
 		`t("condition.status.enterValue")`,
 		`t("condition.status.enterDate")`,
 		`matched: "condition.status.matched"`,

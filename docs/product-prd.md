@@ -528,6 +528,7 @@ The app shall support:
 - Natural sort of value checklist entries.
 - Visual condition-builder filter with operators such as equals, contains, does-not-contain, starts with, blank/non-blank, in/not-in list, and between/not-between.
 - Visual condition-builder grouping for adjacent conditions, including groups that start from the first two conditions.
+- Visual condition-builder group clearing that removes all explicit grouping while preserving condition rows.
 - Selected-cell quick condition templates for common filter predicates.
 - Empty/non-empty filters.
 - Numeric, text, date, boolean filters.
