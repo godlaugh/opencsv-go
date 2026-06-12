@@ -326,6 +326,8 @@ const conditionRows = document.querySelector("#conditionRows");
 const closeConditionButton = document.querySelector("#closeConditionButton");
 const addConditionButton = document.querySelector("#addConditionButton");
 const groupAllConditionsButton = document.querySelector("#groupAllConditionsButton");
+const conditionAllAndButton = document.querySelector("#conditionAllAndButton");
+const conditionAllOrButton = document.querySelector("#conditionAllOrButton");
 const applyConditionButton = document.querySelector("#applyConditionButton");
 const clearConditionButton = document.querySelector("#clearConditionButton");
 const columnMenu = document.querySelector("#columnMenu");
@@ -684,6 +686,8 @@ const localeCatalog = {
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
     "condition.groupAll": "Group All",
+    "condition.allAnd": "All AND",
+    "condition.allOr": "All OR",
     "condition.clearGroups": "Clear Groups",
     "condition.remove": "Remove",
     "condition.duplicate": "Duplicate",
@@ -740,6 +744,8 @@ const localeCatalog = {
     "condition.status.addConditionFirst": "Add at least two conditions before grouping all.",
     "condition.status.groupedAll": "Grouped all {{count}} conditions.",
     "condition.status.maxGroups": "The selected conditions already use the maximum group depth.",
+    "condition.status.allAnd": "Set all condition joins to AND.",
+    "condition.status.allOr": "Set all condition joins to OR.",
     "condition.status.clearedGroups": "Cleared {{count}} condition group markers.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
@@ -1392,6 +1398,8 @@ const localeCatalog = {
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
     "condition.groupAll": "全部分组",
+    "condition.allAnd": "全部且",
+    "condition.allOr": "全部或",
     "condition.clearGroups": "清除分组",
     "condition.remove": "移除",
     "condition.duplicate": "复制",
@@ -1448,6 +1456,8 @@ const localeCatalog = {
     "condition.status.addConditionFirst": "请先添加至少两个条件再全部分组。",
     "condition.status.groupedAll": "已将全部 {{count}} 个条件分组。",
     "condition.status.maxGroups": "所选条件已达到最大分组深度。",
+    "condition.status.allAnd": "已将所有条件连接设为且。",
+    "condition.status.allOr": "已将所有条件连接设为或。",
     "condition.status.clearedGroups": "已清除 {{count}} 个条件分组标记。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
@@ -8666,6 +8676,23 @@ function groupAllConditionRows() {
   document.body.dataset.conditionGroupAll = `${rows.length}:${rows[0].groupStart}:${rows[lastIndex].groupEnd}`;
   document.body.dataset.conditionGroupingMode = "explicit";
   status.textContent = tf("condition.status.groupedAll", { count: formatCount(rows.length) });
+  conditionValue.focus();
+}
+
+function setAllConditionJoins(join) {
+  const normalizedJoin = join === "OR" ? "OR" : "AND";
+  const rows = conditionBuilderRowStatesFromDOM();
+  if (rows.length < 2) {
+    status.textContent = t("condition.status.addConditionFirst");
+    return;
+  }
+  for (let index = 1; index < rows.length; index++) {
+    rows[index].join = normalizedJoin;
+  }
+  setConditionBuilderRows(rows);
+  document.body.dataset.conditionJoinAction = `all-${normalizedJoin.toLowerCase()}:${rows.length - 1}`;
+  document.body.dataset.conditionGrouped = rows.slice(1).map((row) => row.join).join(",");
+  status.textContent = t(normalizedJoin === "OR" ? "condition.status.allOr" : "condition.status.allAnd");
   conditionValue.focus();
 }
 
@@ -20160,6 +20187,8 @@ useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
 groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
+conditionAllAndButton.addEventListener("click", () => setAllConditionJoins("AND"));
+conditionAllOrButton.addEventListener("click", () => setAllConditionJoins("OR"));
 conditionRows.addEventListener("change", updateConditionValueState);
 conditionRows.addEventListener("input", () => {
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
