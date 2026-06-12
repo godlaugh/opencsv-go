@@ -1636,12 +1636,17 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`id="quoteSelectionRuleButton"`,
 		`id="noQuoteSelectionRuleButton"`,
 		`id="clearSelectionQuoteRuleButton"`,
+		`id="quoteRuleRowInput"`,
+		`id="quoteRuleColInput"`,
+		`id="quoteRuleActionSelect"`,
+		`id="applyQuoteCoordinateRuleButton"`,
 		`Quote Cell`,
 		`No Quote Cell`,
 		`Clear Cell`,
 		`Quote Selection`,
 		`No Quote Selection`,
 		`Clear Selection`,
+		`Apply Rule`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing quote rule list html wiring %q", snippet)
@@ -1651,12 +1656,17 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`const quoteRuleList = document.querySelector("#quoteRuleList")`,
 		`const addQuoteCellRuleButton = document.querySelector("#addQuoteCellRuleButton")`,
 		`const quoteSelectionRuleButton = document.querySelector("#quoteSelectionRuleButton")`,
+		`const quoteRuleRowInput = document.querySelector("#quoteRuleRowInput")`,
+		`const applyQuoteCoordinateRuleButton = document.querySelector("#applyQuoteCoordinateRuleButton")`,
 		"function renderQuoteRuleList()",
 		"function activeQuoteRuleItems(settings)",
 		"function applyActiveCellQuoteRule(mode)",
+		"function applyCoordinateQuoteRule()",
 		"function removeQuoteRule(item)",
 		`document.body.dataset.quoteRuleList = String(items.length)`,
 		"document.body.dataset.quoteCellRule = `${mode}:${row}:${col}:${signature}`",
+		"document.body.dataset.quoteCoordinateRule = `${mode}:${row}:${col}:${signature}`",
+		"quoteRuleRowInput.dataset.syncedValue = defaultRow",
 		"document.body.dataset.quoteRuleRemove = `${item.kind}:${item.key}`",
 		`fetch("/api/quote-settings"`,
 		`addQuoteCellRuleButton.addEventListener("click", () => applyActiveCellQuoteRule("quote"))`,
@@ -1665,6 +1675,7 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`quoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("quote"))`,
 		`noQuoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("no-quote"))`,
 		`clearSelectionQuoteRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("clear"))`,
+		`applyQuoteCoordinateRuleButton.addEventListener("click", applyCoordinateQuoteRule)`,
 		`remove.addEventListener("click", () => removeQuoteRule(item))`,
 		"renderQuoteRuleList()",
 	} {
@@ -1677,6 +1688,7 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		".quote-rule-item",
 		".quote-rule-empty",
 		".quote-rule-grid button",
+		`.quote-rule-grid input[type="number"]`,
 	} {
 		if !strings.Contains(css, snippet) {
 			t.Fatalf("missing quote rule list styles %q", snippet)

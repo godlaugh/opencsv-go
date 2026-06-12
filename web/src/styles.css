@@ -851,6 +851,25 @@ button:disabled {
   margin: 0;
 }
 
+.quote-rule-grid label:not(.quote-rule-toggle) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quote-rule-grid input[type="number"],
+.quote-rule-grid select {
+  height: 30px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
 .quote-rule-grid button {
   min-height: 30px;
   border: 1px solid var(--border);

@@ -505,6 +505,23 @@
                 <button id="quoteSelectionRuleButton" type="button">Quote Selection</button>
                 <button id="noQuoteSelectionRuleButton" type="button">No Quote Selection</button>
                 <button id="clearSelectionQuoteRuleButton" type="button">Clear Selection</button>
+                <label>
+                  <span>Source Row</span>
+                  <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" />
+                </label>
+                <label>
+                  <span>Source Col</span>
+                  <input id="quoteRuleColInput" type="number" min="1" step="1" aria-label="Quote rule source column" />
+                </label>
+                <label>
+                  <span>Rule Action</span>
+                  <select id="quoteRuleActionSelect" aria-label="Quote rule action">
+                    <option value="quote">Quote cell</option>
+                    <option value="no-quote">No quote cell</option>
+                    <option value="clear">Clear cell</option>
+                  </select>
+                </label>
+                <button id="applyQuoteCoordinateRuleButton" type="button">Apply Rule</button>
               </div>
               <div id="quoteRuleList" class="quote-rule-list" aria-label="Active quote rules"></div>
               <div id="quoteRulesImportPanel" class="settings-import-panel" hidden>
