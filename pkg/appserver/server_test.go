@@ -2303,6 +2303,62 @@ func TestServerFindFilterSort(t *testing.T) {
 	}
 }
 
+func TestServerReplaceRegexCaptureGroups(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "replace-captures.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada Lovelace\n2,Grace Hopper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+	request := map[string]any{
+		"documentId":    documentID,
+		"query":         `^([A-Za-z]+) ([A-Za-z]+)$`,
+		"replacement":   "$2, $1",
+		"regex":         true,
+		"caseSensitive": true,
+		"all":           true,
+	}
+	previewRequest := make(map[string]any, len(request)+1)
+	for key, value := range request {
+		previewRequest[key] = value
+	}
+	previewRequest["preview"] = true
+	previewPayload := postJSON(t, handler, "/api/replace", previewRequest)
+	if previewPayload["preview"] != true || previewPayload["count"].(float64) != 2 {
+		t.Fatalf("regex capture preview = %#v, want two changes", previewPayload)
+	}
+	previewChanges := previewPayload["changes"].([]any)
+	firstChange := previewChanges[0].(map[string]any)
+	if firstChange["value"] != "Lovelace, Ada" {
+		t.Fatalf("first preview value = %#v, want Lovelace, Ada", firstChange["value"])
+	}
+	previewRanges := firstChange["ranges"].([]any)
+	if len(previewRanges) != 1 {
+		t.Fatalf("preview ranges = %#v, want one range", firstChange["ranges"])
+	}
+	firstRange := previewRanges[0].(map[string]any)
+	if firstRange["start"].(float64) != 0 || firstRange["end"].(float64) != 12 {
+		t.Fatalf("preview range = %#v, want 0-12", firstRange)
+	}
+
+	replacePayload := postJSON(t, handler, "/api/replace", request)
+	if replacePayload["count"].(float64) != 2 {
+		t.Fatalf("regex capture replace = %#v, want two changes", replacePayload)
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=3")
+	rows := windowPayload["rows"].([]any)
+	if rows[1].([]any)[1] != "Lovelace, Ada" || rows[2].([]any)[1] != "Hopper, Grace" {
+		t.Fatalf("regex capture rows = %#v", rows)
+	}
+}
+
 func TestServerFindUsesRequestContextCancellation(t *testing.T) {
 	body, err := json.Marshal(map[string]any{
 		"query": "Ada",

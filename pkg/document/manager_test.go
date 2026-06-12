@@ -287,6 +287,56 @@ func TestManagerReplacePreviewReturnsMatchedRanges(t *testing.T) {
 	}
 }
 
+func TestManagerReplaceRegexCaptureGroups(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "replace-captures.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada Lovelace\n2,Grace Hopper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "replace-captures.csv", csvcore.OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ReplaceOptions{
+		FindOptions: FindOptions{Query: `^([A-Za-z]+) ([A-Za-z]+)$`, Regex: true, CaseSensitive: true},
+		Replacement: "$2, $1",
+		All:         true,
+		Preview:     true,
+	}
+	preview, err := manager.Replace(session.ID, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !preview.Preview || preview.Count != 2 || len(preview.Changes) != 2 {
+		t.Fatalf("regex capture preview = %#v, want two preview changes", preview)
+	}
+	if got := preview.Changes[0].Value; got != "Lovelace, Ada" {
+		t.Fatalf("first preview replacement = %q, want Lovelace, Ada", got)
+	}
+	want := []TextRange{{Start: 0, End: 12}}
+	if !reflect.DeepEqual(preview.Changes[0].Ranges, want) {
+		t.Fatalf("capture preview ranges = %#v, want %#v", preview.Changes[0].Ranges, want)
+	}
+
+	options.Preview = false
+	result, err := manager.Replace(session.ID, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Count != 2 {
+		t.Fatalf("regex capture replace count = %d, want 2", result.Count)
+	}
+	window, err := manager.Window(session.ID, 0, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if window.Rows[1][1] != "Lovelace, Ada" || window.Rows[2][1] != "Hopper, Grace" {
+		t.Fatalf("regex capture replacement rows = %#v", window.Rows)
+	}
+}
+
 func TestManagerColumnValuesNaturalSort(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "values.csv")

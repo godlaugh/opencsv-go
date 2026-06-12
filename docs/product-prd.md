@@ -502,6 +502,7 @@ The app shall support:
 - Replace all.
 - Replace preview exposes the matched text ranges that would change before mutation.
 - Replace success exposes the matched text ranges that changed for diagnostics and regression coverage.
+- Regex replacement supports capture-group references such as `$1` and `$2`.
 - Exact match highlighting inside cells.
 - Backend-authoritative match ranges for text highlighting, including multiple regex matches in the same cell.
 - Case sensitivity toggle.
