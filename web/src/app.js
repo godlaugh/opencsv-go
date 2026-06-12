@@ -16967,6 +16967,11 @@ function normalizeProfileSchemaColumn(column, requiredNames, primaryKeyNames) {
   if (columnNumber) rule.column = columnNumber;
   const type = normalizeProfileSchemaType(datatypeObject.base ?? datatypeObject.type ?? datatype ?? constraints.type);
   if (type) rule.type = type;
+  const formatType =
+    normalizeProfileSchemaFormat(column.format) ||
+    normalizeProfileSchemaFormat(datatypeObject.format) ||
+    normalizeProfileSchemaFormat(constraints.format);
+  if (formatType && (!rule.type || rule.type === "string")) rule.type = formatType;
   if (Boolean(column.required ?? constraints.required) || requiredNames.has(name) || primaryKeyNames.has(name)) rule.required = true;
   if (Boolean(column.unique ?? constraints.unique) || primaryKeyNames.has(name)) rule.unique = true;
   const enumValues = schemaArrayValues(column.enum ?? constraints.enum ?? constraints.oneOf ?? constraints.values ?? constraints.in);
@@ -17045,16 +17050,8 @@ function schemaString(value) {
 }
 
 function normalizeProfileSchemaType(value) {
-  let type = String(value ?? "").toLowerCase().trim();
+  const type = normalizeProfileSchemaTypeName(value);
   if (!type) return "";
-  const fragmentIndex = type.lastIndexOf("#");
-  const slashIndex = type.lastIndexOf("/");
-  if (fragmentIndex >= 0) {
-    type = type.slice(fragmentIndex + 1);
-  } else if (slashIndex >= 0) {
-    type = type.slice(slashIndex + 1);
-  }
-  type = type.replace(/^xsd:/, "").replace(/^xmlschema:/, "");
   if (["integer", "int", "long", "short", "byte", "nonnegativeinteger", "nonpositiveinteger", "positiveinteger", "negativeinteger", "unsignedlong", "unsignedint", "unsignedshort", "unsignedbyte"].includes(type)) return "integer";
   if (["number", "numeric", "float", "double"].includes(type)) return "number";
   if (["decimal"].includes(type)) return "decimal";
@@ -17394,6 +17391,27 @@ function profileRuleFromBuilder() {
     throw new Error(t("profile.rule.chooseColumn"));
   }
   return rule;
+}
+
+function normalizeProfileSchemaFormat(value) {
+  const format = normalizeProfileSchemaTypeName(value);
+  if (["date-time", "datetime", "timestamp"].includes(format)) return "datetime";
+  if (["date", "full-date"].includes(format)) return "date";
+  if (["time", "full-time"].includes(format)) return "time";
+  return "";
+}
+
+function normalizeProfileSchemaTypeName(value) {
+  let type = String(value ?? "").toLowerCase().trim();
+  if (!type) return "";
+  const fragmentIndex = type.lastIndexOf("#");
+  const slashIndex = type.lastIndexOf("/");
+  if (fragmentIndex >= 0) {
+    type = type.slice(fragmentIndex + 1);
+  } else if (slashIndex >= 0) {
+    type = type.slice(slashIndex + 1);
+  }
+  return type.replace(/^xsd:/, "").replace(/^xmlschema:/, "");
 }
 
 function ruleHasValidation(rule) {

@@ -190,6 +190,15 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	} else if typ := normalizeSchemaType(firstSchemaString(constraints, "type")); typ != "" {
 		rule.Type = typ
 	}
+	if formatType := normalizeSchemaFormat(firstSchemaString(column, "format")); formatType != "" && (rule.Type == "" || rule.Type == "string") {
+		rule.Type = formatType
+	}
+	if formatType := normalizeSchemaFormat(firstSchemaString(datatypeObject, "format")); formatType != "" && (rule.Type == "" || rule.Type == "string") {
+		rule.Type = formatType
+	}
+	if formatType := normalizeSchemaFormat(firstSchemaString(constraints, "format")); formatType != "" && (rule.Type == "" || rule.Type == "string") {
+		rule.Type = formatType
+	}
 	if schemaRawBool(firstSchemaRaw(column, "required")) || schemaRawBool(firstSchemaRaw(constraints, "required")) || schemaNameSetHas(requiredNames, name) || schemaNameSetHas(primaryKeyNames, name) {
 		rule.Required = true
 	}
@@ -461,6 +470,19 @@ func normalizeSchemaType(value string) string {
 		return "string"
 	default:
 		return normalized
+	}
+}
+
+func normalizeSchemaFormat(value string) string {
+	switch normalizeSchemaTypeName(value) {
+	case "date-time", "datetime", "timestamp":
+		return "datetime"
+	case "date", "full-date":
+		return "date"
+	case "time", "full-time":
+		return "time"
+	default:
+		return ""
 	}
 }
 

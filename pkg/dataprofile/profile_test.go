@@ -563,6 +563,45 @@ func TestSchemaUnmarshalAcceptsJSONSchemaProperties(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsJSONSchemaFormats(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"properties": {
+			"created_at": {"type": "string", "format": "date-time"},
+			"day": {"type": "string", "format": "date"},
+			"clock": {"type": "string", "format": "time"}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 3 {
+		t.Fatalf("columns = %#v, want 3", schema.Columns)
+	}
+	want := []struct {
+		name string
+		typ  string
+	}{
+		{"clock", "time"},
+		{"created_at", "datetime"},
+		{"day", "date"},
+	}
+	for index, item := range want {
+		if schema.Columns[index].Name != item.name || schema.Columns[index].Type != item.typ {
+			t.Fatalf("column %d = %#v, want %s/%s", index, schema.Columns[index], item.name, item.typ)
+		}
+	}
+	result := AnalyzeWithSchema([][]string{
+		{"clock", "created_at", "day"},
+		{"15:30:00", "2026-06-12T15:30:00Z", "2026-06-12"},
+		{"25:61", "2026-06-12", "Friday"},
+	}, true, schema)
+	if typeIssues := countIssues(result.Issues, "schema-type"); typeIssues != 3 {
+		t.Fatalf("schema-type issues = %d, want 3: %#v", typeIssues, result.Issues)
+	}
+}
+
 func TestAnalyzeWithSchemaInvalidPattern(t *testing.T) {
 	result := AnalyzeWithSchema([][]string{
 		{"code"},
