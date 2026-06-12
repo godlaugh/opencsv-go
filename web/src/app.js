@@ -13332,8 +13332,14 @@ async function replaceCurrentQuery(all, options = {}) {
   }
   dirty = payload.dirty ?? true;
   profileData = null;
-  invalidateFindState();
   const first = payload.changes?.[0];
+  document.body.dataset.replaceRanges = (payload.changes ?? [])
+    .flatMap((change) => formatServerMatchRanges(change))
+    .join(",");
+  document.body.dataset.replaceChange = first
+    ? replaceChangePreview(first)
+    : String(payload.count);
+  invalidateFindState();
   rows = new Map();
   rowSource = new Map();
   windowStart = 0;
@@ -13353,6 +13359,14 @@ async function replaceCurrentQuery(all, options = {}) {
       ? t("replace.status.replacedCurrent")
       : t("replace.status.replacedOne");
   clearReplacePreview();
+}
+
+function replaceChangePreview(change) {
+  if (!change || typeof change !== "object") return "";
+  const displayRow = Math.max(0, change.row - dataStartRow);
+  const visibleCol = visibleColForSource(change.col);
+  const before = visibleCol >= 0 ? valueAt(displayRow, visibleCol) : "";
+  return `${change.row}:${change.col}:${before}->${change.value ?? ""}`;
 }
 
 function replaceScopeCells(search, all) {

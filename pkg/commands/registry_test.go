@@ -816,10 +816,13 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		"normalizeServerFindRanges",
 		"normalizeServerFindRange",
 		"formatServerMatchRanges",
+		"replaceChangePreview",
 		"match.ranges",
 		"match.range",
 		"flatMap((match) => normalizeServerFindRanges",
 		"document.body.dataset.replacePreviewRanges",
+		"document.body.dataset.replaceRanges",
+		"document.body.dataset.replaceChange",
 		"document.body.dataset.findHighlight",
 	} {
 		if !strings.Contains(source, snippet) {
