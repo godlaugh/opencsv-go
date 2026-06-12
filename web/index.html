@@ -561,6 +561,23 @@
                 </label>
                 <button id="applyQuoteValuePatternRuleButton" type="button">Apply Values</button>
                 <label>
+                  <span>Row Start</span>
+                  <input id="quoteRuleRowStartInput" type="number" min="1" step="1" aria-label="Quote rule row range start" />
+                </label>
+                <label>
+                  <span>Row End</span>
+                  <input id="quoteRuleRowEndInput" type="number" min="1" step="1" aria-label="Quote rule row range end" />
+                </label>
+                <label>
+                  <span>Row Action</span>
+                  <select id="quoteRuleRowActionSelect" aria-label="Quote row range action">
+                    <option value="quote">Quote rows</option>
+                    <option value="no-quote">No quote rows</option>
+                    <option value="clear">Clear rows</option>
+                  </select>
+                </label>
+                <button id="applyQuoteRowRangeRuleButton" type="button">Apply Rows</button>
+                <label>
                   <span>Source Row</span>
                   <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" />
                 </label>
