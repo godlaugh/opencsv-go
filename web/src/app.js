@@ -325,6 +325,7 @@ const conditionPrimaryCloseGroup = document.querySelector("#conditionPrimaryClos
 const conditionRows = document.querySelector("#conditionRows");
 const closeConditionButton = document.querySelector("#closeConditionButton");
 const addConditionButton = document.querySelector("#addConditionButton");
+const groupAllConditionsButton = document.querySelector("#groupAllConditionsButton");
 const applyConditionButton = document.querySelector("#applyConditionButton");
 const clearConditionButton = document.querySelector("#clearConditionButton");
 const columnMenu = document.querySelector("#columnMenu");
@@ -682,6 +683,7 @@ const localeCatalog = {
     "condition.add": "Add Condition",
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
+    "condition.groupAll": "Group All",
     "condition.clearGroups": "Clear Groups",
     "condition.remove": "Remove",
     "condition.duplicate": "Duplicate",
@@ -735,6 +737,9 @@ const localeCatalog = {
     "condition.status.groupedPrevious": "Grouped conditions {{from}} and {{to}}.",
     "condition.status.ungroupedPrevious": "Ungrouped conditions {{from}} and {{to}}.",
     "condition.status.reordered": "Moved condition {{from}} to position {{to}}.",
+    "condition.status.addConditionFirst": "Add at least two conditions before grouping all.",
+    "condition.status.groupedAll": "Grouped all {{count}} conditions.",
+    "condition.status.maxGroups": "The selected conditions already use the maximum group depth.",
     "condition.status.clearedGroups": "Cleared {{count}} condition group markers.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
@@ -1386,6 +1391,7 @@ const localeCatalog = {
     "condition.add": "添加条件",
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
+    "condition.groupAll": "全部分组",
     "condition.clearGroups": "清除分组",
     "condition.remove": "移除",
     "condition.duplicate": "复制",
@@ -1439,6 +1445,9 @@ const localeCatalog = {
     "condition.status.groupedPrevious": "已将条件 {{from}} 与 {{to}} 分组。",
     "condition.status.ungroupedPrevious": "已取消条件 {{from}} 与 {{to}} 的分组。",
     "condition.status.reordered": "已将条件 {{from}} 移到位置 {{to}}。",
+    "condition.status.addConditionFirst": "请先添加至少两个条件再全部分组。",
+    "condition.status.groupedAll": "已将全部 {{count}} 个条件分组。",
+    "condition.status.maxGroups": "所选条件已达到最大分组深度。",
     "condition.status.clearedGroups": "已清除 {{count}} 个条件分组标记。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
@@ -8634,6 +8643,29 @@ function clearConditionGroups() {
   document.body.dataset.conditionGroupClear = `${cleared}->0`;
   document.body.dataset.conditionGroupingMode = "implicit";
   status.textContent = tf("condition.status.clearedGroups", { count: formatCount(cleared) });
+  conditionValue.focus();
+}
+
+function groupAllConditionRows() {
+  const rows = conditionBuilderRowStatesFromDOM();
+  if (rows.length < 2) {
+    status.textContent = t("condition.status.addConditionFirst");
+    return;
+  }
+  const firstStart = conditionGroupCount(rows[0].groupStart);
+  const lastIndex = rows.length - 1;
+  const lastEnd = conditionGroupCount(rows[lastIndex].groupEnd);
+  if (firstStart >= 3 || lastEnd >= 3) {
+    status.textContent = t("condition.status.maxGroups");
+    return;
+  }
+  rows[0].groupStart = firstStart + 1;
+  rows[lastIndex].groupEnd = lastEnd + 1;
+  setConditionBuilderRows(rows);
+  document.body.dataset.conditionGroupAction = `group-all:${rows.length}`;
+  document.body.dataset.conditionGroupAll = `${rows.length}:${rows[0].groupStart}:${rows[lastIndex].groupEnd}`;
+  document.body.dataset.conditionGroupingMode = "explicit";
+  status.textContent = tf("condition.status.groupedAll", { count: formatCount(rows.length) });
   conditionValue.focus();
 }
 
@@ -20127,6 +20159,7 @@ conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState)
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
+groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
 conditionRows.addEventListener("change", updateConditionValueState);
 conditionRows.addEventListener("input", () => {
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
