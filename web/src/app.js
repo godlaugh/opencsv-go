@@ -220,6 +220,10 @@ const quoteRuleColumnPatternInput = document.querySelector("#quoteRuleColumnPatt
 const quoteRuleColumnPatternModeSelect = document.querySelector("#quoteRuleColumnPatternModeSelect");
 const quoteRuleColumnPatternActionSelect = document.querySelector("#quoteRuleColumnPatternActionSelect");
 const applyQuoteColumnPatternRuleButton = document.querySelector("#applyQuoteColumnPatternRuleButton");
+const quoteRuleValuePatternInput = document.querySelector("#quoteRuleValuePatternInput");
+const quoteRuleValuePatternModeSelect = document.querySelector("#quoteRuleValuePatternModeSelect");
+const quoteRuleValuePatternActionSelect = document.querySelector("#quoteRuleValuePatternActionSelect");
+const applyQuoteValuePatternRuleButton = document.querySelector("#applyQuoteValuePatternRuleButton");
 const quoteRuleRowInput = document.querySelector("#quoteRuleRowInput");
 const quoteRuleColInput = document.querySelector("#quoteRuleColInput");
 const quoteRuleActionSelect = document.querySelector("#quoteRuleActionSelect");
@@ -5003,6 +5007,10 @@ function syncQuotePolicyControls() {
   quoteRuleColumnPatternModeSelect.disabled = readOnly || !coordinateRuleAvailable;
   quoteRuleColumnPatternActionSelect.disabled = readOnly || !coordinateRuleAvailable;
   applyQuoteColumnPatternRuleButton.disabled = readOnly || !coordinateRuleAvailable;
+  quoteRuleValuePatternInput.disabled = readOnly || !selectionRuleAvailable;
+  quoteRuleValuePatternModeSelect.disabled = readOnly || !selectionRuleAvailable;
+  quoteRuleValuePatternActionSelect.disabled = readOnly || !selectionRuleAvailable;
+  applyQuoteValuePatternRuleButton.disabled = readOnly || !selectionRuleAvailable;
   if (coordinateRuleAvailable && document.activeElement !== quoteRuleColumnInput) {
     const defaultColumn = quoteRuleColumnLabel(sourceColFor(selected.col));
     const previousDefaultColumn = quoteRuleColumnInput.dataset.syncedValue || "";
@@ -6454,31 +6462,41 @@ function globToRegex(pattern) {
   return new RegExp(`^${String(pattern).split("*").map(regexEscape).join(".*")}$`, "i");
 }
 
-function matchingQuoteRuleColumns(pattern, matchMode) {
+function quotePatternMatcher(pattern, matchMode, emptyMessage, regexMessage) {
   const raw = String(pattern || "").trim();
-  if (!raw) return { error: "Enter a column pattern before applying quote rules." };
-  let matcher;
+  if (!raw) return { error: emptyMessage };
   if (matchMode === "regex") {
     try {
       const expression = new RegExp(raw, "i");
-      matcher = (name) => expression.test(name);
+      return { matcher: (value) => expression.test(value) };
     } catch {
-      return { error: "Enter a valid regular expression for the column pattern." };
+      return { error: regexMessage };
     }
-  } else if (matchMode === "glob") {
-    const expression = globToRegex(raw);
-    matcher = (name) => expression.test(name);
-  } else if (matchMode === "exact") {
-    const needle = raw.toLowerCase();
-    matcher = (name) => name.toLowerCase() === needle;
-  } else {
-    const needle = raw.toLowerCase();
-    matcher = (name) => name.toLowerCase().includes(needle);
   }
+  if (matchMode === "glob") {
+    const expression = globToRegex(raw);
+    return { matcher: (value) => expression.test(value) };
+  }
+  if (matchMode === "exact") {
+    const needle = raw.toLowerCase();
+    return { matcher: (value) => value.toLowerCase() === needle };
+  }
+  const needle = raw.toLowerCase();
+  return { matcher: (value) => value.toLowerCase().includes(needle) };
+}
+
+function matchingQuoteRuleColumns(pattern, matchMode) {
+  const compiled = quotePatternMatcher(
+    pattern,
+    matchMode,
+    "Enter a column pattern before applying quote rules.",
+    "Enter a valid regular expression for the column pattern.",
+  );
+  if (compiled.error) return compiled;
   const columnsBySource = new Map();
   for (const column of allColumns) {
     const label = quoteRuleColumnLabel(column.sourceCol);
-    if (matcher(label)) columnsBySource.set(column.sourceCol, column);
+    if (compiled.matcher(label)) columnsBySource.set(column.sourceCol, column);
   }
   const columns = Array.from(columnsBySource.keys()).sort((left, right) => left - right);
   if (!columns.length) {
@@ -6535,6 +6553,102 @@ async function applyColumnPatternQuoteRule() {
   }
   quotePolicyDraftDirty = false;
   applyMutationPayload(payload, `${label}: ${formatCount(matched.columns.length)} columns.`);
+  syncQuotePolicyControls();
+  updateFormatStatus();
+  updateInspector();
+  renderSettingsPanel();
+}
+
+function matchingQuoteRuleCellsByValue(pattern, matchMode, maxCells = 50_000) {
+  const compiled = quotePatternMatcher(
+    pattern,
+    matchMode,
+    "Enter a value pattern before applying quote rules.",
+    "Enter a valid regular expression for the value pattern.",
+  );
+  if (compiled.error) return compiled;
+  const scanCells = sourceRowCount * columns.length;
+  if (scanCells > maxCells) {
+    return { error: `Value pattern quote rules can scan up to ${formatCount(maxCells)} loaded cells.` };
+  }
+  const cells = [];
+  for (let row = 0; row < sourceRowCount; row++) {
+    if (!rows.has(row)) {
+      return { error: "Load the target rows before applying value-pattern quote rules." };
+    }
+    const recordRow = rowSource.get(row) ?? row + dataStartRow;
+    for (let col = 0; col < columns.length; col++) {
+      const value = String(valueAt(row, col) ?? "");
+      if (compiled.matcher(value)) {
+        cells.push({ row: recordRow, col: sourceColFor(col) });
+      }
+    }
+  }
+  if (!cells.length) {
+    return { error: "No loaded cells match the quote value pattern." };
+  }
+  return { cells };
+}
+
+async function applyValuePatternQuoteRule() {
+  const action = quoteRuleValuePatternActionSelect.value;
+  const matchMode = quoteRuleValuePatternModeSelect.value;
+  const labels = {
+    quote: "Quote Value Pattern Rule",
+    "no-quote": "No Quote Value Pattern Rule",
+    clear: "Clear Value Pattern Rule",
+  };
+  const label = labels[action] || "Value Pattern Rule";
+  if (!documentId) {
+    status.textContent = "Open a file before editing quote rules.";
+    return;
+  }
+  if (readOnly) {
+    status.textContent = `${label} blocked: document is read-only`;
+    return;
+  }
+  const matched = matchingQuoteRuleCellsByValue(quoteRuleValuePatternInput.value, matchMode);
+  if (matched.error) {
+    status.textContent = matched.error;
+    document.body.dataset.quoteValuePatternRule = "invalid";
+    return;
+  }
+  const matchedKeys = new Set(matched.cells.map(quoteCellKey));
+  const settings = currentQuoteRuleSettings();
+  const nextSettings = {
+    ...settings,
+    quoteCells: settings.quoteCells.filter((cell) => !matchedKeys.has(quoteCellKey(cell))),
+    noQuoteCells: settings.noQuoteCells.filter((cell) => !matchedKeys.has(quoteCellKey(cell))),
+  };
+  if (action === "quote") {
+    nextSettings.quoteCells.push(
+      ...matched.cells.filter((cell) => !quoteSettingsPreservesCell(settings, cell)),
+    );
+  } else if (action === "no-quote") {
+    nextSettings.noQuoteCells.push(...matched.cells);
+  }
+  nextSettings.quoteCells = normalizeQuoteRuleCells(nextSettings.quoteCells);
+  nextSettings.noQuoteCells = normalizeQuoteRuleCells(nextSettings.noQuoteCells);
+  const signature = quoteRulesSignature(nextSettings);
+  document.body.dataset.quoteValuePatternRule = `${matchMode}:${action}:${matched.cells.length}:${signature}`;
+  if (signature === quoteRulesSignature(settings)) {
+    status.textContent = `${label}: no quote rules changed.`;
+    return;
+  }
+  const response = await fetch("/api/quote-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentId, ...nextSettings }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    document.body.dataset.quoteValuePatternRule = "error";
+    syncQuotePolicyControls();
+    return;
+  }
+  quotePolicyDraftDirty = false;
+  applyMutationPayload(payload, `${label}: ${formatCount(matched.cells.length)} cells.`);
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -20978,6 +21092,7 @@ noQuoteSelectionRuleButton.addEventListener("click", () => setSelectedCellQuoteO
 clearSelectionQuoteRuleButton.addEventListener("click", () => setSelectedCellQuoteOverrides("clear"));
 applyQuoteColumnRuleButton.addEventListener("click", applyColumnQuoteRule);
 applyQuoteColumnPatternRuleButton.addEventListener("click", applyColumnPatternQuoteRule);
+applyQuoteValuePatternRuleButton.addEventListener("click", applyValuePatternQuoteRule);
 applyQuoteCoordinateRuleButton.addEventListener("click", applyCoordinateQuoteRule);
 quoteModeSelect.addEventListener("change", () => {
   quotePolicyDraftDirty = true;
