@@ -1266,6 +1266,41 @@ func TestKeyboardShortcutsShellEntryIsWired(t *testing.T) {
 	}
 }
 
+func TestKeyboardShortcutResetAllIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="resetAllShortcutsButton"`,
+		`aria-label="Reset All Keyboard Shortcuts"`,
+		`Reset All`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing reset-all shortcuts html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`const resetAllShortcutsButton = document.querySelector("#resetAllShortcutsButton")`,
+		"function syncResetAllShortcutsButton()",
+		"resetAllShortcutsButton.disabled = customShortcuts.size === 0",
+		"function resetAllShortcuts()",
+		"customShortcuts = new Map()",
+		"document.body.dataset.shortcutResetAll = String(resetCount)",
+		`resetAllShortcutsButton.addEventListener("click", resetAllShortcuts)`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing reset-all shortcuts frontend wiring %q", snippet)
+		}
+	}
+}
+
 func TestNonGridStatusbarVisibilityIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

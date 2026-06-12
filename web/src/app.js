@@ -267,6 +267,7 @@ const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
 const exportShortcutsButton = document.querySelector("#exportShortcutsButton");
 const showImportShortcutsButton = document.querySelector("#showImportShortcutsButton");
+const resetAllShortcutsButton = document.querySelector("#resetAllShortcutsButton");
 const shortcutImportPanel = document.querySelector("#shortcutImportPanel");
 const shortcutImportText = document.querySelector("#shortcutImportText");
 const applyShortcutImportButton = document.querySelector("#applyShortcutImportButton");
@@ -7720,6 +7721,7 @@ function closeKeyboardShortcuts() {
 }
 
 function renderKeyboardShortcuts() {
+  syncResetAllShortcutsButton();
   const query = shortcutsSearch.value.trim().toLowerCase();
   const commands = Array.from(commandsById.values())
     .filter((command) => command.implemented !== false)
@@ -7847,9 +7849,17 @@ function saveCustomShortcuts() {
   localStorage.setItem(customShortcutsStorageKey, JSON.stringify(value));
   document.body.dataset.shortcutCount = String(customShortcuts.size);
   document.body.dataset.shortcutPreview = JSON.stringify(value);
+  syncResetAllShortcutsButton();
   applyCommandMetadata();
   renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
+}
+
+function syncResetAllShortcutsButton() {
+  resetAllShortcutsButton.disabled = customShortcuts.size === 0;
+  resetAllShortcutsButton.title = customShortcuts.size === 0
+    ? "Keyboard shortcuts are using defaults"
+    : `Reset ${formatCount(customShortcuts.size)} custom shortcuts`;
 }
 
 function applyShortcutPreset() {
@@ -8086,6 +8096,18 @@ function resetCustomShortcut(commandID) {
   customShortcuts.delete(commandID);
   saveCustomShortcuts();
   status.textContent = `Reset shortcut for ${localizedCommandTitle(command)}`;
+}
+
+function resetAllShortcuts() {
+  const resetCount = customShortcuts.size;
+  recordingShortcutID = "";
+  pendingShortcutConflict = null;
+  customShortcuts = new Map();
+  document.body.dataset.shortcutResetAll = String(resetCount);
+  saveCustomShortcuts();
+  status.textContent = resetCount
+    ? `Reset ${formatCount(resetCount)} custom shortcuts.`
+    : "Keyboard shortcuts already use defaults.";
 }
 
 function handleShortcutEditorKeydown(event) {
@@ -20567,6 +20589,7 @@ closeShortcutsButton.addEventListener("click", closeKeyboardShortcuts);
 applyShortcutPresetButton.addEventListener("click", applyShortcutPreset);
 exportShortcutsButton.addEventListener("click", () => executeCommand("settings.exportShortcuts"));
 showImportShortcutsButton.addEventListener("click", () => executeCommand("settings.importShortcuts"));
+resetAllShortcutsButton.addEventListener("click", resetAllShortcuts);
 shortcutImportText.addEventListener("input", syncShortcutImportControls);
 applyShortcutImportButton.addEventListener("click", applyShortcutImport);
 cancelShortcutImportButton.addEventListener("click", cancelShortcutImport);
