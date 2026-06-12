@@ -518,6 +518,27 @@
                 </label>
                 <button id="applyQuoteColumnRuleButton" type="button">Apply Column</button>
                 <label>
+                  <span>Column Pattern</span>
+                  <input id="quoteRuleColumnPatternInput" type="text" aria-label="Quote column pattern" />
+                </label>
+                <label>
+                  <span>Pattern Mode</span>
+                  <select id="quoteRuleColumnPatternModeSelect" aria-label="Quote column pattern mode">
+                    <option value="contains">Contains</option>
+                    <option value="exact">Exact</option>
+                    <option value="glob">Glob</option>
+                    <option value="regex">Regex</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Pattern Action</span>
+                  <select id="quoteRuleColumnPatternActionSelect" aria-label="Quote column pattern action">
+                    <option value="quote">Quote matches</option>
+                    <option value="clear">Clear matches</option>
+                  </select>
+                </label>
+                <button id="applyQuoteColumnPatternRuleButton" type="button">Apply Pattern</button>
+                <label>
                   <span>Source Row</span>
                   <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" />
                 </label>
