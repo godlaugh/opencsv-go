@@ -183,11 +183,11 @@ func normalizeSchemaColumnJSON(raw json.RawMessage, requiredNames map[string]str
 	if col := schemaPositiveInteger(firstSchemaRaw(column, "column", "index", "number")); col > 0 {
 		rule.Column = col
 	}
-	if typ := normalizeSchemaType(firstSchemaString(datatypeObject, "base", "type")); typ != "" {
+	if typ := normalizeSchemaTypeRaw(firstSchemaRaw(datatypeObject, "base", "type")); typ != "" {
 		rule.Type = typ
-	} else if typ := normalizeSchemaType(schemaRawString(datatypeRaw)); typ != "" {
+	} else if typ := normalizeSchemaTypeRaw(datatypeRaw); typ != "" {
 		rule.Type = typ
-	} else if typ := normalizeSchemaType(firstSchemaString(constraints, "type")); typ != "" {
+	} else if typ := normalizeSchemaTypeRaw(firstSchemaRaw(constraints, "type")); typ != "" {
 		rule.Type = typ
 	}
 	if formatType := normalizeSchemaFormat(firstSchemaString(column, "format")); formatType != "" && (rule.Type == "" || rule.Type == "string") {
@@ -443,10 +443,29 @@ func schemaRawNumber(raw json.RawMessage) (float64, bool) {
 	return 0, false
 }
 
+func normalizeSchemaTypeRaw(raw json.RawMessage) string {
+	if typ := normalizeSchemaType(schemaRawString(raw)); typ != "" {
+		return typ
+	}
+	if len(raw) == 0 {
+		return ""
+	}
+	var values []json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return ""
+	}
+	for _, item := range values {
+		if typ := normalizeSchemaType(schemaRawString(item)); typ != "" {
+			return typ
+		}
+	}
+	return ""
+}
+
 func normalizeSchemaType(value string) string {
 	normalized := normalizeSchemaTypeName(value)
 	switch normalized {
-	case "":
+	case "", "null":
 		return ""
 	case "integer", "int", "long", "short", "byte", "nonnegativeinteger", "nonpositiveinteger", "positiveinteger", "negativeinteger", "unsignedlong", "unsignedint", "unsignedshort", "unsignedbyte":
 		return "integer"

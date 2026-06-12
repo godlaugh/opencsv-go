@@ -1305,6 +1305,8 @@ func TestProfileViewI18nIsWired(t *testing.T) {
 		"Object.entries(source.properties)",
 		"normalizeProfileSchemaFormat(column.format)",
 		`["date-time", "datetime", "timestamp"]`,
+		"Array.isArray(value)",
+		`type === "null"`,
 		"unsignedint",
 		`datetime: "profile.type.datetime"`,
 		"gyearmonth",

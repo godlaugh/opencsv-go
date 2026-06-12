@@ -602,6 +602,48 @@ func TestSchemaUnmarshalAcceptsJSONSchemaFormats(t *testing.T) {
 	}
 }
 
+func TestSchemaUnmarshalAcceptsJSONSchemaNullableTypes(t *testing.T) {
+	var schema Schema
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"properties": {
+			"id": {"type": ["integer", "null"]},
+			"score": {"type": ["null", "number"]},
+			"stamp": {"type": ["null", "string"], "format": "date-time"}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema.Columns) != 3 {
+		t.Fatalf("columns = %#v, want 3", schema.Columns)
+	}
+	want := []struct {
+		name string
+		typ  string
+	}{
+		{"id", "integer"},
+		{"score", "number"},
+		{"stamp", "datetime"},
+	}
+	for index, item := range want {
+		if schema.Columns[index].Name != item.name || schema.Columns[index].Type != item.typ {
+			t.Fatalf("column %d = %#v, want %s/%s", index, schema.Columns[index], item.name, item.typ)
+		}
+	}
+	result := AnalyzeWithSchema([][]string{
+		{"id", "score", "stamp"},
+		{"1", "95", "2026-06-12T15:30:00Z"},
+		{"bad", "oops", "2026-06-12"},
+	}, true, schema)
+	if result.SchemaRules != 3 {
+		t.Fatalf("schema rules = %d, want 3", result.SchemaRules)
+	}
+	if typeIssues := countIssues(result.Issues, "schema-type"); typeIssues != 3 {
+		t.Fatalf("schema-type issues = %d, want 3: %#v", typeIssues, result.Issues)
+	}
+}
+
 func TestAnalyzeWithSchemaInvalidPattern(t *testing.T) {
 	result := AnalyzeWithSchema([][]string{
 		{"code"},

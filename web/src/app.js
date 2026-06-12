@@ -17050,8 +17050,15 @@ function schemaString(value) {
 }
 
 function normalizeProfileSchemaType(value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const type = normalizeProfileSchemaType(item);
+      if (type) return type;
+    }
+    return "";
+  }
   const type = normalizeProfileSchemaTypeName(value);
-  if (!type) return "";
+  if (!type || type === "null") return "";
   if (["integer", "int", "long", "short", "byte", "nonnegativeinteger", "nonpositiveinteger", "positiveinteger", "negativeinteger", "unsignedlong", "unsignedint", "unsignedshort", "unsignedbyte"].includes(type)) return "integer";
   if (["number", "numeric", "float", "double"].includes(type)) return "number";
   if (["decimal"].includes(type)) return "decimal";
