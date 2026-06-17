@@ -176,6 +176,10 @@ func TestServerOpenDetectsShiftJISEncoding(t *testing.T) {
 	if encoding["name"] != "shift-jis" {
 		t.Fatalf("encoding = %#v, want shift-jis", encoding)
 	}
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["hasHeader"] != true {
+		t.Fatalf("dialect = %#v, want localized header detected", dialect)
+	}
 	preview := document["preview"].([]any)
 	header := preview[0].([]any)
 	row := preview[1].([]any)

@@ -111,6 +111,9 @@ func TestOpenDocumentDetectsShiftJISEncoding(t *testing.T) {
 	if document.Metadata.Encoding.Name != EncodingShiftJIS {
 		t.Fatalf("encoding = %+v, want shift-jis", document.Metadata.Encoding)
 	}
+	if !document.Metadata.Dialect.HasHeader {
+		t.Fatal("expected localized Shift-JIS header")
+	}
 	if len(document.Preview) != 2 || document.Preview[0][0] != "名前" || document.Preview[1][1] != "かな" {
 		t.Fatalf("preview = %#v", document.Preview)
 	}

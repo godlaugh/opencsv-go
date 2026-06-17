@@ -65,6 +65,20 @@ func TestSniffDetectsTextDimensionHeader(t *testing.T) {
 	}
 }
 
+func TestSniffDetectsLocalizedTextHeader(t *testing.T) {
+	dialect := Sniff([]byte("名前,メモ\n太郎,かな\n花子,メモあり\n"))
+	if !dialect.HasHeader {
+		t.Fatal("expected localized text header")
+	}
+}
+
+func TestSniffAvoidsWeakLocalizedTextHeader(t *testing.T) {
+	dialect := Sniff([]byte("太郎,かな\n花子,メモあり\n三郎,なし\n"))
+	if dialect.HasHeader {
+		t.Fatal("did not expect localized text data rows to be promoted to header")
+	}
+}
+
 func TestSniffAvoidsWeakAllTextHeader(t *testing.T) {
 	dialect := Sniff([]byte("A,B\nC,D\nE,F\n"))
 	if dialect.HasHeader {
