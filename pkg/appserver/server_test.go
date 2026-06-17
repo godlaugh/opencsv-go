@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opencsv/opencsv/pkg/csvcore"
 	"github.com/opencsv/opencsv/pkg/xlsx"
 )
 
@@ -150,6 +151,36 @@ func TestServerOpenDetectsBackslashQuoteEscape(t *testing.T) {
 	row := preview[1].([]any)
 	if len(row) != 2 || row[1] != `has "quote" and comma, ok` {
 		t.Fatalf("preview row = %#v", row)
+	}
+}
+
+func TestServerOpenDetectsShiftJISEncoding(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "shift-jis.csv")
+	encoded, err := csvcore.EncodeFromUTF8([]byte("名前,メモ\n太郎,かな\n"), csvcore.EncodingInfo{Name: csvcore.EncodingShiftJIS})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, encoded, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   -1,
+	})
+	document := payload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	encoding := metadata["encoding"].(map[string]any)
+	if encoding["name"] != "shift-jis" {
+		t.Fatalf("encoding = %#v, want shift-jis", encoding)
+	}
+	preview := document["preview"].([]any)
+	header := preview[0].([]any)
+	row := preview[1].([]any)
+	if header[0] != "名前" || row[1] != "かな" {
+		t.Fatalf("preview = %#v", preview)
 	}
 }
 

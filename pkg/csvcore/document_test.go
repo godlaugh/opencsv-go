@@ -93,6 +93,29 @@ func TestOpenDocumentDetectsBackslashQuoteEscape(t *testing.T) {
 	}
 }
 
+func TestOpenDocumentDetectsShiftJISEncoding(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shift-jis.csv")
+	encoding := EncodingInfo{Name: EncodingShiftJIS, Confidence: 1}
+	data, err := EncodeFromUTF8([]byte("名前,メモ\n太郎,かな\n"), encoding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 2, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Metadata.Encoding.Name != EncodingShiftJIS {
+		t.Fatalf("encoding = %+v, want shift-jis", document.Metadata.Encoding)
+	}
+	if len(document.Preview) != 2 || document.Preview[0][0] != "名前" || document.Preview[1][1] != "かな" {
+		t.Fatalf("preview = %#v", document.Preview)
+	}
+}
+
 func TestForEachRecordContextStreamsUTF8BOM(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "stream.csv")
 	if err := os.WriteFile(path, []byte("\ufeffid,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {

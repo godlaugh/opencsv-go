@@ -27,6 +27,57 @@ func TestDetectEncoding(t *testing.T) {
 	}
 }
 
+func TestDetectEncodingLegacyNamedEncodings(t *testing.T) {
+	cases := []struct {
+		name     string
+		encoding string
+		text     string
+		want     EncodingName
+	}{
+		{
+			name:     "shift jis with kana",
+			encoding: "shift-jis",
+			text:     "名前,メモ\n太郎,かな\n",
+			want:     EncodingShiftJIS,
+		},
+		{
+			name:     "gbk chinese",
+			encoding: "gbk",
+			text:     "姓名,值\n张三,中文\n",
+			want:     EncodingGBK,
+		},
+		{
+			name:     "windows 1252 euro",
+			encoding: "windows-1252",
+			text:     "name,note\n1,café €\n",
+			want:     EncodingWindows1252,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			encoding, err := ParseEncodingName(tt.encoding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := EncodeFromUTF8([]byte(tt.text), encoding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			detected := DetectEncoding(encoded)
+			if detected.Name != tt.want {
+				t.Fatalf("encoding = %+v, want %s", detected, tt.want)
+			}
+			decoded, err := DecodeToUTF8(encoded, detected)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(decoded) != tt.text {
+				t.Fatalf("decoded = %q, want %q", decoded, tt.text)
+			}
+		})
+	}
+}
+
 func TestUTF16RoundTrip(t *testing.T) {
 	encoding := EncodingInfo{Name: EncodingUTF16LE, HasBOM: true}
 	input := []byte("id,name\r\n1,Ada\r\n")

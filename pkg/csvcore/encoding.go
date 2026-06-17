@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -99,7 +100,151 @@ func DetectEncoding(sample []byte) EncodingInfo {
 		}
 	}
 
-	return EncodingInfo{Name: EncodingLegacySingleByte, Confidence: 0.45}
+	return detectLegacyEncoding(sample)
+}
+
+func detectLegacyEncoding(sample []byte) EncodingInfo {
+	type candidate struct {
+		name  EncodingName
+		score float64
+	}
+
+	legacyDecoded, _ := DecodeToUTF8(sample, EncodingInfo{Name: EncodingLegacySingleByte})
+	shiftJISDecoded, shiftJISErr := DecodeToUTF8(sample, EncodingInfo{Name: EncodingShiftJIS})
+	gbkDecoded, gbkErr := DecodeToUTF8(sample, EncodingInfo{Name: EncodingGBK})
+	windows1252Decoded, windows1252Err := DecodeToUTF8(sample, EncodingInfo{Name: EncodingWindows1252})
+	shiftJISStats := collectDecodedTextStats(shiftJISDecoded)
+	gbkStats := collectDecodedTextStats(gbkDecoded)
+	windows1252Stats := collectDecodedTextStats(windows1252Decoded)
+	if shiftJISErr == nil && shiftJISStats.replacements == 0 && shiftJISStats.kana > 0 {
+		return EncodingInfo{Name: EncodingShiftJIS, Confidence: 0.78}
+	}
+	if gbkErr == nil && gbkStats.replacements == 0 && gbkStats.cjk >= 2 && (shiftJISStats.replacements > 0 || shiftJISStats.halfwidthKana > 0) {
+		return EncodingInfo{Name: EncodingGBK, Confidence: 0.74}
+	}
+	if windows1252Err == nil && windows1252Stats.replacements == 0 && windows1252Stats.westernSymbols > 0 && (shiftJISStats.replacements > 0 || gbkStats.replacements > 0) {
+		return EncodingInfo{Name: EncodingWindows1252, Confidence: 0.74}
+	}
+
+	best := candidate{name: EncodingLegacySingleByte, score: decodedTextScore(legacyDecoded, EncodingLegacySingleByte, sample)}
+	for _, name := range []EncodingName{EncodingShiftJIS, EncodingGBK, EncodingWindows1252} {
+		decoded, err := DecodeToUTF8(sample, EncodingInfo{Name: name})
+		if err != nil {
+			continue
+		}
+		score := decodedTextScore(decoded, name, sample)
+		if score > best.score {
+			best = candidate{name: name, score: score}
+		}
+	}
+	if best.name == EncodingLegacySingleByte || best.score < decodedTextScore(legacyDecoded, EncodingLegacySingleByte, sample)+8 {
+		return EncodingInfo{Name: EncodingLegacySingleByte, Confidence: 0.45}
+	}
+	confidence := 0.62
+	if best.score >= 40 {
+		confidence = 0.78
+	}
+	return EncodingInfo{Name: best.name, Confidence: confidence}
+}
+
+type decodedTextStats struct {
+	cjk            int
+	kana           int
+	halfwidthKana  int
+	latinExtended  int
+	replacements   int
+	controls       int
+	printableASCII int
+	westernSymbols int
+}
+
+func collectDecodedTextStats(decoded []byte) decodedTextStats {
+	text := string(decoded)
+	stats := decodedTextStats{}
+	for _, r := range text {
+		switch {
+		case r == unicode.ReplacementChar:
+			stats.replacements++
+		case r == '\n' || r == '\r' || r == '\t':
+		case unicode.IsControl(r):
+			stats.controls++
+		case r >= 0x20 && r <= 0x7e:
+			stats.printableASCII++
+		case isKana(r):
+			stats.kana++
+		case isHalfwidthKana(r):
+			stats.halfwidthKana++
+		case isCJK(r):
+			stats.cjk++
+		case isWesternEncodingSymbol(r):
+			stats.westernSymbols++
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			stats.latinExtended++
+		}
+	}
+	return stats
+}
+
+func decodedTextScore(decoded []byte, name EncodingName, raw []byte) float64 {
+	stats := collectDecodedTextStats(decoded)
+	score := 0.0
+	score += float64(stats.printableASCII) * 0.3
+	score += float64(stats.latinExtended) * 2
+	score += float64(stats.cjk) * 3
+	score += float64(stats.kana) * 5
+	score += float64(stats.westernSymbols) * 4
+	score -= float64(stats.halfwidthKana) * 4
+	score -= float64(stats.replacements) * 25
+	score -= float64(stats.controls) * 18
+
+	switch name {
+	case EncodingShiftJIS:
+		score += float64(stats.kana) * 18
+		score += float64(stats.cjk) * 2
+	case EncodingGBK:
+		score += float64(stats.cjk) * 8
+		score -= float64(stats.kana+stats.halfwidthKana) * 15
+	case EncodingWindows1252:
+		score += float64(countC1Bytes(raw)) * 2
+		score += float64(stats.latinExtended) * 4
+		score += float64(stats.westernSymbols) * 16
+		score -= float64(stats.cjk+stats.kana+stats.halfwidthKana) * 10
+	case EncodingLegacySingleByte:
+		score -= float64(countC1Bytes(raw)) * 10
+	}
+	return score
+}
+
+func countC1Bytes(input []byte) int {
+	count := 0
+	for _, b := range input {
+		if b >= 0x80 && b <= 0x9f {
+			count++
+		}
+	}
+	return count
+}
+
+func isKana(r rune) bool {
+	return (r >= 0x3040 && r <= 0x30ff) || (r >= 0x31f0 && r <= 0x31ff)
+}
+
+func isHalfwidthKana(r rune) bool {
+	return r >= 0xff61 && r <= 0xff9f
+}
+
+func isCJK(r rune) bool {
+	return (r >= 0x3400 && r <= 0x4dbf) || (r >= 0x4e00 && r <= 0x9fff)
+}
+
+func isWesternEncodingSymbol(r rune) bool {
+	switch r {
+	case '€', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', 'Ž',
+		'‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', 'ž', 'Ÿ':
+		return true
+	default:
+		return false
+	}
 }
 
 func DecodeToUTF8(input []byte, encoding EncodingInfo) ([]byte, error) {
