@@ -128,6 +128,31 @@ func TestServerOpenDetectsSingleQuoteDialect(t *testing.T) {
 	}
 }
 
+func TestServerOpenDetectsBackslashQuoteEscape(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "backslash-quote.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,\"has \\\"quote\\\" and comma, ok\"\n2,plain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	document := payload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["quoteEscape"] != "backslash" {
+		t.Fatalf("quote escape = %#v, want backslash", dialect["quoteEscape"])
+	}
+	preview := document["preview"].([]any)
+	row := preview[1].([]any)
+	if len(row) != 2 || row[1] != `has "quote" and comma, ok` {
+		t.Fatalf("preview row = %#v", row)
+	}
+}
+
 func TestServerSessionSnapshot(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "first.csv")

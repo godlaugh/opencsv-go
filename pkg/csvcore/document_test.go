@@ -63,6 +63,36 @@ func TestOpenDocumentParsesSingleQuoteDialect(t *testing.T) {
 	}
 }
 
+func TestOpenDocumentDetectsBackslashQuoteEscape(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "backslash-quote.csv")
+	data := []byte("id,note\n1,\"has \\\"quote\\\" and comma, ok\"\n2,\"line \\\"one\\\"\nline two\"\n")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 3, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Metadata.Dialect.QuoteEscape != QuoteEscapeBackslash {
+		t.Fatalf("quote escape = %q, want backslash", document.Metadata.Dialect.QuoteEscape)
+	}
+	if len(document.Preview) != 3 || document.Preview[1][1] != `has "quote" and comma, ok` || document.Preview[2][1] != "line \"one\"\nline two" {
+		t.Fatalf("preview = %#v", document.Preview)
+	}
+
+	records, err := ReadAllRecords(path, document.Metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 3 || records[1][1] != `has "quote" and comma, ok` || records[2][1] != "line \"one\"\nline two" {
+		t.Fatalf("records = %#v", records)
+	}
+	if !PreservesQuote(document.Metadata.Dialect, 1, 1) || !PreservesQuote(document.Metadata.Dialect, 2, 1) {
+		t.Fatalf("detected quote preservation missing: %#v", document.Metadata.Dialect)
+	}
+}
+
 func TestForEachRecordContextStreamsUTF8BOM(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "stream.csv")
 	if err := os.WriteFile(path, []byte("\ufeffid,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {

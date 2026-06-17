@@ -55,18 +55,26 @@ func Sniff(sample []byte) Dialect {
 		sample = bytes.ToValidUTF8(sample, []byte("?"))
 	}
 
-	best := dialectCandidate{delimiter: ',', name: "comma", quoteChar: `"`, score: math.Inf(-1)}
+	best := dialectCandidate{delimiter: ',', name: "comma", quoteChar: `"`, quoteEscape: QuoteEscapeDouble, score: math.Inf(-1)}
 	for _, candidate := range []dialectCandidate{
-		{delimiter: ',', name: "comma", quoteChar: `"`},
-		{delimiter: ',', name: "comma", quoteChar: "'"},
-		{delimiter: '\t', name: "tab", quoteChar: `"`},
-		{delimiter: '\t', name: "tab", quoteChar: "'"},
-		{delimiter: ';', name: "semicolon", quoteChar: `"`},
-		{delimiter: ';', name: "semicolon", quoteChar: "'"},
-		{delimiter: '|', name: "pipe", quoteChar: `"`},
-		{delimiter: '|', name: "pipe", quoteChar: "'"},
+		{delimiter: ',', name: "comma", quoteChar: `"`, quoteEscape: QuoteEscapeDouble},
+		{delimiter: ',', name: "comma", quoteChar: `"`, quoteEscape: QuoteEscapeBackslash},
+		{delimiter: ',', name: "comma", quoteChar: "'", quoteEscape: QuoteEscapeDouble},
+		{delimiter: ',', name: "comma", quoteChar: "'", quoteEscape: QuoteEscapeBackslash},
+		{delimiter: '\t', name: "tab", quoteChar: `"`, quoteEscape: QuoteEscapeDouble},
+		{delimiter: '\t', name: "tab", quoteChar: `"`, quoteEscape: QuoteEscapeBackslash},
+		{delimiter: '\t', name: "tab", quoteChar: "'", quoteEscape: QuoteEscapeDouble},
+		{delimiter: '\t', name: "tab", quoteChar: "'", quoteEscape: QuoteEscapeBackslash},
+		{delimiter: ';', name: "semicolon", quoteChar: `"`, quoteEscape: QuoteEscapeDouble},
+		{delimiter: ';', name: "semicolon", quoteChar: `"`, quoteEscape: QuoteEscapeBackslash},
+		{delimiter: ';', name: "semicolon", quoteChar: "'", quoteEscape: QuoteEscapeDouble},
+		{delimiter: ';', name: "semicolon", quoteChar: "'", quoteEscape: QuoteEscapeBackslash},
+		{delimiter: '|', name: "pipe", quoteChar: `"`, quoteEscape: QuoteEscapeDouble},
+		{delimiter: '|', name: "pipe", quoteChar: `"`, quoteEscape: QuoteEscapeBackslash},
+		{delimiter: '|', name: "pipe", quoteChar: "'", quoteEscape: QuoteEscapeDouble},
+		{delimiter: '|', name: "pipe", quoteChar: "'", quoteEscape: QuoteEscapeBackslash},
 	} {
-		score, columns, rows := scoreDelimiter(sample, candidate.delimiter, candidate.quoteChar)
+		score, columns, rows := scoreDelimiter(sample, candidate.delimiter, candidate.quoteChar, candidate.quoteEscape)
 		candidate.score = score
 		candidate.columns = columns
 		candidate.rows = rows
@@ -78,18 +86,20 @@ func Sniff(sample []byte) Dialect {
 	dialect.Delimiter = best.delimiter
 	dialect.DelimiterName = best.name
 	dialect.QuoteChar = best.quoteChar
+	dialect.QuoteEscape = best.quoteEscape
 	dialect.EstimatedColumns = best.columns
-	dialect.HasHeader = inferHeader(sample, best.delimiter, best.quoteChar)
+	dialect.HasHeader = inferHeader(sample, best.delimiter, best.quoteChar, best.quoteEscape)
 	return dialect
 }
 
 type dialectCandidate struct {
-	delimiter rune
-	name      string
-	quoteChar string
-	score     float64
-	columns   int
-	rows      int
+	delimiter   rune
+	name        string
+	quoteChar   string
+	quoteEscape string
+	score       float64
+	columns     int
+	rows        int
 }
 
 func (candidate dialectCandidate) betterThan(other dialectCandidate) bool {
@@ -102,11 +112,14 @@ func (candidate dialectCandidate) betterThan(other dialectCandidate) bool {
 	if candidate.quoteChar != other.quoteChar {
 		return candidate.quoteChar == `"`
 	}
+	if candidate.quoteEscape != other.quoteEscape {
+		return candidate.quoteEscape == QuoteEscapeDouble
+	}
 	return candidate.delimiter == ','
 }
 
-func scoreDelimiter(sample []byte, delimiter rune, quoteChar string) (float64, int, int) {
-	dialect := Dialect{Delimiter: delimiter, QuoteChar: quoteChar, QuoteEscape: QuoteEscapeDouble}
+func scoreDelimiter(sample []byte, delimiter rune, quoteChar string, quoteEscape string) (float64, int, int) {
+	dialect := Dialect{Delimiter: delimiter, QuoteChar: quoteChar, QuoteEscape: quoteEscape}
 	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(sample, dialect)))
 	reader.Comma = delimiter
 	reader.FieldsPerRecord = -1
@@ -146,6 +159,9 @@ func scoreDelimiter(sample []byte, delimiter rune, quoteChar string) (float64, i
 	variance /= float64(len(widths))
 
 	quoteBonus := quoteUsageScore(sample, delimiter, quoteChar)
+	if quoteEscape == QuoteEscapeBackslash {
+		quoteBonus += backslashQuoteEscapeUsageScore(sample, delimiter, quoteChar)
+	}
 	if mean <= 1 {
 		return float64(len(widths)) - variance - 1000 + quoteBonus, int(mean), len(widths)
 	}
@@ -186,8 +202,53 @@ func quoteUsageScore(sample []byte, delimiter rune, quoteChar string) float64 {
 	return float64(count) / 1000
 }
 
-func inferHeader(sample []byte, delimiter rune, quoteChar string) bool {
-	dialect := Dialect{Delimiter: delimiter, QuoteChar: quoteChar, QuoteEscape: QuoteEscapeDouble}
+func backslashQuoteEscapeUsageScore(sample []byte, delimiter rune, quoteChar string) float64 {
+	quote := []byte(quoteChar)
+	if len(quote) != 1 {
+		return 0
+	}
+	quoteByte := quote[0]
+	delimiterBytes := []byte(string(delimiter))
+	if delimiter == 0 {
+		delimiterBytes = []byte(",")
+	}
+	inQuotes := false
+	atFieldStart := true
+	count := 0
+	for index := 0; index < len(sample); index++ {
+		char := sample[index]
+		if inQuotes {
+			if char == '\\' && index+1 < len(sample) && sample[index+1] == quoteByte {
+				count++
+				index++
+				continue
+			}
+			if char == quoteByte {
+				inQuotes = false
+			}
+			continue
+		}
+		if atFieldStart && char == quoteByte {
+			inQuotes = true
+			atFieldStart = false
+			continue
+		}
+		if len(delimiterBytes) > 0 && bytes.HasPrefix(sample[index:], delimiterBytes) {
+			atFieldStart = true
+			index += len(delimiterBytes) - 1
+			continue
+		}
+		if char == '\n' || char == '\r' {
+			atFieldStart = true
+			continue
+		}
+		atFieldStart = false
+	}
+	return float64(count) / 100
+}
+
+func inferHeader(sample []byte, delimiter rune, quoteChar string, quoteEscape string) bool {
+	dialect := Dialect{Delimiter: delimiter, QuoteChar: quoteChar, QuoteEscape: quoteEscape}
 	reader := csv.NewReader(bytes.NewReader(normalizeQuoteEscapeInput(sample, dialect)))
 	reader.Comma = delimiter
 	reader.FieldsPerRecord = -1

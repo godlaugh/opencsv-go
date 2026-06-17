@@ -48,6 +48,16 @@ func TestSniffDetectsSingleQuoteWithoutEmbeddedDelimiter(t *testing.T) {
 	}
 }
 
+func TestSniffDetectsBackslashQuoteEscape(t *testing.T) {
+	dialect := Sniff([]byte("id,note\n1,\"has \\\"quote\\\" and comma, ok\"\n2,plain\n"))
+	if dialect.QuoteEscape != QuoteEscapeBackslash {
+		t.Fatalf("quote escape = %q, want backslash", dialect.QuoteEscape)
+	}
+	if dialect.EstimatedColumns != 2 {
+		t.Fatalf("columns = %d, want 2", dialect.EstimatedColumns)
+	}
+}
+
 func TestSniffDetectsTextDimensionHeader(t *testing.T) {
 	dialect := Sniff([]byte("region,label\nAPAC,Asia Pacific\nEU,Europe\n"))
 	if !dialect.HasHeader {

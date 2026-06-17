@@ -456,6 +456,7 @@ func scanQuoteRuleStats(reader io.Reader, dialect Dialect, trimUTF8BOM bool) (qu
 	quoted := false
 	atStart := true
 	inQuotes := false
+	backslashEscape := DialectQuoteEscape(dialect) == QuoteEscapeBackslash
 	for {
 		char, err := buffered.ReadByte()
 		if err != nil {
@@ -465,9 +466,16 @@ func scanQuoteRuleStats(reader io.Reader, dialect Dialect, trimUTF8BOM bool) (qu
 			return quoteRuleStats{}, err
 		}
 		if inQuotes {
+			if backslashEscape && char == '\\' {
+				next, err := buffered.Peek(1)
+				if err == nil && len(next) == 1 && (next[0] == quote || next[0] == '\\') {
+					_, _ = buffered.Discard(1)
+				}
+				continue
+			}
 			if char == quote {
 				next, err := buffered.Peek(1)
-				if err == nil && len(next) == 1 && next[0] == quote {
+				if !backslashEscape && err == nil && len(next) == 1 && next[0] == quote {
 					_, _ = buffered.Discard(1)
 				} else {
 					inQuotes = false
@@ -525,11 +533,16 @@ func quotedFieldFlags(sample []byte, dialect Dialect, maxRows int) [][]bool {
 	quoted := false
 	atStart := true
 	inQuotes := false
+	backslashEscape := DialectQuoteEscape(dialect) == QuoteEscapeBackslash
 	for index := 0; index < len(input) && (maxRows <= 0 || len(records) < maxRows); index++ {
 		char := input[index]
 		if inQuotes {
+			if backslashEscape && char == '\\' && index+1 < len(input) && (input[index+1] == quote[0] || input[index+1] == '\\') {
+				index++
+				continue
+			}
 			if char == quote[0] {
-				if index+1 < len(input) && input[index+1] == quote[0] {
+				if !backslashEscape && index+1 < len(input) && input[index+1] == quote[0] {
 					index++
 				} else {
 					inQuotes = false
