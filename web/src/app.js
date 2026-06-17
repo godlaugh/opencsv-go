@@ -404,6 +404,7 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const defaultSQLQuery = "SELECT * FROM current LIMIT 25";
 const sqlResultFormats = ["csv", "tsv", "markdown", "json", "html", "sql", "latex", "raw"];
 const sqlResultFormatLabels = {
   csv: "CSV",
@@ -12219,6 +12220,12 @@ function loadDocument(document) {
   rowSource = new Map();
   profileData = null;
   lastSQLResult = null;
+  sqlInput.value = defaultSQLQuery;
+  window.document.body.dataset.sqlTabState = `${compactSQLQuery(defaultSQLQuery)}:0`;
+  sqlResultSelectionAnchor = null;
+  sqlResultSelectionRange = null;
+  sqlResultContextTarget = null;
+  window.document.body.dataset.sqlResultSelection = "";
   profileColumns.replaceChildren(emptyProfileNode(t("profile.status.initialColumns")));
   profileIssues.replaceChildren(emptyProfileNode(t("profile.status.initialIssues")));
   profileSummary.replaceChildren();
@@ -13665,7 +13672,26 @@ function currentOpenFileTabState() {
     scrollX: Math.max(0, Math.round(scrollX)),
     scrollY: Math.max(0, Math.round(scrollY)),
     viewMode,
+    sqlState: currentSQLConsoleState(),
   };
+}
+
+function currentSQLConsoleState() {
+  return {
+    query: sqlInput?.value ?? "",
+    result: cloneSQLResult(lastSQLResult),
+    selection: normalizedSQLResultSelection(),
+    format: normalizeSQLResultFormat(sqlResultFormatSelect?.value || "csv"),
+  };
+}
+
+function cloneSQLResult(result) {
+  if (!result) return null;
+  try {
+    return JSON.parse(JSON.stringify(result));
+  } catch {
+    return null;
+  }
 }
 
 function captureActiveOpenFileTabState() {
@@ -13702,6 +13728,19 @@ function syncActiveFileEntryState() {
   renderFileList();
 }
 
+function syncActiveSQLConsoleTabState() {
+  if (!activeFileEntry) return;
+  const key = openFileTabKey(activeFileEntry);
+  if (!key) return;
+  const state = currentOpenFileTabState();
+  openFileTabs = openFileTabs.map((tab) => (
+    openFileTabKey(tab) === key
+      ? { ...tab, viewState: state }
+      : tab
+  ));
+  document.body.dataset.sqlTabState = `${compactSQLQuery(state.sqlState.query)}:${state.sqlState.result?.rows?.length ?? 0}`;
+}
+
 function restoreOpenFileTabState(tab) {
   const state = tab?.viewState;
   if (!state) return;
@@ -13718,7 +13757,39 @@ function restoreOpenFileTabState(tab) {
   scrollX = Math.max(0, Math.min(maxHorizontalScroll(), Number(state.scrollX) || 0));
   scrollY = Math.max(0, Math.min(maxVerticalScroll(), Number(state.scrollY) || 0));
   wheelRemainderY = 0;
+  restoreSQLConsoleState(state.sqlState);
   if (state.viewMode && state.viewMode !== viewMode) setViewMode(state.viewMode);
+}
+
+function restoreSQLConsoleState(state) {
+  const query = typeof state?.query === "string" ? state.query : defaultSQLQuery;
+  sqlInput.value = query;
+  lastSQLResult = state?.result && typeof state.result === "object" ? cloneSQLResult(state.result) : null;
+  if (sqlResultFormatSelect && state?.format) {
+    sqlResultFormatSelect.value = normalizeSQLResultFormat(state.format);
+  }
+  if (lastSQLResult) {
+    renderSQLResult(lastSQLResult);
+  } else {
+    sqlResult.replaceChildren(emptySQLNode(t("sql.empty.prompt")));
+    clearSQLResultSelection();
+    syncSQLResultActions();
+  }
+  const selection = state?.selection;
+  if (selection && lastSQLResult) {
+    sqlResultSelectionAnchor = {
+      row: Math.max(0, Number(selection.startRow) || 0),
+      col: Math.max(0, Number(selection.startCol) || 0),
+    };
+    sqlResultSelectionRange = {
+      startRow: Math.max(0, Number(selection.startRow) || 0),
+      startCol: Math.max(0, Number(selection.startCol) || 0),
+      endRow: Math.max(0, Number(selection.endRow) || 0),
+      endCol: Math.max(0, Number(selection.endCol) || 0),
+    };
+    syncSQLResultSelection();
+  }
+  document.body.dataset.sqlTabState = `${compactSQLQuery(query)}:${lastSQLResult?.rows?.length ?? 0}`;
 }
 
 async function switchOpenFileTab(targetDocumentId, options = {}) {
@@ -13766,7 +13837,7 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
     remember: false,
     group: targetGroup,
   });
-  document.body.dataset.editorGroupSwitch = `${targetGroup}:${activeFileEntry.name}`;
+  window.document.body.dataset.editorGroupSwitch = `${targetGroup}:${activeFileEntry.name}`;
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
@@ -18120,6 +18191,7 @@ async function runSQLQuery() {
   applySQLProgressSummary(payload.progress);
   renderSQLResult(payload);
   rememberSQLQuery(query);
+  syncActiveSQLConsoleTabState();
   const elapsed = stopSQLProgressTimer();
   const statusKey = payload.progress?.loadedRows ? "sql.status.returnedTimedRows" : "sql.status.returnedTimed";
   status.textContent = tf(statusKey, {
@@ -21430,6 +21502,7 @@ sqlInput.addEventListener("keydown", async (event) => {
     await runSQLQuery();
   }
 });
+sqlInput.addEventListener("input", syncActiveSQLConsoleTabState);
 paletteInput.addEventListener("input", () => {
   paletteIndex = 0;
   renderCommandPalette();

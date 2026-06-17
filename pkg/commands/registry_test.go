@@ -520,6 +520,31 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 	}
 }
 
+func TestSQLConsolePerTabStateIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`const defaultSQLQuery = "SELECT * FROM current LIMIT 25"`,
+		"sqlState: currentSQLConsoleState()",
+		"function currentSQLConsoleState()",
+		"function cloneSQLResult(result)",
+		"function restoreSQLConsoleState(state)",
+		"restoreSQLConsoleState(state.sqlState)",
+		"sqlInput.value = defaultSQLQuery",
+		`sqlInput.addEventListener("input", syncActiveSQLConsoleTabState)`,
+		"syncActiveSQLConsoleTabState();",
+		"document.body.dataset.sqlTabState",
+		"renderSQLResult(lastSQLResult)",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing SQL per-tab state wiring %q", snippet)
+		}
+	}
+}
+
 func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

@@ -168,6 +168,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-009 | Diff View changed-cell quick edit foundation | Started | `pkg/appserver`/command registry tests, Browser Diff edit verification |
 | FR-008 | SQLite-backed SQL Console foundation plus aggregate/query support | In progress | `pkg/sqlconsole` tests, `/api/sql`, Browser verification |
 | FR-008 | SQL Console query history foundation | Started | Browser SQL history verification |
+| FR-008 | Per-tab SQL Console query/result state | Started | command registry static coverage, Browser multi-tab SQL restore verification |
 | FR-008/015 | SQL Console result range selection and copy/export as CSV | Started | command registry, Browser SQL result verification |
 | FR-008/012/015 | SQL Console result context menu commands and URL-run workflow | Started | command registry, Browser multi-source SQL/context-menu verification |
 | FR-008/015 | SQL Console result copy/export rich formats | Started | command registry, Browser SQL result format verification |
