@@ -25,6 +25,29 @@ func TestSniffDetectsTab(t *testing.T) {
 	}
 }
 
+func TestSniffDetectsSingleQuoteWithEmbeddedDelimiter(t *testing.T) {
+	dialect := Sniff([]byte("id,note\n1,'hello, world'\n2,'plain'\n"))
+	if dialect.Delimiter != ',' {
+		t.Fatalf("delimiter = %q, want comma", dialect.Delimiter)
+	}
+	if dialect.QuoteChar != "'" {
+		t.Fatalf("quote char = %q, want single quote", dialect.QuoteChar)
+	}
+	if dialect.EstimatedColumns != 2 {
+		t.Fatalf("columns = %d, want 2", dialect.EstimatedColumns)
+	}
+}
+
+func TestSniffDetectsSingleQuoteWithoutEmbeddedDelimiter(t *testing.T) {
+	dialect := Sniff([]byte("id,note\n'1','Ada'\n'2','Grace'\n"))
+	if dialect.QuoteChar != "'" {
+		t.Fatalf("quote char = %q, want single quote", dialect.QuoteChar)
+	}
+	if dialect.EstimatedColumns != 2 {
+		t.Fatalf("columns = %d, want 2", dialect.EstimatedColumns)
+	}
+}
+
 func TestSniffDetectsTextDimensionHeader(t *testing.T) {
 	dialect := Sniff([]byte("region,label\nAPAC,Asia Pacific\nEU,Europe\n"))
 	if !dialect.HasHeader {

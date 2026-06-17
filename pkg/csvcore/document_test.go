@@ -36,6 +36,33 @@ func TestOpenDocumentDetectsMetadata(t *testing.T) {
 	}
 }
 
+func TestOpenDocumentParsesSingleQuoteDialect(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "single-quote.csv")
+	data := []byte("id,note\n1,'hello, world'\n2,'line\nbreak with \"quote\"'\n3,'Bob''s note'\n")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	document, err := OpenDocument(path, OpenOptions{PreviewRows: 4, IndexRows: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Metadata.Dialect.QuoteChar != "'" {
+		t.Fatalf("quote char = %q, want single quote", document.Metadata.Dialect.QuoteChar)
+	}
+	if len(document.Preview) != 4 || document.Preview[1][1] != "hello, world" || document.Preview[2][1] != "line\nbreak with \"quote\"" || document.Preview[3][1] != "Bob's note" {
+		t.Fatalf("preview = %#v", document.Preview)
+	}
+
+	records, err := ReadAllRecords(path, document.Metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 4 || records[2][1] != "line\nbreak with \"quote\"" || records[3][1] != "Bob's note" {
+		t.Fatalf("records = %#v", records)
+	}
+}
+
 func TestForEachRecordContextStreamsUTF8BOM(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "stream.csv")
 	if err := os.WriteFile(path, []byte("\ufeffid,name\n1,Ada\n2,Grace\n"), 0o644); err != nil {

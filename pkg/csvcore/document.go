@@ -313,24 +313,31 @@ func previewRecordsFromSample(sample []byte, dialect Dialect, maxRows int) ([][]
 }
 
 func normalizeQuoteEscapeInput(input []byte, dialect Dialect) []byte {
-	if DialectQuoteEscape(dialect) != QuoteEscapeBackslash || DialectQuoteChar(dialect) != `"` {
+	quote := []byte(DialectQuoteChar(dialect))
+	if len(quote) != 1 {
 		return input
 	}
+	quoteByte := quote[0]
+	normalizeQuoteChar := quoteByte != '"'
+	normalizeBackslashEscape := DialectQuoteEscape(dialect) == QuoteEscapeBackslash
+	if !normalizeQuoteChar && !normalizeBackslashEscape {
+		return input
+	}
+
 	output := make([]byte, 0, len(input))
 	delimiterBytes := []byte(",")
 	if dialect.Delimiter > 0 {
 		delimiterBytes = []byte(string(dialect.Delimiter))
 	}
-	const quote = byte('"')
 	inQuotes := false
 	atFieldStart := true
 	for index := 0; index < len(input); index++ {
 		char := input[index]
 		if inQuotes {
-			if char == '\\' && index+1 < len(input) {
+			if normalizeBackslashEscape && char == '\\' && index+1 < len(input) {
 				next := input[index+1]
-				if next == quote {
-					output = append(output, quote, quote)
+				if next == quoteByte {
+					appendEscapedQuoteForReader(&output, next, normalizeQuoteChar)
 					index++
 					continue
 				}
@@ -340,21 +347,31 @@ func normalizeQuoteEscapeInput(input []byte, dialect Dialect) []byte {
 					continue
 				}
 			}
-			if char == quote {
-				if index+1 < len(input) && input[index+1] == quote {
-					output = append(output, quote, quote)
+			if char == quoteByte {
+				if !normalizeBackslashEscape && index+1 < len(input) && input[index+1] == quoteByte {
+					appendNormalizedQuotedByte(&output, char, normalizeQuoteChar)
 					index++
 					continue
 				}
 				inQuotes = false
+				if normalizeQuoteChar {
+					output = append(output, '"')
+				} else {
+					output = append(output, char)
+				}
+				continue
 			}
-			output = append(output, char)
+			appendNormalizedQuotedByte(&output, char, normalizeQuoteChar)
 			continue
 		}
-		if atFieldStart && char == quote {
+		if atFieldStart && char == quoteByte {
 			inQuotes = true
 			atFieldStart = false
-			output = append(output, char)
+			if normalizeQuoteChar {
+				output = append(output, '"')
+			} else {
+				output = append(output, char)
+			}
 			continue
 		}
 		if len(delimiterBytes) > 0 && bytes.HasPrefix(input[index:], delimiterBytes) {
@@ -367,4 +384,20 @@ func normalizeQuoteEscapeInput(input []byte, dialect Dialect) []byte {
 		atFieldStart = char == '\n' || char == '\r'
 	}
 	return output
+}
+
+func appendNormalizedQuotedByte(output *[]byte, char byte, normalizeQuoteChar bool) {
+	if normalizeQuoteChar && char == '"' {
+		*output = append(*output, '"', '"')
+		return
+	}
+	*output = append(*output, char)
+}
+
+func appendEscapedQuoteForReader(output *[]byte, quote byte, normalizeQuoteChar bool) {
+	if normalizeQuoteChar {
+		*output = append(*output, quote)
+		return
+	}
+	*output = append(*output, quote, quote)
 }

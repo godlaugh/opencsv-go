@@ -99,6 +99,35 @@ func TestServerOpenCanMarkStdinSource(t *testing.T) {
 	}
 }
 
+func TestServerOpenDetectsSingleQuoteDialect(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "single-quote.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,'hello, world'\n2,'line\nbreak'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := postJSON(t, New(dir).Handler(), "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 4,
+		"indexRows":   -1,
+	})
+	document := payload["document"].(map[string]any)
+	metadata := document["metadata"].(map[string]any)
+	dialect := metadata["dialect"].(map[string]any)
+	if dialect["quoteChar"] != "'" {
+		t.Fatalf("quote char = %#v, want single quote", dialect["quoteChar"])
+	}
+	preview := document["preview"].([]any)
+	row := preview[1].([]any)
+	if len(row) != 2 || row[1] != "hello, world" {
+		t.Fatalf("preview row = %#v", row)
+	}
+	multiline := preview[2].([]any)
+	if len(multiline) != 2 || multiline[1] != "line\nbreak" {
+		t.Fatalf("multiline row = %#v", multiline)
+	}
+}
+
 func TestServerSessionSnapshot(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "first.csv")

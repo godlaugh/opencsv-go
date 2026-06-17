@@ -91,7 +91,7 @@ func TestReadRecordWindowWithIndexFallsBackForNonStandardQuote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(window.Rows) != 2 || window.Rows[0][0] != "break'" || window.Rows[1][0] != "2" {
+	if len(window.Rows) != 1 || window.Rows[0][0] != "2" || window.Rows[0][1] != "plain" || window.TotalRows != 3 {
 		t.Fatalf("fallback window rows = %#v", window.Rows)
 	}
 }
