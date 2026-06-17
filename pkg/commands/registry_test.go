@@ -287,6 +287,27 @@ func TestPrintableTypingAndIMEEditingAreWired(t *testing.T) {
 	}
 }
 
+func TestInlineEditorLineBreakShortcutIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function insertEditorLineBreak()",
+		"editor.selectionStart",
+		"`" + "${editor.value.slice(0, start)}\\n${editor.value.slice(end)}" + "`",
+		"document.body.dataset.inlineEditorLineBreak",
+		"if (event.shiftKey || event.altKey)",
+		"insertEditorLineBreak();",
+		"commitEditor();",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing inline editor line-break wiring %q", snippet)
+		}
+	}
+}
+
 func TestURLLocationReversedRangeNormalizationIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

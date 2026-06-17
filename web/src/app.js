@@ -11796,6 +11796,15 @@ function openEditor(initialValue = undefined, options = {}) {
   }
 }
 
+function insertEditorLineBreak() {
+  const start = Number.isFinite(editor.selectionStart) ? editor.selectionStart : editor.value.length;
+  const end = Number.isFinite(editor.selectionEnd) ? editor.selectionEnd : start;
+  editor.value = `${editor.value.slice(0, start)}\n${editor.value.slice(end)}`;
+  const cursor = start + 1;
+  editor.setSelectionRange(cursor, cursor);
+  document.body.dataset.inlineEditorLineBreak = `${selected.row}:${selected.col}:${editor.value.split(/\r\n|\r|\n/).length}`;
+}
+
 function setSelectionValue(value) {
   if (!ensureEditable("Edit")) return;
   const range = normalizedSelection();
@@ -20841,6 +20850,10 @@ editor.addEventListener("keydown", (event) => {
   if (event.isComposing || editorCompositionActive) return;
   if (event.key === "Enter") {
     event.preventDefault();
+    if (event.shiftKey || event.altKey) {
+      insertEditorLineBreak();
+      return;
+    }
     commitEditor();
   }
   if (event.key === "Escape") {
