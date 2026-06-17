@@ -60,6 +60,7 @@ type QuoteValueRuleOptions struct {
 	MatchMode string
 	Action    string
 	MaxCells  int
+	Preview   bool
 }
 
 type QuoteValueRuleResult struct {
@@ -777,6 +778,15 @@ func (manager *Manager) ApplyQuoteValueRule(id string, options QuoteValueRuleOpt
 		}
 	}
 	truncated := matched > len(cells)
+	if options.Preview {
+		return QuoteValueRuleResult{
+			MutationResult: MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty},
+			Matched:        matched,
+			ScannedCells:   scanned,
+			Limit:          limit,
+			Truncated:      truncated,
+		}, nil
+	}
 	nextDialect := session.Document.Metadata.Dialect
 	matchedCells := make(map[csvcore.Cell]bool, len(cells))
 	for _, cell := range cells {

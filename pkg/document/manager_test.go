@@ -214,6 +214,21 @@ func TestManagerApplyQuoteValueRuleScansFullFile(t *testing.T) {
 		Pattern:   "late",
 		MatchMode: "contains",
 		Action:    "quote",
+		Preview:   true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Matched != 1 || result.ScannedCells != 6 || result.Changed != 0 || result.Dirty {
+		t.Fatalf("quote value preview = %+v, want one clean preview match across six body cells", result)
+	}
+	if csvcore.PreservesQuote(result.Session.Document.Metadata.Dialect, 2, 1) {
+		t.Fatalf("preview should not mutate quote rules: %+v", result.Session.Document.Metadata.Dialect)
+	}
+	result, err = manager.ApplyQuoteValueRule(session.ID, QuoteValueRuleOptions{
+		Pattern:   "late",
+		MatchMode: "contains",
+		Action:    "quote",
 	})
 	if err != nil {
 		t.Fatal(err)

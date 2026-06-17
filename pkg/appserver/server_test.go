@@ -1184,6 +1184,21 @@ func TestServerQuoteValueRuleScansFullFile(t *testing.T) {
 		"indexRows":   0,
 	})
 	documentID := openPayload["documentId"].(string)
+	previewPayload := postJSON(t, handler, "/api/quote-value-rule", map[string]any{
+		"documentId": documentID,
+		"pattern":    "late",
+		"matchMode":  "contains",
+		"action":     "quote",
+		"preview":    true,
+	})
+	if previewPayload["matched"] != float64(1) || previewPayload["scannedCells"] != float64(6) || previewPayload["dirty"] == true {
+		t.Fatalf("quote value preview payload = %#v, want clean one-match preview", previewPayload)
+	}
+	previewDocument := previewPayload["session"].(map[string]any)["document"].(map[string]any)
+	previewDialect := previewDocument["metadata"].(map[string]any)["dialect"].(map[string]any)
+	if _, ok := previewDialect["quoteCells"]; ok {
+		t.Fatalf("quote value preview should not mutate dialect: %#v", previewDialect)
+	}
 	valuePayload := postJSON(t, handler, "/api/quote-value-rule", map[string]any{
 		"documentId": documentID,
 		"pattern":    "late",

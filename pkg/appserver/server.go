@@ -838,6 +838,7 @@ type quoteValueRuleRequest struct {
 	MatchMode  string `json:"matchMode"`
 	Action     string `json:"action"`
 	MaxCells   int    `json:"maxCells"`
+	Preview    bool   `json:"preview"`
 }
 
 func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
@@ -958,6 +959,7 @@ func (server *Server) handleQuoteValueRule(w http.ResponseWriter, r *http.Reques
 		MatchMode: request.MatchMode,
 		Action:    request.Action,
 		MaxCells:  request.MaxCells,
+		Preview:   request.Preview,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
