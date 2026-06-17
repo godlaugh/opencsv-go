@@ -198,6 +198,44 @@ func TestManagerEditFindFilterSortSave(t *testing.T) {
 	}
 }
 
+func TestManagerApplyQuoteValueRuleScansFullFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote-value-full-file.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n2,late target\n3,plain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager()
+	session, err := manager.OpenPath(path, SourceFile, "quote-value-full-file.csv", csvcore.OpenOptions{PreviewRows: 2, IndexRows: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.ApplyQuoteValueRule(session.ID, QuoteValueRuleOptions{
+		Pattern:   "late",
+		MatchMode: "contains",
+		Action:    "quote",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Matched != 1 || result.ScannedCells != 6 || result.Changed != 1 {
+		t.Fatalf("quote value result = %+v, want one full-file match across six body cells", result)
+	}
+	if !csvcore.PreservesQuote(result.Session.Document.Metadata.Dialect, 2, 1) {
+		t.Fatalf("late full-file value match was not quoted: %+v", result.Session.Document.Metadata.Dialect)
+	}
+	if _, err := manager.Save(session.ID, "", false); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(saved, []byte("2,\"late target\"\n")) {
+		t.Fatalf("saved file did not quote late full-file value match: %q", saved)
+	}
+}
+
 func TestManagerFindDetailedReturnsUTF16TextRange(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "find-range.csv")

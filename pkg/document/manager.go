@@ -55,6 +55,21 @@ type QuoteSettings struct {
 	NoQuoteCells []csvcore.Cell
 }
 
+type QuoteValueRuleOptions struct {
+	Pattern   string
+	MatchMode string
+	Action    string
+	MaxCells  int
+}
+
+type QuoteValueRuleResult struct {
+	MutationResult
+	Matched      int  `json:"matched"`
+	ScannedCells int  `json:"scannedCells"`
+	Limit        int  `json:"limit,omitempty"`
+	Truncated    bool `json:"truncated,omitempty"`
+}
+
 type Session struct {
 	ID                       string            `json:"id"`
 	SourceKind               SourceKind        `json:"sourceKind"`
@@ -716,6 +731,100 @@ func (manager *Manager) SetQuoteSettings(id string, settings QuoteSettings) (Mut
 	return MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: 1}, nil
 }
 
+func (manager *Manager) ApplyQuoteValueRule(id string, options QuoteValueRuleOptions) (QuoteValueRuleResult, error) {
+	action := strings.ToLower(strings.TrimSpace(options.Action))
+	switch action {
+	case "quote", "no-quote", "clear":
+	default:
+		return QuoteValueRuleResult{}, errors.New("quote value action must be quote, no-quote, or clear")
+	}
+	match, err := newQuoteValueMatcher(options.Pattern, options.MatchMode)
+	if err != nil {
+		return QuoteValueRuleResult{}, err
+	}
+	limit := options.MaxCells
+	if limit <= 0 || limit > csvcore.MaxQuoteCellRules {
+		limit = csvcore.MaxQuoteCellRules
+	}
+	session, ok := manager.snapshot(id)
+	if !ok {
+		return QuoteValueRuleResult{}, errors.New("document not found")
+	}
+	if session.ReadOnly {
+		return QuoteValueRuleResult{}, errors.New("document is read-only")
+	}
+	records, err := recordsForSession(session)
+	if err != nil {
+		return QuoteValueRuleResult{}, err
+	}
+	startRow := 0
+	if session.Document.Metadata.Dialect.HasHeader {
+		startRow = 1
+	}
+	matched := 0
+	scanned := 0
+	cells := make([]csvcore.Cell, 0)
+	for row := startRow; row < len(records); row++ {
+		for col, value := range records[row] {
+			scanned++
+			if !match(value) {
+				continue
+			}
+			matched++
+			if len(cells) < limit {
+				cells = append(cells, csvcore.Cell{Row: row, Col: col})
+			}
+		}
+	}
+	truncated := matched > len(cells)
+	nextDialect := session.Document.Metadata.Dialect
+	matchedCells := make(map[csvcore.Cell]bool, len(cells))
+	for _, cell := range cells {
+		matchedCells[cell] = true
+	}
+	nextDialect.QuoteCells = removeQuoteCells(nextDialect.QuoteCells, matchedCells)
+	nextDialect.NoQuoteCells = removeQuoteCells(nextDialect.NoQuoteCells, matchedCells)
+	switch action {
+	case "quote":
+		for _, cell := range cells {
+			if !csvcore.PreservesQuote(nextDialect, cell.Row, cell.Col) {
+				nextDialect.QuoteCells = append(nextDialect.QuoteCells, cell)
+			}
+		}
+	case "no-quote":
+		nextDialect.NoQuoteCells = append(nextDialect.NoQuoteCells, cells...)
+	}
+	nextDialect.QuoteCells = normalizeQuoteCells(nextDialect.QuoteCells)
+	nextDialect.NoQuoteCells = normalizeQuoteCells(nextDialect.NoQuoteCells)
+	if reflect.DeepEqual(session.Document.Metadata.Dialect, nextDialect) {
+		return QuoteValueRuleResult{
+			MutationResult: MutationResult{Session: session, TotalRows: session.Document.RowIndex.Rows, Dirty: session.Dirty},
+			Matched:        matched,
+			ScannedCells:   scanned,
+			Limit:          limit,
+			Truncated:      truncated,
+		}, nil
+	}
+	if err := manager.pushUndo(id); err != nil {
+		return QuoteValueRuleResult{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	current, ok := manager.sessions[id]
+	if !ok {
+		return QuoteValueRuleResult{}, errors.New("document not found")
+	}
+	current.Document.Metadata.Dialect = nextDialect
+	current.Dirty = true
+	return QuoteValueRuleResult{
+		MutationResult: MutationResult{Session: cloneSession(current), TotalRows: current.Document.RowIndex.Rows, Dirty: current.Dirty, Changed: len(cells)},
+		Matched:        matched,
+		ScannedCells:   scanned,
+		Limit:          limit,
+		Truncated:      truncated,
+	}, nil
+}
+
 func normalizeQuoteColumns(columns []int) []int {
 	seen := make(map[int]bool)
 	normalized := make([]int, 0, len(columns))
@@ -750,6 +859,19 @@ func normalizeQuoteCells(cells []csvcore.Cell) []csvcore.Cell {
 		return normalized[i].Row < normalized[j].Row
 	})
 	return normalized
+}
+
+func removeQuoteCells(cells []csvcore.Cell, remove map[csvcore.Cell]bool) []csvcore.Cell {
+	if len(cells) == 0 || len(remove) == 0 {
+		return cells
+	}
+	result := cells[:0]
+	for _, cell := range cells {
+		if !remove[cell] {
+			result = append(result, cell)
+		}
+	}
+	return result
 }
 
 type ExportViewOptions struct {
@@ -4195,6 +4317,45 @@ func newMatcher(options FindOptions) (matcher, error) {
 		result.regex = compiled
 	}
 	return result, nil
+}
+
+func newQuoteValueMatcher(pattern string, mode string) (func(string) bool, error) {
+	raw := strings.TrimSpace(pattern)
+	if raw == "" {
+		return nil, errors.New("enter a value pattern before applying quote rules")
+	}
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "regex":
+		compiled, err := regexp.Compile("(?i:" + raw + ")")
+		if err != nil {
+			return nil, errors.New("enter a valid regular expression for the value pattern")
+		}
+		return compiled.MatchString, nil
+	case "glob":
+		compiled, err := regexp.Compile(globQuoteValuePattern(raw))
+		if err != nil {
+			return nil, err
+		}
+		return compiled.MatchString, nil
+	case "exact":
+		needle := strings.ToLower(raw)
+		return func(value string) bool {
+			return strings.ToLower(value) == needle
+		}, nil
+	default:
+		needle := strings.ToLower(raw)
+		return func(value string) bool {
+			return strings.Contains(strings.ToLower(value), needle)
+		}, nil
+	}
+}
+
+func globQuoteValuePattern(pattern string) string {
+	parts := strings.Split(pattern, "*")
+	for index, part := range parts {
+		parts[index] = regexp.QuoteMeta(part)
+	}
+	return "(?i)^" + strings.Join(parts, ".*") + "$"
 }
 
 func (matcher matcher) matches(value string) bool {

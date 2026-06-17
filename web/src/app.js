@@ -6618,35 +6618,13 @@ async function applyColumnPatternQuoteRule() {
   renderSettingsPanel();
 }
 
-function matchingQuoteRuleCellsByValue(pattern, matchMode, maxCells = 50_000) {
-  const compiled = quotePatternMatcher(
+function validateQuoteValuePattern(pattern, matchMode) {
+  return quotePatternMatcher(
     pattern,
     matchMode,
     "Enter a value pattern before applying quote rules.",
     "Enter a valid regular expression for the value pattern.",
   );
-  if (compiled.error) return compiled;
-  const scanCells = sourceRowCount * columns.length;
-  if (scanCells > maxCells) {
-    return { error: `Value pattern quote rules can scan up to ${formatCount(maxCells)} loaded cells.` };
-  }
-  const cells = [];
-  for (let row = 0; row < sourceRowCount; row++) {
-    if (!rows.has(row)) {
-      return { error: "Load the target rows before applying value-pattern quote rules." };
-    }
-    const recordRow = rowSource.get(row) ?? row + dataStartRow;
-    for (let col = 0; col < columns.length; col++) {
-      const value = String(valueAt(row, col) ?? "");
-      if (compiled.matcher(value)) {
-        cells.push({ row: recordRow, col: sourceColFor(col) });
-      }
-    }
-  }
-  if (!cells.length) {
-    return { error: "No loaded cells match the quote value pattern." };
-  }
-  return { cells };
 }
 
 async function applyValuePatternQuoteRule() {
@@ -6666,48 +6644,37 @@ async function applyValuePatternQuoteRule() {
     status.textContent = `${label} blocked: document is read-only`;
     return;
   }
-  const matched = matchingQuoteRuleCellsByValue(quoteRuleValuePatternInput.value, matchMode);
-  if (matched.error) {
-    status.textContent = matched.error;
+  const validation = validateQuoteValuePattern(quoteRuleValuePatternInput.value, matchMode);
+  if (validation.error) {
+    status.textContent = validation.error;
     document.body.dataset.quoteValuePatternRule = "invalid";
     return;
   }
-  const matchedKeys = new Set(matched.cells.map(quoteCellKey));
-  const settings = currentQuoteRuleSettings();
-  const nextSettings = {
-    ...settings,
-    quoteCells: settings.quoteCells.filter((cell) => !matchedKeys.has(quoteCellKey(cell))),
-    noQuoteCells: settings.noQuoteCells.filter((cell) => !matchedKeys.has(quoteCellKey(cell))),
-  };
-  if (action === "quote") {
-    nextSettings.quoteCells.push(
-      ...matched.cells.filter((cell) => !quoteSettingsPreservesCell(settings, cell)),
-    );
-  } else if (action === "no-quote") {
-    nextSettings.noQuoteCells.push(...matched.cells);
-  }
-  nextSettings.quoteCells = normalizeQuoteRuleCells(nextSettings.quoteCells);
-  nextSettings.noQuoteCells = normalizeQuoteRuleCells(nextSettings.noQuoteCells);
-  const signature = quoteRulesSignature(nextSettings);
-  document.body.dataset.quoteValuePatternRule = `${matchMode}:${action}:${matched.cells.length}:${signature}`;
-  if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote rules changed.`;
-    return;
-  }
-  const response = await fetch("/api/quote-settings", {
+  const response = await fetch("/api/quote-value-rule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId, ...nextSettings }),
+    body: JSON.stringify({
+      documentId,
+      pattern: quoteRuleValuePatternInput.value,
+      matchMode,
+      action,
+    }),
   });
   const payload = await response.json();
+  document.body.dataset.quoteValuePatternRule = response.ok
+    ? `${matchMode}:${action}:${payload.matched}:${payload.scannedCells}:${payload.truncated ? "truncated" : "full"}`
+    : "error";
   if (!response.ok) {
     status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
-    document.body.dataset.quoteValuePatternRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${formatCount(matched.cells.length)} cells.`);
+  const limitNote = payload.truncated ? `; applied first ${formatCount(payload.limit)} matches` : "";
+  const message = payload.matched > 0
+    ? `${label}: ${formatCount(payload.matched)} full-file matches across ${formatCount(payload.scannedCells)} cells${limitNote}.`
+    : `${label}: no full-file cells matched.`;
+  applyMutationPayload(payload, message);
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();

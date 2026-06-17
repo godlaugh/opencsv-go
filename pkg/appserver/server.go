@@ -69,6 +69,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/quote-policy", server.handleQuotePolicy)
 	server.mux.HandleFunc("POST /api/quote-rule", server.handleQuoteRule)
 	server.mux.HandleFunc("POST /api/quote-settings", server.handleQuoteSettings)
+	server.mux.HandleFunc("POST /api/quote-value-rule", server.handleQuoteValueRule)
 	server.mux.HandleFunc("POST /api/cell-quote", server.handleCellQuote)
 	server.mux.HandleFunc("POST /api/read-only", server.handleReadOnly)
 	server.mux.HandleFunc("GET /api/file-status", server.handleFileStatus)
@@ -831,6 +832,14 @@ type quoteSettingsRequest struct {
 	NoQuoteCells []csvcore.Cell `json:"noQuoteCells"`
 }
 
+type quoteValueRuleRequest struct {
+	DocumentID string `json:"documentId"`
+	Pattern    string `json:"pattern"`
+	MatchMode  string `json:"matchMode"`
+	Action     string `json:"action"`
+	MaxCells   int    `json:"maxCells"`
+}
+
 func (server *Server) handleHeaderMode(w http.ResponseWriter, r *http.Request) {
 	var request headerModeRequest
 	if err := readJSON(r, &request); err != nil {
@@ -930,6 +939,25 @@ func (server *Server) handleQuoteSettings(w http.ResponseWriter, r *http.Request
 		QuoteColumns: request.QuoteColumns,
 		QuoteCells:   request.QuoteCells,
 		NoQuoteCells: request.NoQuoteCells,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (server *Server) handleQuoteValueRule(w http.ResponseWriter, r *http.Request) {
+	var request quoteValueRuleRequest
+	if err := readJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := server.documents.ApplyQuoteValueRule(request.DocumentID, docstore.QuoteValueRuleOptions{
+		Pattern:   request.Pattern,
+		MatchMode: request.MatchMode,
+		Action:    request.Action,
+		MaxCells:  request.MaxCells,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

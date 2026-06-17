@@ -1171,6 +1171,40 @@ func TestServerQuoteSettingsImportSaveAndUndo(t *testing.T) {
 	}
 }
 
+func TestServerQuoteValueRuleScansFullFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quote-value-rule.csv")
+	if err := os.WriteFile(path, []byte("id,note\n1,plain\n2,late target\n3,plain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 2,
+		"indexRows":   0,
+	})
+	documentID := openPayload["documentId"].(string)
+	valuePayload := postJSON(t, handler, "/api/quote-value-rule", map[string]any{
+		"documentId": documentID,
+		"pattern":    "late",
+		"matchMode":  "contains",
+		"action":     "quote",
+	})
+	if valuePayload["matched"] != float64(1) || valuePayload["scannedCells"] != float64(6) {
+		t.Fatalf("quote value payload = %#v, want one match across six body cells", valuePayload)
+	}
+	document := valuePayload["session"].(map[string]any)["document"].(map[string]any)
+	dialect := document["metadata"].(map[string]any)["dialect"].(map[string]any)
+	quoteCells := dialect["quoteCells"].([]any)
+	if len(quoteCells) != 1 {
+		t.Fatalf("quote value rule cells = %#v, want one", quoteCells)
+	}
+	cell := quoteCells[0].(map[string]any)
+	if cell["row"] != float64(2) || cell["col"] != float64(1) {
+		t.Fatalf("quote value rule cell = %#v, want row 2 col 1", cell)
+	}
+}
+
 func TestServerReadOnlyAndRefresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.csv")
