@@ -2278,6 +2278,7 @@ let resizingColumn = -1;
 let resizeStartClientX = 0;
 let resizeStartWidth = 0;
 let editing = false;
+let editorCompositionActive = false;
 let structureClipboard = null;
 let documentId = "";
 let activeFileEntry = null;
@@ -11758,12 +11759,13 @@ function commitEditor() {
   if (!editing) return;
   const value = editor.value;
   editing = false;
+  editorCompositionActive = false;
   editor.style.display = "none";
   setSelectionValue(value);
   canvas.focus();
 }
 
-function openEditor() {
+function openEditor(initialValue = undefined, options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Edit")) return;
   if (aggregateRowAt(selected.row)) {
@@ -11773,14 +11775,25 @@ function openEditor() {
   const rect = cellRect(selected.row, selected.col);
   if (!rect) return;
   editing = true;
-  editor.value = valueAt(selected.row, selected.col);
+  editorCompositionActive = Boolean(options.composition);
+  const hasInitialValue = initialValue !== undefined;
+  editor.value = hasInitialValue ? String(initialValue ?? "") : valueAt(selected.row, selected.col);
   editor.style.display = "block";
   editor.style.left = `${rect.x}px`;
   editor.style.top = `${rect.y}px`;
   editor.style.width = `${rect.width}px`;
   editor.style.height = `${rect.height}px`;
   editor.focus();
-  editor.select();
+  if (hasInitialValue) {
+    const cursor = editor.value.length;
+    editor.setSelectionRange(cursor, cursor);
+    document.body.dataset.typingEditStart = `${options.source || "typing"}:${selected.row}:${selected.col}:${editor.value}`;
+  } else {
+    editor.select();
+  }
+  if (options.composition) {
+    document.body.dataset.imeEditStart = `${selected.row}:${selected.col}`;
+  }
 }
 
 function setSelectionValue(value) {
@@ -20589,6 +20602,11 @@ window.addEventListener("keydown", (event) => {
   if (paletteOpen) return;
   if (editing) return;
   if (isTypingTarget(event.target)) return;
+  if (shouldStartCellTextEdit(event)) {
+    event.preventDefault();
+    openEditor(event.key, { source: "keydown" });
+    return;
+  }
   if (event.key === "Enter") {
     event.preventDefault();
     openEditor();
@@ -20804,7 +20822,23 @@ function isTypingTarget(target) {
   return tagName === "input" || tagName === "textarea" || target.isContentEditable;
 }
 
+function shouldStartCellTextEdit(event) {
+  if (!documentId || viewMode !== "grid" || columns.length === 0) return false;
+  if (event.defaultPrevented || event.isComposing || event.key === "Process" || event.key === "Dead") return false;
+  if (event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (event.key.length !== 1) return false;
+  return document.activeElement === canvas || document.activeElement === document.body;
+}
+
+window.addEventListener("compositionstart", (event) => {
+  if (editing || isTypingTarget(event.target)) return;
+  if (!documentId || viewMode !== "grid" || columns.length === 0) return;
+  if (document.activeElement !== canvas && document.activeElement !== document.body) return;
+  openEditor("", { source: "composition", composition: true });
+});
+
 editor.addEventListener("keydown", (event) => {
+  if (event.isComposing || editorCompositionActive) return;
   if (event.key === "Enter") {
     event.preventDefault();
     commitEditor();
@@ -20812,9 +20846,20 @@ editor.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
     editing = false;
+    editorCompositionActive = false;
     editor.style.display = "none";
     canvas.focus();
   }
+});
+
+editor.addEventListener("compositionstart", () => {
+  editorCompositionActive = true;
+  document.body.dataset.imeEditActive = "true";
+});
+
+editor.addEventListener("compositionend", () => {
+  editorCompositionActive = false;
+  document.body.dataset.imeEditActive = "false";
 });
 
 openForm.addEventListener("submit", async (event) => {

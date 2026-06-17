@@ -47,6 +47,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003/004/012/015 | Rich grid context menu commands | Started | Browser context-menu command dispatch/save verification |
 | FR-003/004 | Auto-fit column width after edits | Started | Browser cell-panel edit verification |
 | FR-004 | Edit cell, dirty state, save with backup | In progress | `pkg/document` and `pkg/appserver` tests |
+| FR-004 | Printable-key and IME-safe cell editing start | Started | command registry static coverage, Browser keydown/composition verification |
 | FR-004 | Save As to a chosen local path | Started | `/api/save` path test, command registry, Browser dialog verification |
 | FR-004 | Restore From Backup foundation | Started | `/api/backups`, `/api/restore-backup`, command registry, Browser dialog verification |
 | FR-004 | Undo/redo and row/column insert/delete/move/hide foundation | Started | `pkg/document` and `pkg/appserver` tests, Browser shortcut verification |

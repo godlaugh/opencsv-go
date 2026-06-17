@@ -265,6 +265,28 @@ func TestCloseTabShortcutDispatchWiring(t *testing.T) {
 	}
 }
 
+func TestPrintableTypingAndIMEEditingAreWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function shouldStartCellTextEdit(event)",
+		`event.isComposing || event.key === "Process" || event.key === "Dead"`,
+		`event.metaKey || event.ctrlKey || event.altKey`,
+		`openEditor(event.key, { source: "keydown" });`,
+		`window.addEventListener("compositionstart"`,
+		`openEditor("", { source: "composition", composition: true });`,
+		`document.body.dataset.imeEditStart`,
+		`if (event.isComposing || editorCompositionActive) return;`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing printable/IME edit wiring %q", snippet)
+		}
+	}
+}
+
 func TestURLLocationReversedRangeNormalizationIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
