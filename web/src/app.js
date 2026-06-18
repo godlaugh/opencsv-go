@@ -1084,6 +1084,29 @@ const localeCatalog = {
     "settings.policy.statusLineEndingBlockedReadonly": "Line ending blocked: document is read-only",
     "settings.policy.statusLineEndingFailed": "Line ending failed: {{message}}",
     "settings.policy.statusLineEndingSet": "Line ending set to {{lineEnding}}.",
+    "format.status.encoding": "Encoding",
+    "format.status.delimiter": "Delimiter",
+    "format.status.quoteMinimal": "Quote minimal",
+    "format.status.header": "Header",
+    "format.status.editable": "Editable",
+    "format.status.readOnly": "Read-only",
+    "format.status.synced": "Synced",
+    "format.status.changedOnDisk": "Changed on disk",
+    "format.status.resolveExternal": "Resolve external file change with unsaved edits",
+    "format.status.refreshExternal": "Refresh changed file from disk",
+    "format.status.readOnlyFailed": "Read-only failed: {{message}}",
+    "format.status.readOnlyEnabled": "Read-only mode enabled",
+    "format.status.readOnlyDisabled": "Read-only mode disabled",
+    "format.delimiter.custom": "{{delimiter}}",
+    "format.quote.summary": "Quote {{mode}} {{character}} {{escape}} escape",
+    "format.quote.mapLimited": "quote map limited",
+    "format.quote.mapLimitedTo": "quote map limited to {{limit}}",
+    "format.quote.mapLimitedOf": "quote map limited {{limit}} of {{detected}}",
+    "format.header.row": "Header row",
+    "format.header.none": "No header",
+    "format.header.column": "{{count}} header col",
+    "format.header.columns": "{{count}} header cols",
+    "format.header.rowPlusColumns": "Header row + {{columns}}",
     "settings.quotes.rulesAria": "Quote rules",
     "settings.quotes.headerRule": "Header",
     "settings.quotes.bodyRule": "Body",
@@ -2212,6 +2235,29 @@ const localeCatalog = {
     "settings.policy.statusLineEndingBlockedReadonly": "换行被阻止：文档为只读",
     "settings.policy.statusLineEndingFailed": "换行失败：{{message}}",
     "settings.policy.statusLineEndingSet": "换行已设为 {{lineEnding}}。",
+    "format.status.encoding": "编码",
+    "format.status.delimiter": "分隔符",
+    "format.status.quoteMinimal": "引号 最少",
+    "format.status.header": "表头",
+    "format.status.editable": "可编辑",
+    "format.status.readOnly": "只读",
+    "format.status.synced": "已同步",
+    "format.status.changedOnDisk": "磁盘已更改",
+    "format.status.resolveExternal": "处理外部文件更改和未保存编辑",
+    "format.status.refreshExternal": "从磁盘刷新已更改文件",
+    "format.status.readOnlyFailed": "只读失败：{{message}}",
+    "format.status.readOnlyEnabled": "只读模式已启用",
+    "format.status.readOnlyDisabled": "只读模式已关闭",
+    "format.delimiter.custom": "{{delimiter}}",
+    "format.quote.summary": "引号 {{mode}} {{character}} {{escape}} 转义",
+    "format.quote.mapLimited": "引号映射已限制",
+    "format.quote.mapLimitedTo": "引号映射限制为 {{limit}}",
+    "format.quote.mapLimitedOf": "引号映射限制为 {{limit}} / {{detected}}",
+    "format.header.row": "表头行",
+    "format.header.none": "无表头",
+    "format.header.column": "{{count}} 个表头列",
+    "format.header.columns": "{{count}} 个表头列",
+    "format.header.rowPlusColumns": "表头行 + {{columns}}",
     "settings.quotes.rulesAria": "引号规则",
     "settings.quotes.headerRule": "表头",
     "settings.quotes.bodyRule": "正文",
@@ -3706,6 +3752,7 @@ function applyLocaleStrings() {
   syncUpdateCheckControls();
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
+  updateFormatStatus();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
@@ -5266,7 +5313,7 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "workbench.closeSplitEditor") {
       button.textContent = "Close";
     } else if (button.dataset.command === "file.toggleReadOnly") {
-      button.textContent = "Read Only";
+      button.textContent = t("file.readOnly");
     } else if (button.dataset.command === "diff.open") {
       button.textContent = "Compare";
     } else if (button.dataset.command === "file.exportView") {
@@ -5522,7 +5569,7 @@ function updateInspector() {
     : t("inspector.unknown");
   columnDistinct.textContent = profile ? formatCount(profile.distinct) : t("inspector.unknown");
   cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : t("inspector.unknown");
-  formatSummary.textContent = metadata ? documentFormatSummary() : t("inspector.unknown");
+  formatSummary.textContent = metadata ? documentFormatDisplaySummary() : t("inspector.unknown");
   syncHiddenColumnControls();
   syncDelimiterControls();
   syncEncodingControls();
@@ -5533,10 +5580,10 @@ function updateInspector() {
 
 function updateFormatStatus() {
   if (!metadata) {
-    encodingStatus.textContent = "Encoding";
-    delimiterStatus.textContent = "Delimiter";
-    quoteStatus.textContent = "Quote minimal";
-    headerStatus.textContent = "Header";
+    encodingStatus.textContent = t("format.status.encoding");
+    delimiterStatus.textContent = t("format.status.delimiter");
+    quoteStatus.textContent = t("format.status.quoteMinimal");
+    headerStatus.textContent = t("format.status.header");
     headerStatus.disabled = true;
     headerStatus.setAttribute("aria-pressed", "false");
     document.body.dataset.headerColumns = "";
@@ -5546,7 +5593,7 @@ function updateFormatStatus() {
     document.body.dataset.quoteMapTruncated = "";
     document.body.dataset.quoteMapDetected = "";
     document.body.dataset.quoteMapLimit = "";
-    readOnlyStatus.textContent = "Editable";
+    readOnlyStatus.textContent = t("format.status.editable");
     syncWorkbookSheetControls();
     syncExternalChangeControls(false);
     syncDelimiterControls();
@@ -5554,10 +5601,10 @@ function updateFormatStatus() {
     syncLineEndingControls();
     return;
   }
-  encodingStatus.textContent = encodingLabel();
-  delimiterStatus.textContent = delimiterLabel(metadata.dialect);
-  quoteStatus.textContent = quotePolicyLabel(metadata.dialect);
-  headerStatus.textContent = headerModeLabel(metadata.dialect);
+  encodingStatus.textContent = encodingDisplayLabel();
+  delimiterStatus.textContent = delimiterDisplayLabel(metadata.dialect);
+  quoteStatus.textContent = quotePolicyDisplayLabel(metadata.dialect);
+  headerStatus.textContent = headerModeDisplayLabel(metadata.dialect);
   headerStatus.disabled = !documentId || readOnly;
   headerStatus.setAttribute("aria-pressed", String(Boolean(metadata.dialect?.hasHeader)));
   document.body.dataset.headerColumns = String(headerColumnsValue(metadata.dialect));
@@ -5567,7 +5614,7 @@ function updateFormatStatus() {
   document.body.dataset.quoteMapTruncated = metadata.dialect?.quoteMapTruncated ? "true" : "false";
   document.body.dataset.quoteMapDetected = metadata.dialect?.quoteMapDetected ? String(metadata.dialect.quoteMapDetected) : "";
   document.body.dataset.quoteMapLimit = metadata.dialect?.quoteMapLimit ? String(metadata.dialect.quoteMapLimit) : "";
-  readOnlyStatus.textContent = readOnly ? "Read-only" : "Editable";
+  readOnlyStatus.textContent = readOnly ? t("format.status.readOnly") : t("format.status.editable");
   syncWorkbookSheetControls();
   syncExternalChangeControls();
   syncDelimiterControls();
@@ -5581,13 +5628,13 @@ function syncExternalChangeControls(hasDocument = Boolean(metadata)) {
   const conflict = Boolean(changed && dirty);
   document.body.dataset.externalFileChanged = String(changed);
   document.body.dataset.externalConflict = conflict ? "dirty" : changed ? "available" : "";
-  externalStatus.textContent = changed ? "Changed on disk" : "Synced";
+  externalStatus.textContent = changed ? t("format.status.changedOnDisk") : t("format.status.synced");
   externalStatus.disabled = !changed;
   externalStatus.title = changed
     ? conflict
-      ? "Resolve external file change with unsaved edits"
-      : "Refresh changed file from disk"
-    : "Synced";
+      ? t("format.status.resolveExternal")
+      : t("format.status.refreshExternal")
+    : t("format.status.synced");
   if (!changed && externalChangePanel && !externalChangePanel.hidden) {
     closeExternalChangePanel();
   } else if (changed && externalChangePanel && !externalChangePanel.hidden) {
@@ -5664,10 +5711,21 @@ function delimiterSettingsLabel(dialect = metadata?.dialect) {
   return delimiterLabel(dialect);
 }
 
+function delimiterDisplayLabel(dialect = metadata?.dialect) {
+  if (localePreference === defaultLocale) return delimiterLabel(dialect);
+  const option = delimiterOptionValue(dialect);
+  if (option !== "custom") return t(`settings.formats.delimiter.${option}`);
+  return tf("format.delimiter.custom", { delimiter: delimiterLabel(dialect) });
+}
+
 function encodingSettingsLabel(info = metadata?.encoding) {
   const value = encodingValue(info);
   if (value === "legacy-single-byte") return t("settings.formats.encoding.legacy");
   return encodingLabel(info);
+}
+
+function encodingDisplayLabel(info = metadata?.encoding) {
+  return encodingSettingsLabel(info);
 }
 
 function lineEndingLabel(info = metadata?.lineEnding) {
@@ -5750,6 +5808,17 @@ function quotePolicyLabel(dialect = metadata?.dialect) {
   return limit ? `${base} · ${limit}` : base;
 }
 
+function quotePolicyDisplayLabel(dialect = metadata?.dialect) {
+  if (localePreference === defaultLocale) return quotePolicyLabel(dialect);
+  const base = tf("format.quote.summary", {
+    mode: quotePolicyOptionLabel("mode", quoteModeValue(dialect)),
+    character: quotePolicyOptionLabel("char", quoteCharValue(dialect)),
+    escape: quotePolicyOptionLabel("escape", quoteEscapeValue(dialect)),
+  });
+  const limit = quoteMapLimitDisplayLabel(dialect);
+  return limit ? `${base} · ${limit}` : base;
+}
+
 function quoteMapLimitLabel(dialect = metadata?.dialect) {
   if (!dialect?.quoteMapTruncated) return "";
   const detected = Number.parseInt(dialect.quoteMapDetected, 10);
@@ -5759,6 +5828,18 @@ function quoteMapLimitLabel(dialect = metadata?.dialect) {
   }
   if (Number.isInteger(limit) && limit > 0) return `quote map limited to ${formatCount(limit)}`;
   return "quote map limited";
+}
+
+function quoteMapLimitDisplayLabel(dialect = metadata?.dialect) {
+  if (localePreference === defaultLocale) return quoteMapLimitLabel(dialect);
+  if (!dialect?.quoteMapTruncated) return "";
+  const detected = Number.parseInt(dialect.quoteMapDetected, 10);
+  const limit = Number.parseInt(dialect.quoteMapLimit, 10);
+  if (Number.isInteger(detected) && Number.isInteger(limit) && detected > limit) {
+    return tf("format.quote.mapLimitedOf", { limit: formatCount(limit), detected: formatCount(detected) });
+  }
+  if (Number.isInteger(limit) && limit > 0) return tf("format.quote.mapLimitedTo", { limit: formatCount(limit) });
+  return t("format.quote.mapLimited");
 }
 
 function headerColumnsValue(dialect = metadata?.dialect) {
@@ -5777,6 +5858,20 @@ function headerModeLabel(dialect = metadata?.dialect) {
   if (dialect?.hasHeader) return "Header row";
   if (headerColumns > 0) return columnLabel;
   return "No header";
+}
+
+function headerColumnDisplayLabel(count) {
+  return tf(count === 1 ? "format.header.column" : "format.header.columns", { count: formatCount(count) });
+}
+
+function headerModeDisplayLabel(dialect = metadata?.dialect) {
+  if (localePreference === defaultLocale) return headerModeLabel(dialect);
+  const headerColumns = headerColumnsValue(dialect);
+  const columnLabel = headerColumnDisplayLabel(headerColumns);
+  if (dialect?.hasHeader && headerColumns > 0) return tf("format.header.rowPlusColumns", { columns: columnLabel });
+  if (dialect?.hasHeader) return t("format.header.row");
+  if (headerColumns > 0) return columnLabel;
+  return t("format.header.none");
 }
 
 function workbookSheetOptions() {
@@ -6044,6 +6139,10 @@ function quoteOnlyPolicyModified() {
 
 function documentFormatSummary() {
   return `${encodingLabel()} · ${delimiterLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyLabel(metadata.dialect)} · ${headerModeLabel(metadata.dialect)}`;
+}
+
+function documentFormatDisplaySummary() {
+  return `${encodingDisplayLabel()} · ${delimiterDisplayLabel(metadata.dialect)} · ${lineEndingLabel()} · ${quotePolicyDisplayLabel(metadata.dialect)} · ${headerModeDisplayLabel(metadata.dialect)}`;
 }
 
 function currentFormatPreset() {
@@ -18994,12 +19093,15 @@ async function toggleReadOnly() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Read-only failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("format.status.readOnlyFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   readOnly = Boolean(payload.readOnly);
   updateFileList(activeFileEntry?.name || fileNameFromPath(metadata?.path || ""), activeFileEntry?.detail || metadata?.path || "", totalRows, { documentId });
-  status.textContent = readOnly ? "Read-only mode enabled" : "Read-only mode disabled";
+  updateFormatStatus();
+  updateInspector();
+  updateCommandState();
+  status.textContent = readOnly ? t("format.status.readOnlyEnabled") : t("format.status.readOnlyDisabled");
   draw();
 }
 

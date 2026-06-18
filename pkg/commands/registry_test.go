@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=format-policy-i18n-1`,
+		`v=format-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=format-policy-i18n-1`) {
+	if !strings.Contains(html, `v=format-status-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=format-policy-i18n-1`,
+		`v=format-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=format-policy-i18n-1`,
+		`v=format-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=format-policy-i18n-1`,
+		`v=format-status-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=format-policy-i18n-1`,
+		`v=format-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -905,6 +905,10 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.policy.statusDelimiterSet": "分隔符已设为 {{delimiter}}。"`,
 		`"settings.policy.statusEncodingSet": "编码已设为 {{encoding}}。"`,
 		`"settings.policy.statusLineEndingSet": "换行已设为 {{lineEnding}}。"`,
+		`"format.status.synced": "已同步"`,
+		`"format.status.readOnlyEnabled": "只读模式已启用"`,
+		`"format.quote.summary": "引号 {{mode}} {{character}} {{escape}} 转义"`,
+		`"format.header.rowPlusColumns": "表头行 + {{columns}}"`,
 		`"settings.appearance.gridFont": "表格字体"`,
 		`"settings.appearance.row.default": "默认 · 28px"`,
 		`"settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则"`,
@@ -932,6 +936,13 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`tf("settings.policy.statusDelimiterSet"`,
 		`tf("settings.policy.statusEncodingSet"`,
 		`tf("settings.policy.statusLineEndingSet"`,
+		`t("format.status.encoding")`,
+		`t("file.readOnly")`,
+		`t("format.status.readOnlyEnabled")`,
+		`updateFormatStatus();`,
+		`quotePolicyDisplayLabel(metadata.dialect)`,
+		`headerModeDisplayLabel(metadata.dialect)`,
+		`documentFormatDisplaySummary()`,
 		`tf("settings.quotes.summary"`,
 		`tf("settings.quotes.statusSet"`,
 		`t("settings.quotes.statusReset")`,
