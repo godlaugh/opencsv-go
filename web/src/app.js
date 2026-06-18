@@ -1061,6 +1061,93 @@ const localeCatalog = {
     "settings.quotes.statusResetFailed": "Quote policy reset failed: {{message}}",
     "settings.quotes.statusSet": "Quote policy set to {{summary}}.",
     "settings.quotes.statusReset": "Quote policy reset.",
+    "settings.quotes.rulesAria": "Quote rules",
+    "settings.quotes.headerRule": "Header",
+    "settings.quotes.bodyRule": "Body",
+    "settings.quotes.columnRule": "Column",
+    "settings.quotes.headerRuleAria": "Quote header row",
+    "settings.quotes.bodyRuleAria": "Quote body rows",
+    "settings.quotes.columnRuleAria": "Quote active column",
+    "settings.quotes.quoteCell": "Quote Cell",
+    "settings.quotes.noQuoteCell": "No Quote Cell",
+    "settings.quotes.clearCell": "Clear Cell",
+    "settings.quotes.quoteSelection": "Quote Selection",
+    "settings.quotes.noQuoteSelection": "No Quote Selection",
+    "settings.quotes.clearSelection": "Clear Selection",
+    "settings.quotes.sourceColumn": "Source Column",
+    "settings.quotes.sourceColumnAria": "Quote column rule source",
+    "settings.quotes.columnAction": "Column Action",
+    "settings.quotes.columnActionAria": "Quote column rule action",
+    "settings.quotes.action.quoteColumn": "Quote column",
+    "settings.quotes.action.clearColumn": "Clear column",
+    "settings.quotes.applyColumn": "Apply Column",
+    "settings.quotes.columnPattern": "Column Pattern",
+    "settings.quotes.columnPatternAria": "Quote column pattern",
+    "settings.quotes.patternMode": "Pattern Mode",
+    "settings.quotes.columnPatternModeAria": "Quote column pattern mode",
+    "settings.quotes.match.contains": "Contains",
+    "settings.quotes.match.exact": "Exact",
+    "settings.quotes.match.glob": "Glob",
+    "settings.quotes.match.regex": "Regex",
+    "settings.quotes.patternAction": "Pattern Action",
+    "settings.quotes.columnPatternActionAria": "Quote column pattern action",
+    "settings.quotes.action.quoteMatches": "Quote matches",
+    "settings.quotes.action.clearMatches": "Clear matches",
+    "settings.quotes.applyPattern": "Apply Pattern",
+    "settings.quotes.valuePattern": "Value Pattern",
+    "settings.quotes.valuePatternAria": "Quote value pattern",
+    "settings.quotes.valueMode": "Value Mode",
+    "settings.quotes.valueModeAria": "Quote value pattern mode",
+    "settings.quotes.valueAction": "Value Action",
+    "settings.quotes.valueActionAria": "Quote value pattern action",
+    "settings.quotes.action.quoteValues": "Quote values",
+    "settings.quotes.action.noQuoteValues": "No quote values",
+    "settings.quotes.action.clearValues": "Clear values",
+    "settings.quotes.previewValues": "Preview Values",
+    "settings.quotes.applyValues": "Apply Values",
+    "settings.quotes.rowStart": "Row Start",
+    "settings.quotes.rowStartAria": "Quote rule row range start",
+    "settings.quotes.rowEnd": "Row End",
+    "settings.quotes.rowEndAria": "Quote rule row range end",
+    "settings.quotes.rowAction": "Row Action",
+    "settings.quotes.rowActionAria": "Quote row range action",
+    "settings.quotes.action.quoteRows": "Quote rows",
+    "settings.quotes.action.noQuoteRows": "No quote rows",
+    "settings.quotes.action.clearRows": "Clear rows",
+    "settings.quotes.applyRows": "Apply Rows",
+    "settings.quotes.sourceRow": "Source Row",
+    "settings.quotes.sourceRowAria": "Quote rule source row",
+    "settings.quotes.sourceCol": "Source Col",
+    "settings.quotes.sourceColAria": "Quote rule source column",
+    "settings.quotes.ruleAction": "Rule Action",
+    "settings.quotes.ruleActionAria": "Quote rule action",
+    "settings.quotes.action.quoteCell": "Quote cell",
+    "settings.quotes.action.noQuoteCell": "No quote cell",
+    "settings.quotes.action.clearCell": "Clear cell",
+    "settings.quotes.applyRule": "Apply Rule",
+    "settings.quotes.activeRulesAria": "Active quote rules",
+    "settings.quotes.removeRule": "Remove",
+    "settings.quotes.empty.openFile": "Open a file to inspect quote rules.",
+    "settings.quotes.empty.noRules": "No active quote rules.",
+    "settings.quotes.empty.showingFirst": "Showing first {{shown}} of {{total}} quote rules.",
+    "settings.quotes.item.headerTitle": "Quote header row",
+    "settings.quotes.item.headerDetail": "Force all header fields to be quoted.",
+    "settings.quotes.item.bodyTitle": "Quote body rows",
+    "settings.quotes.item.bodyDetail": "Force all data fields to be quoted.",
+    "settings.quotes.item.columnTitle": "Quote {{column}}",
+    "settings.quotes.item.columnDetail": "Source column {{column}}",
+    "settings.quotes.item.cellTitle": "Quote cell {{cell}}",
+    "settings.quotes.item.noCellTitle": "No quote cell {{cell}}",
+    "settings.quotes.item.cellDetail": "Source cell {{cell}}",
+    "settings.quotes.statusCellOpenFile": "Open a file before changing cell quote rules.",
+    "settings.quotes.statusCellSelectSource": "Select a source cell before changing cell quote rules.",
+    "settings.quotes.statusCellBlockedReadonly": "{{action}} blocked: document is read-only",
+    "settings.quotes.statusCellNoChange": "{{action}}: no cell quote rules changed.",
+    "settings.quotes.statusCellFailed": "{{action}} failed: {{message}}",
+    "settings.quotes.statusCellApplied": "{{action}}: {{cell}}.",
+    "settings.quotes.statusRemoveBlockedReadonly": "Quote rule removal blocked: document is read-only",
+    "settings.quotes.statusRemoveFailed": "Quote rule removal failed: {{message}}",
+    "settings.quotes.statusRemoved": "Removed quote rule: {{rule}}.",
     "settings.editorAppearance": "Editor Appearance",
     "settings.appearance.gridFont": "Grid Font",
     "settings.appearance.gridSize": "Grid Size",
@@ -2079,6 +2166,93 @@ const localeCatalog = {
     "settings.quotes.statusResetFailed": "引号策略重置失败：{{message}}",
     "settings.quotes.statusSet": "引号策略已设为 {{summary}}。",
     "settings.quotes.statusReset": "引号策略已重置。",
+    "settings.quotes.rulesAria": "引号规则",
+    "settings.quotes.headerRule": "表头",
+    "settings.quotes.bodyRule": "正文",
+    "settings.quotes.columnRule": "列",
+    "settings.quotes.headerRuleAria": "为表头行加引号",
+    "settings.quotes.bodyRuleAria": "为正文行加引号",
+    "settings.quotes.columnRuleAria": "为当前列加引号",
+    "settings.quotes.quoteCell": "单元格加引号",
+    "settings.quotes.noQuoteCell": "单元格不加引号",
+    "settings.quotes.clearCell": "清除单元格",
+    "settings.quotes.quoteSelection": "选区加引号",
+    "settings.quotes.noQuoteSelection": "选区不加引号",
+    "settings.quotes.clearSelection": "清除选区",
+    "settings.quotes.sourceColumn": "源列",
+    "settings.quotes.sourceColumnAria": "引号列规则源",
+    "settings.quotes.columnAction": "列操作",
+    "settings.quotes.columnActionAria": "引号列规则操作",
+    "settings.quotes.action.quoteColumn": "列加引号",
+    "settings.quotes.action.clearColumn": "清除列",
+    "settings.quotes.applyColumn": "应用列",
+    "settings.quotes.columnPattern": "列模式",
+    "settings.quotes.columnPatternAria": "引号列模式",
+    "settings.quotes.patternMode": "模式类型",
+    "settings.quotes.columnPatternModeAria": "引号列模式类型",
+    "settings.quotes.match.contains": "包含",
+    "settings.quotes.match.exact": "精确",
+    "settings.quotes.match.glob": "Glob",
+    "settings.quotes.match.regex": "正则",
+    "settings.quotes.patternAction": "模式操作",
+    "settings.quotes.columnPatternActionAria": "引号列模式操作",
+    "settings.quotes.action.quoteMatches": "匹配项加引号",
+    "settings.quotes.action.clearMatches": "清除匹配项",
+    "settings.quotes.applyPattern": "应用模式",
+    "settings.quotes.valuePattern": "值模式",
+    "settings.quotes.valuePatternAria": "引号值模式",
+    "settings.quotes.valueMode": "值模式类型",
+    "settings.quotes.valueModeAria": "引号值模式类型",
+    "settings.quotes.valueAction": "值操作",
+    "settings.quotes.valueActionAria": "引号值模式操作",
+    "settings.quotes.action.quoteValues": "值加引号",
+    "settings.quotes.action.noQuoteValues": "值不加引号",
+    "settings.quotes.action.clearValues": "清除值",
+    "settings.quotes.previewValues": "预览值",
+    "settings.quotes.applyValues": "应用值",
+    "settings.quotes.rowStart": "起始行",
+    "settings.quotes.rowStartAria": "引号规则行范围起点",
+    "settings.quotes.rowEnd": "结束行",
+    "settings.quotes.rowEndAria": "引号规则行范围终点",
+    "settings.quotes.rowAction": "行操作",
+    "settings.quotes.rowActionAria": "引号行范围操作",
+    "settings.quotes.action.quoteRows": "行加引号",
+    "settings.quotes.action.noQuoteRows": "行不加引号",
+    "settings.quotes.action.clearRows": "清除行",
+    "settings.quotes.applyRows": "应用行",
+    "settings.quotes.sourceRow": "源行",
+    "settings.quotes.sourceRowAria": "引号规则源行",
+    "settings.quotes.sourceCol": "源列",
+    "settings.quotes.sourceColAria": "引号规则源列",
+    "settings.quotes.ruleAction": "规则操作",
+    "settings.quotes.ruleActionAria": "引号规则操作",
+    "settings.quotes.action.quoteCell": "单元格加引号",
+    "settings.quotes.action.noQuoteCell": "单元格不加引号",
+    "settings.quotes.action.clearCell": "清除单元格",
+    "settings.quotes.applyRule": "应用规则",
+    "settings.quotes.activeRulesAria": "当前引号规则",
+    "settings.quotes.removeRule": "移除",
+    "settings.quotes.empty.openFile": "打开文件后可检查引号规则。",
+    "settings.quotes.empty.noRules": "没有当前引号规则。",
+    "settings.quotes.empty.showingFirst": "显示前 {{shown}} / {{total}} 条引号规则。",
+    "settings.quotes.item.headerTitle": "表头行加引号",
+    "settings.quotes.item.headerDetail": "强制所有表头字段加引号。",
+    "settings.quotes.item.bodyTitle": "正文行加引号",
+    "settings.quotes.item.bodyDetail": "强制所有数据字段加引号。",
+    "settings.quotes.item.columnTitle": "{{column}} 加引号",
+    "settings.quotes.item.columnDetail": "源列 {{column}}",
+    "settings.quotes.item.cellTitle": "单元格 {{cell}} 加引号",
+    "settings.quotes.item.noCellTitle": "单元格 {{cell}} 不加引号",
+    "settings.quotes.item.cellDetail": "源单元格 {{cell}}",
+    "settings.quotes.statusCellOpenFile": "更改单元格引号规则前请先打开文件。",
+    "settings.quotes.statusCellSelectSource": "更改单元格引号规则前请先选择源单元格。",
+    "settings.quotes.statusCellBlockedReadonly": "{{action}}被阻止：文档为只读",
+    "settings.quotes.statusCellNoChange": "{{action}}：单元格引号规则未改变。",
+    "settings.quotes.statusCellFailed": "{{action}}失败：{{message}}",
+    "settings.quotes.statusCellApplied": "{{action}}：{{cell}}。",
+    "settings.quotes.statusRemoveBlockedReadonly": "引号规则移除被阻止：文档为只读",
+    "settings.quotes.statusRemoveFailed": "引号规则移除失败：{{message}}",
+    "settings.quotes.statusRemoved": "已移除引号规则：{{rule}}。",
     "settings.editorAppearance": "编辑器外观",
     "settings.appearance.gridFont": "表格字体",
     "settings.appearance.gridSize": "表格字号",
@@ -7046,21 +7220,21 @@ async function setSelectedCellQuoteOverrides(mode) {
 
 async function applyActiveCellQuoteRule(mode) {
   const labels = {
-    quote: "Quote Cell",
-    "no-quote": "No Quote Cell",
-    clear: "Clear Cell Quote",
+    quote: t("settings.quotes.quoteCell"),
+    "no-quote": t("settings.quotes.noQuoteCell"),
+    clear: t("settings.quotes.clearCell"),
   };
-  const label = labels[mode] || "Cell Quote";
+  const label = labels[mode] || t("settings.quotes.action.quoteCell");
   if (!documentId) {
-    status.textContent = "Open a file before changing cell quote rules.";
+    status.textContent = t("settings.quotes.statusCellOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusCellBlockedReadonly", { action: label });
     return;
   }
   if (selected.row >= sourceRowCount || columns.length === 0) {
-    status.textContent = "Select a source cell before changing cell quote rules.";
+    status.textContent = t("settings.quotes.statusCellSelectSource");
     return;
   }
   const row = selectedSourceRow();
@@ -7082,7 +7256,7 @@ async function applyActiveCellQuoteRule(mode) {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteCellRule = `${mode}:${row}:${col}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no cell quote rules changed.`;
+    status.textContent = tf("settings.quotes.statusCellNoChange", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -7092,13 +7266,13 @@ async function applyActiveCellQuoteRule(mode) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusCellFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteCellRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${quoteRuleCellLabel({ row, col })}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusCellApplied", { action: label, cell: quoteRuleCellLabel({ row, col }) }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -7734,7 +7908,7 @@ function renderQuoteRuleList() {
   if (!quoteRuleList) return;
   quoteRuleList.replaceChildren();
   if (!documentId) {
-    quoteRuleList.append(emptyQuoteRuleNode("Open a file to inspect quote rules."));
+    quoteRuleList.append(emptyQuoteRuleNode(t("settings.quotes.empty.openFile")));
     document.body.dataset.quoteRuleList = "closed";
     return;
   }
@@ -7744,7 +7918,7 @@ function renderQuoteRuleList() {
   document.body.dataset.quoteRuleList = String(totalItems);
   document.body.dataset.quoteRuleListRendered = String(items.length);
   if (!totalItems) {
-    quoteRuleList.append(emptyQuoteRuleNode("No active quote rules."));
+    quoteRuleList.append(emptyQuoteRuleNode(t("settings.quotes.empty.noRules")));
     return;
   }
   for (const item of items) {
@@ -7762,14 +7936,17 @@ function renderQuoteRuleList() {
 
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.textContent = "Remove";
+    remove.textContent = t("settings.quotes.removeRule");
     remove.disabled = readOnly;
     remove.addEventListener("click", () => removeQuoteRule(item));
     row.append(meta, remove);
     quoteRuleList.append(row);
   }
   if (totalItems > items.length) {
-    quoteRuleList.append(emptyQuoteRuleNode(`Showing first ${formatCount(items.length)} of ${formatCount(totalItems)} quote rules.`));
+    quoteRuleList.append(emptyQuoteRuleNode(tf("settings.quotes.empty.showingFirst", {
+      shown: formatCount(items.length),
+      total: formatCount(totalItems),
+    })));
   }
 }
 
@@ -7799,8 +7976,8 @@ function activeQuoteRuleItems(settings, limit = Number.POSITIVE_INFINITY) {
     pushItem({
       kind: "header",
       key: "header",
-      title: "Quote header row",
-      detail: "Force all header fields to be quoted.",
+      title: t("settings.quotes.item.headerTitle"),
+      detail: t("settings.quotes.item.headerDetail"),
     });
     if (items.length >= limit) return items;
   }
@@ -7808,38 +7985,41 @@ function activeQuoteRuleItems(settings, limit = Number.POSITIVE_INFINITY) {
     pushItem({
       kind: "body",
       key: "body",
-      title: "Quote body rows",
-      detail: "Force all data fields to be quoted.",
+      title: t("settings.quotes.item.bodyTitle"),
+      detail: t("settings.quotes.item.bodyDetail"),
     });
     if (items.length >= limit) return items;
   }
   for (const col of settings.quoteColumns) {
+    const column = quoteRuleColumnLabel(col);
     pushItem({
       kind: "column",
       key: String(col),
       col,
-      title: `Quote ${quoteRuleColumnLabel(col)}`,
-      detail: `Source column ${col + 1}`,
+      title: tf("settings.quotes.item.columnTitle", { column }),
+      detail: tf("settings.quotes.item.columnDetail", { column: formatCount(col + 1) }),
     });
     if (items.length >= limit) return items;
   }
   for (const cell of settings.quoteCells) {
+    const label = quoteRuleCellLabel(cell);
     pushItem({
       kind: "cell",
       key: quoteCellKey(cell),
       cell,
-      title: `Quote cell ${quoteRuleCellLabel(cell)}`,
-      detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
+      title: tf("settings.quotes.item.cellTitle", { cell: label }),
+      detail: tf("settings.quotes.item.cellDetail", { cell: label }),
     });
     if (items.length >= limit) return items;
   }
   for (const cell of settings.noQuoteCells) {
+    const label = quoteRuleCellLabel(cell);
     pushItem({
       kind: "no-cell",
       key: quoteCellKey(cell),
       cell,
-      title: `No quote cell ${quoteRuleCellLabel(cell)}`,
-      detail: `Source row ${cell.row + 1}, column ${cell.col + 1}`,
+      title: tf("settings.quotes.item.noCellTitle", { cell: label }),
+      detail: tf("settings.quotes.item.cellDetail", { cell: label }),
     });
     if (items.length >= limit) return items;
   }
@@ -7861,7 +8041,7 @@ async function removeQuoteRule(item) {
     return;
   }
   if (readOnly) {
-    status.textContent = "Quote rule removal blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusRemoveBlockedReadonly");
     return;
   }
   const settings = currentQuoteRuleSettings();
@@ -7890,13 +8070,13 @@ async function removeQuoteRule(item) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Quote rule removal failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusRemoveFailed", { message: payload.error ?? "unknown error" });
     document.body.dataset.quoteRuleRemove = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `Removed quote rule: ${item.title}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusRemoved", { rule: item.title }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();

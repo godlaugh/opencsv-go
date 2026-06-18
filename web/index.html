@@ -487,117 +487,117 @@
                 </label>
                 <button id="applyLineEndingButton" type="button" data-command="format.applyLineEnding">Apply EOL</button>
               </div>
-              <div class="quote-rule-grid" aria-label="Quote rules">
+              <div class="quote-rule-grid" aria-label="Quote rules" data-i18n-aria-label="settings.quotes.rulesAria">
                 <label class="quote-rule-toggle">
-                  <input id="quoteHeaderRuleToggle" type="checkbox" aria-label="Quote header row" />
-                  <span>Header</span>
-                </label>
-                <label class="quote-rule-toggle">
-                  <input id="quoteBodyRuleToggle" type="checkbox" aria-label="Quote body rows" />
-                  <span>Body</span>
+                  <input id="quoteHeaderRuleToggle" type="checkbox" aria-label="Quote header row" data-i18n-aria-label="settings.quotes.headerRuleAria" />
+                  <span data-i18n="settings.quotes.headerRule">Header</span>
                 </label>
                 <label class="quote-rule-toggle">
-                  <input id="quoteColumnRuleToggle" type="checkbox" aria-label="Quote active column" />
-                  <span>Column</span>
+                  <input id="quoteBodyRuleToggle" type="checkbox" aria-label="Quote body rows" data-i18n-aria-label="settings.quotes.bodyRuleAria" />
+                  <span data-i18n="settings.quotes.bodyRule">Body</span>
                 </label>
-                <button id="addQuoteCellRuleButton" type="button">Quote Cell</button>
-                <button id="addNoQuoteCellRuleButton" type="button">No Quote Cell</button>
-                <button id="clearCellQuoteRuleButton" type="button">Clear Cell</button>
-                <button id="quoteSelectionRuleButton" type="button">Quote Selection</button>
-                <button id="noQuoteSelectionRuleButton" type="button">No Quote Selection</button>
-                <button id="clearSelectionQuoteRuleButton" type="button">Clear Selection</button>
+                <label class="quote-rule-toggle">
+                  <input id="quoteColumnRuleToggle" type="checkbox" aria-label="Quote active column" data-i18n-aria-label="settings.quotes.columnRuleAria" />
+                  <span data-i18n="settings.quotes.columnRule">Column</span>
+                </label>
+                <button id="addQuoteCellRuleButton" type="button" data-i18n="settings.quotes.quoteCell">Quote Cell</button>
+                <button id="addNoQuoteCellRuleButton" type="button" data-i18n="settings.quotes.noQuoteCell">No Quote Cell</button>
+                <button id="clearCellQuoteRuleButton" type="button" data-i18n="settings.quotes.clearCell">Clear Cell</button>
+                <button id="quoteSelectionRuleButton" type="button" data-i18n="settings.quotes.quoteSelection">Quote Selection</button>
+                <button id="noQuoteSelectionRuleButton" type="button" data-i18n="settings.quotes.noQuoteSelection">No Quote Selection</button>
+                <button id="clearSelectionQuoteRuleButton" type="button" data-i18n="settings.quotes.clearSelection">Clear Selection</button>
                 <label>
-                  <span>Source Column</span>
-                  <input id="quoteRuleColumnInput" type="text" aria-label="Quote column rule source" />
+                  <span data-i18n="settings.quotes.sourceColumn">Source Column</span>
+                  <input id="quoteRuleColumnInput" type="text" aria-label="Quote column rule source" data-i18n-aria-label="settings.quotes.sourceColumnAria" />
                 </label>
                 <label>
-                  <span>Column Action</span>
-                  <select id="quoteRuleColumnActionSelect" aria-label="Quote column rule action">
-                    <option value="quote">Quote column</option>
-                    <option value="clear">Clear column</option>
+                  <span data-i18n="settings.quotes.columnAction">Column Action</span>
+                  <select id="quoteRuleColumnActionSelect" aria-label="Quote column rule action" data-i18n-aria-label="settings.quotes.columnActionAria">
+                    <option value="quote" data-i18n="settings.quotes.action.quoteColumn">Quote column</option>
+                    <option value="clear" data-i18n="settings.quotes.action.clearColumn">Clear column</option>
                   </select>
                 </label>
-                <button id="applyQuoteColumnRuleButton" type="button">Apply Column</button>
+                <button id="applyQuoteColumnRuleButton" type="button" data-i18n="settings.quotes.applyColumn">Apply Column</button>
                 <label>
-                  <span>Column Pattern</span>
-                  <input id="quoteRuleColumnPatternInput" type="text" aria-label="Quote column pattern" />
+                  <span data-i18n="settings.quotes.columnPattern">Column Pattern</span>
+                  <input id="quoteRuleColumnPatternInput" type="text" aria-label="Quote column pattern" data-i18n-aria-label="settings.quotes.columnPatternAria" />
                 </label>
                 <label>
-                  <span>Pattern Mode</span>
-                  <select id="quoteRuleColumnPatternModeSelect" aria-label="Quote column pattern mode">
-                    <option value="contains">Contains</option>
-                    <option value="exact">Exact</option>
-                    <option value="glob">Glob</option>
-                    <option value="regex">Regex</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Pattern Action</span>
-                  <select id="quoteRuleColumnPatternActionSelect" aria-label="Quote column pattern action">
-                    <option value="quote">Quote matches</option>
-                    <option value="clear">Clear matches</option>
-                  </select>
-                </label>
-                <button id="applyQuoteColumnPatternRuleButton" type="button">Apply Pattern</button>
-                <label>
-                  <span>Value Pattern</span>
-                  <input id="quoteRuleValuePatternInput" type="text" aria-label="Quote value pattern" />
-                </label>
-                <label>
-                  <span>Value Mode</span>
-                  <select id="quoteRuleValuePatternModeSelect" aria-label="Quote value pattern mode">
-                    <option value="contains">Contains</option>
-                    <option value="exact">Exact</option>
-                    <option value="glob">Glob</option>
-                    <option value="regex">Regex</option>
+                  <span data-i18n="settings.quotes.patternMode">Pattern Mode</span>
+                  <select id="quoteRuleColumnPatternModeSelect" aria-label="Quote column pattern mode" data-i18n-aria-label="settings.quotes.columnPatternModeAria">
+                    <option value="contains" data-i18n="settings.quotes.match.contains">Contains</option>
+                    <option value="exact" data-i18n="settings.quotes.match.exact">Exact</option>
+                    <option value="glob" data-i18n="settings.quotes.match.glob">Glob</option>
+                    <option value="regex" data-i18n="settings.quotes.match.regex">Regex</option>
                   </select>
                 </label>
                 <label>
-                  <span>Value Action</span>
-                  <select id="quoteRuleValuePatternActionSelect" aria-label="Quote value pattern action">
-                    <option value="quote">Quote values</option>
-                    <option value="no-quote">No quote values</option>
-                    <option value="clear">Clear values</option>
+                  <span data-i18n="settings.quotes.patternAction">Pattern Action</span>
+                  <select id="quoteRuleColumnPatternActionSelect" aria-label="Quote column pattern action" data-i18n-aria-label="settings.quotes.columnPatternActionAria">
+                    <option value="quote" data-i18n="settings.quotes.action.quoteMatches">Quote matches</option>
+                    <option value="clear" data-i18n="settings.quotes.action.clearMatches">Clear matches</option>
                   </select>
                 </label>
-                <button id="previewQuoteValuePatternRuleButton" type="button">Preview Values</button>
-                <button id="applyQuoteValuePatternRuleButton" type="button">Apply Values</button>
+                <button id="applyQuoteColumnPatternRuleButton" type="button" data-i18n="settings.quotes.applyPattern">Apply Pattern</button>
                 <label>
-                  <span>Row Start</span>
-                  <input id="quoteRuleRowStartInput" type="number" min="1" step="1" aria-label="Quote rule row range start" />
+                  <span data-i18n="settings.quotes.valuePattern">Value Pattern</span>
+                  <input id="quoteRuleValuePatternInput" type="text" aria-label="Quote value pattern" data-i18n-aria-label="settings.quotes.valuePatternAria" />
                 </label>
                 <label>
-                  <span>Row End</span>
-                  <input id="quoteRuleRowEndInput" type="number" min="1" step="1" aria-label="Quote rule row range end" />
-                </label>
-                <label>
-                  <span>Row Action</span>
-                  <select id="quoteRuleRowActionSelect" aria-label="Quote row range action">
-                    <option value="quote">Quote rows</option>
-                    <option value="no-quote">No quote rows</option>
-                    <option value="clear">Clear rows</option>
+                  <span data-i18n="settings.quotes.valueMode">Value Mode</span>
+                  <select id="quoteRuleValuePatternModeSelect" aria-label="Quote value pattern mode" data-i18n-aria-label="settings.quotes.valueModeAria">
+                    <option value="contains" data-i18n="settings.quotes.match.contains">Contains</option>
+                    <option value="exact" data-i18n="settings.quotes.match.exact">Exact</option>
+                    <option value="glob" data-i18n="settings.quotes.match.glob">Glob</option>
+                    <option value="regex" data-i18n="settings.quotes.match.regex">Regex</option>
                   </select>
                 </label>
-                <button id="applyQuoteRowRangeRuleButton" type="button">Apply Rows</button>
                 <label>
-                  <span>Source Row</span>
-                  <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" />
-                </label>
-                <label>
-                  <span>Source Col</span>
-                  <input id="quoteRuleColInput" type="number" min="1" step="1" aria-label="Quote rule source column" />
-                </label>
-                <label>
-                  <span>Rule Action</span>
-                  <select id="quoteRuleActionSelect" aria-label="Quote rule action">
-                    <option value="quote">Quote cell</option>
-                    <option value="no-quote">No quote cell</option>
-                    <option value="clear">Clear cell</option>
+                  <span data-i18n="settings.quotes.valueAction">Value Action</span>
+                  <select id="quoteRuleValuePatternActionSelect" aria-label="Quote value pattern action" data-i18n-aria-label="settings.quotes.valueActionAria">
+                    <option value="quote" data-i18n="settings.quotes.action.quoteValues">Quote values</option>
+                    <option value="no-quote" data-i18n="settings.quotes.action.noQuoteValues">No quote values</option>
+                    <option value="clear" data-i18n="settings.quotes.action.clearValues">Clear values</option>
                   </select>
                 </label>
-                <button id="applyQuoteCoordinateRuleButton" type="button">Apply Rule</button>
+                <button id="previewQuoteValuePatternRuleButton" type="button" data-i18n="settings.quotes.previewValues">Preview Values</button>
+                <button id="applyQuoteValuePatternRuleButton" type="button" data-i18n="settings.quotes.applyValues">Apply Values</button>
+                <label>
+                  <span data-i18n="settings.quotes.rowStart">Row Start</span>
+                  <input id="quoteRuleRowStartInput" type="number" min="1" step="1" aria-label="Quote rule row range start" data-i18n-aria-label="settings.quotes.rowStartAria" />
+                </label>
+                <label>
+                  <span data-i18n="settings.quotes.rowEnd">Row End</span>
+                  <input id="quoteRuleRowEndInput" type="number" min="1" step="1" aria-label="Quote rule row range end" data-i18n-aria-label="settings.quotes.rowEndAria" />
+                </label>
+                <label>
+                  <span data-i18n="settings.quotes.rowAction">Row Action</span>
+                  <select id="quoteRuleRowActionSelect" aria-label="Quote row range action" data-i18n-aria-label="settings.quotes.rowActionAria">
+                    <option value="quote" data-i18n="settings.quotes.action.quoteRows">Quote rows</option>
+                    <option value="no-quote" data-i18n="settings.quotes.action.noQuoteRows">No quote rows</option>
+                    <option value="clear" data-i18n="settings.quotes.action.clearRows">Clear rows</option>
+                  </select>
+                </label>
+                <button id="applyQuoteRowRangeRuleButton" type="button" data-i18n="settings.quotes.applyRows">Apply Rows</button>
+                <label>
+                  <span data-i18n="settings.quotes.sourceRow">Source Row</span>
+                  <input id="quoteRuleRowInput" type="number" min="1" step="1" aria-label="Quote rule source row" data-i18n-aria-label="settings.quotes.sourceRowAria" />
+                </label>
+                <label>
+                  <span data-i18n="settings.quotes.sourceCol">Source Col</span>
+                  <input id="quoteRuleColInput" type="number" min="1" step="1" aria-label="Quote rule source column" data-i18n-aria-label="settings.quotes.sourceColAria" />
+                </label>
+                <label>
+                  <span data-i18n="settings.quotes.ruleAction">Rule Action</span>
+                  <select id="quoteRuleActionSelect" aria-label="Quote rule action" data-i18n-aria-label="settings.quotes.ruleActionAria">
+                    <option value="quote" data-i18n="settings.quotes.action.quoteCell">Quote cell</option>
+                    <option value="no-quote" data-i18n="settings.quotes.action.noQuoteCell">No quote cell</option>
+                    <option value="clear" data-i18n="settings.quotes.action.clearCell">Clear cell</option>
+                  </select>
+                </label>
+                <button id="applyQuoteCoordinateRuleButton" type="button" data-i18n="settings.quotes.applyRule">Apply Rule</button>
               </div>
-              <div id="quoteRuleList" class="quote-rule-list" aria-label="Active quote rules"></div>
+              <div id="quoteRuleList" class="quote-rule-list" aria-label="Active quote rules" data-i18n-aria-label="settings.quotes.activeRulesAria"></div>
               <div id="quoteRulesImportPanel" class="settings-import-panel" hidden>
                 <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" data-i18n-aria-label="settings.quotes.importJsonAria" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteEscape":"double","quoteColumns":[]}'></textarea>
                 <div class="settings-import-actions">
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=quote-settings-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=quote-rule-editor-i18n-1"></script>
   </body>
 </html>

@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=quote-settings-i18n-1`,
+		`v=quote-rule-editor-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=quote-settings-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-editor-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=quote-settings-i18n-1`,
+		`v=quote-rule-editor-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=quote-settings-i18n-1`,
+		`v=quote-rule-editor-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=quote-settings-i18n-1`,
+		`v=quote-rule-editor-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -870,7 +870,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=quote-settings-i18n-1`,
+		`v=quote-rule-editor-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -2131,6 +2131,21 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`Quote Selection`,
 		`No Quote Selection`,
 		`Clear Selection`,
+		`data-i18n="settings.quotes.quoteCell"`,
+		`data-i18n="settings.quotes.noQuoteSelection"`,
+		`data-i18n="settings.quotes.sourceColumn"`,
+		`data-i18n-aria-label="settings.quotes.sourceColumnAria"`,
+		`data-i18n="settings.quotes.columnAction"`,
+		`data-i18n="settings.quotes.action.quoteColumn"`,
+		`data-i18n="settings.quotes.columnPattern"`,
+		`data-i18n="settings.quotes.match.regex"`,
+		`data-i18n="settings.quotes.valuePattern"`,
+		`data-i18n="settings.quotes.action.noQuoteValues"`,
+		`data-i18n="settings.quotes.rowStart"`,
+		`data-i18n="settings.quotes.action.noQuoteRows"`,
+		`data-i18n="settings.quotes.ruleAction"`,
+		`data-i18n="settings.quotes.applyRule"`,
+		`data-i18n-aria-label="settings.quotes.activeRulesAria"`,
 		`Apply Column`,
 		`Apply Pattern`,
 		`Apply Values`,
@@ -2167,7 +2182,19 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		"function activeQuoteRuleItems(settings, limit = Number.POSITIVE_INFINITY)",
 		"activeQuoteRuleItems(settings, quoteRuleListRenderLimit)",
 		"document.body.dataset.quoteRuleListRendered = String(items.length)",
-		"Showing first ${formatCount(items.length)} of ${formatCount(totalItems)} quote rules.",
+		`"settings.quotes.quoteSelection": "选区加引号"`,
+		`"settings.quotes.action.noQuoteValues": "值不加引号"`,
+		`"settings.quotes.item.headerTitle": "表头行加引号"`,
+		`"settings.quotes.item.noCellTitle": "单元格 {{cell}} 不加引号"`,
+		`"settings.quotes.statusCellApplied": "{{action}}：{{cell}}。"`,
+		`"settings.quotes.statusRemoved": "已移除引号规则：{{rule}}。"`,
+		`t("settings.quotes.empty.noRules")`,
+		`t("settings.quotes.removeRule")`,
+		`tf("settings.quotes.statusCellApplied"`,
+		`tf("settings.quotes.statusRemoved"`,
+		`tf("settings.quotes.empty.showingFirst"`,
+		`tf("settings.quotes.item.columnTitle"`,
+		`tf("settings.quotes.item.noCellTitle"`,
 		"function applyActiveCellQuoteRule(mode)",
 		"function resolveQuoteRuleColumn(value)",
 		"function applyColumnQuoteRule()",
