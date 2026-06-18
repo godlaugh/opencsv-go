@@ -802,12 +802,12 @@
         </div>
         <div class="shortcut-macro-bar" aria-label="Command macro">
           <div>
-            <strong>Last Macro</strong>
+            <strong data-i18n="macro.title">Last Macro</strong>
             <span id="macroSummary">No recorded macro</span>
           </div>
           <div class="shortcut-macro-actions">
-            <button id="playMacroButton" type="button" data-command="macro.playLast">Play</button>
-            <button id="clearMacroButton" type="button" data-command="macro.clearLast">Clear</button>
+            <button id="playMacroButton" type="button" data-command="macro.playLast" data-i18n="macro.play">Play</button>
+            <button id="clearMacroButton" type="button" data-command="macro.clearLast" data-i18n="macro.clear">Clear</button>
           </div>
         </div>
         <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" />
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=macro-manager-1"></script>
+    <script type="module" src="./src/app.js?v=macro-i18n-1"></script>
   </body>
 </html>

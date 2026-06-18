@@ -670,6 +670,27 @@ const localeCatalog = {
     "text.status.failed": "{{label}} failed: {{message}}",
     "text.status.changed": "{{label}}: {{count}} cells changed",
     "text.status.noChange": "{{label}}: no cells changed",
+    "macro.title": "Last Macro",
+    "macro.none": "No recorded macro",
+    "macro.play": "Play",
+    "macro.clear": "Clear",
+    "macro.status.started": "Macro recording started.",
+    "macro.status.inactive": "Macro recording is not active.",
+    "macro.status.saved": "Saved macro with {{count}} commands.",
+    "macro.status.savedEmpty": "Saved empty macro.",
+    "macro.status.cleared": "Cleared last macro.",
+    "macro.status.emptyPlay": "No recorded macro to play.",
+    "macro.status.unavailable": "Command unavailable: {{command}}",
+    "macro.status.commandUnavailable": "{{command}} is unavailable.",
+    "macro.status.played": "Played macro: {{count}} commands.",
+    "command.macro.startRecording.title": "Start Macro Recording",
+    "command.macro.startRecording.description": "Start recording command IDs into a reusable command macro.",
+    "command.macro.stopRecording.title": "Stop Macro Recording",
+    "command.macro.stopRecording.description": "Stop recording and save the latest command macro locally.",
+    "command.macro.playLast.title": "Play Last Macro",
+    "command.macro.playLast.description": "Replay the latest recorded command macro against the current selection or surface.",
+    "command.macro.clearLast.title": "Clear Last Macro",
+    "command.macro.clearLast.description": "Clear the latest recorded command macro.",
     "edit.find": "Find",
     "edit.preview": "Preview",
     "edit.replace": "Replace",
@@ -1387,6 +1408,19 @@ const localeCatalog = {
     "text.status.failed": "{{label}}失败：{{message}}",
     "text.status.changed": "{{label}}：已更改 {{count}} 个单元格",
     "text.status.noChange": "{{label}}：没有单元格更改",
+    "macro.title": "最近宏",
+    "macro.none": "没有录制宏",
+    "macro.play": "播放",
+    "macro.clear": "清除",
+    "macro.status.started": "已开始录制宏。",
+    "macro.status.inactive": "宏录制未开启。",
+    "macro.status.saved": "已保存包含 {{count}} 个命令的宏。",
+    "macro.status.savedEmpty": "已保存空宏。",
+    "macro.status.cleared": "已清除最近宏。",
+    "macro.status.emptyPlay": "没有可播放的已录制宏。",
+    "macro.status.unavailable": "命令不可用：{{command}}",
+    "macro.status.commandUnavailable": "{{command}}不可用。",
+    "macro.status.played": "已播放宏：{{count}} 个命令。",
     "edit.find": "查找",
     "edit.preview": "预览",
     "edit.replace": "替换",
@@ -1862,6 +1896,14 @@ const localeCatalog = {
     "profile.quickFix.failed": "快速修复失败：{{message}}",
     "command.command.palette.title": "命令面板",
     "command.command.palette.description": "搜索并运行可用命令。",
+    "command.macro.startRecording.title": "开始录制宏",
+    "command.macro.startRecording.description": "开始将命令 ID 录制为可复用的命令宏。",
+    "command.macro.stopRecording.title": "停止录制宏",
+    "command.macro.stopRecording.description": "停止录制并在本地保存最近命令宏。",
+    "command.macro.playLast.title": "播放最近宏",
+    "command.macro.playLast.description": "在当前选区或界面上重放最近录制的命令宏。",
+    "command.macro.clearLast.title": "清除最近宏",
+    "command.macro.clearLast.description": "清除最近录制的命令宏。",
     "command.settings.open.title": "设置",
     "command.settings.open.description": "打开应用设置和文件格式预设管理。",
     "command.settings.keyboardShortcuts.title": "键盘快捷键",
@@ -2753,6 +2795,7 @@ function setLocalePreference(locale, persist = true) {
   }
   if (paletteOpen) renderCommandPalette();
   if (shortcutEditorOpen) renderKeyboardShortcuts();
+  renderMacroManager();
   if (lastDiffResult) renderDiffResult(lastDiffResult);
   if (lastSQLResult) renderSQLResult(lastSQLResult);
   if (profileData) renderProfile(profileData);
@@ -10251,8 +10294,9 @@ function renderMacroManager() {
   if (!macroSummary) return;
   const sequence = macroRecording ? macroDraftCommands : lastCommandMacro;
   const labels = sequence.map((commandID) => localizedCommandLabel(commandID, commandID));
-  macroSummary.textContent = labels.length ? labels.join(" -> ") : "No recorded macro";
-  macroSummary.title = sequence.join(",") || "No recorded macro";
+  const emptyLabel = t("macro.none");
+  macroSummary.textContent = labels.length ? labels.join(" -> ") : emptyLabel;
+  macroSummary.title = sequence.join(",") || emptyLabel;
   if (playMacroButton) playMacroButton.disabled = !lastCommandMacro.length;
   if (clearMacroButton) clearMacroButton.disabled = !lastCommandMacro.length && !macroDraftCommands.length;
   document.body.dataset.macroSummary = labels.join(" -> ");
@@ -10271,12 +10315,12 @@ function startMacroRecording() {
   delete document.body.dataset.macroPlayback;
   document.body.dataset.macroDraft = "";
   syncCommandMacroState();
-  status.textContent = "Macro recording started.";
+  status.textContent = t("macro.status.started");
 }
 
 function stopMacroRecording() {
   if (!macroRecording) {
-    status.textContent = "Macro recording is not active.";
+    status.textContent = t("macro.status.inactive");
     syncCommandMacroState();
     return;
   }
@@ -10286,8 +10330,8 @@ function stopMacroRecording() {
   document.body.dataset.macroDraft = "";
   syncCommandMacroState();
   status.textContent = lastCommandMacro.length
-    ? `Saved macro with ${formatCount(lastCommandMacro.length)} commands.`
-    : "Saved empty macro.";
+    ? tf("macro.status.saved", { count: formatCount(lastCommandMacro.length) })
+    : t("macro.status.savedEmpty");
 }
 
 function clearLastCommandMacro() {
@@ -10298,13 +10342,13 @@ function clearLastCommandMacro() {
   delete document.body.dataset.macroDraft;
   delete document.body.dataset.macroPlayback;
   syncCommandMacroState();
-  status.textContent = "Cleared last macro.";
+  status.textContent = t("macro.status.cleared");
 }
 
 async function playLastCommandMacro() {
   const sequence = normalizeCommandMacro(lastCommandMacro.length ? lastCommandMacro : loadLastCommandMacro());
   if (!sequence.length) {
-    status.textContent = "No recorded macro to play.";
+    status.textContent = t("macro.status.emptyPlay");
     syncCommandMacroState();
     return;
   }
@@ -10315,14 +10359,16 @@ async function playLastCommandMacro() {
       const command = commandsById.get(commandID);
       if (!command || isCommandDisabled(command)) {
         document.body.dataset.macroPlayback = `blocked:${commandID}`;
-        status.textContent = command ? `${localizedCommandTitle(command)} is unavailable.` : `Command unavailable: ${commandID}`;
+        status.textContent = command
+          ? tf("macro.status.commandUnavailable", { command: localizedCommandTitle(command) })
+          : tf("macro.status.unavailable", { command: commandID });
         return;
       }
       await executeCommand(commandID, { recordMacro: false });
     }
     lastCommandMacro = sequence;
     document.body.dataset.macroPlayback = `played:${sequence.length}`;
-    status.textContent = `Played macro: ${formatCount(sequence.length)} commands.`;
+    status.textContent = tf("macro.status.played", { count: formatCount(sequence.length) });
   } finally {
     macroPlaybackActive = false;
     syncCommandMacroState();

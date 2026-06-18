@@ -293,6 +293,16 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		"document.body.dataset.macroRecording",
 		"document.body.dataset.macroPlayback",
 		"document.body.dataset.macroSummary",
+		`t("macro.status.started")`,
+		`t("macro.status.inactive")`,
+		`tf("macro.status.saved"`,
+		`t("macro.status.savedEmpty")`,
+		`t("macro.status.cleared")`,
+		`t("macro.status.emptyPlay")`,
+		`tf("macro.status.played"`,
+		`t("macro.none")`,
+		`localizedCommandLabel(commandID, commandID)`,
+		`"command.macro.playLast.title": "播放最近宏"`,
 		"localStorage.setItem(commandMacroStorageKey",
 		"localStorage.removeItem(commandMacroStorageKey)",
 	} {
@@ -303,11 +313,14 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		`class="shortcut-macro-bar"`,
 		`id="macroSummary"`,
+		`data-i18n="macro.title"`,
 		`id="playMacroButton"`,
 		`data-command="macro.playLast"`,
+		`data-i18n="macro.play"`,
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
-		`v=macro-manager-1`,
+		`data-i18n="macro.clear"`,
+		`v=macro-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -322,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=macro-manager-1`) {
+	if !strings.Contains(html, `v=macro-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -639,7 +652,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=macro-manager-1`,
+		`v=macro-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
