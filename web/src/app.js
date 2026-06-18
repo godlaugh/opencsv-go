@@ -1061,6 +1061,29 @@ const localeCatalog = {
     "settings.quotes.statusResetFailed": "Quote policy reset failed: {{message}}",
     "settings.quotes.statusSet": "Quote policy set to {{summary}}.",
     "settings.quotes.statusReset": "Quote policy reset.",
+    "settings.policy.delimiter": "Delimiter",
+    "settings.policy.customDelimiter": "Custom",
+    "settings.policy.encoding": "Encoding",
+    "settings.policy.lineEnding": "Line Ending",
+    "settings.policy.delimiterAria": "Delimiter",
+    "settings.policy.customDelimiterAria": "Custom delimiter",
+    "settings.policy.encodingAria": "Encoding",
+    "settings.policy.lineEndingAria": "Line ending",
+    "settings.policy.applyDelimiter": "Apply Delim",
+    "settings.policy.applyEncoding": "Apply Enc",
+    "settings.policy.applyLineEnding": "Apply EOL",
+    "settings.policy.statusDelimiterOpenFile": "Open a file before changing delimiter.",
+    "settings.policy.statusDelimiterBlockedReadonly": "Delimiter blocked: document is read-only",
+    "settings.policy.statusDelimiterFailed": "Delimiter failed: {{message}}",
+    "settings.policy.statusDelimiterSet": "Delimiter set to {{delimiter}}.",
+    "settings.policy.statusEncodingOpenFile": "Open a file before changing encoding.",
+    "settings.policy.statusEncodingBlockedReadonly": "Encoding blocked: document is read-only",
+    "settings.policy.statusEncodingFailed": "Encoding failed: {{message}}",
+    "settings.policy.statusEncodingSet": "Encoding set to {{encoding}}.",
+    "settings.policy.statusLineEndingOpenFile": "Open a file before changing line ending.",
+    "settings.policy.statusLineEndingBlockedReadonly": "Line ending blocked: document is read-only",
+    "settings.policy.statusLineEndingFailed": "Line ending failed: {{message}}",
+    "settings.policy.statusLineEndingSet": "Line ending set to {{lineEnding}}.",
     "settings.quotes.rulesAria": "Quote rules",
     "settings.quotes.headerRule": "Header",
     "settings.quotes.bodyRule": "Body",
@@ -2166,6 +2189,29 @@ const localeCatalog = {
     "settings.quotes.statusResetFailed": "引号策略重置失败：{{message}}",
     "settings.quotes.statusSet": "引号策略已设为 {{summary}}。",
     "settings.quotes.statusReset": "引号策略已重置。",
+    "settings.policy.delimiter": "分隔符",
+    "settings.policy.customDelimiter": "自定义",
+    "settings.policy.encoding": "编码",
+    "settings.policy.lineEnding": "换行",
+    "settings.policy.delimiterAria": "分隔符",
+    "settings.policy.customDelimiterAria": "自定义分隔符",
+    "settings.policy.encodingAria": "编码",
+    "settings.policy.lineEndingAria": "换行",
+    "settings.policy.applyDelimiter": "应用分隔符",
+    "settings.policy.applyEncoding": "应用编码",
+    "settings.policy.applyLineEnding": "应用换行",
+    "settings.policy.statusDelimiterOpenFile": "更改分隔符前请先打开文件。",
+    "settings.policy.statusDelimiterBlockedReadonly": "分隔符被阻止：文档为只读",
+    "settings.policy.statusDelimiterFailed": "分隔符失败：{{message}}",
+    "settings.policy.statusDelimiterSet": "分隔符已设为 {{delimiter}}。",
+    "settings.policy.statusEncodingOpenFile": "更改编码前请先打开文件。",
+    "settings.policy.statusEncodingBlockedReadonly": "编码被阻止：文档为只读",
+    "settings.policy.statusEncodingFailed": "编码失败：{{message}}",
+    "settings.policy.statusEncodingSet": "编码已设为 {{encoding}}。",
+    "settings.policy.statusLineEndingOpenFile": "更改换行前请先打开文件。",
+    "settings.policy.statusLineEndingBlockedReadonly": "换行被阻止：文档为只读",
+    "settings.policy.statusLineEndingFailed": "换行失败：{{message}}",
+    "settings.policy.statusLineEndingSet": "换行已设为 {{lineEnding}}。",
     "settings.quotes.rulesAria": "引号规则",
     "settings.quotes.headerRule": "表头",
     "settings.quotes.bodyRule": "正文",
@@ -5242,11 +5288,11 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "format.saveRule") {
       button.textContent = "Save Rule";
     } else if (button.dataset.command === "format.applyDelimiter") {
-      button.textContent = "Apply Delim";
+      button.textContent = t("settings.policy.applyDelimiter");
     } else if (button.dataset.command === "format.applyEncoding") {
-      button.textContent = "Apply Enc";
+      button.textContent = t("settings.policy.applyEncoding");
     } else if (button.dataset.command === "format.applyLineEnding") {
-      button.textContent = "Apply EOL";
+      button.textContent = t("settings.policy.applyLineEnding");
     } else if (button.dataset.command === "format.applyQuotePolicy") {
       button.textContent = t("settings.quotes.apply");
     } else if (button.dataset.command === "format.exportQuoteRules") {
@@ -5610,6 +5656,18 @@ function delimiterControlValue() {
     return { delimiter: Array.from(custom)[0] || ",", delimiterName: Array.from(custom)[0] || "," };
   }
   return normalizeDelimiterOverride(option);
+}
+
+function delimiterSettingsLabel(dialect = metadata?.dialect) {
+  const option = delimiterOptionValue(dialect);
+  if (option !== "custom") return t(`settings.formats.delimiter.${option}`);
+  return delimiterLabel(dialect);
+}
+
+function encodingSettingsLabel(info = metadata?.encoding) {
+  const value = encodingValue(info);
+  if (value === "legacy-single-byte") return t("settings.formats.encoding.legacy");
+  return encodingLabel(info);
 }
 
 function lineEndingLabel(info = metadata?.lineEnding) {
@@ -6924,11 +6982,11 @@ function resetFormatPresets() {
 
 async function applyDelimiter() {
   if (!documentId) {
-    status.textContent = "Open a file before changing delimiter.";
+    status.textContent = t("settings.policy.statusDelimiterOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Delimiter blocked: document is read-only";
+    status.textContent = t("settings.policy.statusDelimiterBlockedReadonly");
     return;
   }
   const { delimiter, delimiterName } = delimiterControlValue();
@@ -6939,25 +6997,26 @@ async function applyDelimiter() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Delimiter failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.policy.statusDelimiterFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   delimiterDraftDirty = false;
-  applyMutationPayload(payload, `Delimiter set to ${delimiterLabel({ delimiter, delimiterName })}.`);
+  const label = delimiterSettingsLabel({ delimiter, delimiterName });
+  applyMutationPayload(payload, tf("settings.policy.statusDelimiterSet", { delimiter: label }));
   syncDelimiterControls();
   updateFormatStatus();
   updateInspector();
-  status.textContent = `Delimiter set to ${delimiterLabel({ delimiter, delimiterName })}.`;
+  status.textContent = tf("settings.policy.statusDelimiterSet", { delimiter: label });
   document.body.dataset.delimiterPolicy = delimiterName;
 }
 
 async function applyEncoding() {
   if (!documentId) {
-    status.textContent = "Open a file before changing encoding.";
+    status.textContent = t("settings.policy.statusEncodingOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Encoding blocked: document is read-only";
+    status.textContent = t("settings.policy.statusEncodingBlockedReadonly");
     return;
   }
   const encodingName = encodingValue({ name: encodingSelect.value });
@@ -6968,15 +7027,16 @@ async function applyEncoding() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Encoding failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.policy.statusEncodingFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   encodingDraftDirty = false;
-  applyMutationPayload(payload, `Encoding set to ${encodingLabel({ name: encodingName })}.`);
+  const label = encodingSettingsLabel({ name: encodingName });
+  applyMutationPayload(payload, tf("settings.policy.statusEncodingSet", { encoding: label }));
   syncEncodingControls();
   updateFormatStatus();
   updateInspector();
-  status.textContent = `Encoding set to ${encodingLabel(metadata?.encoding)}.`;
+  status.textContent = tf("settings.policy.statusEncodingSet", { encoding: encodingSettingsLabel(metadata?.encoding) });
   document.body.dataset.encodingPolicy = encodingValue(metadata?.encoding);
 }
 
@@ -7066,11 +7126,11 @@ async function resetQuotePolicySettings() {
 
 async function applyLineEnding() {
   if (!documentId) {
-    status.textContent = "Open a file before changing line ending.";
+    status.textContent = t("settings.policy.statusLineEndingOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Line ending blocked: document is read-only";
+    status.textContent = t("settings.policy.statusLineEndingBlockedReadonly");
     return;
   }
   const lineEnding = normalizeLineEndingName(lineEndingSelect.value);
@@ -7081,18 +7141,19 @@ async function applyLineEnding() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Line ending failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.policy.statusLineEndingFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   lineEndingDraftDirty = false;
-  applyMutationPayload(payload, `Line ending set to ${lineEnding.toUpperCase()}.`);
+  const label = lineEnding.toUpperCase();
+  applyMutationPayload(payload, tf("settings.policy.statusLineEndingSet", { lineEnding: label }));
   if (metadata) {
     metadata.lineEnding = { name: lineEnding, sequence: lineEndingSequence(lineEnding), confidence: 1 };
   }
   syncLineEndingControls();
   updateFormatStatus();
   updateInspector();
-  status.textContent = `Line ending set to ${lineEnding.toUpperCase()}.`;
+  status.textContent = tf("settings.policy.statusLineEndingSet", { lineEnding: label });
   document.body.dataset.lineEndingPolicy = lineEnding;
 }
 

@@ -421,24 +421,24 @@
               </header>
               <div class="settings-policy-grid">
                 <label>
-                  <span>Delimiter</span>
-                  <select id="delimiterSelect" aria-label="Delimiter">
-                    <option value="comma">Comma</option>
-                    <option value="tab">Tab</option>
-                    <option value="semicolon">Semicolon</option>
-                    <option value="pipe">Pipe</option>
-                    <option value="space">Space</option>
-                    <option value="custom">Custom</option>
+                  <span data-i18n="settings.policy.delimiter">Delimiter</span>
+                  <select id="delimiterSelect" aria-label="Delimiter" data-i18n-aria-label="settings.policy.delimiterAria">
+                    <option value="comma" data-i18n="settings.formats.delimiter.comma">Comma</option>
+                    <option value="tab" data-i18n="settings.formats.delimiter.tab">Tab</option>
+                    <option value="semicolon" data-i18n="settings.formats.delimiter.semicolon">Semicolon</option>
+                    <option value="pipe" data-i18n="settings.formats.delimiter.pipe">Pipe</option>
+                    <option value="space" data-i18n="settings.formats.delimiter.space">Space</option>
+                    <option value="custom" data-i18n="settings.formats.delimiter.custom">Custom</option>
                   </select>
                 </label>
                 <label>
-                  <span>Custom</span>
-                  <input id="delimiterCustomInput" type="text" maxlength="1" aria-label="Custom delimiter" />
+                  <span data-i18n="settings.policy.customDelimiter">Custom</span>
+                  <input id="delimiterCustomInput" type="text" maxlength="1" aria-label="Custom delimiter" data-i18n-aria-label="settings.policy.customDelimiterAria" />
                 </label>
-                <button id="applyDelimiterButton" type="button" data-command="format.applyDelimiter">Apply Delim</button>
+                <button id="applyDelimiterButton" type="button" data-command="format.applyDelimiter" data-i18n="settings.policy.applyDelimiter">Apply Delim</button>
                 <label>
-                  <span>Encoding</span>
-                  <select id="encodingSelect" aria-label="Encoding">
+                  <span data-i18n="settings.policy.encoding">Encoding</span>
+                  <select id="encodingSelect" aria-label="Encoding" data-i18n-aria-label="settings.policy.encodingAria">
                     <option value="utf-8">UTF-8</option>
                     <option value="utf-8-bom">UTF-8 BOM</option>
                     <option value="utf-16le">UTF-16 LE</option>
@@ -448,10 +448,10 @@
                     <option value="shift-jis">Shift-JIS</option>
                     <option value="gbk">GBK</option>
                     <option value="windows-1252">Windows-1252</option>
-                    <option value="legacy-single-byte">Legacy byte</option>
+                    <option value="legacy-single-byte" data-i18n="settings.formats.encoding.legacy">Legacy byte</option>
                   </select>
                 </label>
-                <button id="applyEncodingButton" type="button" data-command="format.applyEncoding">Apply Enc</button>
+                <button id="applyEncodingButton" type="button" data-command="format.applyEncoding" data-i18n="settings.policy.applyEncoding">Apply Enc</button>
                 <label>
                   <span data-i18n="settings.quotes.mode">Mode</span>
                   <select id="quoteModeSelect" aria-label="Quote mode" data-i18n-aria-label="settings.quotes.modeAria">
@@ -478,14 +478,14 @@
                 </label>
                 <button id="applyQuotePolicyButton" type="button" data-command="format.applyQuotePolicy" data-i18n="settings.quotes.apply">Apply Quote</button>
                 <label>
-                  <span>Line Ending</span>
-                  <select id="lineEndingSelect" aria-label="Line ending">
+                  <span data-i18n="settings.policy.lineEnding">Line Ending</span>
+                  <select id="lineEndingSelect" aria-label="Line ending" data-i18n-aria-label="settings.policy.lineEndingAria">
                     <option value="lf">LF</option>
                     <option value="crlf">CRLF</option>
                     <option value="cr">CR</option>
                   </select>
                 </label>
-                <button id="applyLineEndingButton" type="button" data-command="format.applyLineEnding">Apply EOL</button>
+                <button id="applyLineEndingButton" type="button" data-command="format.applyLineEnding" data-i18n="settings.policy.applyLineEnding">Apply EOL</button>
               </div>
               <div class="quote-rule-grid" aria-label="Quote rules" data-i18n-aria-label="settings.quotes.rulesAria">
                 <label class="quote-rule-toggle">
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=quote-rule-editor-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=format-policy-i18n-1"></script>
   </body>
 </html>

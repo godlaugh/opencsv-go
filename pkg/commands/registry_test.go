@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=quote-rule-editor-i18n-1`,
+		`v=format-policy-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=quote-rule-editor-i18n-1`) {
+	if !strings.Contains(html, `v=format-policy-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=quote-rule-editor-i18n-1`,
+		`v=format-policy-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=quote-rule-editor-i18n-1`,
+		`v=format-policy-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=quote-rule-editor-i18n-1`,
+		`v=format-policy-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -850,6 +850,14 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.quotes.export"`,
 		`data-i18n="settings.quotes.import"`,
 		`data-i18n="settings.quotes.reset"`,
+		`data-i18n="settings.policy.delimiter"`,
+		`data-i18n-aria-label="settings.policy.delimiterAria"`,
+		`data-i18n="settings.policy.customDelimiter"`,
+		`data-i18n="settings.policy.applyDelimiter"`,
+		`data-i18n="settings.policy.encoding"`,
+		`data-i18n="settings.policy.applyEncoding"`,
+		`data-i18n="settings.policy.lineEnding"`,
+		`data-i18n="settings.policy.applyLineEnding"`,
 		`data-i18n="settings.quotes.mode"`,
 		`data-i18n-aria-label="settings.quotes.modeAria"`,
 		`data-i18n="settings.quotes.mode.manual"`,
@@ -870,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=quote-rule-editor-i18n-1`,
+		`v=format-policy-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -893,6 +901,10 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.quotes.escape.backslash": "反斜杠"`,
 		`"settings.quotes.statusSet": "引号策略已设为 {{summary}}。"`,
 		`"settings.quotes.statusReset": "引号策略已重置。"`,
+		`"settings.policy.applyDelimiter": "应用分隔符"`,
+		`"settings.policy.statusDelimiterSet": "分隔符已设为 {{delimiter}}。"`,
+		`"settings.policy.statusEncodingSet": "编码已设为 {{encoding}}。"`,
+		`"settings.policy.statusLineEndingSet": "换行已设为 {{lineEnding}}。"`,
 		`"settings.appearance.gridFont": "表格字体"`,
 		`"settings.appearance.row.default": "默认 · 28px"`,
 		`"settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则"`,
@@ -914,6 +926,12 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`tf("settings.linkProtocols.statusAllowed"`,
 		`tf("settings.linkProtocols.errorUnsafe"`,
 		`t("settings.quotes.apply")`,
+		`t("settings.policy.applyDelimiter")`,
+		`t("settings.policy.applyEncoding")`,
+		`t("settings.policy.applyLineEnding")`,
+		`tf("settings.policy.statusDelimiterSet"`,
+		`tf("settings.policy.statusEncodingSet"`,
+		`tf("settings.policy.statusLineEndingSet"`,
 		`tf("settings.quotes.summary"`,
 		`tf("settings.quotes.statusSet"`,
 		`t("settings.quotes.statusReset")`,
