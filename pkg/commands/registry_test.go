@@ -35,6 +35,7 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"macro.startRecording",
 		"macro.stopRecording",
 		"macro.playLast",
+		"macro.clearLast",
 		"workbench.splitEditor",
 		"workbench.toggleSplitOrientation",
 		"workbench.focusNextGroup",
@@ -261,16 +262,24 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	source := string(appJS)
+	html := string(indexHTML)
+	css := string(styles)
 	for _, snippet := range []string{
 		`const commandMacroStorageKey = "opencsv-command-macro-last"`,
-		`const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "command.palette"])`,
+		`const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "macro.clearLast", "command.palette"])`,
 		"let macroRecording = false",
 		"let macroPlaybackActive = false",
 		"let macroDraftCommands = []",
 		"let lastCommandMacro = loadLastCommandMacro()",
+		"function renderMacroManager()",
 		"function startMacroRecording()",
 		"function stopMacroRecording()",
+		"function clearLastCommandMacro()",
 		"async function playLastCommandMacro()",
 		"function recordMacroCommand(commandID)",
 		"if (options.recordMacro !== false) recordMacroCommand(commandID)",
@@ -278,15 +287,42 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`case "macro.startRecording"`,
 		`case "macro.stopRecording"`,
 		`case "macro.playLast"`,
+		`case "macro.clearLast"`,
+		`playMacroButton?.addEventListener("click", () => executeCommand("macro.playLast"))`,
+		`clearMacroButton?.addEventListener("click", () => executeCommand("macro.clearLast"))`,
 		"document.body.dataset.macroRecording",
 		"document.body.dataset.macroPlayback",
+		"document.body.dataset.macroSummary",
 		"localStorage.setItem(commandMacroStorageKey",
+		"localStorage.removeItem(commandMacroStorageKey)",
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing command macro wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(string(indexHTML), `v=macro-1`) {
+	for _, snippet := range []string{
+		`class="shortcut-macro-bar"`,
+		`id="macroSummary"`,
+		`id="playMacroButton"`,
+		`data-command="macro.playLast"`,
+		`id="clearMacroButton"`,
+		`data-command="macro.clearLast"`,
+		`v=macro-manager-1`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing command macro html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		".shortcut-macro-bar",
+		".shortcut-macro-actions",
+		"grid-template-rows: auto auto auto auto auto minmax(0, 1fr)",
+	} {
+		if !strings.Contains(css, snippet) {
+			t.Fatalf("missing command macro style wiring %q", snippet)
+		}
+	}
+	if !strings.Contains(html, `v=macro-manager-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -603,7 +639,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=macro-1`,
+		`v=macro-manager-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)

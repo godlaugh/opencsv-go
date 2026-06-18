@@ -290,6 +290,9 @@ const paletteList = document.querySelector("#paletteList");
 const shortcutsPanel = document.querySelector("#shortcutsPanel");
 const shortcutPresetSelect = document.querySelector("#shortcutPresetSelect");
 const applyShortcutPresetButton = document.querySelector("#applyShortcutPresetButton");
+const macroSummary = document.querySelector("#macroSummary");
+const playMacroButton = document.querySelector("#playMacroButton");
+const clearMacroButton = document.querySelector("#clearMacroButton");
 const shortcutsSearch = document.querySelector("#shortcutsSearch");
 const shortcutsList = document.querySelector("#shortcutsList");
 const closeShortcutsButton = document.querySelector("#closeShortcutsButton");
@@ -406,7 +409,7 @@ const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const commandMacroStorageKey = "opencsv-command-macro-last";
-const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "command.palette"]);
+const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "macro.clearLast", "command.palette"]);
 const defaultSQLQuery = "SELECT * FROM current LIMIT 25";
 const defaultSQLPaneSize = 320;
 const minSQLPaneSize = 180;
@@ -8505,6 +8508,7 @@ function openKeyboardShortcuts() {
   shortcutImportText.value = "";
   syncShortcutImportControls();
   shortcutsPanel.hidden = false;
+  renderMacroManager();
   renderKeyboardShortcuts();
   shortcutsSearch.focus();
 }
@@ -10240,6 +10244,18 @@ function syncCommandMacroState() {
   document.body.dataset.macroRecording = String(macroRecording);
   document.body.dataset.macroLength = String(macroRecording ? macroDraftCommands.length : lastCommandMacro.length);
   document.body.dataset.macroLast = lastCommandMacro.join(",");
+  renderMacroManager();
+}
+
+function renderMacroManager() {
+  if (!macroSummary) return;
+  const sequence = macroRecording ? macroDraftCommands : lastCommandMacro;
+  const labels = sequence.map((commandID) => localizedCommandLabel(commandID, commandID));
+  macroSummary.textContent = labels.length ? labels.join(" -> ") : "No recorded macro";
+  macroSummary.title = sequence.join(",") || "No recorded macro";
+  if (playMacroButton) playMacroButton.disabled = !lastCommandMacro.length;
+  if (clearMacroButton) clearMacroButton.disabled = !lastCommandMacro.length && !macroDraftCommands.length;
+  document.body.dataset.macroSummary = labels.join(" -> ");
 }
 
 function recordMacroCommand(commandID) {
@@ -10272,6 +10288,17 @@ function stopMacroRecording() {
   status.textContent = lastCommandMacro.length
     ? `Saved macro with ${formatCount(lastCommandMacro.length)} commands.`
     : "Saved empty macro.";
+}
+
+function clearLastCommandMacro() {
+  macroRecording = false;
+  macroDraftCommands = [];
+  lastCommandMacro = [];
+  localStorage.removeItem(commandMacroStorageKey);
+  delete document.body.dataset.macroDraft;
+  delete document.body.dataset.macroPlayback;
+  syncCommandMacroState();
+  status.textContent = "Cleared last macro.";
 }
 
 async function playLastCommandMacro() {
@@ -10360,6 +10387,9 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "macro.playLast":
       await playLastCommandMacro();
+      break;
+    case "macro.clearLast":
+      clearLastCommandMacro();
       break;
     case "workbench.toggleTheme":
       cycleTheme();
@@ -21674,6 +21704,8 @@ applyShortcutPresetButton.addEventListener("click", applyShortcutPreset);
 exportShortcutsButton.addEventListener("click", () => executeCommand("settings.exportShortcuts"));
 showImportShortcutsButton.addEventListener("click", () => executeCommand("settings.importShortcuts"));
 resetAllShortcutsButton.addEventListener("click", resetAllShortcuts);
+playMacroButton?.addEventListener("click", () => executeCommand("macro.playLast"));
+clearMacroButton?.addEventListener("click", () => executeCommand("macro.clearLast"));
 shortcutImportText.addEventListener("input", syncShortcutImportControls);
 applyShortcutImportButton.addEventListener("click", applyShortcutImport);
 cancelShortcutImportButton.addEventListener("click", cancelShortcutImport);

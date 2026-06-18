@@ -1804,7 +1804,7 @@ button:disabled {
   display: grid;
   width: min(760px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 120px));
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1824,6 +1824,7 @@ button:disabled {
 
 .shortcut-panel-actions,
 .shortcut-preset-bar,
+.shortcut-macro-actions,
 .shortcut-import-actions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1834,6 +1835,7 @@ button:disabled {
 
 .shortcut-panel-header button,
 .shortcut-preset-bar button,
+.shortcut-macro-bar button,
 .shortcut-import-actions button,
 .shortcut-actions button {
   min-height: 30px;
@@ -1842,6 +1844,34 @@ button:disabled {
   padding: 0 10px;
   background: var(--panel);
   color: var(--text);
+}
+
+.shortcut-macro-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  background: var(--panel);
+}
+
+.shortcut-macro-bar > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.shortcut-macro-bar strong {
+  font-size: 12px;
+}
+
+.shortcut-macro-bar span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcut-preset-bar {
