@@ -1028,6 +1028,29 @@ const localeCatalog = {
     "settings.linkProtocols.statusReset": "Link protocols reset.",
     "settings.linkProtocols.errorUnsafe": "{{protocol}} is unsafe and cannot be allowed.",
     "settings.editorAppearance": "Editor Appearance",
+    "settings.appearance.gridFont": "Grid Font",
+    "settings.appearance.gridSize": "Grid Size",
+    "settings.appearance.rowHeight": "Row Height",
+    "settings.appearance.editorFont": "Editor Font",
+    "settings.appearance.editorSize": "Editor Size",
+    "settings.appearance.gridFontAria": "Grid font",
+    "settings.appearance.gridSizeAria": "Grid font size",
+    "settings.appearance.rowHeightAria": "Grid row height",
+    "settings.appearance.editorFontAria": "Text editor font",
+    "settings.appearance.editorSizeAria": "Text editor font size",
+    "settings.appearance.font.mono": "Mono",
+    "settings.appearance.font.sans": "Sans",
+    "settings.appearance.font.serif": "Serif",
+    "settings.appearance.row.compact": "Compact · 24px",
+    "settings.appearance.row.default": "Default · 28px",
+    "settings.appearance.row.roomy": "Roomy · 32px",
+    "settings.appearance.row.comfortable": "Comfortable · 36px",
+    "settings.appearance.row.spacious": "Spacious · 44px",
+    "settings.appearance.defaultSummary": "Default appearance",
+    "settings.appearance.summary": "Grid {{gridFont}} {{gridSize}}px · Row {{rowHeight}}px · Editor {{editorFont}} {{editorSize}}px",
+    "settings.appearance.reset": "Reset Appearance",
+    "settings.appearance.statusUpdated": "Editor appearance updated.",
+    "settings.appearance.statusReset": "Editor appearance reset.",
     "settings.fileFormatPresets": "File Format Presets",
     "shortcut.export": "Export",
     "shortcut.import": "Import",
@@ -1911,6 +1934,29 @@ const localeCatalog = {
     "settings.linkProtocols.statusReset": "链接协议已重置。",
     "settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。",
     "settings.editorAppearance": "编辑器外观",
+    "settings.appearance.gridFont": "表格字体",
+    "settings.appearance.gridSize": "表格字号",
+    "settings.appearance.rowHeight": "行高",
+    "settings.appearance.editorFont": "编辑器字体",
+    "settings.appearance.editorSize": "编辑器字号",
+    "settings.appearance.gridFontAria": "表格字体",
+    "settings.appearance.gridSizeAria": "表格字号",
+    "settings.appearance.rowHeightAria": "表格行高",
+    "settings.appearance.editorFontAria": "文本编辑器字体",
+    "settings.appearance.editorSizeAria": "文本编辑器字号",
+    "settings.appearance.font.mono": "等宽",
+    "settings.appearance.font.sans": "无衬线",
+    "settings.appearance.font.serif": "衬线",
+    "settings.appearance.row.compact": "紧凑 · 24px",
+    "settings.appearance.row.default": "默认 · 28px",
+    "settings.appearance.row.roomy": "宽松 · 32px",
+    "settings.appearance.row.comfortable": "舒适 · 36px",
+    "settings.appearance.row.spacious": "宽敞 · 44px",
+    "settings.appearance.defaultSummary": "默认外观",
+    "settings.appearance.summary": "表格 {{gridFont}} {{gridSize}}px · 行高 {{rowHeight}}px · 编辑器 {{editorFont}} {{editorSize}}px",
+    "settings.appearance.reset": "重置外观",
+    "settings.appearance.statusUpdated": "编辑器外观已更新。",
+    "settings.appearance.statusReset": "编辑器外观已重置。",
     "settings.fileFormatPresets": "文件格式预设",
     "shortcut.export": "导出",
     "shortcut.import": "导入",
@@ -3213,6 +3259,7 @@ function applyLocaleStrings() {
   syncThemeControls();
   syncAutoRefreshControls();
   syncUpdateCheckControls();
+  syncEditorAppearanceControls();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
@@ -3953,7 +4000,15 @@ function syncEditorAppearanceControls() {
   gridRowHeightSelect.value = String(editorAppearance.gridRowHeight);
   textEditorFontSelect.value = editorAppearance.editorFont;
   textEditorFontSizeInput.value = String(editorAppearance.editorSize);
-  settingsAppearanceSummary.textContent = `Grid ${editorAppearance.gridSize}px · Row ${editorAppearance.gridRowHeight}px · Editor ${editorAppearance.editorSize}px`;
+  settingsAppearanceSummary.textContent = editorAppearanceModified()
+    ? tf("settings.appearance.summary", {
+        gridFont: t(`settings.appearance.font.${editorAppearance.gridFont}`),
+        gridSize: editorAppearance.gridSize,
+        rowHeight: editorAppearance.gridRowHeight,
+        editorFont: t(`settings.appearance.font.${editorAppearance.editorFont}`),
+        editorSize: editorAppearance.editorSize,
+      })
+    : t("settings.appearance.defaultSummary");
   resetEditorAppearanceButton.disabled = !editorAppearanceModified();
 }
 
@@ -3970,13 +4025,13 @@ function updateEditorAppearanceFromControls() {
     editorSize: textEditorFontSizeInput.value,
   });
   renderSettingsPanel();
-  status.textContent = "Editor appearance updated.";
+  status.textContent = t("settings.appearance.statusUpdated");
 }
 
 function resetEditorAppearance() {
   applyEditorAppearance(defaultEditorAppearance);
   renderSettingsPanel();
-  status.textContent = "Editor appearance reset.";
+  status.textContent = t("settings.appearance.statusReset");
 }
 
 function gridBodyFont() {

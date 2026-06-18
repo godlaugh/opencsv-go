@@ -608,45 +608,45 @@
             </section>
             <section class="settings-section settings-appearance-section" aria-label="Editor appearance">
               <header>
-                <strong>Editor Appearance</strong>
+                <strong data-i18n="settings.editorAppearance">Editor Appearance</strong>
                 <span id="settingsAppearanceSummary">Default appearance</span>
               </header>
               <div class="settings-appearance-grid">
                 <label>
-                  <span>Grid Font</span>
-                  <select id="gridFontSelect" aria-label="Grid font">
-                    <option value="mono">Mono</option>
-                    <option value="sans">Sans</option>
-                    <option value="serif">Serif</option>
+                  <span data-i18n="settings.appearance.gridFont">Grid Font</span>
+                  <select id="gridFontSelect" aria-label="Grid font" data-i18n-aria-label="settings.appearance.gridFontAria">
+                    <option value="mono" data-i18n="settings.appearance.font.mono">Mono</option>
+                    <option value="sans" data-i18n="settings.appearance.font.sans">Sans</option>
+                    <option value="serif" data-i18n="settings.appearance.font.serif">Serif</option>
                   </select>
                 </label>
                 <label>
-                  <span>Grid Size</span>
-                  <input id="gridFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Grid font size" />
+                  <span data-i18n="settings.appearance.gridSize">Grid Size</span>
+                  <input id="gridFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Grid font size" data-i18n-aria-label="settings.appearance.gridSizeAria" />
                 </label>
                 <label>
-                  <span>Row Height</span>
-                  <select id="gridRowHeightSelect" aria-label="Grid row height">
-                    <option value="24">Compact · 24px</option>
-                    <option value="28">Default · 28px</option>
-                    <option value="32">Roomy · 32px</option>
-                    <option value="36">Comfortable · 36px</option>
-                    <option value="44">Spacious · 44px</option>
+                  <span data-i18n="settings.appearance.rowHeight">Row Height</span>
+                  <select id="gridRowHeightSelect" aria-label="Grid row height" data-i18n-aria-label="settings.appearance.rowHeightAria">
+                    <option value="24" data-i18n="settings.appearance.row.compact">Compact · 24px</option>
+                    <option value="28" data-i18n="settings.appearance.row.default">Default · 28px</option>
+                    <option value="32" data-i18n="settings.appearance.row.roomy">Roomy · 32px</option>
+                    <option value="36" data-i18n="settings.appearance.row.comfortable">Comfortable · 36px</option>
+                    <option value="44" data-i18n="settings.appearance.row.spacious">Spacious · 44px</option>
                   </select>
                 </label>
                 <label>
-                  <span>Editor Font</span>
-                  <select id="textEditorFontSelect" aria-label="Text editor font">
-                    <option value="mono">Mono</option>
-                    <option value="sans">Sans</option>
-                    <option value="serif">Serif</option>
+                  <span data-i18n="settings.appearance.editorFont">Editor Font</span>
+                  <select id="textEditorFontSelect" aria-label="Text editor font" data-i18n-aria-label="settings.appearance.editorFontAria">
+                    <option value="mono" data-i18n="settings.appearance.font.mono">Mono</option>
+                    <option value="sans" data-i18n="settings.appearance.font.sans">Sans</option>
+                    <option value="serif" data-i18n="settings.appearance.font.serif">Serif</option>
                   </select>
                 </label>
                 <label>
-                  <span>Editor Size</span>
-                  <input id="textEditorFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Text editor font size" />
+                  <span data-i18n="settings.appearance.editorSize">Editor Size</span>
+                  <input id="textEditorFontSizeInput" type="number" min="11" max="18" step="1" aria-label="Text editor font size" data-i18n-aria-label="settings.appearance.editorSizeAria" />
                 </label>
-                <button id="resetEditorAppearanceButton" type="button">Reset Appearance</button>
+                <button id="resetEditorAppearanceButton" type="button" data-i18n="settings.appearance.reset">Reset Appearance</button>
               </div>
             </section>
             <section class="settings-section" aria-label="File format presets">
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=linksettings-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=appearance-i18n-1"></script>
   </body>
 </html>
