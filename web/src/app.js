@@ -557,6 +557,11 @@ const localeCatalog = {
     "nav.settings": "Settings",
     "nav.shortcuts": "Keys",
     "nav.command": "Cmd",
+    "command.paletteAria": "Command palette",
+    "command.searchAria": "Command",
+    "command.searchPlaceholder": "Search commands",
+    "command.listAria": "Commands",
+    "command.noMatches": "No matching commands",
     "common.close": "Close",
     "common.cancel": "Cancel",
     "file.open": "Open",
@@ -1348,9 +1353,16 @@ const localeCatalog = {
   },
   "zh-cn": {
     "nav.grid": "网格",
+    "nav.sql": "SQL",
     "nav.profile": "概况",
     "nav.settings": "设置",
     "nav.shortcuts": "快捷键",
+    "nav.command": "Cmd",
+    "command.paletteAria": "命令面板",
+    "command.searchAria": "命令",
+    "command.searchPlaceholder": "搜索命令",
+    "command.listAria": "命令",
+    "command.noMatches": "没有匹配命令",
     "common.close": "关闭",
     "common.cancel": "取消",
     "file.open": "打开",
@@ -10281,7 +10293,7 @@ function renderCommandPalette() {
   paletteItems = scoredPaletteCommands(query);
   if (paletteIndex >= paletteItems.length) paletteIndex = Math.max(0, paletteItems.length - 1);
   if (!paletteItems.length) {
-    paletteList.replaceChildren(emptyPaletteNode(t("shortcut.noMatches")));
+    paletteList.replaceChildren(emptyPaletteNode(t("command.noMatches")));
     return;
   }
   const fragment = document.createDocumentFragment();

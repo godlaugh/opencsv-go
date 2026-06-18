@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=shortcut-i18n-1`,
+		`v=palette-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,8 +335,47 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=shortcut-i18n-1`) {
+	if !strings.Contains(html, `v=palette-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
+	}
+}
+
+func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="commandPalette"`,
+		`data-i18n-aria-label="command.paletteAria"`,
+		`id="paletteInput"`,
+		`data-i18n-aria-label="command.searchAria"`,
+		`data-i18n-placeholder="command.searchPlaceholder"`,
+		`id="paletteList"`,
+		`data-i18n-aria-label="command.listAria"`,
+		`v=palette-i18n-1`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing command palette localized html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"command.paletteAria": "Command palette"`,
+		`"command.paletteAria": "命令面板"`,
+		`"command.searchPlaceholder": "搜索命令"`,
+		`"command.noMatches": "没有匹配命令"`,
+		`emptyPaletteNode(t("command.noMatches"))`,
+		`paletteInput.addEventListener("input"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing command palette localized frontend wiring %q", snippet)
+		}
 	}
 }
 
@@ -652,7 +691,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=shortcut-i18n-1`,
+		`v=palette-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)

@@ -774,9 +774,9 @@
     </main>
 
     <div id="commandPalette" class="command-palette-backdrop" hidden>
-      <section class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
-        <input id="paletteInput" type="text" autocomplete="off" spellcheck="false" aria-label="Command" />
-        <div id="paletteList" class="palette-list" role="listbox" aria-label="Commands"></div>
+      <section class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette" data-i18n-aria-label="command.paletteAria">
+        <input id="paletteInput" type="text" autocomplete="off" spellcheck="false" aria-label="Command" data-i18n-aria-label="command.searchAria" data-i18n-placeholder="command.searchPlaceholder" />
+        <div id="paletteList" class="palette-list" role="listbox" aria-label="Commands" data-i18n-aria-label="command.listAria"></div>
       </section>
     </div>
 
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=shortcut-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=palette-i18n-1"></script>
   </body>
 </html>
