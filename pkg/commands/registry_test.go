@@ -32,6 +32,9 @@ func TestRegistryHasUniqueIDs(t *testing.T) {
 		"settings.importShortcuts",
 		"settings.checkForUpdates",
 		"help.aboutSupport",
+		"macro.startRecording",
+		"macro.stopRecording",
+		"macro.playLast",
 		"workbench.splitEditor",
 		"workbench.toggleSplitOrientation",
 		"workbench.focusNextGroup",
@@ -246,6 +249,45 @@ func TestFileCloseTabShortcutDefault(t *testing.T) {
 	}
 	if command.Shortcut != "Cmd+W" {
 		t.Fatalf("file.closeTab shortcut = %q, want Cmd+W", command.Shortcut)
+	}
+}
+
+func TestCommandMacroRecordingIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		`const commandMacroStorageKey = "opencsv-command-macro-last"`,
+		`const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "command.palette"])`,
+		"let macroRecording = false",
+		"let macroPlaybackActive = false",
+		"let macroDraftCommands = []",
+		"let lastCommandMacro = loadLastCommandMacro()",
+		"function startMacroRecording()",
+		"function stopMacroRecording()",
+		"async function playLastCommandMacro()",
+		"function recordMacroCommand(commandID)",
+		"if (options.recordMacro !== false) recordMacroCommand(commandID)",
+		`await executeCommand(commandID, { recordMacro: false })`,
+		`case "macro.startRecording"`,
+		`case "macro.stopRecording"`,
+		`case "macro.playLast"`,
+		"document.body.dataset.macroRecording",
+		"document.body.dataset.macroPlayback",
+		"localStorage.setItem(commandMacroStorageKey",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing command macro wiring %q", snippet)
+		}
+	}
+	if !strings.Contains(string(indexHTML), `v=macro-1`) {
+		t.Fatal("missing macro script cache-bust version")
 	}
 }
 
@@ -561,7 +603,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=sql-pane-size-1`,
+		`v=macro-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)

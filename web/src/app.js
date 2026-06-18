@@ -405,6 +405,8 @@ const recentFilesStorageKey = "opencsv-recent-files";
 const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
+const commandMacroStorageKey = "opencsv-command-macro-last";
+const macroControlCommandIDs = new Set(["macro.startRecording", "macro.stopRecording", "macro.playLast", "command.palette"]);
 const defaultSQLQuery = "SELECT * FROM current LIMIT 25";
 const defaultSQLPaneSize = 320;
 const minSQLPaneSize = 180;
@@ -2333,6 +2335,10 @@ let customShortcuts = new Map();
 let shortcutEditorOpen = false;
 let recordingShortcutID = "";
 let pendingShortcutConflict = null;
+let macroRecording = false;
+let macroPlaybackActive = false;
+let macroDraftCommands = [];
+let lastCommandMacro = loadLastCommandMacro();
 let conditionBuilderOpen = false;
 let conditionExtraRows = [];
 let columnMenuColumn = -1;
@@ -10213,8 +10219,92 @@ async function executePaletteCommand(commandID) {
   await executeCommand(commandID);
 }
 
-async function executeCommand(commandID) {
+function loadLastCommandMacro() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(commandMacroStorageKey) || "[]");
+    return normalizeCommandMacro(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeCommandMacro(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || "").trim())
+    .filter((item) => item && !macroControlCommandIDs.has(item))
+    .slice(0, 64);
+}
+
+function syncCommandMacroState() {
+  document.body.dataset.macroRecording = String(macroRecording);
+  document.body.dataset.macroLength = String(macroRecording ? macroDraftCommands.length : lastCommandMacro.length);
+  document.body.dataset.macroLast = lastCommandMacro.join(",");
+}
+
+function recordMacroCommand(commandID) {
+  if (!macroRecording || macroPlaybackActive || macroControlCommandIDs.has(commandID)) return;
+  macroDraftCommands = normalizeCommandMacro([...macroDraftCommands, commandID]);
+  document.body.dataset.macroLength = String(macroDraftCommands.length);
+  document.body.dataset.macroDraft = macroDraftCommands.join(",");
+}
+
+function startMacroRecording() {
+  macroRecording = true;
+  macroDraftCommands = [];
+  delete document.body.dataset.macroPlayback;
+  document.body.dataset.macroDraft = "";
+  syncCommandMacroState();
+  status.textContent = "Macro recording started.";
+}
+
+function stopMacroRecording() {
+  if (!macroRecording) {
+    status.textContent = "Macro recording is not active.";
+    syncCommandMacroState();
+    return;
+  }
+  macroRecording = false;
+  lastCommandMacro = normalizeCommandMacro(macroDraftCommands);
+  localStorage.setItem(commandMacroStorageKey, JSON.stringify(lastCommandMacro));
+  document.body.dataset.macroDraft = "";
+  syncCommandMacroState();
+  status.textContent = lastCommandMacro.length
+    ? `Saved macro with ${formatCount(lastCommandMacro.length)} commands.`
+    : "Saved empty macro.";
+}
+
+async function playLastCommandMacro() {
+  const sequence = normalizeCommandMacro(lastCommandMacro.length ? lastCommandMacro : loadLastCommandMacro());
+  if (!sequence.length) {
+    status.textContent = "No recorded macro to play.";
+    syncCommandMacroState();
+    return;
+  }
+  macroPlaybackActive = true;
+  document.body.dataset.macroPlayback = `running:${sequence.length}`;
+  try {
+    for (const commandID of sequence) {
+      const command = commandsById.get(commandID);
+      if (!command || isCommandDisabled(command)) {
+        document.body.dataset.macroPlayback = `blocked:${commandID}`;
+        status.textContent = command ? `${localizedCommandTitle(command)} is unavailable.` : `Command unavailable: ${commandID}`;
+        return;
+      }
+      await executeCommand(commandID, { recordMacro: false });
+    }
+    lastCommandMacro = sequence;
+    document.body.dataset.macroPlayback = `played:${sequence.length}`;
+    status.textContent = `Played macro: ${formatCount(sequence.length)} commands.`;
+  } finally {
+    macroPlaybackActive = false;
+    syncCommandMacroState();
+  }
+}
+
+async function executeCommand(commandID, options = {}) {
   rememberCommand(commandID);
+  if (options.recordMacro !== false) recordMacroCommand(commandID);
   const sqlResultCommand = sqlResultCommandFormats[commandID];
   if (sqlResultCommand?.action === "copy") {
     await copySQLResult(sqlResultCommand.format);
@@ -10261,6 +10351,15 @@ async function executeCommand(commandID) {
       break;
     case "help.aboutSupport":
       openAboutSupportPanel();
+      break;
+    case "macro.startRecording":
+      startMacroRecording();
+      break;
+    case "macro.stopRecording":
+      stopMacroRecording();
+      break;
+    case "macro.playLast":
+      await playLastCommandMacro();
       break;
     case "workbench.toggleTheme":
       cycleTheme();
@@ -21876,5 +21975,6 @@ refreshFilterDropdown();
 renderSettingsPanel();
 syncStatusbarSurface("grid");
 syncPlatformDialogButtonOrder();
+syncCommandMacroState();
 openInitialURLTarget();
 maybeRunStartupUpdateCheck();
