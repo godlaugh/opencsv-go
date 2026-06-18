@@ -967,6 +967,24 @@ const localeCatalog = {
     "settings.resetLanguage": "Reset Language",
     "settings.searchPlaceholder": "Search settings",
     "settings.savedViews": "Saved Filters, Recent & Sorts",
+    "settings.savedViews.export": "Export Views",
+    "settings.savedViews.import": "Import Views",
+    "settings.savedViews.reset": "Reset Views",
+    "settings.savedViews.recentHistory": "Recent filter history",
+    "settings.savedViews.recentHistoryAria": "Recent filter history retention",
+    "settings.savedViews.historyOff": "Off",
+    "settings.savedViews.historyKeep": "Keep {{count}}",
+    "settings.savedViews.clearRecent": "Clear Recent",
+    "settings.savedViews.importJsonAria": "Saved filters and sorts import JSON",
+    "settings.savedViews.applyImport": "Apply Import",
+    "settings.savedViews.summary": "{{filters}} filters, {{recent}} recent, {{sorts}} sorts · history {{history}}",
+    "settings.savedViews.noMatches": "No matching saved views",
+    "settings.savedViews.empty": "No saved filters or sorts",
+    "settings.savedViews.filter": "Filter",
+    "settings.savedViews.sort": "Sort",
+    "settings.savedViews.apply": "Apply",
+    "settings.savedViews.delete": "Delete",
+    "settings.savedViews.statusReset": "Saved filters, recent filters, and saved sorts reset.",
     "settings.theme": "Theme",
     "settings.externalChanges": "External Changes",
     "settings.updates": "Updates",
@@ -1824,6 +1842,24 @@ const localeCatalog = {
     "settings.resetLanguage": "重置语言",
     "settings.searchPlaceholder": "搜索设置",
     "settings.savedViews": "保存的筛选、最近记录和排序",
+    "settings.savedViews.export": "导出视图",
+    "settings.savedViews.import": "导入视图",
+    "settings.savedViews.reset": "重置视图",
+    "settings.savedViews.recentHistory": "最近筛选历史",
+    "settings.savedViews.recentHistoryAria": "最近筛选历史保留",
+    "settings.savedViews.historyOff": "关闭",
+    "settings.savedViews.historyKeep": "保留 {{count}} 条",
+    "settings.savedViews.clearRecent": "清除最近记录",
+    "settings.savedViews.importJsonAria": "保存的筛选和排序导入 JSON",
+    "settings.savedViews.applyImport": "应用导入",
+    "settings.savedViews.summary": "{{filters}} 个筛选，{{recent}} 条最近记录，{{sorts}} 个排序 · 历史 {{history}}",
+    "settings.savedViews.noMatches": "没有匹配的保存视图",
+    "settings.savedViews.empty": "没有保存的筛选或排序",
+    "settings.savedViews.filter": "筛选",
+    "settings.savedViews.sort": "排序",
+    "settings.savedViews.apply": "应用",
+    "settings.savedViews.delete": "删除",
+    "settings.savedViews.statusReset": "保存的筛选、最近筛选和保存的排序已重置。",
     "settings.theme": "主题",
     "settings.externalChanges": "外部更改",
     "settings.updates": "更新",
@@ -3659,8 +3695,9 @@ function normalizeFilterHistoryLimit(value) {
 }
 
 function filterHistoryLimitLabel(limit = filterHistoryLimit) {
-  if (limit === 0) return "Off";
-  return `Keep ${limit}`;
+  const normalized = normalizeFilterHistoryLimit(limit);
+  if (normalized === 0) return t("settings.savedViews.historyOff");
+  return tf("settings.savedViews.historyKeep", { count: formatCount(normalized) });
 }
 
 function setFilterHistoryLimit(limit, persist = true) {
@@ -3680,6 +3717,9 @@ function setFilterHistoryLimit(limit, persist = true) {
 function syncFilterHistoryControls() {
   if (!filterHistoryLimitSelect) return;
   filterHistoryLimitSelect.value = String(filterHistoryLimit);
+  for (const option of filterHistoryLimitSelect.options) {
+    option.textContent = filterHistoryLimitLabel(option.value);
+  }
   clearRecentFiltersButton.disabled = recentFilters().length === 0;
   document.body.dataset.filterHistoryLimit = String(filterHistoryLimit);
 }
@@ -3726,7 +3766,7 @@ function resetSavedViewsSettings() {
   refreshFilterDropdown([], []);
   renderViewChips();
   renderSettingsPanel();
-  status.textContent = "Saved filters, recent filters, and saved sorts reset.";
+  status.textContent = t("settings.savedViews.statusReset");
 }
 
 function loadCustomLinkProtocols() {
@@ -5771,7 +5811,12 @@ function renderSettingsPanel() {
   const sectionState = settingsSectionModifiedState({ presets, filters, recent, sorts });
   settingsModifiedBadge.textContent = sectionState.modified.length ? t("settings.modified") : t("settings.defaults");
   settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules, ${presets.reduce((sum, preset) => sum + formatPresetQuoteRuleCount(preset), 0)} quote rules`;
-  settingsViewsSummary.textContent = `${filters.length} filters, ${recent.length} recent, ${sorts.length} sorts · history ${filterHistoryLimitLabel().toLowerCase()}`;
+  settingsViewsSummary.textContent = tf("settings.savedViews.summary", {
+    filters: formatCount(filters.length),
+    recent: formatCount(recent.length),
+    sorts: formatCount(sorts.length),
+    history: filterHistoryLimitLabel(),
+  });
   resetFormatPresetsButton.disabled = presets.length === 0;
   if (resetSavedViewsButton) {
     resetSavedViewsButton.disabled = !sectionState.state["Saved filters and sorts"];
@@ -5846,7 +5891,7 @@ function renderSavedViewSettingsList(filters, sorts, query) {
   document.body.dataset.settingsSavedSortCount = String(sorts.length);
   document.body.dataset.settingsVisibleSavedViewCount = String(visible.length);
   if (visible.length === 0) {
-    settingsSavedViewList.append(emptySettingsNode(items.length ? "No matching saved views" : "No saved filters or sorts"));
+    settingsSavedViewList.append(emptySettingsNode(items.length ? t("settings.savedViews.noMatches") : t("settings.savedViews.empty")));
     return;
   }
   for (const entry of visible) {
@@ -5893,10 +5938,12 @@ function savedViewSettingsRow(kind, item) {
   const title = document.createElement("strong");
   title.textContent = item.name;
   const meta = document.createElement("span");
-  meta.textContent = kind === "filter" ? `Filter · ${item.expression}` : `Sort · ${formatStoredSortKeys(item.keys)}`;
+  meta.textContent = kind === "filter"
+    ? `${t("settings.savedViews.filter")} · ${item.expression}`
+    : `${t("settings.savedViews.sort")} · ${formatStoredSortKeysLocalized(item.keys)}`;
   const actions = document.createElement("div");
   actions.className = "settings-preset-actions";
-  const applyButton = settingsActionButton("Apply");
+  const applyButton = settingsActionButton(t("settings.savedViews.apply"));
   applyButton.disabled = !documentId;
   applyButton.addEventListener("click", () => {
     if (kind === "filter") {
@@ -5905,7 +5952,7 @@ function savedViewSettingsRow(kind, item) {
       applySavedSort(item.id);
     }
   });
-  const deleteButton = settingsActionButton("Delete");
+  const deleteButton = settingsActionButton(t("settings.savedViews.delete"));
   deleteButton.addEventListener("click", () => {
     if (kind === "filter") {
       deleteSavedFilter(item.id);

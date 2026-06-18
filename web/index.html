@@ -312,32 +312,32 @@
             </section>
             <section class="settings-section" aria-label="Saved filters and sorts">
               <header>
-                <strong>Saved Filters, Recent & Sorts</strong>
+                <strong data-i18n="settings.savedViews">Saved Filters, Recent & Sorts</strong>
                 <span id="settingsViewsSummary">0 filters, 0 sorts</span>
                 <div class="settings-section-actions">
-                  <button id="exportSavedViewsButton" type="button" data-command="view.exportSavedSets">Export Views</button>
-                  <button id="showImportSavedViewsButton" type="button" data-command="view.importSavedSets">Import Views</button>
-                  <button id="resetSavedViewsButton" type="button">Reset Views</button>
+                  <button id="exportSavedViewsButton" type="button" data-command="view.exportSavedSets" data-i18n="settings.savedViews.export">Export Views</button>
+                  <button id="showImportSavedViewsButton" type="button" data-command="view.importSavedSets" data-i18n="settings.savedViews.import">Import Views</button>
+                  <button id="resetSavedViewsButton" type="button" data-i18n="settings.savedViews.reset">Reset Views</button>
                 </div>
               </header>
               <div class="settings-filter-history-grid">
                 <label>
-                  <span>Recent filter history</span>
-                  <select id="filterHistoryLimitSelect" aria-label="Recent filter history retention">
-                    <option value="0">Off</option>
+                  <span data-i18n="settings.savedViews.recentHistory">Recent filter history</span>
+                  <select id="filterHistoryLimitSelect" aria-label="Recent filter history retention" data-i18n-aria-label="settings.savedViews.recentHistoryAria">
+                    <option value="0" data-i18n="settings.savedViews.historyOff">Off</option>
                     <option value="5">Keep 5</option>
                     <option value="8">Keep 8</option>
                     <option value="12">Keep 12</option>
                     <option value="20">Keep 20</option>
                   </select>
                 </label>
-                <button id="clearRecentFiltersButton" type="button">Clear Recent</button>
+                <button id="clearRecentFiltersButton" type="button" data-i18n="settings.savedViews.clearRecent">Clear Recent</button>
               </div>
               <div id="savedViewImportPanel" class="settings-import-panel" hidden>
-                <textarea id="savedViewImportText" spellcheck="false" aria-label="Saved filters and sorts import JSON" placeholder='{"kind":"opencsv-saved-views","filters":[],"sorts":[]}'></textarea>
+                <textarea id="savedViewImportText" spellcheck="false" aria-label="Saved filters and sorts import JSON" data-i18n-aria-label="settings.savedViews.importJsonAria" placeholder='{"kind":"opencsv-saved-views","filters":[],"sorts":[]}'></textarea>
                 <div class="settings-import-actions">
-                  <button id="applySavedViewImportButton" type="button">Apply Import</button>
-                  <button id="cancelSavedViewImportButton" type="button">Cancel</button>
+                  <button id="applySavedViewImportButton" type="button" data-i18n="settings.savedViews.applyImport">Apply Import</button>
+                  <button id="cancelSavedViewImportButton" type="button" data-i18n="common.cancel">Cancel</button>
                 </div>
               </div>
               <div id="settingsSavedViewList" class="settings-preset-list"></div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=settings-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=savedviews-i18n-1"></script>
   </body>
 </html>
