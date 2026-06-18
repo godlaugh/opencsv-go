@@ -564,6 +564,40 @@ const localeCatalog = {
     "command.noMatches": "No matching commands",
     "common.close": "Close",
     "common.cancel": "Cancel",
+    "inspector.aria": "Column inspector",
+    "inspector.cell": "Cell",
+    "inspector.cellValue": "Cell Value",
+    "inspector.cellValueAria": "Cell value",
+    "inspector.largeCellValueAria": "Large cell value",
+    "inspector.dialogAria": "Cell value editor",
+    "inspector.popOut": "Pop Out",
+    "inspector.expand": "Expand",
+    "inspector.collapse": "Collapse",
+    "inspector.revert": "Revert",
+    "inspector.separator": "Separator",
+    "inspector.separatorAria": "Cell tool separator",
+    "inspector.column": "Column",
+    "inspector.name": "Name",
+    "inspector.hiddenColumns": "Hidden Columns",
+    "inspector.type": "Type",
+    "inspector.nulls": "Nulls",
+    "inspector.distinct": "Distinct",
+    "inspector.cellQuote": "Cell Quote",
+    "inspector.toggleQuote": "Toggle",
+    "inspector.format": "Format",
+    "inspector.unknown": "unknown",
+    "inspector.none": "none",
+    "inspector.hiddenCount": "{{count}} hidden",
+    "inspector.cellStats": "{{chars}} {{charLabel}} · {{lines}} {{lineLabel}}",
+    "inspector.charSingular": "char",
+    "inspector.charPlural": "chars",
+    "inspector.lineSingular": "line",
+    "inspector.linePlural": "lines",
+    "inspector.quote.manualNoQuote": "manual no quote",
+    "inspector.quote.noQuoteNeeded": "no quote needed",
+    "inspector.quote.preserve": "will preserve quote on save",
+    "inspector.quote.willQuote": "will quote on save",
+    "inspector.status.openCsvFirst": "Open a CSV before using the Cell Value editor.",
     "file.open": "Open",
     "edit.copy": "Copy",
     "edit.headers": "Headers",
@@ -1365,6 +1399,40 @@ const localeCatalog = {
     "command.noMatches": "没有匹配命令",
     "common.close": "关闭",
     "common.cancel": "取消",
+    "inspector.aria": "列检查器",
+    "inspector.cell": "单元格",
+    "inspector.cellValue": "单元格值",
+    "inspector.cellValueAria": "单元格值",
+    "inspector.largeCellValueAria": "大单元格值",
+    "inspector.dialogAria": "单元格值编辑器",
+    "inspector.popOut": "弹出",
+    "inspector.expand": "展开",
+    "inspector.collapse": "收起",
+    "inspector.revert": "还原",
+    "inspector.separator": "分隔符",
+    "inspector.separatorAria": "单元格工具分隔符",
+    "inspector.column": "列",
+    "inspector.name": "名称",
+    "inspector.hiddenColumns": "隐藏列",
+    "inspector.type": "类型",
+    "inspector.nulls": "空值",
+    "inspector.distinct": "唯一值",
+    "inspector.cellQuote": "单元格引号",
+    "inspector.toggleQuote": "切换",
+    "inspector.format": "格式",
+    "inspector.unknown": "未知",
+    "inspector.none": "无",
+    "inspector.hiddenCount": "{{count}} 个隐藏",
+    "inspector.cellStats": "{{chars}} 个字符 · {{lines}} 行",
+    "inspector.charSingular": "字符",
+    "inspector.charPlural": "字符",
+    "inspector.lineSingular": "行",
+    "inspector.linePlural": "行",
+    "inspector.quote.manualNoQuote": "手动不加引号",
+    "inspector.quote.noQuoteNeeded": "无需引号",
+    "inspector.quote.preserve": "保存时保留引号",
+    "inspector.quote.willQuote": "保存时将加引号",
+    "inspector.status.openCsvFirst": "请先打开 CSV 再使用单元格值编辑器。",
     "file.open": "打开",
     "edit.copy": "复制",
     "edit.headers": "表头",
@@ -2932,6 +3000,8 @@ function setLocalePreference(locale, persist = true) {
   syncProfileSchemaControls();
   renderSQLHistory();
   renderFileList();
+  updateInspector();
+  syncCellValueDialog();
 }
 
 function localePreferenceModified() {
@@ -3876,8 +3946,8 @@ function columnNameForSource(sourceCol) {
 function syncHiddenColumnControls() {
   const hidden = Array.from(hiddenSourceColumns).sort((a, b) => a - b);
   const count = hidden.length;
-  const label = count === 1 ? "1 hidden" : `${count} hidden`;
-  hiddenColumnSummary.textContent = documentId ? label : "0 hidden";
+  const label = tf("inspector.hiddenCount", { count: formatCount(documentId ? count : 0) });
+  hiddenColumnSummary.textContent = label;
   hiddenColumnSummary.title = hidden.map(columnNameForSource).join(", ");
   showHiddenColumnsButton.disabled = !documentId || count === 0;
   columnShowAll.disabled = !documentId || count === 0;
@@ -4818,14 +4888,15 @@ function sqlResultAvailable() {
 function updateInspector() {
   const selectedColumn = columns[selected.col]?.name ?? "";
   const profile = profileData?.columns?.[sourceColFor(selected.col)];
-  columnName.textContent = selectedColumn || "none";
-  columnType.textContent = profile?.type ?? columns[selected.col]?.type ?? "unknown";
+  columnName.textContent = selectedColumn || t("inspector.none");
+  columnType.textContent = profile?.type ?? columns[selected.col]?.type ?? t("inspector.unknown");
   columnNulls.textContent = profile
     ? `${formatCount(profile.nulls)} (${formatPercent(profile.nullRatio)})`
-    : "unknown";
-  columnDistinct.textContent = profile ? formatCount(profile.distinct) : "unknown";
-  cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : "unknown";
-  formatSummary.textContent = metadata ? documentFormatSummary() : "unknown";
+    : t("inspector.unknown");
+  columnDistinct.textContent = profile ? formatCount(profile.distinct) : t("inspector.unknown");
+  cellQuote.textContent = documentId ? quoteLabel(valueAt(selected.row, selected.col), selected.row, selected.col) : t("inspector.unknown");
+  formatSummary.textContent = metadata ? documentFormatSummary() : t("inspector.unknown");
+  syncHiddenColumnControls();
   syncDelimiterControls();
   syncEncodingControls();
   syncQuotePolicyControls();
@@ -7520,9 +7591,9 @@ function formatPresetHeaderLabel(preset) {
 }
 
 function quoteLabel(value, displayRow = selected.row, visibleCol = selected.col) {
-  if (suppressesQuote(displayRow, visibleCol)) return "manual no quote";
-  if (!shouldQuote(value, displayRow, visibleCol)) return "no quote needed";
-  return preservesQuote(displayRow, visibleCol) ? "will preserve quote on save" : "will quote on save";
+  if (suppressesQuote(displayRow, visibleCol)) return t("inspector.quote.manualNoQuote");
+  if (!shouldQuote(value, displayRow, visibleCol)) return t("inspector.quote.noQuoteNeeded");
+  return preservesQuote(displayRow, visibleCol) ? t("inspector.quote.preserve") : t("inspector.quote.willQuote");
 }
 
 function normalizeCellSeparatorToken(value) {
@@ -7602,7 +7673,12 @@ function cellValueSummary(value) {
   return {
     chars,
     lines,
-    label: `${chars} ${chars === 1 ? "char" : "chars"} · ${lines} ${lines === 1 ? "line" : "lines"}`,
+    label: tf("inspector.cellStats", {
+      chars: formatCount(chars),
+      lines: formatCount(lines),
+      charLabel: chars === 1 ? t("inspector.charSingular") : t("inspector.charPlural"),
+      lineLabel: lines === 1 ? t("inspector.lineSingular") : t("inspector.linePlural"),
+    }),
   };
 }
 
@@ -7616,7 +7692,7 @@ function syncCellValueStats(value) {
 
 function syncCellValueEditorSize() {
   cellValueInput.classList.toggle("expanded", cellValueExpanded);
-  toggleCellValueLargeButton.textContent = cellValueExpanded ? "Collapse" : "Expand";
+  toggleCellValueLargeButton.textContent = cellValueExpanded ? t("inspector.collapse") : t("inspector.expand");
   toggleCellValueLargeButton.setAttribute("aria-pressed", cellValueExpanded ? "true" : "false");
   document.body.dataset.cellValueExpanded = cellValueExpanded ? "true" : "false";
   cellValueInput.style.height = "auto";
@@ -7652,7 +7728,7 @@ function syncCellValueDraft(value, source = "panel") {
 
 function openCellValueDialog() {
   if (!documentId) {
-    status.textContent = "Open a CSV before using the Cell Value editor.";
+    status.textContent = t("inspector.status.openCsvFirst");
     return;
   }
   cellValueDialogOpen = true;

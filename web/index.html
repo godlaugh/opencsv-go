@@ -716,58 +716,58 @@
         </footer>
       </section>
 
-      <aside class="inspector" aria-label="Column inspector">
-        <h2>Cell</h2>
+      <aside class="inspector" aria-label="Column inspector" data-i18n-aria-label="inspector.aria">
+        <h2 data-i18n="inspector.cell">Cell</h2>
         <div class="cell-panel">
-          <textarea id="cellValueInput" spellcheck="false" aria-label="Cell value"></textarea>
+          <textarea id="cellValueInput" spellcheck="false" aria-label="Cell value" data-i18n-aria-label="inspector.cellValueAria"></textarea>
           <div class="cell-value-meta">
             <span id="cellValueStats">0 chars · 1 line</span>
-            <button id="openCellValueDialogButton" type="button">Pop Out</button>
+            <button id="openCellValueDialogButton" type="button" data-i18n="inspector.popOut">Pop Out</button>
             <button id="toggleCellValueLargeButton" type="button" aria-pressed="false">Expand</button>
-            <button id="revertCellValueButton" type="button" disabled>Revert</button>
+            <button id="revertCellValueButton" type="button" disabled data-i18n="inspector.revert">Revert</button>
           </div>
           <div class="cell-actions">
-            <button id="applyCellValueButton" type="button">Apply</button>
+            <button id="applyCellValueButton" type="button" data-i18n="condition.apply">Apply</button>
             <a id="openCellLink" role="button" target="_blank" rel="noopener noreferrer" aria-disabled="true" data-command="cell.openLink">Open Link</a>
           </div>
           <label class="cell-separator-field" for="cellSeparatorInput">
-            <span>Separator</span>
-            <input id="cellSeparatorInput" type="text" autocomplete="off" spellcheck="false" aria-label="Cell tool separator" value="space" />
+            <span data-i18n="inspector.separator">Separator</span>
+            <input id="cellSeparatorInput" type="text" autocomplete="off" spellcheck="false" aria-label="Cell tool separator" data-i18n-aria-label="inspector.separatorAria" value="space" />
           </label>
           <div id="cellLinkAudit" class="cell-link-audit" hidden>
             <span id="cellLinkProtocol">Link</span>
             <strong id="cellLinkTarget"></strong>
           </div>
         </div>
-        <h2>Column</h2>
+        <h2 data-i18n="inspector.column">Column</h2>
         <div class="metric">
-          <span>Name</span>
+          <span data-i18n="inspector.name">Name</span>
           <strong id="columnName">id</strong>
         </div>
         <div class="metric">
-          <span>Hidden Columns</span>
+          <span data-i18n="inspector.hiddenColumns">Hidden Columns</span>
           <strong id="hiddenColumnSummary">0 hidden</strong>
           <button id="showHiddenColumnsButton" type="button" data-command="column.showAll" disabled>Show All</button>
         </div>
         <div class="metric">
-          <span>Type</span>
+          <span data-i18n="inspector.type">Type</span>
           <strong id="columnType">unknown</strong>
         </div>
         <div class="metric">
-          <span>Nulls</span>
+          <span data-i18n="inspector.nulls">Nulls</span>
           <strong id="columnNulls">unknown</strong>
         </div>
         <div class="metric">
-          <span>Distinct</span>
+          <span data-i18n="inspector.distinct">Distinct</span>
           <strong id="columnDistinct">unknown</strong>
         </div>
         <div class="metric">
-          <span>Cell Quote</span>
+          <span data-i18n="inspector.cellQuote">Cell Quote</span>
           <strong id="cellQuote">unknown</strong>
-          <button id="toggleCellQuoteButton" type="button" data-command="format.toggleCellQuote">Toggle</button>
+          <button id="toggleCellQuoteButton" type="button" data-command="format.toggleCellQuote" data-i18n="inspector.toggleQuote">Toggle</button>
         </div>
         <div class="metric">
-          <span>Format</span>
+          <span data-i18n="inspector.format">Format</span>
           <strong id="formatSummary">unknown</strong>
         </div>
       </aside>
@@ -962,20 +962,20 @@
     </div>
 
     <div id="cellValueDialog" class="command-palette-backdrop" hidden>
-      <section class="cell-value-dialog" role="dialog" aria-modal="true" aria-label="Cell value editor">
+      <section class="cell-value-dialog" role="dialog" aria-modal="true" aria-label="Cell value editor" data-i18n-aria-label="inspector.dialogAria">
         <header class="condition-panel-header">
-          <strong>Cell Value</strong>
-          <button id="closeCellValueDialogButton" type="button">Close</button>
+          <strong data-i18n="inspector.cellValue">Cell Value</strong>
+          <button id="closeCellValueDialogButton" type="button" data-i18n="common.close">Close</button>
         </header>
         <div class="cell-value-dialog-body">
           <div class="cell-value-dialog-meta">
             <span id="cellValueDialogStats">0 chars · 1 line</span>
           </div>
-          <textarea id="cellValueDialogInput" spellcheck="false" aria-label="Large cell value"></textarea>
+          <textarea id="cellValueDialogInput" spellcheck="false" aria-label="Large cell value" data-i18n-aria-label="inspector.largeCellValueAria"></textarea>
         </div>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="revertCellValueDialogButton" type="button" disabled data-dialog-role="cancel">Revert</button>
-          <button id="applyCellValueDialogButton" type="button" data-dialog-role="confirm">Apply</button>
+          <button id="revertCellValueDialogButton" type="button" disabled data-dialog-role="cancel" data-i18n="inspector.revert">Revert</button>
+          <button id="applyCellValueDialogButton" type="button" data-dialog-role="confirm" data-i18n="condition.apply">Apply</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=palette-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=inspector-i18n-1"></script>
   </body>
 </html>

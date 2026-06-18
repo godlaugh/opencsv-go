@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=palette-i18n-1`,
+		`v=inspector-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=palette-i18n-1`) {
+	if !strings.Contains(html, `v=inspector-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=palette-i18n-1`,
+		`v=inspector-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -375,6 +375,50 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing command palette localized frontend wiring %q", snippet)
+		}
+	}
+}
+
+func TestInspectorShellLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-i18n-aria-label="inspector.aria"`,
+		`data-i18n="inspector.cell"`,
+		`data-i18n-aria-label="inspector.cellValueAria"`,
+		`data-i18n="inspector.popOut"`,
+		`data-i18n="inspector.hiddenColumns"`,
+		`data-i18n="inspector.cellQuote"`,
+		`data-i18n="inspector.toggleQuote"`,
+		`data-i18n-aria-label="inspector.dialogAria"`,
+		`data-i18n="inspector.cellValue"`,
+		`v=inspector-i18n-1`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing inspector localized html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"inspector.cell": "单元格"`,
+		`"inspector.toggleQuote": "切换"`,
+		`"inspector.quote.willQuote": "保存时将加引号"`,
+		`tf("inspector.cellStats"`,
+		`syncHiddenColumnControls();`,
+		`t("inspector.unknown")`,
+		`t("inspector.expand")`,
+		`t("inspector.collapse")`,
+		`t("inspector.status.openCsvFirst")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing inspector localized frontend wiring %q", snippet)
 		}
 	}
 }
@@ -691,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=palette-i18n-1`,
+		`v=inspector-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
