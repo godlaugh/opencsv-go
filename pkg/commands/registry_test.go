@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=inspector-i18n-1`,
+		`v=settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=inspector-i18n-1`) {
+	if !strings.Contains(html, `v=settings-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=inspector-i18n-1`,
+		`v=settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=inspector-i18n-1`,
+		`v=settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=inspector-i18n-1`,
+		`v=settings-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -810,6 +810,52 @@ func TestSettingsSectionModifiedBadgesAreWired(t *testing.T) {
 	} {
 		if !strings.Contains(css, snippet) {
 			t.Fatalf("missing settings section modified style %q", snippet)
+		}
+	}
+}
+
+func TestSettingsShellLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="settingsPanel"`,
+		`data-i18n-aria-label="settings.title"`,
+		`data-i18n-placeholder="settings.searchPlaceholder"`,
+		`data-i18n-aria-label="settings.themeModeAria"`,
+		`data-i18n="settings.theme.system"`,
+		`data-i18n="settings.autoRefresh.clean"`,
+		`data-i18n="settings.update.manual"`,
+		`data-i18n="settings.checkNow"`,
+		`data-i18n="settings.noUpdateCheck"`,
+		`v=settings-i18n-1`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing settings localized html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"settings.theme.system": "跟随系统"`,
+		`"settings.autoRefresh.notify": "仅通知"`,
+		`"settings.update.manual": "仅手动"`,
+		`"settings.noUpdateCheck": "尚未运行更新检查。"`,
+		`tf("settings.theme.summarySystem"`,
+		`t("settings.autoRefresh.clean")`,
+		`tf("settings.update.summaryLast"`,
+		`t("settings.status.updateOff")`,
+		`syncThemeControls();`,
+		`syncAutoRefreshControls();`,
+		`syncUpdateCheckControls();`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing settings localized frontend wiring %q", snippet)
 		}
 	}
 }

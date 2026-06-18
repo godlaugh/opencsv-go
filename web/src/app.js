@@ -970,6 +970,36 @@ const localeCatalog = {
     "settings.theme": "Theme",
     "settings.externalChanges": "External Changes",
     "settings.updates": "Updates",
+    "settings.mode": "Mode",
+    "settings.themeModeAria": "Theme mode",
+    "settings.theme.system": "System",
+    "settings.theme.light": "Light",
+    "settings.theme.dark": "Dark",
+    "settings.theme.highContrast": "High Contrast",
+    "settings.theme.summarySystem": "System ({{resolved}})",
+    "settings.resetTheme": "Reset Theme",
+    "settings.fileRefresh": "File Refresh",
+    "settings.fileRefreshAria": "External file refresh",
+    "settings.autoRefresh.clean": "Auto-refresh clean files",
+    "settings.autoRefresh.notify": "Notify only",
+    "settings.resetRefresh": "Reset Refresh",
+    "settings.checks": "Checks",
+    "settings.updateModeAria": "Update check mode",
+    "settings.update.automatic": "Automatic checks",
+    "settings.update.manual": "Manual only",
+    "settings.update.off": "Off",
+    "settings.update.summaryLast": "{{mode}} · last {{time}}",
+    "settings.checkNow": "Check Now",
+    "settings.resetUpdates": "Reset Updates",
+    "settings.noUpdateCheck": "No update check has run.",
+    "settings.status.theme": "Theme: {{label}}",
+    "settings.status.autoRefreshClean": "Clean documents will auto-refresh when files change.",
+    "settings.status.autoRefreshNotify": "External file changes will be reported without auto-refresh.",
+    "settings.status.autoRefreshReset": "External change refresh reset.",
+    "settings.status.updateAutomatic": "Startup update checks are enabled.",
+    "settings.status.updateManual": "Update checks run manually only.",
+    "settings.status.updateOff": "Update checks are off.",
+    "settings.status.updateReset": "Update checks reset.",
     "settings.linkProtocols": "Link Protocols",
     "settings.editorAppearance": "Editor Appearance",
     "settings.fileFormatPresets": "File Format Presets",
@@ -1797,6 +1827,36 @@ const localeCatalog = {
     "settings.theme": "主题",
     "settings.externalChanges": "外部更改",
     "settings.updates": "更新",
+    "settings.mode": "模式",
+    "settings.themeModeAria": "主题模式",
+    "settings.theme.system": "跟随系统",
+    "settings.theme.light": "浅色",
+    "settings.theme.dark": "深色",
+    "settings.theme.highContrast": "高对比度",
+    "settings.theme.summarySystem": "跟随系统（{{resolved}}）",
+    "settings.resetTheme": "重置主题",
+    "settings.fileRefresh": "文件刷新",
+    "settings.fileRefreshAria": "外部文件刷新",
+    "settings.autoRefresh.clean": "自动刷新干净文件",
+    "settings.autoRefresh.notify": "仅通知",
+    "settings.resetRefresh": "重置刷新",
+    "settings.checks": "检查",
+    "settings.updateModeAria": "更新检查模式",
+    "settings.update.automatic": "自动检查",
+    "settings.update.manual": "仅手动",
+    "settings.update.off": "关闭",
+    "settings.update.summaryLast": "{{mode}} · 上次 {{time}}",
+    "settings.checkNow": "立即检查",
+    "settings.resetUpdates": "重置更新",
+    "settings.noUpdateCheck": "尚未运行更新检查。",
+    "settings.status.theme": "主题：{{label}}",
+    "settings.status.autoRefreshClean": "干净文档会在文件变化时自动刷新。",
+    "settings.status.autoRefreshNotify": "外部文件变化只会提示，不会自动刷新。",
+    "settings.status.autoRefreshReset": "外部变化刷新已重置。",
+    "settings.status.updateAutomatic": "已启用启动时更新检查。",
+    "settings.status.updateManual": "更新检查仅手动运行。",
+    "settings.status.updateOff": "更新检查已关闭。",
+    "settings.status.updateReset": "更新检查已重置。",
     "settings.linkProtocols": "链接协议",
     "settings.editorAppearance": "编辑器外观",
     "settings.fileFormatPresets": "文件格式预设",
@@ -3098,6 +3158,9 @@ function applyLocaleStrings() {
   if (columnClearView) columnClearView.textContent = t("column.clearView");
   if (settingsSearch) settingsSearch.placeholder = t("settings.searchPlaceholder");
   applyDataI18n();
+  syncThemeControls();
+  syncAutoRefreshControls();
+  syncUpdateCheckControls();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
@@ -3318,12 +3381,12 @@ function normalizeThemePreference(preference) {
 
 function themePreferenceLabel(preference = themePreference) {
   const labels = {
-    light: "Light",
-    dark: "Dark",
-    "high-contrast": "High contrast",
-    system: "System",
+    light: "settings.theme.light",
+    dark: "settings.theme.dark",
+    "high-contrast": "settings.theme.highContrast",
+    system: "settings.theme.system",
   };
-  return labels[preference] || labels[defaultThemePreference];
+  return t(labels[preference] || labels[defaultThemePreference]);
 }
 
 function applyTheme(preference, announce = true) {
@@ -3339,7 +3402,10 @@ function applyTheme(preference, announce = true) {
   refreshThemeColors();
   draw();
   if (announce && status) {
-    status.textContent = `Theme: ${preference === "system" ? `System (${themePreferenceLabel(resolved)})` : themePreferenceLabel(preference)}`;
+    const label = preference === "system"
+      ? tf("settings.theme.summarySystem", { resolved: themePreferenceLabel(resolved) })
+      : themePreferenceLabel(preference);
+    status.textContent = tf("settings.status.theme", { label });
   }
 }
 
@@ -3354,7 +3420,7 @@ function syncThemeControls() {
   themePreferenceSelect.value = themePreference;
   const resolved = document.body.dataset.theme || defaultThemePreference;
   settingsThemeSummary.textContent = themePreference === "system"
-    ? `System (${themePreferenceLabel(resolved)})`
+    ? tf("settings.theme.summarySystem", { resolved: themePreferenceLabel(resolved) })
     : themePreferenceLabel(themePreference);
   resetThemePreferenceButton.disabled = !themePreferenceModified();
 }
@@ -3378,7 +3444,7 @@ function normalizeAutoRefreshMode(value) {
 }
 
 function autoRefreshModeLabel(mode = autoRefreshMode) {
-  return mode === "notify" ? "Notify only" : "Auto-refresh clean files";
+  return mode === "notify" ? t("settings.autoRefresh.notify") : t("settings.autoRefresh.clean");
 }
 
 function setAutoRefreshMode(mode, persist = true) {
@@ -3405,14 +3471,14 @@ function updateAutoRefreshModeFromSettings() {
   setAutoRefreshMode(autoRefreshModeSelect.value);
   renderSettingsPanel();
   status.textContent = autoRefreshMode === "clean"
-    ? "Clean documents will auto-refresh when files change."
-    : "External file changes will be reported without auto-refresh.";
+    ? t("settings.status.autoRefreshClean")
+    : t("settings.status.autoRefreshNotify");
 }
 
 function resetAutoRefreshMode() {
   setAutoRefreshMode(defaultAutoRefreshMode);
   renderSettingsPanel();
-  status.textContent = "External change refresh reset.";
+  status.textContent = t("settings.status.autoRefreshReset");
 }
 
 function normalizeUpdateCheckMode(value) {
@@ -3421,11 +3487,11 @@ function normalizeUpdateCheckMode(value) {
 
 function updateCheckModeLabel(mode = updateCheckMode) {
   const labels = {
-    automatic: "Automatic checks",
-    manual: "Manual only",
-    off: "Off",
+    automatic: "settings.update.automatic",
+    manual: "settings.update.manual",
+    off: "settings.update.off",
   };
-  return labels[mode] || labels[defaultUpdateCheckMode];
+  return t(labels[mode] || labels[defaultUpdateCheckMode]);
 }
 
 function loadUpdateCheckState() {
@@ -3461,14 +3527,16 @@ function updateCheckModeModified() {
 function syncUpdateCheckControls() {
   if (!updateCheckModeSelect) return;
   updateCheckModeSelect.value = updateCheckMode;
-  const last = updateCheckState?.checkedAt ? ` · last ${new Date(updateCheckState.checkedAt).toLocaleString()}` : "";
-  settingsUpdateSummary.textContent = `${updateCheckModeLabel()}${last}`;
+  const modeLabel = updateCheckModeLabel();
+  settingsUpdateSummary.textContent = updateCheckState?.checkedAt
+    ? tf("settings.update.summaryLast", { mode: modeLabel, time: new Date(updateCheckState.checkedAt).toLocaleString(localeLanguageTag()) })
+    : modeLabel;
   const checksDisabled = updateCheckMode === "off";
   checkForUpdatesButton.disabled = checksDisabled;
   checkForUpdatesButton.setAttribute("aria-disabled", String(checksDisabled));
   resetUpdateChecksButton.disabled = !updateCheckModeModified() && !updateCheckState?.checkedAt;
   if (updateCheckResult) {
-    updateCheckResult.textContent = updateCheckState?.message || "No update check has run.";
+    updateCheckResult.textContent = updateCheckState?.message || t("settings.noUpdateCheck");
   }
   document.body.dataset.updateCheckSummary = settingsUpdateSummary.textContent;
   document.body.dataset.updateCheckLastSource = updateCheckState?.source || "";
@@ -3480,7 +3548,7 @@ function syncUpdateCheckControls() {
 function syncAboutSupportPanel() {
   if (!aboutSupportPanel) return;
   if (aboutUpdateSummary) aboutUpdateSummary.textContent = settingsUpdateSummary?.textContent || updateCheckModeLabel();
-  if (aboutUpdateResult) aboutUpdateResult.textContent = updateCheckState?.message || "No update check has run.";
+  if (aboutUpdateResult) aboutUpdateResult.textContent = updateCheckState?.message || t("settings.noUpdateCheck");
   if (aboutCheckUpdatesButton) {
     const disabled = updateCheckMode === "off";
     aboutCheckUpdatesButton.disabled = disabled;
@@ -3511,11 +3579,11 @@ function updateUpdateCheckModeFromSettings() {
   setUpdateCheckMode(updateCheckModeSelect.value);
   renderSettingsPanel();
   if (updateCheckMode === "automatic") {
-    status.textContent = "Startup update checks are enabled.";
+    status.textContent = t("settings.status.updateAutomatic");
   } else if (updateCheckMode === "manual") {
-    status.textContent = "Update checks run manually only.";
+    status.textContent = t("settings.status.updateManual");
   } else {
-    status.textContent = "Update checks are off.";
+    status.textContent = t("settings.status.updateOff");
   }
 }
 
@@ -3525,13 +3593,13 @@ function resetUpdateCheckMode() {
   localStorage.removeItem(updateCheckResultStorageKey);
   syncUpdateCheckControls();
   renderSettingsPanel();
-  status.textContent = "Update checks reset.";
+  status.textContent = t("settings.status.updateReset");
 }
 
 async function checkForUpdates(source = "manual") {
   if (updateCheckMode === "off") {
     document.body.dataset.updateCheckSkipped = `${source}:off`;
-    status.textContent = "Update checks are off.";
+    status.textContent = t("settings.status.updateOff");
     syncUpdateCheckControls();
     return;
   }

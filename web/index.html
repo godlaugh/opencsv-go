@@ -277,13 +277,13 @@
                 <div id="profileColumns" class="profile-columns"></div>
                 <div id="profileIssues" class="profile-issues"></div>
               </section>
-              <section id="settingsPanel" class="settings-panel" hidden aria-label="Settings">
+              <section id="settingsPanel" class="settings-panel" hidden aria-label="Settings" data-i18n-aria-label="settings.title">
             <header class="settings-header">
-              <strong>Settings</strong>
+              <strong data-i18n="settings.title">Settings</strong>
               <span id="settingsModifiedBadge">Defaults</span>
             </header>
             <div class="settings-toolbar">
-              <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" />
+              <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" data-i18n-placeholder="settings.searchPlaceholder" data-i18n-aria-label="settings.searchPlaceholder" />
               <button id="resetFormatPresetsButton" type="button">Reset Formats</button>
             </div>
             <section class="settings-section settings-locale-section" aria-label="Language">
@@ -293,8 +293,8 @@
               </header>
               <div class="settings-locale-grid">
                 <label>
-                  <span id="localeSelectLabel">Language</span>
-                  <select id="localeSelect" aria-label="Language">
+                  <span id="localeSelectLabel" data-i18n="settings.language">Language</span>
+                  <select id="localeSelect" aria-label="Language" data-i18n-aria-label="settings.language">
                     <option value="en">English</option>
                     <option value="ja">Japanese - 日本語</option>
                     <option value="fr">French - Français</option>
@@ -307,7 +307,7 @@
                     <option value="ko">Korean - 한국어</option>
                   </select>
                 </label>
-                <button id="resetLocaleButton" type="button">Reset Language</button>
+                <button id="resetLocaleButton" type="button" data-i18n="settings.resetLanguage">Reset Language</button>
               </div>
             </section>
             <section class="settings-section" aria-label="Saved filters and sorts">
@@ -344,56 +344,56 @@
             </section>
             <section class="settings-section settings-theme-section" aria-label="Theme">
               <header>
-                <strong>Theme</strong>
+                <strong data-i18n="settings.theme">Theme</strong>
                 <span id="settingsThemeSummary">System</span>
               </header>
               <div class="settings-theme-grid">
                 <label>
-                  <span>Mode</span>
-                  <select id="themePreferenceSelect" aria-label="Theme mode">
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                    <option value="high-contrast">High Contrast</option>
+                  <span data-i18n="settings.mode">Mode</span>
+                  <select id="themePreferenceSelect" aria-label="Theme mode" data-i18n-aria-label="settings.themeModeAria">
+                    <option value="system" data-i18n="settings.theme.system">System</option>
+                    <option value="light" data-i18n="settings.theme.light">Light</option>
+                    <option value="dark" data-i18n="settings.theme.dark">Dark</option>
+                    <option value="high-contrast" data-i18n="settings.theme.highContrast">High Contrast</option>
                   </select>
                 </label>
-                <button id="resetThemePreferenceButton" type="button">Reset Theme</button>
+                <button id="resetThemePreferenceButton" type="button" data-i18n="settings.resetTheme">Reset Theme</button>
               </div>
             </section>
             <section class="settings-section settings-refresh-section" aria-label="External changes">
               <header>
-                <strong>External Changes</strong>
+                <strong data-i18n="settings.externalChanges">External Changes</strong>
                 <span id="settingsRefreshSummary">Auto-refresh clean files</span>
               </header>
               <div class="settings-refresh-grid">
                 <label>
-                  <span>File Refresh</span>
-                  <select id="autoRefreshModeSelect" aria-label="External file refresh">
-                    <option value="clean">Auto-refresh clean files</option>
-                    <option value="notify">Notify only</option>
+                  <span data-i18n="settings.fileRefresh">File Refresh</span>
+                  <select id="autoRefreshModeSelect" aria-label="External file refresh" data-i18n-aria-label="settings.fileRefreshAria">
+                    <option value="clean" data-i18n="settings.autoRefresh.clean">Auto-refresh clean files</option>
+                    <option value="notify" data-i18n="settings.autoRefresh.notify">Notify only</option>
                   </select>
                 </label>
-                <button id="resetAutoRefreshButton" type="button">Reset Refresh</button>
+                <button id="resetAutoRefreshButton" type="button" data-i18n="settings.resetRefresh">Reset Refresh</button>
               </div>
             </section>
             <section class="settings-section settings-update-section" aria-label="Updates">
               <header>
-                <strong>Updates</strong>
+                <strong data-i18n="settings.updates">Updates</strong>
                 <span id="settingsUpdateSummary">Manual only</span>
               </header>
               <div class="settings-update-grid">
                 <label>
-                  <span>Checks</span>
-                  <select id="updateCheckModeSelect" aria-label="Update check mode">
-                    <option value="automatic">Automatic checks</option>
-                    <option value="manual">Manual only</option>
-                    <option value="off">Off</option>
+                  <span data-i18n="settings.checks">Checks</span>
+                  <select id="updateCheckModeSelect" aria-label="Update check mode" data-i18n-aria-label="settings.updateModeAria">
+                    <option value="automatic" data-i18n="settings.update.automatic">Automatic checks</option>
+                    <option value="manual" data-i18n="settings.update.manual">Manual only</option>
+                    <option value="off" data-i18n="settings.update.off">Off</option>
                   </select>
                 </label>
-                <button id="checkForUpdatesButton" type="button" data-command="settings.checkForUpdates">Check Now</button>
-                <button id="resetUpdateChecksButton" type="button">Reset Updates</button>
+                <button id="checkForUpdatesButton" type="button" data-command="settings.checkForUpdates" data-i18n="settings.checkNow">Check Now</button>
+                <button id="resetUpdateChecksButton" type="button" data-i18n="settings.resetUpdates">Reset Updates</button>
               </div>
-              <div id="updateCheckResult" class="settings-update-result" aria-live="polite">No update check has run.</div>
+              <div id="updateCheckResult" class="settings-update-result" aria-live="polite" data-i18n="settings.noUpdateCheck">No update check has run.</div>
             </section>
             <section class="settings-section settings-link-section" aria-label="Link protocols">
               <header>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=inspector-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=settings-i18n-1"></script>
   </body>
 </html>
