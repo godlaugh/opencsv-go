@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=formatsettings-i18n-1`,
+		`v=formatrow-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=formatsettings-i18n-1`) {
+	if !strings.Contains(html, `v=formatrow-i18n-2`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=formatsettings-i18n-1`,
+		`v=formatrow-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=formatsettings-i18n-1`,
+		`v=formatrow-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=formatsettings-i18n-1`,
+		`v=formatrow-i18n-2`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -856,7 +856,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-aria-label="settings.formats.importJsonAria"`,
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
-		`v=formatsettings-i18n-1`,
+		`v=formatrow-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -877,6 +877,11 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则"`,
 		`"settings.formats.statusImported": "已导入 {{count}} 个格式预设。"`,
 		`"settings.formats.errorInvalidJson": "JSON 无效"`,
+		`"settings.formats.rowMeta": "{{preview}} · {{rules}} 条规则 · {{quoteRules}} 条引号规则"`,
+		`"settings.formats.field.delimiter": "分隔符"`,
+		`"settings.formats.quoteMode.manual": "手动"`,
+		`"settings.formats.statusRuleAdded": "已添加格式规则：{{rule}}"`,
+		`"settings.formats.statusSavedPreset": "已保存格式预设：{{preset}}"`,
 		`tf("settings.theme.summarySystem"`,
 		`t("settings.autoRefresh.clean")`,
 		`tf("settings.update.summaryLast"`,
@@ -893,10 +898,25 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`t("settings.appearance.statusReset")`,
 		`tf("settings.formats.summary"`,
 		`t("settings.formats.empty")`,
+		`tf("settings.formats.rowMeta"`,
+		`t("settings.formats.addRule")`,
+		`t("settings.formats.noAutomaticRules")`,
+		`tf("settings.formats.movePresetUpAria"`,
+		`formatPresetFieldAria("settings.formats.field.delimiter"`,
+		`t("settings.formats.quoteMode.manual")`,
+		`t("settings.formats.saveEdit")`,
 		`tf("settings.formats.statusExported"`,
 		`tf("settings.formats.statusImported"`,
 		`localizedFormatPresetImportError(error.message)`,
 		`t("settings.formats.statusReset")`,
+		`tf("settings.formats.statusUpdatedPreset"`,
+		`t("settings.formats.statusCustomDelimiterRequired")`,
+		`tf("settings.formats.statusRuleRemoved"`,
+		`tf("settings.formats.statusRuleMoved"`,
+		`t("settings.formats.statusRuleRequired")`,
+		`tf("settings.formats.statusRuleAdded"`,
+		`tf("settings.formats.statusSavedPreset"`,
+		`t("settings.formats.statusChoosePreset")`,
 		`t("settings.status.updateOff")`,
 		`syncThemeControls();`,
 		`syncAutoRefreshControls();`,

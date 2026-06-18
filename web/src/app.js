@@ -1068,6 +1068,68 @@ const localeCatalog = {
     "settings.formats.errorInvalidJson": "invalid JSON",
     "settings.formats.errorMissingPresets": "missing presets array",
     "settings.formats.errorNoValidPresets": "no valid presets",
+    "settings.formats.rowMeta": "{{preview}} · {{rules}} rules · {{quoteRules}} quote rules",
+    "settings.formats.up": "Up",
+    "settings.formats.down": "Down",
+    "settings.formats.apply": "Apply",
+    "settings.formats.delete": "Delete",
+    "settings.formats.remove": "Remove",
+    "settings.formats.addRule": "Add Rule",
+    "settings.formats.saveEdit": "Save Edit",
+    "settings.formats.noAutomaticRules": "No automatic rules",
+    "settings.formats.addRulePlaceholder": "name:*.csv, path:/exports/*, content:marker",
+    "settings.formats.movePresetUpAria": "Move preset {{preset}} up",
+    "settings.formats.movePresetDownAria": "Move preset {{preset}} down",
+    "settings.formats.moveRuleUpAria": "Move rule {{rule}} up",
+    "settings.formats.moveRuleDownAria": "Move rule {{rule}} down",
+    "settings.formats.addRuleAria": "Add rule for {{preset}}",
+    "settings.formats.presetNameAria": "Preset name for {{preset}}",
+    "settings.formats.fieldAria": "{{field}} for {{preset}}",
+    "settings.formats.saveEditAria": "Save preset edit for {{preset}}",
+    "settings.formats.field.name": "Name",
+    "settings.formats.field.delimiter": "Delimiter",
+    "settings.formats.field.custom": "Custom",
+    "settings.formats.field.headerRow": "Header Row",
+    "settings.formats.field.headerCols": "Header Cols",
+    "settings.formats.field.encoding": "Encoding",
+    "settings.formats.field.eol": "EOL",
+    "settings.formats.field.quoteMode": "Quote Mode",
+    "settings.formats.field.quoteChar": "Quote Char",
+    "settings.formats.field.quoteEscape": "Quote Escape",
+    "settings.formats.delimiter.comma": "Comma",
+    "settings.formats.delimiter.tab": "Tab",
+    "settings.formats.delimiter.semicolon": "Semicolon",
+    "settings.formats.delimiter.pipe": "Pipe",
+    "settings.formats.delimiter.space": "Space",
+    "settings.formats.delimiter.custom": "Custom",
+    "settings.formats.encoding.legacy": "Legacy byte",
+    "settings.formats.quoteMode.minimal": "Minimal",
+    "settings.formats.quoteMode.always": "Always",
+    "settings.formats.quoteMode.never": "Never",
+    "settings.formats.quoteMode.manual": "Manual",
+    "settings.formats.quoteChar.double": "Double quote",
+    "settings.formats.quoteChar.single": "Single quote",
+    "settings.formats.quoteChar.none": "None",
+    "settings.formats.quoteEscape.double": "Double quote",
+    "settings.formats.quoteEscape.backslash": "Backslash",
+    "settings.formats.direction.up": "up",
+    "settings.formats.direction.down": "down",
+    "settings.formats.statusOpenLocal": "Open a local file before applying a format preset.",
+    "settings.formats.statusDeleted": "Deleted format preset.",
+    "settings.formats.statusPresetOrderUnchanged": "Format preset order unchanged.",
+    "settings.formats.statusPresetMoved": "Moved format preset {{direction}}.",
+    "settings.formats.statusPresetNotFound": "Format preset not found.",
+    "settings.formats.statusUpdatedPreset": "Updated format preset: {{preset}}",
+    "settings.formats.statusCustomDelimiterRequired": "Enter a custom delimiter before saving the preset.",
+    "settings.formats.statusRuleRemoved": "Removed format rule: {{rule}}",
+    "settings.formats.statusRuleOrderUnchanged": "Format rule order unchanged.",
+    "settings.formats.statusRuleMoved": "Moved format rule {{direction}}.",
+    "settings.formats.statusRuleRequired": "Enter a rule pattern first.",
+    "settings.formats.statusRuleAdded": "Added format rule: {{rule}}",
+    "settings.formats.statusSavedRule": "Saved format rule: {{rule}} -> {{preset}}",
+    "settings.formats.statusSavedPreset": "Saved format preset: {{preset}}",
+    "settings.formats.statusRulePatternRequired": "Enter a rule pattern after opening a file.",
+    "settings.formats.statusChoosePreset": "Choose a format preset first.",
     "shortcut.export": "Export",
     "shortcut.import": "Import",
     "shortcut.resetAll": "Reset All",
@@ -1990,6 +2052,68 @@ const localeCatalog = {
     "settings.formats.errorInvalidJson": "JSON 无效",
     "settings.formats.errorMissingPresets": "缺少预设数组",
     "settings.formats.errorNoValidPresets": "没有有效预设",
+    "settings.formats.rowMeta": "{{preview}} · {{rules}} 条规则 · {{quoteRules}} 条引号规则",
+    "settings.formats.up": "上移",
+    "settings.formats.down": "下移",
+    "settings.formats.apply": "应用",
+    "settings.formats.delete": "删除",
+    "settings.formats.remove": "移除",
+    "settings.formats.addRule": "添加规则",
+    "settings.formats.saveEdit": "保存编辑",
+    "settings.formats.noAutomaticRules": "没有自动规则",
+    "settings.formats.addRulePlaceholder": "name:*.csv, path:/exports/*, content:marker",
+    "settings.formats.movePresetUpAria": "将预设 {{preset}} 上移",
+    "settings.formats.movePresetDownAria": "将预设 {{preset}} 下移",
+    "settings.formats.moveRuleUpAria": "将规则 {{rule}} 上移",
+    "settings.formats.moveRuleDownAria": "将规则 {{rule}} 下移",
+    "settings.formats.addRuleAria": "为 {{preset}} 添加规则",
+    "settings.formats.presetNameAria": "{{preset}}的预设名称",
+    "settings.formats.fieldAria": "{{preset}}的{{field}}",
+    "settings.formats.saveEditAria": "保存{{preset}}的预设编辑",
+    "settings.formats.field.name": "名称",
+    "settings.formats.field.delimiter": "分隔符",
+    "settings.formats.field.custom": "自定义",
+    "settings.formats.field.headerRow": "表头行",
+    "settings.formats.field.headerCols": "表头列",
+    "settings.formats.field.encoding": "编码",
+    "settings.formats.field.eol": "换行",
+    "settings.formats.field.quoteMode": "引号模式",
+    "settings.formats.field.quoteChar": "引号字符",
+    "settings.formats.field.quoteEscape": "引号转义",
+    "settings.formats.delimiter.comma": "逗号",
+    "settings.formats.delimiter.tab": "制表符",
+    "settings.formats.delimiter.semicolon": "分号",
+    "settings.formats.delimiter.pipe": "竖线",
+    "settings.formats.delimiter.space": "空格",
+    "settings.formats.delimiter.custom": "自定义",
+    "settings.formats.encoding.legacy": "传统字节",
+    "settings.formats.quoteMode.minimal": "最少",
+    "settings.formats.quoteMode.always": "始终",
+    "settings.formats.quoteMode.never": "从不",
+    "settings.formats.quoteMode.manual": "手动",
+    "settings.formats.quoteChar.double": "双引号",
+    "settings.formats.quoteChar.single": "单引号",
+    "settings.formats.quoteChar.none": "无",
+    "settings.formats.quoteEscape.double": "双引号",
+    "settings.formats.quoteEscape.backslash": "反斜杠",
+    "settings.formats.direction.up": "上移",
+    "settings.formats.direction.down": "下移",
+    "settings.formats.statusOpenLocal": "应用格式预设前请先打开本地文件。",
+    "settings.formats.statusDeleted": "格式预设已删除。",
+    "settings.formats.statusPresetOrderUnchanged": "格式预设顺序未改变。",
+    "settings.formats.statusPresetMoved": "格式预设已{{direction}}。",
+    "settings.formats.statusPresetNotFound": "未找到格式预设。",
+    "settings.formats.statusUpdatedPreset": "已更新格式预设：{{preset}}",
+    "settings.formats.statusCustomDelimiterRequired": "保存预设前请输入自定义分隔符。",
+    "settings.formats.statusRuleRemoved": "已移除格式规则：{{rule}}",
+    "settings.formats.statusRuleOrderUnchanged": "格式规则顺序未改变。",
+    "settings.formats.statusRuleMoved": "格式规则已{{direction}}。",
+    "settings.formats.statusRuleRequired": "请先输入规则模式。",
+    "settings.formats.statusRuleAdded": "已添加格式规则：{{rule}}",
+    "settings.formats.statusSavedRule": "已保存格式规则：{{rule}} -> {{preset}}",
+    "settings.formats.statusSavedPreset": "已保存格式预设：{{preset}}",
+    "settings.formats.statusRulePatternRequired": "打开文件后请输入规则模式。",
+    "settings.formats.statusChoosePreset": "请先选择格式预设。",
     "shortcut.export": "导出",
     "shortcut.import": "导入",
     "shortcut.resetAll": "全部重置",
@@ -5701,7 +5825,9 @@ function saveCurrentFormatPreset(rulePattern = "") {
   saveFormatPresets(presets);
   formatPresetSelect.value = id;
   document.body.dataset.formatPresetPreview = formatPresetPreview(saved);
-  status.textContent = rulePattern ? `Saved format rule: ${rulePattern} -> ${saved.name}` : `Saved format preset: ${saved.name}`;
+  status.textContent = rulePattern
+    ? tf("settings.formats.statusSavedRule", { rule: rulePattern, preset: saved.name })
+    : tf("settings.formats.statusSavedPreset", { preset: saved.name });
   updateCommandState();
   return saved;
 }
@@ -5709,7 +5835,7 @@ function saveCurrentFormatPreset(rulePattern = "") {
 function saveCurrentFormatRule() {
   const pattern = formatRuleInput.value.trim() || defaultFormatRulePattern();
   if (!pattern) {
-    status.textContent = "Enter a rule pattern after opening a file.";
+    status.textContent = t("settings.formats.statusRulePatternRequired");
     return;
   }
   const saved = saveCurrentFormatPreset(pattern);
@@ -5722,12 +5848,12 @@ async function applySelectedFormatPreset() {
   if (!ensureEditable("Apply Format Preset")) return;
   const preset = formatPresets().find((item) => item.id === formatPresetSelect.value);
   if (!preset) {
-    status.textContent = "Choose a format preset first.";
+    status.textContent = t("settings.formats.statusChoosePreset");
     return;
   }
   const path = metadata?.path || pathInput.value.trim();
   if (!path) {
-    status.textContent = "Open a local file before applying a format preset.";
+    status.textContent = t("settings.formats.statusOpenLocal");
     return;
   }
   document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
@@ -6118,26 +6244,31 @@ function formatPresetSettingsRow(preset) {
   const presetRules = normalizeFormatRules(preset.rules);
   const quoteRuleCount = formatPresetQuoteRuleCount(preset);
   const meta = document.createElement("span");
-  meta.textContent = `${formatPresetPreview(preset)} · ${presetRules.length} rules · ${quoteRuleCount} quote rules`;
+  meta.textContent = tf("settings.formats.rowMeta", {
+    preview: formatPresetPreview(preset),
+    rules: formatCount(presetRules.length),
+    quoteRules: formatCount(quoteRuleCount),
+  });
   const actions = document.createElement("div");
   actions.className = "settings-preset-actions";
   const presets = formatPresets();
   const presetIndex = presets.findIndex((item) => item.id === preset.id);
-  const moveUpButton = settingsActionButton("Up");
+  const presetLabel = preset.name || preset.id;
+  const moveUpButton = settingsActionButton(t("settings.formats.up"));
   moveUpButton.disabled = presetIndex <= 0;
-  moveUpButton.setAttribute("aria-label", `Move preset ${preset.name || preset.id} up`);
+  moveUpButton.setAttribute("aria-label", tf("settings.formats.movePresetUpAria", { preset: presetLabel }));
   moveUpButton.addEventListener("click", () => moveFormatPreset(preset.id, -1));
-  const moveDownButton = settingsActionButton("Down");
+  const moveDownButton = settingsActionButton(t("settings.formats.down"));
   moveDownButton.disabled = presetIndex < 0 || presetIndex >= presets.length - 1;
-  moveDownButton.setAttribute("aria-label", `Move preset ${preset.name || preset.id} down`);
+  moveDownButton.setAttribute("aria-label", tf("settings.formats.movePresetDownAria", { preset: presetLabel }));
   moveDownButton.addEventListener("click", () => moveFormatPreset(preset.id, 1));
-  const applyButton = settingsActionButton("Apply");
+  const applyButton = settingsActionButton(t("settings.formats.apply"));
   applyButton.disabled = !documentId;
   applyButton.addEventListener("click", async () => {
     formatPresetSelect.value = preset.id;
     await applyFormatPresetToCurrentPath(preset);
   });
-  const deleteButton = settingsActionButton("Delete");
+  const deleteButton = settingsActionButton(t("settings.formats.delete"));
   deleteButton.addEventListener("click", () => deleteFormatPreset(preset.id));
   actions.append(moveUpButton, moveDownButton, applyButton, deleteButton);
   header.append(title, meta, actions);
@@ -6149,7 +6280,7 @@ function formatPresetSettingsRow(preset) {
   if (presetRules.length === 0) {
     const empty = document.createElement("span");
     empty.className = "settings-rule-empty";
-    empty.textContent = "No automatic rules";
+    empty.textContent = t("settings.formats.noAutomaticRules");
     rules.append(empty);
   } else {
     for (const [ruleIndex, rule] of presetRules.entries()) {
@@ -6159,15 +6290,15 @@ function formatPresetSettingsRow(preset) {
       item.dataset.ruleIndex = String(ruleIndex);
       const label = document.createElement("code");
       label.textContent = rule.pattern;
-      const moveRuleUp = settingsActionButton("Up");
+      const moveRuleUp = settingsActionButton(t("settings.formats.up"));
       moveRuleUp.disabled = ruleIndex === 0;
-      moveRuleUp.setAttribute("aria-label", `Move rule ${rule.pattern} up`);
+      moveRuleUp.setAttribute("aria-label", tf("settings.formats.moveRuleUpAria", { rule: rule.pattern }));
       moveRuleUp.addEventListener("click", () => moveFormatRule(preset.id, rule.pattern, -1));
-      const moveRuleDown = settingsActionButton("Down");
+      const moveRuleDown = settingsActionButton(t("settings.formats.down"));
       moveRuleDown.disabled = ruleIndex >= presetRules.length - 1;
-      moveRuleDown.setAttribute("aria-label", `Move rule ${rule.pattern} down`);
+      moveRuleDown.setAttribute("aria-label", tf("settings.formats.moveRuleDownAria", { rule: rule.pattern }));
       moveRuleDown.addEventListener("click", () => moveFormatRule(preset.id, rule.pattern, 1));
-      const remove = settingsActionButton("Remove");
+      const remove = settingsActionButton(t("settings.formats.remove"));
       remove.addEventListener("click", () => deleteFormatRule(preset.id, rule.pattern));
       item.append(label, moveRuleUp, moveRuleDown, remove);
       rules.append(item);
@@ -6178,9 +6309,9 @@ function formatPresetSettingsRow(preset) {
   addRule.className = "settings-add-rule";
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "name:*.csv, path:/exports/*, content:marker";
-  input.setAttribute("aria-label", `Add rule for ${preset.name || preset.id}`);
-  const add = settingsActionButton("Add Rule");
+  input.placeholder = t("settings.formats.addRulePlaceholder");
+  input.setAttribute("aria-label", tf("settings.formats.addRuleAria", { preset: presetLabel }));
+  const add = settingsActionButton(t("settings.formats.addRule"));
   add.type = "submit";
   addRule.append(input, add);
   addRule.addEventListener("submit", (event) => {
@@ -6203,17 +6334,17 @@ function formatPresetEditForm(preset) {
   nameInput.type = "text";
   nameInput.maxLength = 120;
   nameInput.value = preset.name || formatPresetName(preset);
-  nameInput.setAttribute("aria-label", `Preset name for ${presetLabel}`);
+  nameInput.setAttribute("aria-label", tf("settings.formats.presetNameAria", { preset: presetLabel }));
 
   const delimiterSelect = settingsSelectControl("delimiter", [
-    ["comma", "Comma"],
-    ["tab", "Tab"],
-    ["semicolon", "Semicolon"],
-    ["pipe", "Pipe"],
-    ["space", "Space"],
-    ["custom", "Custom"],
+    ["comma", t("settings.formats.delimiter.comma")],
+    ["tab", t("settings.formats.delimiter.tab")],
+    ["semicolon", t("settings.formats.delimiter.semicolon")],
+    ["pipe", t("settings.formats.delimiter.pipe")],
+    ["space", t("settings.formats.delimiter.space")],
+    ["custom", t("settings.formats.delimiter.custom")],
   ], delimiterOptionValue(preset));
-  delimiterSelect.setAttribute("aria-label", `Delimiter for ${presetLabel}`);
+  delimiterSelect.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.delimiter", presetLabel));
 
   const customDelimiter = document.createElement("input");
   customDelimiter.name = "customDelimiter";
@@ -6221,7 +6352,7 @@ function formatPresetEditForm(preset) {
   customDelimiter.maxLength = 1;
   customDelimiter.value = delimiterCustomValue(preset);
   customDelimiter.disabled = delimiterSelect.value !== "custom";
-  customDelimiter.setAttribute("aria-label", `Custom delimiter for ${presetLabel}`);
+  customDelimiter.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.custom", presetLabel));
   delimiterSelect.addEventListener("change", () => {
     const custom = delimiterSelect.value === "custom";
     customDelimiter.disabled = !custom;
@@ -6232,7 +6363,7 @@ function formatPresetEditForm(preset) {
   headerRow.name = "hasHeader";
   headerRow.type = "checkbox";
   headerRow.checked = Boolean(preset.hasHeader);
-  headerRow.setAttribute("aria-label", `Header row for ${presetLabel}`);
+  headerRow.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.headerRow", presetLabel));
 
   const headerColumns = document.createElement("input");
   headerColumns.name = "headerColumns";
@@ -6241,7 +6372,7 @@ function formatPresetEditForm(preset) {
   headerColumns.max = "64";
   headerColumns.step = "1";
   headerColumns.value = String(normalizeHeaderColumns(preset.headerColumns));
-  headerColumns.setAttribute("aria-label", `Header columns for ${presetLabel}`);
+  headerColumns.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.headerCols", presetLabel));
 
   const encodingSelectEdit = settingsSelectControl("encodingName", [
     ["utf-8", "UTF-8"],
@@ -6253,53 +6384,53 @@ function formatPresetEditForm(preset) {
     ["shift-jis", "Shift-JIS"],
     ["gbk", "GBK"],
     ["windows-1252", "Windows-1252"],
-    ["legacy-single-byte", "Legacy byte"],
+    ["legacy-single-byte", t("settings.formats.encoding.legacy")],
   ], preset.encodingName || "utf-8");
-  encodingSelectEdit.setAttribute("aria-label", `Encoding for ${presetLabel}`);
+  encodingSelectEdit.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.encoding", presetLabel));
 
   const lineEndingSelectEdit = settingsSelectControl("lineEndingName", [
     ["lf", "LF"],
     ["crlf", "CRLF"],
     ["cr", "CR"],
   ], normalizeLineEndingName(preset.lineEndingName));
-  lineEndingSelectEdit.setAttribute("aria-label", `Line ending for ${presetLabel}`);
+  lineEndingSelectEdit.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.eol", presetLabel));
 
   const quoteModeSelectEdit = settingsSelectControl("quoteMode", [
-    ["minimal", "Minimal"],
-    ["always", "Always"],
-    ["never", "Never"],
-    ["manual", "Manual"],
+    ["minimal", t("settings.formats.quoteMode.minimal")],
+    ["always", t("settings.formats.quoteMode.always")],
+    ["never", t("settings.formats.quoteMode.never")],
+    ["manual", t("settings.formats.quoteMode.manual")],
   ], quoteModeValue(preset));
-  quoteModeSelectEdit.setAttribute("aria-label", `Quote mode for ${presetLabel}`);
+  quoteModeSelectEdit.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.quoteMode", presetLabel));
 
   const quoteCharSelectEdit = settingsSelectControl("quoteChar", [
-    ["double", "Double quote"],
-    ["single", "Single quote"],
-    ["none", "None"],
+    ["double", t("settings.formats.quoteChar.double")],
+    ["single", t("settings.formats.quoteChar.single")],
+    ["none", t("settings.formats.quoteChar.none")],
   ], quoteCharValue(preset));
-  quoteCharSelectEdit.setAttribute("aria-label", `Quote character for ${presetLabel}`);
+  quoteCharSelectEdit.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.quoteChar", presetLabel));
 
   const quoteEscapeSelectEdit = settingsSelectControl("quoteEscape", [
-    ["double", "Double quote"],
-    ["backslash", "Backslash"],
+    ["double", t("settings.formats.quoteEscape.double")],
+    ["backslash", t("settings.formats.quoteEscape.backslash")],
   ], quoteEscapeValue(preset));
-  quoteEscapeSelectEdit.setAttribute("aria-label", `Quote escape for ${presetLabel}`);
+  quoteEscapeSelectEdit.setAttribute("aria-label", formatPresetFieldAria("settings.formats.field.quoteEscape", presetLabel));
 
-  const save = settingsActionButton("Save Edit");
+  const save = settingsActionButton(t("settings.formats.saveEdit"));
   save.type = "submit";
-  save.setAttribute("aria-label", `Save preset edit for ${presetLabel}`);
+  save.setAttribute("aria-label", tf("settings.formats.saveEditAria", { preset: presetLabel }));
 
   form.append(
-    settingsControlLabel("Name", nameInput),
-    settingsControlLabel("Delimiter", delimiterSelect),
-    settingsControlLabel("Custom", customDelimiter),
-    settingsCheckboxLabel("Header Row", headerRow),
-    settingsControlLabel("Header Cols", headerColumns),
-    settingsControlLabel("Encoding", encodingSelectEdit),
-    settingsControlLabel("EOL", lineEndingSelectEdit),
-    settingsControlLabel("Quote Mode", quoteModeSelectEdit),
-    settingsControlLabel("Quote Char", quoteCharSelectEdit),
-    settingsControlLabel("Quote Escape", quoteEscapeSelectEdit),
+    settingsControlLabel(t("settings.formats.field.name"), nameInput),
+    settingsControlLabel(t("settings.formats.field.delimiter"), delimiterSelect),
+    settingsControlLabel(t("settings.formats.field.custom"), customDelimiter),
+    settingsCheckboxLabel(t("settings.formats.field.headerRow"), headerRow),
+    settingsControlLabel(t("settings.formats.field.headerCols"), headerColumns),
+    settingsControlLabel(t("settings.formats.field.encoding"), encodingSelectEdit),
+    settingsControlLabel(t("settings.formats.field.eol"), lineEndingSelectEdit),
+    settingsControlLabel(t("settings.formats.field.quoteMode"), quoteModeSelectEdit),
+    settingsControlLabel(t("settings.formats.field.quoteChar"), quoteCharSelectEdit),
+    settingsControlLabel(t("settings.formats.field.quoteEscape"), quoteEscapeSelectEdit),
     save,
   );
   form.addEventListener("submit", (event) => {
@@ -6307,6 +6438,10 @@ function formatPresetEditForm(preset) {
     saveEditedFormatPreset(preset.id, form);
   });
   return form;
+}
+
+function formatPresetFieldAria(fieldKey, presetLabel) {
+  return tf("settings.formats.fieldAria", { field: t(fieldKey), preset: presetLabel });
 }
 
 function settingsControlLabel(labelText, control) {
@@ -6350,7 +6485,7 @@ function settingsActionButton(label) {
 async function applyFormatPresetToCurrentPath(preset) {
   const path = metadata?.path || pathInput.value.trim();
   if (!path) {
-    status.textContent = "Open a local file before applying a format preset.";
+    status.textContent = t("settings.formats.statusOpenLocal");
     return;
   }
   document.body.dataset.formatPresetPreview = formatPresetPreview(preset);
@@ -6362,7 +6497,7 @@ function deleteFormatPreset(presetID) {
   saveFormatPresets(presets);
   if (formatPresetSelect.value === presetID) formatPresetSelect.value = "";
   document.body.dataset.formatPresetOrder = presets.map((preset) => preset.id).join("|");
-  status.textContent = "Deleted format preset.";
+  status.textContent = t("settings.formats.statusDeleted");
   updateCommandState();
 }
 
@@ -6371,7 +6506,7 @@ function moveFormatPreset(presetID, delta) {
   const index = presets.findIndex((preset) => preset.id === presetID);
   const nextIndex = index + delta;
   if (index < 0 || nextIndex < 0 || nextIndex >= presets.length) {
-    status.textContent = "Format preset order unchanged.";
+    status.textContent = t("settings.formats.statusPresetOrderUnchanged");
     return;
   }
   const [preset] = presets.splice(index, 1);
@@ -6379,7 +6514,9 @@ function moveFormatPreset(presetID, delta) {
   saveFormatPresets(presets);
   formatPresetSelect.value = presetID;
   document.body.dataset.formatPresetOrder = presets.map((item) => item.id).join("|");
-  status.textContent = `Moved format preset ${nextIndex < index ? "up" : "down"}.`;
+  status.textContent = tf("settings.formats.statusPresetMoved", {
+    direction: t(`settings.formats.direction.${nextIndex < index ? "up" : "down"}`),
+  });
   updateCommandState();
 }
 
@@ -6395,7 +6532,7 @@ function saveEditedFormatPreset(presetID, form) {
     return draft;
   });
   if (!found) {
-    status.textContent = "Format preset not found.";
+    status.textContent = t("settings.formats.statusPresetNotFound");
     return;
   }
   if (!updated) return;
@@ -6404,7 +6541,7 @@ function saveEditedFormatPreset(presetID, form) {
   const signature = formatPresetPreview(updated);
   document.body.dataset.formatPresetEdit = `${presetID}:${signature}`;
   document.body.dataset.formatPresetPreview = signature;
-  status.textContent = `Updated format preset: ${updated.name || formatPresetName(updated)}`;
+  status.textContent = tf("settings.formats.statusUpdatedPreset", { preset: updated.name || formatPresetName(updated) });
   updateCommandState();
 }
 
@@ -6414,7 +6551,7 @@ function editedFormatPresetFromForm(preset, form) {
   if (delimiterOption === "custom") {
     const custom = Array.from(form.elements.customDelimiter?.value || "")[0];
     if (!custom) {
-      status.textContent = "Enter a custom delimiter before saving the preset.";
+      status.textContent = t("settings.formats.statusCustomDelimiterRequired");
       return null;
     }
     delimiterInfo = { delimiter: custom, delimiterName: custom };
@@ -6456,7 +6593,7 @@ function deleteFormatRule(presetID, pattern) {
   saveFormatPresets(presets);
   document.body.dataset.formatRulePreview = `removed:${pattern}`;
   document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
-  status.textContent = `Removed format rule: ${pattern}`;
+  status.textContent = tf("settings.formats.statusRuleRemoved", { rule: pattern });
 }
 
 function moveFormatRule(presetID, pattern, delta) {
@@ -6474,12 +6611,14 @@ function moveFormatRule(presetID, pattern, delta) {
     return { ...preset, rules };
   });
   if (!moved) {
-    status.textContent = "Format rule order unchanged.";
+    status.textContent = t("settings.formats.statusRuleOrderUnchanged");
     return;
   }
   saveFormatPresets(presets);
   document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
-  status.textContent = `Moved format rule ${delta < 0 ? "up" : "down"}.`;
+  status.textContent = tf("settings.formats.statusRuleMoved", {
+    direction: t(`settings.formats.direction.${delta < 0 ? "up" : "down"}`),
+  });
   updateCommandState();
 }
 
@@ -6491,7 +6630,7 @@ function formatRuleOrderSignature(presets, presetID) {
 function addFormatRuleToPreset(presetID, pattern) {
   const normalized = normalizeFormatRule({ pattern });
   if (!normalized) {
-    status.textContent = "Enter a rule pattern first.";
+    status.textContent = t("settings.formats.statusRuleRequired");
     return;
   }
   const key = formatRuleKey(normalized);
@@ -6503,7 +6642,7 @@ function addFormatRuleToPreset(presetID, pattern) {
   saveFormatPresets(presets);
   document.body.dataset.formatRulePreview = `${formatRuleTarget(normalized.pattern)}:${formatRulePattern(normalized.pattern)}`;
   document.body.dataset.formatRuleOrder = formatRuleOrderSignature(presets, presetID);
-  status.textContent = `Added format rule: ${normalized.pattern}`;
+  status.textContent = tf("settings.formats.statusRuleAdded", { rule: normalized.pattern });
 }
 
 function resetFormatPresets() {
