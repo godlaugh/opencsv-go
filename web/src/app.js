@@ -966,6 +966,8 @@ const localeCatalog = {
     "settings.language": "Language",
     "settings.resetLanguage": "Reset Language",
     "settings.searchPlaceholder": "Search settings",
+    "settings.noMatches": "No matching settings",
+    "settings.noMatchesFor": "No settings match \"{{query}}\".",
     "settings.savedViews": "Saved Filters, Recent & Sorts",
     "settings.savedViews.export": "Export Views",
     "settings.savedViews.import": "Import Views",
@@ -1950,6 +1952,8 @@ const localeCatalog = {
     "settings.language": "语言",
     "settings.resetLanguage": "重置语言",
     "settings.searchPlaceholder": "搜索设置",
+    "settings.noMatches": "没有匹配的设置",
+    "settings.noMatchesFor": "没有匹配“{{query}}”的设置。",
     "settings.savedViews": "保存的筛选、最近记录和排序",
     "settings.savedViews.export": "导出视图",
     "settings.savedViews.import": "导入视图",
@@ -6158,7 +6162,9 @@ function filterSettingsSections(query) {
   document.body.dataset.settingsVisibleSections = visibleLabels.join("|");
   if (settingsEmpty) {
     settingsEmpty.hidden = visibleLabels.length > 0;
-    settingsEmpty.textContent = query ? `No settings match "${settingsSearch.value.trim()}".` : "No matching settings";
+    settingsEmpty.textContent = query
+      ? tf("settings.noMatchesFor", { query: settingsSearch.value.trim() })
+      : t("settings.noMatches");
   }
 }
 
