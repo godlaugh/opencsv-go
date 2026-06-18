@@ -781,24 +781,24 @@
     </div>
 
     <div id="shortcutsPanel" class="command-palette-backdrop" hidden>
-      <section class="shortcut-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <section class="shortcut-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" data-i18n-aria-label="settings.keyboardShortcuts">
         <header class="shortcut-panel-header">
-          <strong>Keyboard Shortcuts</strong>
+          <strong data-i18n="settings.keyboardShortcuts">Keyboard Shortcuts</strong>
           <div class="shortcut-panel-actions">
-            <button id="exportShortcutsButton" type="button" data-command="settings.exportShortcuts" aria-label="Export Keyboard Shortcuts">Export</button>
-            <button id="showImportShortcutsButton" type="button" data-command="settings.importShortcuts" aria-label="Import Keyboard Shortcuts">Import</button>
-            <button id="resetAllShortcutsButton" type="button" aria-label="Reset All Keyboard Shortcuts">Reset All</button>
-            <button id="closeShortcutsButton" type="button">Close</button>
+            <button id="exportShortcutsButton" type="button" data-command="settings.exportShortcuts" aria-label="Export Keyboard Shortcuts" data-i18n="shortcut.export" data-i18n-aria-label="shortcut.exportAria">Export</button>
+            <button id="showImportShortcutsButton" type="button" data-command="settings.importShortcuts" aria-label="Import Keyboard Shortcuts" data-i18n="shortcut.import" data-i18n-aria-label="shortcut.importAria">Import</button>
+            <button id="resetAllShortcutsButton" type="button" aria-label="Reset All Keyboard Shortcuts" data-i18n="shortcut.resetAll" data-i18n-aria-label="shortcut.resetAllAria">Reset All</button>
+            <button id="closeShortcutsButton" type="button" data-i18n="common.close">Close</button>
           </div>
         </header>
         <div class="shortcut-preset-bar">
-          <label for="shortcutPresetSelect">Preset</label>
-          <select id="shortcutPresetSelect" aria-label="Shortcut preset">
-            <option value="default">Default</option>
-            <option value="analysis">Analysis</option>
-            <option value="editing">Editing</option>
+          <label for="shortcutPresetSelect" data-i18n="shortcut.preset">Preset</label>
+          <select id="shortcutPresetSelect" aria-label="Shortcut preset" data-i18n-aria-label="shortcut.presetAria">
+            <option value="default" data-i18n="shortcut.preset.default">Default</option>
+            <option value="analysis" data-i18n="shortcut.preset.analysis">Analysis</option>
+            <option value="editing" data-i18n="shortcut.preset.editing">Editing</option>
           </select>
-          <button id="applyShortcutPresetButton" type="button">Apply Preset</button>
+          <button id="applyShortcutPresetButton" type="button" data-i18n="shortcut.applyPreset">Apply Preset</button>
         </div>
         <div class="shortcut-macro-bar" aria-label="Command macro">
           <div>
@@ -810,15 +810,15 @@
             <button id="clearMacroButton" type="button" data-command="macro.clearLast" data-i18n="macro.clear">Clear</button>
           </div>
         </div>
-        <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" />
+        <input id="shortcutsSearch" type="text" autocomplete="off" spellcheck="false" aria-label="Search shortcuts" data-i18n-aria-label="shortcut.searchAria" data-i18n-placeholder="shortcut.searchPlaceholder" />
         <div id="shortcutImportPanel" class="shortcut-import-panel" hidden>
-          <textarea id="shortcutImportText" spellcheck="false" aria-label="Shortcut import JSON" placeholder='{"kind":"opencsv-shortcuts","shortcuts":{}}'></textarea>
+          <textarea id="shortcutImportText" spellcheck="false" aria-label="Shortcut import JSON" data-i18n-aria-label="shortcut.importJsonAria" placeholder='{"kind":"opencsv-shortcuts","shortcuts":{}}'></textarea>
           <div class="shortcut-import-actions" data-dialog-actions>
-            <button id="applyShortcutImportButton" type="button" data-dialog-role="confirm">Apply Import</button>
-            <button id="cancelShortcutImportButton" type="button" data-dialog-role="cancel">Cancel</button>
+            <button id="applyShortcutImportButton" type="button" data-dialog-role="confirm" data-i18n="shortcut.applyImport">Apply Import</button>
+            <button id="cancelShortcutImportButton" type="button" data-dialog-role="cancel" data-i18n="common.cancel">Cancel</button>
           </div>
         </div>
-        <div id="shortcutsList" class="shortcut-list" role="list" aria-label="Shortcut commands"></div>
+        <div id="shortcutsList" class="shortcut-list" role="list" aria-label="Shortcut commands" data-i18n-aria-label="shortcut.commandsAria"></div>
       </section>
     </div>
 
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=macro-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=shortcut-i18n-1"></script>
   </body>
 </html>

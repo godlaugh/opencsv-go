@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=macro-i18n-1`,
+		`v=shortcut-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=macro-i18n-1`) {
+	if !strings.Contains(html, `v=shortcut-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -652,7 +652,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=macro-i18n-1`,
+		`v=shortcut-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -1468,6 +1468,12 @@ func TestKeyboardShortcutsShellEntryIsWired(t *testing.T) {
 		`id="shortcutsTabButton"`,
 		`data-command="settings.keyboardShortcuts"`,
 		`aria-label="Keyboard Shortcuts"`,
+		`data-i18n-aria-label="settings.keyboardShortcuts"`,
+		`data-i18n="settings.keyboardShortcuts"`,
+		`data-i18n="shortcut.export"`,
+		`data-i18n="shortcut.import"`,
+		`data-i18n="shortcut.preset.analysis"`,
+		`data-i18n-placeholder="shortcut.searchPlaceholder"`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing keyboard shortcuts shell html wiring %q", snippet)
@@ -1478,6 +1484,17 @@ func TestKeyboardShortcutsShellEntryIsWired(t *testing.T) {
 		`"nav.shortcuts": "Keys"`,
 		`[shortcutsTabButton, "nav.shortcuts"]`,
 		`shortcutsTabButton.title = t("settings.keyboardShortcuts")`,
+		`root.querySelectorAll("[data-i18n-aria-label]")`,
+		`"shortcut.preset.analysis": "分析"`,
+		`"command.settings.exportShortcuts.title": "导出键盘快捷键"`,
+		`t("shortcut.pressShortcut")`,
+		`t("shortcut.record")`,
+		`t("shortcut.reset")`,
+		`t("shortcut.replace")`,
+		`tf("shortcut.status.exported"`,
+		`tf("shortcut.status.imported"`,
+		`t("shortcut.error.invalidJson")`,
+		`tf("shortcut.status.assigned"`,
 		`shortcutsTabButton.addEventListener("click", () => executeCommand("settings.keyboardShortcuts"))`,
 	} {
 		if !strings.Contains(source, snippet) {
@@ -1500,7 +1517,8 @@ func TestKeyboardShortcutResetAllIsWired(t *testing.T) {
 	for _, snippet := range []string{
 		`id="resetAllShortcutsButton"`,
 		`aria-label="Reset All Keyboard Shortcuts"`,
-		`Reset All`,
+		`data-i18n="shortcut.resetAll"`,
+		`data-i18n-aria-label="shortcut.resetAllAria"`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing reset-all shortcuts html wiring %q", snippet)
@@ -1513,6 +1531,10 @@ func TestKeyboardShortcutResetAllIsWired(t *testing.T) {
 		"function resetAllShortcuts()",
 		"customShortcuts = new Map()",
 		"document.body.dataset.shortcutResetAll = String(resetCount)",
+		`t("shortcut.status.defaults")`,
+		`tf("shortcut.status.resetTitle"`,
+		`tf("shortcut.status.resetCount"`,
+		`t("shortcut.status.alreadyDefaults")`,
 		`resetAllShortcutsButton.addEventListener("click", resetAllShortcuts)`,
 	} {
 		if !strings.Contains(source, snippet) {

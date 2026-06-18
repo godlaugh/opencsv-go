@@ -934,6 +934,62 @@ const localeCatalog = {
     "settings.linkProtocols": "Link Protocols",
     "settings.editorAppearance": "Editor Appearance",
     "settings.fileFormatPresets": "File Format Presets",
+    "shortcut.export": "Export",
+    "shortcut.import": "Import",
+    "shortcut.resetAll": "Reset All",
+    "shortcut.exportAria": "Export Keyboard Shortcuts",
+    "shortcut.importAria": "Import Keyboard Shortcuts",
+    "shortcut.resetAllAria": "Reset All Keyboard Shortcuts",
+    "shortcut.preset": "Preset",
+    "shortcut.presetAria": "Shortcut preset",
+    "shortcut.preset.default": "Default",
+    "shortcut.preset.analysis": "Analysis",
+    "shortcut.preset.editing": "Editing",
+    "shortcut.applyPreset": "Apply Preset",
+    "shortcut.searchAria": "Search shortcuts",
+    "shortcut.searchPlaceholder": "Search shortcuts",
+    "shortcut.importJsonAria": "Shortcut import JSON",
+    "shortcut.applyImport": "Apply Import",
+    "shortcut.commandsAria": "Shortcut commands",
+    "shortcut.noMatches": "No matching commands",
+    "shortcut.pressShortcut": "Press shortcut",
+    "shortcut.cancelRecord": "Cancel",
+    "shortcut.record": "Record",
+    "shortcut.reset": "Reset",
+    "shortcut.replace": "Replace",
+    "shortcut.always": "Always",
+    "shortcut.context.document": "Document",
+    "shortcut.context.grid": "Grid",
+    "shortcut.context.sql": "SQL",
+    "shortcut.context.profile": "Profile",
+    "shortcut.context.settings": "Settings",
+    "shortcut.context.diff": "Diff",
+    "shortcut.context.typing": "Typing",
+    "shortcut.context.expression": "Expression: {{expression}}",
+    "shortcut.contextWhen": "When {{context}}",
+    "shortcut.contextAria": "{{command}} shortcut context",
+    "shortcut.conflictAssigned": "{{shortcut}} is assigned to {{command}}",
+    "shortcut.conflictAssignedGeneric": "{{shortcut}} is already assigned",
+    "shortcut.status.defaults": "Keyboard shortcuts are using defaults",
+    "shortcut.status.resetTitle": "Reset {{count}} custom shortcuts",
+    "shortcut.status.appliedPreset": "Applied {{preset}} shortcut preset: {{count}} shortcuts.",
+    "shortcut.status.appliedPresetSkipped": "Applied {{preset}} shortcut preset: {{count}} shortcuts, skipped {{skipped}}.",
+    "shortcut.status.exported": "Exported {{count}} shortcuts.",
+    "shortcut.status.imported": "Imported {{count}} shortcuts.",
+    "shortcut.status.importedSkipped": "Imported {{count}} shortcuts, skipped {{skipped}}.",
+    "shortcut.status.importFailed": "Shortcut import failed: {{message}}",
+    "shortcut.error.invalidJson": "invalid JSON",
+    "shortcut.error.missingObject": "missing shortcuts object",
+    "shortcut.status.resetContext": "Reset shortcut context for {{command}}",
+    "shortcut.status.overlap": "{{shortcut}} already overlaps {{command}} in {{context}}.",
+    "shortcut.status.context": "{{command}} shortcut context: {{context}}.",
+    "shortcut.status.resetCommand": "Reset shortcut for {{command}}",
+    "shortcut.status.resetCount": "Reset {{count}} custom shortcuts.",
+    "shortcut.status.alreadyDefaults": "Keyboard shortcuts already use defaults.",
+    "shortcut.status.useModifier": "Use a modifier or function key.",
+    "shortcut.status.assignedConflict": "{{shortcut}} is already assigned to {{command}}",
+    "shortcut.status.assigned": "Shortcut for {{command}}: {{shortcut}}",
+    "shortcut.status.moved": "{{shortcut}} moved from {{from}} to {{to}}",
     "link.prompt.title": "Open Custom Link",
     "link.prompt.protocol": "{{protocol}} custom protocol",
     "link.prompt.target": "{{target}}",
@@ -1664,6 +1720,62 @@ const localeCatalog = {
     "settings.linkProtocols": "链接协议",
     "settings.editorAppearance": "编辑器外观",
     "settings.fileFormatPresets": "文件格式预设",
+    "shortcut.export": "导出",
+    "shortcut.import": "导入",
+    "shortcut.resetAll": "全部重置",
+    "shortcut.exportAria": "导出键盘快捷键",
+    "shortcut.importAria": "导入键盘快捷键",
+    "shortcut.resetAllAria": "全部重置键盘快捷键",
+    "shortcut.preset": "预设",
+    "shortcut.presetAria": "快捷键预设",
+    "shortcut.preset.default": "默认",
+    "shortcut.preset.analysis": "分析",
+    "shortcut.preset.editing": "编辑",
+    "shortcut.applyPreset": "应用预设",
+    "shortcut.searchAria": "搜索快捷键",
+    "shortcut.searchPlaceholder": "搜索快捷键",
+    "shortcut.importJsonAria": "快捷键导入 JSON",
+    "shortcut.applyImport": "应用导入",
+    "shortcut.commandsAria": "快捷键命令",
+    "shortcut.noMatches": "没有匹配命令",
+    "shortcut.pressShortcut": "按下快捷键",
+    "shortcut.cancelRecord": "取消",
+    "shortcut.record": "录制",
+    "shortcut.reset": "重置",
+    "shortcut.replace": "替换",
+    "shortcut.always": "始终",
+    "shortcut.context.document": "文档",
+    "shortcut.context.grid": "表格",
+    "shortcut.context.sql": "SQL",
+    "shortcut.context.profile": "概况",
+    "shortcut.context.settings": "设置",
+    "shortcut.context.diff": "比较",
+    "shortcut.context.typing": "输入中",
+    "shortcut.context.expression": "表达式：{{expression}}",
+    "shortcut.contextWhen": "当 {{context}} 时",
+    "shortcut.contextAria": "{{command}} 快捷键上下文",
+    "shortcut.conflictAssigned": "{{shortcut}} 已分配给 {{command}}",
+    "shortcut.conflictAssignedGeneric": "{{shortcut}} 已被分配",
+    "shortcut.status.defaults": "键盘快捷键正在使用默认值",
+    "shortcut.status.resetTitle": "重置 {{count}} 个自定义快捷键",
+    "shortcut.status.appliedPreset": "已应用{{preset}}快捷键预设：{{count}} 个快捷键。",
+    "shortcut.status.appliedPresetSkipped": "已应用{{preset}}快捷键预设：{{count}} 个快捷键，跳过 {{skipped}} 个。",
+    "shortcut.status.exported": "已导出 {{count}} 个快捷键。",
+    "shortcut.status.imported": "已导入 {{count}} 个快捷键。",
+    "shortcut.status.importedSkipped": "已导入 {{count}} 个快捷键，跳过 {{skipped}} 个。",
+    "shortcut.status.importFailed": "快捷键导入失败：{{message}}",
+    "shortcut.error.invalidJson": "JSON 无效",
+    "shortcut.error.missingObject": "缺少快捷键对象",
+    "shortcut.status.resetContext": "已重置 {{command}} 的快捷键上下文",
+    "shortcut.status.overlap": "{{shortcut}} 与 {{context}} 中的 {{command}} 冲突。",
+    "shortcut.status.context": "{{command}} 快捷键上下文：{{context}}。",
+    "shortcut.status.resetCommand": "已重置 {{command}} 的快捷键",
+    "shortcut.status.resetCount": "已重置 {{count}} 个自定义快捷键。",
+    "shortcut.status.alreadyDefaults": "键盘快捷键已经使用默认值。",
+    "shortcut.status.useModifier": "请使用修饰键或功能键。",
+    "shortcut.status.assignedConflict": "{{shortcut}} 已分配给 {{command}}",
+    "shortcut.status.assigned": "{{command}} 的快捷键：{{shortcut}}",
+    "shortcut.status.moved": "{{shortcut}} 已从 {{from}} 移动到 {{to}}",
     "link.prompt.title": "打开自定义链接",
     "link.prompt.protocol": "{{protocol}} 自定义协议",
     "link.prompt.target": "{{target}}",
@@ -1908,6 +2020,10 @@ const localeCatalog = {
     "command.settings.open.description": "打开应用设置和文件格式预设管理。",
     "command.settings.keyboardShortcuts.title": "键盘快捷键",
     "command.settings.keyboardShortcuts.description": "自定义命令快捷键。",
+    "command.settings.exportShortcuts.title": "导出键盘快捷键",
+    "command.settings.exportShortcuts.description": "将自定义键盘快捷键下载为 JSON。",
+    "command.settings.importShortcuts.title": "导入键盘快捷键",
+    "command.settings.importShortcuts.description": "从 JSON 导入自定义键盘快捷键。",
     "command.help.aboutSupport.title": "关于与支持",
     "command.help.aboutSupport.description": "打开本地关于、支持和更新入口。",
     "command.file.new.title": "新建",
@@ -2165,22 +2281,23 @@ const localeCatalog = {
 const customShortcutsStorageKey = "opencsv-custom-shortcuts";
 const shortcutExportKind = "opencsv-shortcuts";
 const shortcutContextOptions = [
-  { id: "", label: "Always" },
-  { id: "document", label: "Document" },
-  { id: "grid", label: "Grid" },
-  { id: "sql", label: "SQL" },
-  { id: "profile", label: "Profile" },
-  { id: "settings", label: "Settings" },
-  { id: "diff", label: "Diff" },
-  { id: "typing", label: "Typing" },
+  { id: "", label: "Always", key: "shortcut.always" },
+  { id: "document", label: "Document", key: "shortcut.context.document" },
+  { id: "grid", label: "Grid", key: "shortcut.context.grid" },
+  { id: "sql", label: "SQL", key: "shortcut.context.sql" },
+  { id: "profile", label: "Profile", key: "shortcut.context.profile" },
+  { id: "settings", label: "Settings", key: "shortcut.context.settings" },
+  { id: "diff", label: "Diff", key: "shortcut.context.diff" },
+  { id: "typing", label: "Typing", key: "shortcut.context.typing" },
 ];
 const shortcutContextAtoms = new Set(shortcutContextOptions.map((option) => option.id).filter(Boolean));
 const shortcutViewContexts = new Set(["grid", "sql", "profile", "settings", "diff"]);
 const shortcutPresets = [
-  { id: "default", name: "Default", shortcuts: {} },
+  { id: "default", name: "Default", key: "shortcut.preset.default", shortcuts: {} },
   {
     id: "analysis",
     name: "Analysis",
+    key: "shortcut.preset.analysis",
     shortcuts: {
       "diff.open": "Shift+Alt+O",
       "selection.copyAggregate": "Shift+Alt+K",
@@ -2192,6 +2309,7 @@ const shortcutPresets = [
   {
     id: "editing",
     name: "Editing",
+    key: "shortcut.preset.editing",
     shortcuts: {
       "file.toggleReadOnly": "Shift+Alt+Y",
       "format.applyQuotePolicy": "Shift+Alt+Q",
@@ -2926,6 +3044,12 @@ function applyDataI18n(root = document) {
   });
   root.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
     element.placeholder = t(element.dataset.i18nPlaceholder);
+  });
+  root.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+  });
+  root.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    element.title = t(element.dataset.i18nTitle);
   });
 }
 
@@ -8576,7 +8700,7 @@ function renderKeyboardShortcuts() {
     .filter((command) => !query || commandFuzzyScore(command, query) > 0 || effectiveShortcut(command).toLowerCase().includes(query))
     .sort((left, right) => commandTitle(left).localeCompare(commandTitle(right)));
   if (!commands.length) {
-    shortcutsList.replaceChildren(emptyPaletteNode("No matching commands"));
+    shortcutsList.replaceChildren(emptyPaletteNode(t("shortcut.noMatches")));
     return;
   }
 
@@ -8596,17 +8720,17 @@ function renderKeyboardShortcuts() {
     const binding = effectiveShortcutBinding(command);
     const shortcut = document.createElement("kbd");
     shortcut.textContent = command.id === recordingShortcutID
-      ? "Press shortcut"
+      ? t("shortcut.pressShortcut")
       : binding.shortcut;
-    if (binding.when) shortcut.title = `When ${shortcutContextLabel(binding.when)}`;
+    if (binding.when) shortcut.title = tf("shortcut.contextWhen", { context: shortcutContextLabel(binding.when) });
 
     const contextSelect = document.createElement("select");
     contextSelect.className = "shortcut-context";
-    contextSelect.setAttribute("aria-label", `${localizedCommandTitle(command)} shortcut context`);
+    contextSelect.setAttribute("aria-label", tf("shortcut.contextAria", { command: localizedCommandTitle(command) }));
     for (const optionValue of shortcutContextOptions) {
       const option = document.createElement("option");
       option.value = optionValue.id;
-      option.textContent = optionValue.label;
+      option.textContent = shortcutContextOptionLabel(optionValue);
       contextSelect.append(option);
     }
     if (binding.when && !shortcutContextOptions.some((option) => option.id === binding.when)) {
@@ -8622,7 +8746,7 @@ function renderKeyboardShortcuts() {
     actions.className = "shortcut-actions";
     const recordButton = document.createElement("button");
     recordButton.type = "button";
-    recordButton.textContent = command.id === recordingShortcutID ? "Cancel" : "Record";
+    recordButton.textContent = command.id === recordingShortcutID ? t("shortcut.cancelRecord") : t("shortcut.record");
     recordButton.addEventListener("click", () => {
       recordingShortcutID = command.id === recordingShortcutID ? "" : command.id;
       pendingShortcutConflict = null;
@@ -8630,7 +8754,7 @@ function renderKeyboardShortcuts() {
     });
     const resetButton = document.createElement("button");
     resetButton.type = "button";
-    resetButton.textContent = "Reset";
+    resetButton.textContent = t("shortcut.reset");
     resetButton.disabled = !customShortcuts.has(command.id);
     resetButton.addEventListener("click", () => resetCustomShortcut(command.id));
     actions.append(recordButton, resetButton);
@@ -8639,11 +8763,11 @@ function renderKeyboardShortcuts() {
       const conflictNote = document.createElement("span");
       conflictNote.className = "shortcut-conflict";
       conflictNote.textContent = conflictCommand
-        ? `${pendingShortcutConflict.shortcut} is assigned to ${localizedCommandTitle(conflictCommand)}`
-        : `${pendingShortcutConflict.shortcut} is already assigned`;
+        ? tf("shortcut.conflictAssigned", { shortcut: pendingShortcutConflict.shortcut, command: localizedCommandTitle(conflictCommand) })
+        : tf("shortcut.conflictAssignedGeneric", { shortcut: pendingShortcutConflict.shortcut });
       const replaceButton = document.createElement("button");
       replaceButton.type = "button";
-      replaceButton.textContent = "Replace";
+      replaceButton.textContent = t("shortcut.replace");
       replaceButton.addEventListener("click", replaceShortcutConflict);
       meta.append(conflictNote);
       actions.append(replaceButton);
@@ -8653,6 +8777,14 @@ function renderKeyboardShortcuts() {
     fragment.append(row);
   }
   shortcutsList.replaceChildren(fragment);
+}
+
+function shortcutPresetLabel(preset) {
+  return preset?.key ? t(preset.key) : preset?.name || "";
+}
+
+function shortcutContextOptionLabel(option) {
+  return option?.key ? t(option.key) : option?.label || "";
 }
 
 function effectiveShortcut(command) {
@@ -8706,8 +8838,8 @@ function saveCustomShortcuts() {
 function syncResetAllShortcutsButton() {
   resetAllShortcutsButton.disabled = customShortcuts.size === 0;
   resetAllShortcutsButton.title = customShortcuts.size === 0
-    ? "Keyboard shortcuts are using defaults"
-    : `Reset ${formatCount(customShortcuts.size)} custom shortcuts`;
+    ? t("shortcut.status.defaults")
+    : tf("shortcut.status.resetTitle", { count: formatCount(customShortcuts.size) });
 }
 
 function applyShortcutPreset() {
@@ -8717,7 +8849,9 @@ function applyShortcutPreset() {
   pendingShortcutConflict = null;
   saveCustomShortcuts();
   document.body.dataset.shortcutPreset = `${preset.id}:${result.applied}:${result.skipped}`;
-  status.textContent = `Applied ${preset.name} shortcut preset: ${formatCount(result.applied)} shortcuts${result.skipped ? `, skipped ${formatCount(result.skipped)}` : ""}.`;
+  status.textContent = result.skipped
+    ? tf("shortcut.status.appliedPresetSkipped", { preset: shortcutPresetLabel(preset), count: formatCount(result.applied), skipped: formatCount(result.skipped) })
+    : tf("shortcut.status.appliedPreset", { preset: shortcutPresetLabel(preset), count: formatCount(result.applied) });
 }
 
 function shortcutMapFromEntries(entries) {
@@ -8757,7 +8891,7 @@ function exportShortcuts() {
   document.body.dataset.shortcutExport = String(Object.keys(shortcuts).length);
   document.body.dataset.shortcutExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-shortcuts.json", "application/json;charset=utf-8");
-  status.textContent = `Exported ${formatCount(Object.keys(shortcuts).length)} shortcuts.`;
+  status.textContent = tf("shortcut.status.exported", { count: formatCount(Object.keys(shortcuts).length) });
 }
 
 function showShortcutImportPanel() {
@@ -8793,9 +8927,11 @@ function applyShortcutImport() {
     shortcutImportText.value = "";
     document.body.dataset.shortcutImport = `${result.imported}:${result.skipped}`;
     document.body.dataset.shortcutImportPanel = "closed";
-    status.textContent = `Imported ${formatCount(result.imported)} shortcuts${result.skipped ? `, skipped ${formatCount(result.skipped)}` : ""}.`;
+    status.textContent = result.skipped
+      ? tf("shortcut.status.importedSkipped", { count: formatCount(result.imported), skipped: formatCount(result.skipped) })
+      : tf("shortcut.status.imported", { count: formatCount(result.imported) });
   } catch (error) {
-    status.textContent = `Shortcut import failed: ${error.message}`;
+    status.textContent = tf("shortcut.status.importFailed", { message: error.message });
     document.body.dataset.shortcutImport = "error";
   }
   syncShortcutImportControls();
@@ -8806,13 +8942,13 @@ function parseShortcutImport(text) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error("invalid JSON");
+    throw new Error(t("shortcut.error.invalidJson"));
   }
   const source = parsed?.shortcuts && typeof parsed.shortcuts === "object" && !Array.isArray(parsed.shortcuts)
     ? parsed.shortcuts
     : parsed;
   if (!source || typeof source !== "object" || Array.isArray(source)) {
-    throw new Error("missing shortcuts object");
+    throw new Error(t("shortcut.error.missingObject"));
   }
   return Object.entries(source)
     .filter(([commandID, value]) => typeof commandID === "string" && normalizeShortcutBinding(value))
@@ -8850,8 +8986,8 @@ function normalizeShortcutWhen(value) {
 
 function shortcutContextLabel(when) {
   const normalized = normalizeShortcutWhen(when);
-  return shortcutContextOptions.find((option) => option.id === normalized)?.label
-    ?? (normalized ? `Expression: ${normalized}` : "Always");
+  const option = shortcutContextOptions.find((item) => item.id === normalized);
+  return option ? shortcutContextOptionLabel(option) : (normalized ? tf("shortcut.context.expression", { expression: normalized }) : t("shortcut.always"));
 }
 
 function serializedShortcutMap(map) {
@@ -8872,12 +9008,16 @@ function updateShortcutContext(command, whenValue) {
   if (!next.shortcut) {
     customShortcuts.delete(command.id);
     saveCustomShortcuts();
-    status.textContent = `Reset shortcut context for ${localizedCommandTitle(command)}`;
+    status.textContent = tf("shortcut.status.resetContext", { command: localizedCommandTitle(command) });
     return;
   }
   const conflict = commandForShortcutWithMap(next.shortcut, next.when, command.id, customShortcuts);
   if (conflict) {
-    status.textContent = `${next.shortcut} already overlaps ${conflict.title} in ${shortcutContextLabel(next.when)}.`;
+    status.textContent = tf("shortcut.status.overlap", {
+      shortcut: next.shortcut,
+      command: localizedCommandTitle(conflict),
+      context: shortcutContextLabel(next.when),
+    });
     renderKeyboardShortcuts();
     return;
   }
@@ -8888,7 +9028,7 @@ function updateShortcutContext(command, whenValue) {
   }
   document.body.dataset.shortcutContext = `${command.id}:${next.when || "always"}`;
   saveCustomShortcuts();
-  status.textContent = `${localizedCommandTitle(command)} shortcut context: ${shortcutContextLabel(next.when)}.`;
+  status.textContent = tf("shortcut.status.context", { command: localizedCommandTitle(command), context: shortcutContextLabel(next.when) });
 }
 
 function mergeImportedShortcuts(imported) {
@@ -8943,7 +9083,7 @@ function resetCustomShortcut(commandID) {
   pendingShortcutConflict = null;
   customShortcuts.delete(commandID);
   saveCustomShortcuts();
-  status.textContent = `Reset shortcut for ${localizedCommandTitle(command)}`;
+  status.textContent = tf("shortcut.status.resetCommand", { command: localizedCommandTitle(command) });
 }
 
 function resetAllShortcuts() {
@@ -8954,8 +9094,8 @@ function resetAllShortcuts() {
   document.body.dataset.shortcutResetAll = String(resetCount);
   saveCustomShortcuts();
   status.textContent = resetCount
-    ? `Reset ${formatCount(resetCount)} custom shortcuts.`
-    : "Keyboard shortcuts already use defaults.";
+    ? tf("shortcut.status.resetCount", { count: formatCount(resetCount) })
+    : t("shortcut.status.alreadyDefaults");
 }
 
 function handleShortcutEditorKeydown(event) {
@@ -8977,7 +9117,7 @@ function handleShortcutEditorKeydown(event) {
   }
   const shortcut = shortcutFromEvent(event);
   if (!shortcut || !shortcutAllowed(shortcut)) {
-    status.textContent = "Use a modifier or function key.";
+    status.textContent = t("shortcut.status.useModifier");
     return true;
   }
   const command = commandsById.get(recordingShortcutID);
@@ -8988,14 +9128,14 @@ function handleShortcutEditorKeydown(event) {
     pendingShortcutConflict = { commandID: command.id, conflictID: conflict.id, shortcut, when };
     document.body.dataset.shortcutConflict = `${command.id}:${conflict.id}:${shortcut}:${when || "always"}`;
     renderKeyboardShortcuts();
-    status.textContent = `${shortcut} is already assigned to ${conflict.title}`;
+    status.textContent = tf("shortcut.status.assignedConflict", { shortcut, command: localizedCommandTitle(conflict) });
     return true;
   }
   assignShortcut(command, { shortcut, when }, customShortcuts);
   recordingShortcutID = "";
   pendingShortcutConflict = null;
   saveCustomShortcuts();
-  status.textContent = `Shortcut for ${localizedCommandTitle(command)}: ${shortcut}`;
+  status.textContent = tf("shortcut.status.assigned", { command: localizedCommandTitle(command), shortcut });
   return true;
 }
 
@@ -9009,7 +9149,11 @@ function replaceShortcutConflict() {
     shortcut: pendingShortcutConflict.shortcut,
     when: pendingShortcutConflict.when,
   }, customShortcuts);
-  const message = `${pendingShortcutConflict.shortcut} moved from ${conflict.title} to ${target.title}`;
+  const message = tf("shortcut.status.moved", {
+    shortcut: pendingShortcutConflict.shortcut,
+    from: localizedCommandTitle(conflict),
+    to: localizedCommandTitle(target),
+  });
   recordingShortcutID = "";
   pendingShortcutConflict = null;
   document.body.dataset.shortcutConflict = "resolved";
@@ -10137,7 +10281,7 @@ function renderCommandPalette() {
   paletteItems = scoredPaletteCommands(query);
   if (paletteIndex >= paletteItems.length) paletteIndex = Math.max(0, paletteItems.length - 1);
   if (!paletteItems.length) {
-    paletteList.replaceChildren(emptyPaletteNode("No matching commands"));
+    paletteList.replaceChildren(emptyPaletteNode(t("shortcut.noMatches")));
     return;
   }
   const fragment = document.createDocumentFragment();
