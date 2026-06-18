@@ -411,12 +411,12 @@
             </section>
             <section class="settings-section settings-policy-section" aria-label="Quote policy">
               <header>
-                <strong>Quote Policy</strong>
+                <strong data-i18n="settings.quotePolicy">Quote Policy</strong>
                 <span id="settingsQuoteSummary">minimal double</span>
                 <div class="settings-section-actions">
-                  <button id="exportQuoteRulesButton" type="button" data-command="format.exportQuoteRules">Export Quotes</button>
-                  <button id="showImportQuoteRulesButton" type="button" data-command="format.importQuoteRules">Import Quotes</button>
-                  <button id="resetQuotePolicyButton" type="button">Reset Quotes</button>
+                  <button id="exportQuoteRulesButton" type="button" data-command="format.exportQuoteRules" data-i18n="settings.quotes.export">Export Quotes</button>
+                  <button id="showImportQuoteRulesButton" type="button" data-command="format.importQuoteRules" data-i18n="settings.quotes.import">Import Quotes</button>
+                  <button id="resetQuotePolicyButton" type="button" data-i18n="settings.quotes.reset">Reset Quotes</button>
                 </div>
               </header>
               <div class="settings-policy-grid">
@@ -453,30 +453,30 @@
                 </label>
                 <button id="applyEncodingButton" type="button" data-command="format.applyEncoding">Apply Enc</button>
                 <label>
-                  <span>Mode</span>
-                  <select id="quoteModeSelect" aria-label="Quote mode">
-                    <option value="minimal">Minimal</option>
-                    <option value="always">Always</option>
-                    <option value="never">Never</option>
-                    <option value="manual">Manual</option>
+                  <span data-i18n="settings.quotes.mode">Mode</span>
+                  <select id="quoteModeSelect" aria-label="Quote mode" data-i18n-aria-label="settings.quotes.modeAria">
+                    <option value="minimal" data-i18n="settings.quotes.mode.minimal">Minimal</option>
+                    <option value="always" data-i18n="settings.quotes.mode.always">Always</option>
+                    <option value="never" data-i18n="settings.quotes.mode.never">Never</option>
+                    <option value="manual" data-i18n="settings.quotes.mode.manual">Manual</option>
                   </select>
                 </label>
                 <label>
-                  <span>Character</span>
-                  <select id="quoteCharSelect" aria-label="Quote character">
-                    <option value="double">Double quote</option>
-                    <option value="single">Single quote</option>
-                    <option value="none">None</option>
+                  <span data-i18n="settings.quotes.character">Character</span>
+                  <select id="quoteCharSelect" aria-label="Quote character" data-i18n-aria-label="settings.quotes.characterAria">
+                    <option value="double" data-i18n="settings.quotes.char.double">Double quote</option>
+                    <option value="single" data-i18n="settings.quotes.char.single">Single quote</option>
+                    <option value="none" data-i18n="settings.quotes.char.none">None</option>
                   </select>
                 </label>
                 <label>
-                  <span>Escape</span>
-                  <select id="quoteEscapeSelect" aria-label="Quote escape">
-                    <option value="double">Double quote</option>
-                    <option value="backslash">Backslash</option>
+                  <span data-i18n="settings.quotes.escape">Escape</span>
+                  <select id="quoteEscapeSelect" aria-label="Quote escape" data-i18n-aria-label="settings.quotes.escapeAria">
+                    <option value="double" data-i18n="settings.quotes.escape.double">Double quote</option>
+                    <option value="backslash" data-i18n="settings.quotes.escape.backslash">Backslash</option>
                   </select>
                 </label>
-                <button id="applyQuotePolicyButton" type="button" data-command="format.applyQuotePolicy">Apply Quote</button>
+                <button id="applyQuotePolicyButton" type="button" data-command="format.applyQuotePolicy" data-i18n="settings.quotes.apply">Apply Quote</button>
                 <label>
                   <span>Line Ending</span>
                   <select id="lineEndingSelect" aria-label="Line ending">
@@ -599,10 +599,10 @@
               </div>
               <div id="quoteRuleList" class="quote-rule-list" aria-label="Active quote rules"></div>
               <div id="quoteRulesImportPanel" class="settings-import-panel" hidden>
-                <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteEscape":"double","quoteColumns":[]}'></textarea>
+                <textarea id="quoteRulesImportText" spellcheck="false" aria-label="Quote rules import JSON" data-i18n-aria-label="settings.quotes.importJsonAria" placeholder='{"kind":"opencsv-quote-rules","quoteMode":"manual","quoteEscape":"double","quoteColumns":[]}'></textarea>
                 <div class="settings-import-actions">
-                  <button id="applyQuoteRulesImportButton" type="button">Apply Import</button>
-                  <button id="cancelQuoteRulesImportButton" type="button">Cancel</button>
+                  <button id="applyQuoteRulesImportButton" type="button" data-i18n="settings.quotes.applyImport">Apply Import</button>
+                  <button id="cancelQuoteRulesImportButton" type="button" data-i18n="settings.quotes.cancelImport">Cancel</button>
                 </div>
               </div>
             </section>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=settings-empty-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=quote-settings-i18n-1"></script>
   </body>
 </html>

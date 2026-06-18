@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=settings-empty-i18n-1`,
+		`v=quote-settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=settings-empty-i18n-1`) {
+	if !strings.Contains(html, `v=quote-settings-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=settings-empty-i18n-1`,
+		`v=quote-settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=settings-empty-i18n-1`,
+		`v=quote-settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=settings-empty-i18n-1`,
+		`v=quote-settings-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -846,6 +846,19 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-aria-label="settings.linkProtocols.allowedAria"`,
 		`data-i18n="settings.linkProtocols.apply"`,
 		`data-i18n="settings.linkProtocols.reset"`,
+		`data-i18n="settings.quotePolicy"`,
+		`data-i18n="settings.quotes.export"`,
+		`data-i18n="settings.quotes.import"`,
+		`data-i18n="settings.quotes.reset"`,
+		`data-i18n="settings.quotes.mode"`,
+		`data-i18n-aria-label="settings.quotes.modeAria"`,
+		`data-i18n="settings.quotes.mode.manual"`,
+		`data-i18n="settings.quotes.char.single"`,
+		`data-i18n="settings.quotes.escape.backslash"`,
+		`data-i18n="settings.quotes.apply"`,
+		`data-i18n-aria-label="settings.quotes.importJsonAria"`,
+		`data-i18n="settings.quotes.applyImport"`,
+		`data-i18n="settings.quotes.cancelImport"`,
 		`data-i18n="settings.appearance.gridFont"`,
 		`data-i18n-aria-label="settings.appearance.gridFontAria"`,
 		`data-i18n="settings.appearance.row.default"`,
@@ -857,7 +870,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=settings-empty-i18n-1`,
+		`v=quote-settings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -874,6 +887,12 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.linkProtocols.allowed": "允许的自定义协议"`,
 		`"settings.linkProtocols.statusAllowed": "允许的链接协议：{{protocols}}"`,
 		`"settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。"`,
+		`"settings.quotePolicy": "引号策略"`,
+		`"settings.quotes.mode.manual": "手动"`,
+		`"settings.quotes.char.single": "单引号"`,
+		`"settings.quotes.escape.backslash": "反斜杠"`,
+		`"settings.quotes.statusSet": "引号策略已设为 {{summary}}。"`,
+		`"settings.quotes.statusReset": "引号策略已重置。"`,
 		`"settings.appearance.gridFont": "表格字体"`,
 		`"settings.appearance.row.default": "默认 · 28px"`,
 		`"settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则"`,
@@ -894,6 +913,10 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`t("settings.linkProtocols.none")`,
 		`tf("settings.linkProtocols.statusAllowed"`,
 		`tf("settings.linkProtocols.errorUnsafe"`,
+		`t("settings.quotes.apply")`,
+		`tf("settings.quotes.summary"`,
+		`tf("settings.quotes.statusSet"`,
+		`t("settings.quotes.statusReset")`,
 		`tf("settings.appearance.summary"`,
 		`t("settings.appearance.defaultSummary")`,
 		`t("settings.appearance.statusUpdated")`,
@@ -925,6 +948,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`syncThemeControls();`,
 		`syncAutoRefreshControls();`,
 		`syncUpdateCheckControls();`,
+		`syncQuotePolicyControls();`,
 		`syncEditorAppearanceControls();`,
 	} {
 		if !strings.Contains(source, snippet) {

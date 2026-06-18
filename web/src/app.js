@@ -1029,6 +1029,38 @@ const localeCatalog = {
     "settings.linkProtocols.statusAllowed": "Allowed link protocols: {{protocols}}",
     "settings.linkProtocols.statusReset": "Link protocols reset.",
     "settings.linkProtocols.errorUnsafe": "{{protocol}} is unsafe and cannot be allowed.",
+    "settings.quotePolicy": "Quote Policy",
+    "settings.quotes.export": "Export Quotes",
+    "settings.quotes.import": "Import Quotes",
+    "settings.quotes.reset": "Reset Quotes",
+    "settings.quotes.mode": "Mode",
+    "settings.quotes.character": "Character",
+    "settings.quotes.escape": "Escape",
+    "settings.quotes.apply": "Apply Quote",
+    "settings.quotes.modeAria": "Quote mode",
+    "settings.quotes.characterAria": "Quote character",
+    "settings.quotes.escapeAria": "Quote escape",
+    "settings.quotes.importJsonAria": "Quote rules import JSON",
+    "settings.quotes.applyImport": "Apply Import",
+    "settings.quotes.cancelImport": "Cancel",
+    "settings.quotes.mode.minimal": "Minimal",
+    "settings.quotes.mode.always": "Always",
+    "settings.quotes.mode.never": "Never",
+    "settings.quotes.mode.manual": "Manual",
+    "settings.quotes.char.double": "Double quote",
+    "settings.quotes.char.single": "Single quote",
+    "settings.quotes.char.none": "None",
+    "settings.quotes.escape.double": "Double quote",
+    "settings.quotes.escape.backslash": "Backslash",
+    "settings.quotes.summary": "{{mode}} {{character}} {{escape}} escape",
+    "settings.quotes.statusOpenFile": "Open a file before changing quote policy.",
+    "settings.quotes.statusResetOpenFile": "Open a file before resetting quote policy.",
+    "settings.quotes.statusBlockedReadonly": "Quote policy blocked: document is read-only",
+    "settings.quotes.statusResetBlockedReadonly": "Quote policy reset blocked: document is read-only",
+    "settings.quotes.statusFailed": "Quote policy failed: {{message}}",
+    "settings.quotes.statusResetFailed": "Quote policy reset failed: {{message}}",
+    "settings.quotes.statusSet": "Quote policy set to {{summary}}.",
+    "settings.quotes.statusReset": "Quote policy reset.",
     "settings.editorAppearance": "Editor Appearance",
     "settings.appearance.gridFont": "Grid Font",
     "settings.appearance.gridSize": "Grid Size",
@@ -2015,6 +2047,38 @@ const localeCatalog = {
     "settings.linkProtocols.statusAllowed": "允许的链接协议：{{protocols}}",
     "settings.linkProtocols.statusReset": "链接协议已重置。",
     "settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。",
+    "settings.quotePolicy": "引号策略",
+    "settings.quotes.export": "导出引号",
+    "settings.quotes.import": "导入引号",
+    "settings.quotes.reset": "重置引号",
+    "settings.quotes.mode": "模式",
+    "settings.quotes.character": "字符",
+    "settings.quotes.escape": "转义",
+    "settings.quotes.apply": "应用引号",
+    "settings.quotes.modeAria": "引号模式",
+    "settings.quotes.characterAria": "引号字符",
+    "settings.quotes.escapeAria": "引号转义",
+    "settings.quotes.importJsonAria": "引号规则导入 JSON",
+    "settings.quotes.applyImport": "应用导入",
+    "settings.quotes.cancelImport": "取消",
+    "settings.quotes.mode.minimal": "最少",
+    "settings.quotes.mode.always": "始终",
+    "settings.quotes.mode.never": "从不",
+    "settings.quotes.mode.manual": "手动",
+    "settings.quotes.char.double": "双引号",
+    "settings.quotes.char.single": "单引号",
+    "settings.quotes.char.none": "无",
+    "settings.quotes.escape.double": "双引号",
+    "settings.quotes.escape.backslash": "反斜杠",
+    "settings.quotes.summary": "{{mode}} {{character}} {{escape}} 转义",
+    "settings.quotes.statusOpenFile": "更改引号策略前请先打开文件。",
+    "settings.quotes.statusResetOpenFile": "重置引号策略前请先打开文件。",
+    "settings.quotes.statusBlockedReadonly": "引号策略被阻止：文档为只读",
+    "settings.quotes.statusResetBlockedReadonly": "引号策略重置被阻止：文档为只读",
+    "settings.quotes.statusFailed": "引号策略失败：{{message}}",
+    "settings.quotes.statusResetFailed": "引号策略重置失败：{{message}}",
+    "settings.quotes.statusSet": "引号策略已设为 {{summary}}。",
+    "settings.quotes.statusReset": "引号策略已重置。",
     "settings.editorAppearance": "编辑器外观",
     "settings.appearance.gridFont": "表格字体",
     "settings.appearance.gridSize": "表格字号",
@@ -3382,6 +3446,7 @@ function applyLocaleStrings() {
     [settingsPanel?.querySelector('[aria-label="External changes"] header strong'), "settings.externalChanges"],
     [settingsPanel?.querySelector('[aria-label="Updates"] header strong'), "settings.updates"],
     [settingsPanel?.querySelector('[aria-label="Link protocols"] header strong'), "settings.linkProtocols"],
+    [settingsPanel?.querySelector('[aria-label="Quote policy"] header strong'), "settings.quotePolicy"],
     [settingsPanel?.querySelector('[aria-label="Editor appearance"] header strong'), "settings.editorAppearance"],
     [settingsPanel?.querySelector('[aria-label="File format presets"] header strong'), "settings.fileFormatPresets"],
   ];
@@ -3419,6 +3484,7 @@ function applyLocaleStrings() {
   syncThemeControls();
   syncAutoRefreshControls();
   syncUpdateCheckControls();
+  syncQuotePolicyControls();
   syncEditorAppearanceControls();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
@@ -5008,11 +5074,11 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "format.applyLineEnding") {
       button.textContent = "Apply EOL";
     } else if (button.dataset.command === "format.applyQuotePolicy") {
-      button.textContent = "Apply Quote";
+      button.textContent = t("settings.quotes.apply");
     } else if (button.dataset.command === "format.exportQuoteRules") {
-      button.textContent = "Export Quotes";
+      button.textContent = t("settings.quotes.export");
     } else if (button.dataset.command === "format.importQuoteRules") {
-      button.textContent = "Import Quotes";
+      button.textContent = t("settings.quotes.import");
     } else if (button.dataset.command === "format.toggleCellQuote") {
       button.textContent = "Toggle";
     } else if (button.dataset.command === "column.showAll") {
@@ -5431,7 +5497,19 @@ function quoteEscapeLabel(dialect = metadata?.dialect) {
 }
 
 function selectedQuotePolicySummary() {
-  return `${quoteModeSelect.value} ${quoteCharSelect.value} ${quoteEscapeSelect.value} escape`;
+  return quotePolicySettingsSummary(quoteModeSelect.value, quoteCharSelect.value, quoteEscapeSelect.value);
+}
+
+function quotePolicyOptionLabel(type, value) {
+  return t(`settings.quotes.${type}.${value}`);
+}
+
+function quotePolicySettingsSummary(mode = quoteModeValue(), character = quoteCharValue(), escape = quoteEscapeValue()) {
+  return tf("settings.quotes.summary", {
+    mode: quotePolicyOptionLabel("mode", mode),
+    character: quotePolicyOptionLabel("char", character),
+    escape: quotePolicyOptionLabel("escape", escape),
+  });
 }
 
 function quotePolicyLabel(dialect = metadata?.dialect) {
@@ -5615,8 +5693,8 @@ function syncQuotePolicyControls() {
     quoteEscapeSelect.value = quoteEscapeValue();
     const mapLimit = quoteMapLimitLabel();
     settingsQuoteSummary.textContent = metadata
-      ? `${quoteModeValue()} ${quoteCharLabel()} ${quoteEscapeLabel()}${mapLimit ? ` · ${mapLimit}` : ""}`
-      : "minimal double double escape";
+      ? `${quotePolicySettingsSummary(quoteModeValue(), quoteCharValue(), quoteEscapeValue())}${mapLimit ? ` · ${mapLimit}` : ""}`
+      : quotePolicySettingsSummary("minimal", "double", "double");
   }
   const dialect = metadata?.dialect;
   quoteHeaderRuleToggle.checked = Boolean(dialect?.quoteHeader);
@@ -6730,11 +6808,11 @@ async function applyEncoding() {
 
 async function applyQuotePolicy() {
   if (!documentId) {
-    status.textContent = "Open a file before changing quote policy.";
+    status.textContent = t("settings.quotes.statusOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Quote policy blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusBlockedReadonly");
     return;
   }
   const quoteMode = quoteModeSelect.value;
@@ -6747,11 +6825,12 @@ async function applyQuotePolicy() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Quote policy failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusFailed", { message: payload.error ?? "unknown error" });
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `Quote policy set to ${quoteMode} ${quoteChar} ${quoteEscape} escape.`);
+  const summary = quotePolicySettingsSummary(quoteMode, quoteChar, quoteEscape);
+  applyMutationPayload(payload, tf("settings.quotes.statusSet", { summary }));
   if (metadata?.dialect) {
     metadata.dialect.quoteMode = quoteMode;
     metadata.dialect.quoteChar = quoteChar === "single" ? "'" : quoteChar === "none" ? "" : '"';
@@ -6760,17 +6839,17 @@ async function applyQuotePolicy() {
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
-  status.textContent = `Quote policy set to ${quoteMode} ${quoteChar} ${quoteEscape} escape.`;
+  status.textContent = tf("settings.quotes.statusSet", { summary });
   document.body.dataset.quotePolicy = `${quoteMode}:${quoteChar}:${quoteEscape}`;
 }
 
 async function resetQuotePolicySettings() {
   if (!documentId) {
-    status.textContent = "Open a file before resetting quote policy.";
+    status.textContent = t("settings.quotes.statusResetOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Quote policy reset blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusResetBlockedReadonly");
     return;
   }
   const settings = {
@@ -6792,7 +6871,7 @@ async function resetQuotePolicySettings() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Quote policy reset failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusResetFailed", { message: payload.error ?? "unknown error" });
     document.body.dataset.quotePolicyReset = "error";
     syncQuotePolicyControls();
     renderSettingsPanel();
@@ -6802,13 +6881,13 @@ async function resetQuotePolicySettings() {
   quoteRulesImportText.value = "";
   document.body.dataset.quoteRulesImportPanel = "closed";
   document.body.dataset.quotePolicyReset = `${before}->${quoteRulesSignature(settings)}`;
-  applyMutationPayload(payload, "Quote policy reset.");
+  applyMutationPayload(payload, t("settings.quotes.statusReset"));
   syncQuoteRulesImportControls();
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
   renderSettingsPanel();
-  status.textContent = "Quote policy reset.";
+  status.textContent = t("settings.quotes.statusReset");
 }
 
 async function applyLineEnding() {
