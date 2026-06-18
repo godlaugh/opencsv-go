@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=appearance-i18n-1`,
+		`v=formatsettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=appearance-i18n-1`) {
+	if !strings.Contains(html, `v=formatsettings-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=appearance-i18n-1`,
+		`v=formatsettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=appearance-i18n-1`,
+		`v=formatsettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=appearance-i18n-1`,
+		`v=formatsettings-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -850,7 +850,13 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-aria-label="settings.appearance.gridFontAria"`,
 		`data-i18n="settings.appearance.row.default"`,
 		`data-i18n="settings.appearance.reset"`,
-		`v=appearance-i18n-1`,
+		`data-i18n="settings.formats.export"`,
+		`data-i18n="settings.formats.import"`,
+		`data-i18n="settings.formats.reset"`,
+		`data-i18n-aria-label="settings.formats.importJsonAria"`,
+		`data-i18n="settings.formats.applyImport"`,
+		`data-i18n="settings.formats.cancelImport"`,
+		`v=formatsettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -868,6 +874,9 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。"`,
 		`"settings.appearance.gridFont": "表格字体"`,
 		`"settings.appearance.row.default": "默认 · 28px"`,
+		`"settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则"`,
+		`"settings.formats.statusImported": "已导入 {{count}} 个格式预设。"`,
+		`"settings.formats.errorInvalidJson": "JSON 无效"`,
 		`tf("settings.theme.summarySystem"`,
 		`t("settings.autoRefresh.clean")`,
 		`tf("settings.update.summaryLast"`,
@@ -882,6 +891,12 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`t("settings.appearance.defaultSummary")`,
 		`t("settings.appearance.statusUpdated")`,
 		`t("settings.appearance.statusReset")`,
+		`tf("settings.formats.summary"`,
+		`t("settings.formats.empty")`,
+		`tf("settings.formats.statusExported"`,
+		`tf("settings.formats.statusImported"`,
+		`localizedFormatPresetImportError(error.message)`,
+		`t("settings.formats.statusReset")`,
 		`t("settings.status.updateOff")`,
 		`syncThemeControls();`,
 		`syncAutoRefreshControls();`,

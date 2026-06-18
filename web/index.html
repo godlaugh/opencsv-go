@@ -284,7 +284,7 @@
             </header>
             <div class="settings-toolbar">
               <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" data-i18n-placeholder="settings.searchPlaceholder" data-i18n-aria-label="settings.searchPlaceholder" />
-              <button id="resetFormatPresetsButton" type="button">Reset Formats</button>
+              <button id="resetFormatPresetsButton" type="button" data-i18n="settings.formats.reset">Reset Formats</button>
             </div>
             <section class="settings-section settings-locale-section" aria-label="Language">
               <header>
@@ -651,18 +651,18 @@
             </section>
             <section class="settings-section" aria-label="File format presets">
               <header>
-                <strong>File Format Presets</strong>
+                <strong data-i18n="settings.fileFormatPresets">File Format Presets</strong>
                 <span id="settingsFormatSummary">0 presets</span>
                 <div class="settings-section-actions">
-                  <button id="exportFormatPresetsButton" type="button" data-command="format.exportPresets">Export Formats</button>
-                  <button id="showImportFormatPresetsButton" type="button" data-command="format.importPresets">Import Formats</button>
+                  <button id="exportFormatPresetsButton" type="button" data-command="format.exportPresets" data-i18n="settings.formats.export">Export Formats</button>
+                  <button id="showImportFormatPresetsButton" type="button" data-command="format.importPresets" data-i18n="settings.formats.import">Import Formats</button>
                 </div>
               </header>
               <div id="formatPresetImportPanel" class="settings-import-panel" hidden>
-                <textarea id="formatPresetImportText" spellcheck="false" aria-label="Format preset import JSON" placeholder='{"kind":"opencsv-format-presets","presets":[]}'></textarea>
+                <textarea id="formatPresetImportText" spellcheck="false" aria-label="Format preset import JSON" data-i18n-aria-label="settings.formats.importJsonAria" placeholder='{"kind":"opencsv-format-presets","presets":[]}'></textarea>
                 <div class="settings-import-actions">
-                  <button id="applyFormatPresetImportButton" type="button">Apply Import</button>
-                  <button id="cancelFormatPresetImportButton" type="button">Cancel</button>
+                  <button id="applyFormatPresetImportButton" type="button" data-i18n="settings.formats.applyImport">Apply Import</button>
+                  <button id="cancelFormatPresetImportButton" type="button" data-i18n="settings.formats.cancelImport">Cancel</button>
                 </div>
               </div>
               <div id="settingsPresetList" class="settings-preset-list"></div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=appearance-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=formatsettings-i18n-1"></script>
   </body>
 </html>

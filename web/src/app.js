@@ -1052,6 +1052,22 @@ const localeCatalog = {
     "settings.appearance.statusUpdated": "Editor appearance updated.",
     "settings.appearance.statusReset": "Editor appearance reset.",
     "settings.fileFormatPresets": "File Format Presets",
+    "settings.formats.export": "Export Formats",
+    "settings.formats.import": "Import Formats",
+    "settings.formats.reset": "Reset Formats",
+    "settings.formats.importJsonAria": "Format preset import JSON",
+    "settings.formats.applyImport": "Apply Import",
+    "settings.formats.cancelImport": "Cancel",
+    "settings.formats.summary": "{{presets}} presets, {{rules}} rules, {{quoteRules}} quote rules",
+    "settings.formats.noMatches": "No matching presets",
+    "settings.formats.empty": "No format presets saved",
+    "settings.formats.statusExported": "Exported {{count}} format presets.",
+    "settings.formats.statusImported": "Imported {{count}} format presets.",
+    "settings.formats.statusImportFailed": "Import failed: {{message}}",
+    "settings.formats.statusReset": "Format presets reset.",
+    "settings.formats.errorInvalidJson": "invalid JSON",
+    "settings.formats.errorMissingPresets": "missing presets array",
+    "settings.formats.errorNoValidPresets": "no valid presets",
     "shortcut.export": "Export",
     "shortcut.import": "Import",
     "shortcut.resetAll": "Reset All",
@@ -1958,6 +1974,22 @@ const localeCatalog = {
     "settings.appearance.statusUpdated": "编辑器外观已更新。",
     "settings.appearance.statusReset": "编辑器外观已重置。",
     "settings.fileFormatPresets": "文件格式预设",
+    "settings.formats.export": "导出格式",
+    "settings.formats.import": "导入格式",
+    "settings.formats.reset": "重置格式",
+    "settings.formats.importJsonAria": "格式预设导入 JSON",
+    "settings.formats.applyImport": "应用导入",
+    "settings.formats.cancelImport": "取消",
+    "settings.formats.summary": "{{presets}} 个预设，{{rules}} 条规则，{{quoteRules}} 条引号规则",
+    "settings.formats.noMatches": "没有匹配的预设",
+    "settings.formats.empty": "没有保存的格式预设",
+    "settings.formats.statusExported": "已导出 {{count}} 个格式预设。",
+    "settings.formats.statusImported": "已导入 {{count}} 个格式预设。",
+    "settings.formats.statusImportFailed": "导入失败：{{message}}",
+    "settings.formats.statusReset": "格式预设已重置。",
+    "settings.formats.errorInvalidJson": "JSON 无效",
+    "settings.formats.errorMissingPresets": "缺少预设数组",
+    "settings.formats.errorNoValidPresets": "没有有效预设",
     "shortcut.export": "导出",
     "shortcut.import": "导入",
     "shortcut.resetAll": "全部重置",
@@ -5735,7 +5767,7 @@ function exportFormatPresets() {
   document.body.dataset.formatPresetExport = `${presets.length}:${ruleCount}:${quoteRuleCount}`;
   document.body.dataset.formatPresetExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-format-presets.json", "application/json;charset=utf-8");
-  status.textContent = `Exported ${formatCount(presets.length)} format presets.`;
+  status.textContent = tf("settings.formats.statusExported", { count: formatCount(presets.length) });
 }
 
 function showFormatPresetImportPanel() {
@@ -5769,13 +5801,22 @@ function applyFormatPresetImport() {
     const importedRules = imported.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0);
     document.body.dataset.formatPresetImport = `${imported.length}:${importedRules}`;
     document.body.dataset.formatPresetImportPanel = "closed";
-    status.textContent = `Imported ${formatCount(imported.length)} format presets.`;
+    status.textContent = tf("settings.formats.statusImported", { count: formatCount(imported.length) });
     updateCommandState();
   } catch (error) {
-    status.textContent = `Import failed: ${error.message}`;
+    status.textContent = tf("settings.formats.statusImportFailed", { message: localizedFormatPresetImportError(error.message) });
     document.body.dataset.formatPresetImport = "error";
   }
   syncFormatPresetImportControls();
+}
+
+function localizedFormatPresetImportError(message) {
+  const key = {
+    "invalid JSON": "settings.formats.errorInvalidJson",
+    "missing presets array": "settings.formats.errorMissingPresets",
+    "no valid presets": "settings.formats.errorNoValidPresets",
+  }[message];
+  return key ? t(key) : message;
 }
 
 function parseFormatPresetImport(text) {
@@ -5883,7 +5924,11 @@ function renderSettingsPanel() {
     : presets;
   const sectionState = settingsSectionModifiedState({ presets, filters, recent, sorts });
   settingsModifiedBadge.textContent = sectionState.modified.length ? t("settings.modified") : t("settings.defaults");
-  settingsFormatSummary.textContent = `${presets.length} presets, ${presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)} rules, ${presets.reduce((sum, preset) => sum + formatPresetQuoteRuleCount(preset), 0)} quote rules`;
+  settingsFormatSummary.textContent = tf("settings.formats.summary", {
+    presets: formatCount(presets.length),
+    rules: formatCount(presets.reduce((sum, preset) => sum + normalizeFormatRules(preset.rules).length, 0)),
+    quoteRules: formatCount(presets.reduce((sum, preset) => sum + formatPresetQuoteRuleCount(preset), 0)),
+  });
   settingsViewsSummary.textContent = tf("settings.savedViews.summary", {
     filters: formatCount(filters.length),
     recent: formatCount(recent.length),
@@ -5900,7 +5945,7 @@ function renderSettingsPanel() {
   document.body.dataset.settingsPresetCount = String(presets.length);
   document.body.dataset.settingsVisiblePresetCount = String(visiblePresets.length);
   if (visiblePresets.length === 0) {
-    settingsPresetList.append(emptySettingsNode(presets.length ? "No matching presets" : "No format presets saved"));
+    settingsPresetList.append(emptySettingsNode(presets.length ? t("settings.formats.noMatches") : t("settings.formats.empty")));
   } else {
     for (const preset of visiblePresets) {
       settingsPresetList.append(formatPresetSettingsRow(preset));
@@ -6477,7 +6522,7 @@ function resetFormatPresets() {
   renderFormatPresetSelect();
   renderSettingsPanel();
   updateCommandState();
-  status.textContent = "Reset format presets.";
+  status.textContent = t("settings.formats.statusReset");
 }
 
 async function applyDelimiter() {
