@@ -397,16 +397,16 @@
             </section>
             <section class="settings-section settings-link-section" aria-label="Link protocols">
               <header>
-                <strong>Link Protocols</strong>
+                <strong data-i18n="settings.linkProtocols">Link Protocols</strong>
                 <span id="settingsLinkSummary">obsidian, vscode</span>
               </header>
               <div class="settings-link-grid">
                 <label>
-                  <span>Allowed Custom Protocols</span>
-                  <input id="customLinkProtocolsInput" type="text" spellcheck="false" aria-label="Allowed custom link protocols" placeholder="obsidian, vscode" />
+                  <span data-i18n="settings.linkProtocols.allowed">Allowed Custom Protocols</span>
+                  <input id="customLinkProtocolsInput" type="text" spellcheck="false" aria-label="Allowed custom link protocols" data-i18n-aria-label="settings.linkProtocols.allowedAria" placeholder="obsidian, vscode" />
                 </label>
-                <button id="applyCustomLinkProtocolsButton" type="button">Apply Links</button>
-                <button id="resetCustomLinkProtocolsButton" type="button">Reset Links</button>
+                <button id="applyCustomLinkProtocolsButton" type="button" data-i18n="settings.linkProtocols.apply">Apply Links</button>
+                <button id="resetCustomLinkProtocolsButton" type="button" data-i18n="settings.linkProtocols.reset">Reset Links</button>
               </div>
             </section>
             <section class="settings-section settings-policy-section" aria-label="Quote policy">
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=savedviews-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=linksettings-i18n-1"></script>
   </body>
 </html>

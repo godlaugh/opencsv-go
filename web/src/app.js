@@ -1019,6 +1019,14 @@ const localeCatalog = {
     "settings.status.updateOff": "Update checks are off.",
     "settings.status.updateReset": "Update checks reset.",
     "settings.linkProtocols": "Link Protocols",
+    "settings.linkProtocols.allowed": "Allowed Custom Protocols",
+    "settings.linkProtocols.allowedAria": "Allowed custom link protocols",
+    "settings.linkProtocols.apply": "Apply Links",
+    "settings.linkProtocols.reset": "Reset Links",
+    "settings.linkProtocols.none": "None",
+    "settings.linkProtocols.statusAllowed": "Allowed link protocols: {{protocols}}",
+    "settings.linkProtocols.statusReset": "Link protocols reset.",
+    "settings.linkProtocols.errorUnsafe": "{{protocol}} is unsafe and cannot be allowed.",
     "settings.editorAppearance": "Editor Appearance",
     "settings.fileFormatPresets": "File Format Presets",
     "shortcut.export": "Export",
@@ -1894,6 +1902,14 @@ const localeCatalog = {
     "settings.status.updateOff": "更新检查已关闭。",
     "settings.status.updateReset": "更新检查已重置。",
     "settings.linkProtocols": "链接协议",
+    "settings.linkProtocols.allowed": "允许的自定义协议",
+    "settings.linkProtocols.allowedAria": "允许的自定义链接协议",
+    "settings.linkProtocols.apply": "应用链接",
+    "settings.linkProtocols.reset": "重置链接",
+    "settings.linkProtocols.none": "无",
+    "settings.linkProtocols.statusAllowed": "允许的链接协议：{{protocols}}",
+    "settings.linkProtocols.statusReset": "链接协议已重置。",
+    "settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。",
     "settings.editorAppearance": "编辑器外观",
     "settings.fileFormatPresets": "文件格式预设",
     "shortcut.export": "导出",
@@ -3791,7 +3807,7 @@ function normalizeCustomLinkProtocols(value) {
     const protocol = normalizeCustomLinkProtocol(item);
     if (!protocol) continue;
     if (blockedLinkProtocols.has(`${protocol}:`)) {
-      return { protocols: [], error: `${protocol} is unsafe and cannot be allowed.` };
+      return { protocols: [], error: "unsafe", protocol };
     }
     if (trustedLinkProtocols.has(`${protocol}:`)) continue;
     if (!seen.has(protocol)) {
@@ -3809,7 +3825,7 @@ function normalizeCustomLinkProtocol(value) {
 }
 
 function customLinkProtocolLabel() {
-  return customLinkProtocols.length ? customLinkProtocols.join(", ") : "None";
+  return customLinkProtocols.length ? customLinkProtocols.join(", ") : t("settings.linkProtocols.none");
 }
 
 function customLinkProtocolsModified() {
@@ -3832,14 +3848,16 @@ function applyCustomLinkProtocols(nextProtocols, announce = true) {
   syncCustomLinkProtocolControls();
   syncCellLinkState(cellValueInput.value);
   if (announce) {
-    status.textContent = `Allowed link protocols: ${customLinkProtocolLabel()}`;
+    status.textContent = tf("settings.linkProtocols.statusAllowed", { protocols: customLinkProtocolLabel() });
   }
 }
 
 function updateCustomLinkProtocolsFromSettings() {
   const normalized = normalizeCustomLinkProtocols(customLinkProtocolsInput.value);
   if (normalized.error) {
-    status.textContent = normalized.error;
+    status.textContent = normalized.error === "unsafe"
+      ? tf("settings.linkProtocols.errorUnsafe", { protocol: normalized.protocol || "" })
+      : normalized.error;
     return;
   }
   applyCustomLinkProtocols(normalized.protocols);
@@ -3849,7 +3867,7 @@ function updateCustomLinkProtocolsFromSettings() {
 function resetCustomLinkProtocols() {
   applyCustomLinkProtocols(defaultCustomLinkProtocols);
   renderSettingsPanel();
-  status.textContent = "Link protocols reset.";
+  status.textContent = t("settings.linkProtocols.statusReset");
 }
 
 function loadConfirmedCustomLinkProtocols() {

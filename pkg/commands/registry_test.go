@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=savedviews-i18n-1`,
+		`v=linksettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=savedviews-i18n-1`) {
+	if !strings.Contains(html, `v=linksettings-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=savedviews-i18n-1`,
+		`v=linksettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=savedviews-i18n-1`,
+		`v=linksettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=savedviews-i18n-1`,
+		`v=linksettings-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -842,7 +842,11 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.savedViews.clearRecent"`,
 		`data-i18n-aria-label="settings.savedViews.importJsonAria"`,
 		`data-i18n="settings.savedViews.applyImport"`,
-		`v=savedviews-i18n-1`,
+		`data-i18n="settings.linkProtocols.allowed"`,
+		`data-i18n-aria-label="settings.linkProtocols.allowedAria"`,
+		`data-i18n="settings.linkProtocols.apply"`,
+		`data-i18n="settings.linkProtocols.reset"`,
+		`v=linksettings-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -855,6 +859,9 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.noUpdateCheck": "尚未运行更新检查。"`,
 		`"settings.savedViews.summary": "{{filters}} 个筛选，{{recent}} 条最近记录，{{sorts}} 个排序 · 历史 {{history}}"`,
 		`"settings.savedViews.statusReset": "保存的筛选、最近筛选和保存的排序已重置。"`,
+		`"settings.linkProtocols.allowed": "允许的自定义协议"`,
+		`"settings.linkProtocols.statusAllowed": "允许的链接协议：{{protocols}}"`,
+		`"settings.linkProtocols.errorUnsafe": "{{protocol}} 不安全，不能允许。"`,
 		`tf("settings.theme.summarySystem"`,
 		`t("settings.autoRefresh.clean")`,
 		`tf("settings.update.summaryLast"`,
@@ -862,6 +869,9 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`t("settings.savedViews.noMatches")`,
 		`t("settings.savedViews.apply")`,
 		`t("settings.savedViews.delete")`,
+		`t("settings.linkProtocols.none")`,
+		`tf("settings.linkProtocols.statusAllowed"`,
+		`tf("settings.linkProtocols.errorUnsafe"`,
 		`t("settings.status.updateOff")`,
 		`syncThemeControls();`,
 		`syncAutoRefreshControls();`,
