@@ -119,6 +119,7 @@ const sqlResultFormatSelect = document.querySelector("#sqlResultFormatSelect");
 const openSqlResultButton = document.querySelector("#openSqlResultButton");
 const copySqlResultButton = document.querySelector("#copySqlResultButton");
 const exportSqlResultButton = document.querySelector("#exportSqlResultButton");
+const sqlPaneSizeInput = document.querySelector("#sqlPaneSizeInput");
 const sqlHistoryList = document.querySelector("#sqlHistoryList");
 const clearSqlHistoryButton = document.querySelector("#clearSqlHistoryButton");
 const sqlResult = document.querySelector("#sqlResult");
@@ -405,6 +406,9 @@ const recentFilesLimit = 8;
 const commandHistoryStorageKey = "opencsv-command-history";
 const commandHistoryLimit = 8;
 const defaultSQLQuery = "SELECT * FROM current LIMIT 25";
+const defaultSQLPaneSize = 320;
+const minSQLPaneSize = 180;
+const maxSQLPaneSize = 560;
 const sqlResultFormats = ["csv", "tsv", "markdown", "json", "html", "sql", "latex", "raw"];
 const sqlResultFormatLabels = {
   csv: "CSV",
@@ -12221,7 +12225,8 @@ function loadDocument(document) {
   profileData = null;
   lastSQLResult = null;
   sqlInput.value = defaultSQLQuery;
-  window.document.body.dataset.sqlTabState = `${compactSQLQuery(defaultSQLQuery)}:0`;
+  const sqlPaneSize = applySQLPaneSize(defaultSQLPaneSize, { sync: false });
+  window.document.body.dataset.sqlTabState = `${compactSQLQuery(defaultSQLQuery)}:0:pane${sqlPaneSize}`;
   sqlResultSelectionAnchor = null;
   sqlResultSelectionRange = null;
   sqlResultContextTarget = null;
@@ -13682,7 +13687,30 @@ function currentSQLConsoleState() {
     result: cloneSQLResult(lastSQLResult),
     selection: normalizedSQLResultSelection(),
     format: normalizeSQLResultFormat(sqlResultFormatSelect?.value || "csv"),
+    paneSize: currentSQLPaneSize(),
   };
+}
+
+function normalizeSQLPaneSize(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return defaultSQLPaneSize;
+  return Math.max(minSQLPaneSize, Math.min(maxSQLPaneSize, Math.round(parsed)));
+}
+
+function currentSQLPaneSize() {
+  return normalizeSQLPaneSize(sqlPaneSizeInput?.value || defaultSQLPaneSize);
+}
+
+function applySQLPaneSize(value, options = {}) {
+  const paneSize = normalizeSQLPaneSize(value);
+  if (sqlPaneSizeInput) {
+    sqlPaneSizeInput.value = String(paneSize);
+    sqlPaneSizeInput.setAttribute("aria-valuetext", `${paneSize}px`);
+  }
+  sqlPanel?.style.setProperty("--sql-result-height", `${paneSize}px`);
+  document.body.dataset.sqlPaneSize = String(paneSize);
+  if (options.sync !== false) syncActiveSQLConsoleTabState();
+  return paneSize;
 }
 
 function cloneSQLResult(result) {
@@ -13738,7 +13766,7 @@ function syncActiveSQLConsoleTabState() {
       ? { ...tab, viewState: state }
       : tab
   ));
-  document.body.dataset.sqlTabState = `${compactSQLQuery(state.sqlState.query)}:${state.sqlState.result?.rows?.length ?? 0}`;
+  document.body.dataset.sqlTabState = `${compactSQLQuery(state.sqlState.query)}:${state.sqlState.result?.rows?.length ?? 0}:pane${state.sqlState.paneSize}`;
 }
 
 function restoreOpenFileTabState(tab) {
@@ -13768,6 +13796,7 @@ function restoreSQLConsoleState(state) {
   if (sqlResultFormatSelect && state?.format) {
     sqlResultFormatSelect.value = normalizeSQLResultFormat(state.format);
   }
+  const paneSize = applySQLPaneSize(state?.paneSize, { sync: false });
   if (lastSQLResult) {
     renderSQLResult(lastSQLResult);
   } else {
@@ -13789,7 +13818,7 @@ function restoreSQLConsoleState(state) {
     };
     syncSQLResultSelection();
   }
-  document.body.dataset.sqlTabState = `${compactSQLQuery(query)}:${lastSQLResult?.rows?.length ?? 0}`;
+  document.body.dataset.sqlTabState = `${compactSQLQuery(query)}:${lastSQLResult?.rows?.length ?? 0}:pane${paneSize}`;
 }
 
 async function switchOpenFileTab(targetDocumentId, options = {}) {
@@ -21503,6 +21532,9 @@ sqlInput.addEventListener("keydown", async (event) => {
   }
 });
 sqlInput.addEventListener("input", syncActiveSQLConsoleTabState);
+sqlPaneSizeInput?.addEventListener("input", () => {
+  applySQLPaneSize(sqlPaneSizeInput.value);
+});
 paletteInput.addEventListener("input", () => {
   paletteIndex = 0;
   renderCommandPalette();

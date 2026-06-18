@@ -662,6 +662,13 @@ button:disabled {
   background: var(--grid-bg);
 }
 
+.sql-panel {
+  --sql-result-height: 320px;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  overflow: auto;
+}
+
 .sql-panel[hidden],
 .diff-panel[hidden],
 .profile-panel[hidden],
@@ -1092,7 +1099,14 @@ button:disabled {
 }
 
 .sql-editor-row {
-  grid-template-columns: minmax(0, 1fr) 72px 108px 72px 76px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.sql-editor-row #sqlInput {
+  flex: 1 1 360px;
+  min-width: min(100%, 280px);
 }
 
 .diff-editor-row {
@@ -1278,6 +1292,15 @@ button:disabled {
   border-radius: 6px;
 }
 
+.sql-pane-size-input {
+  width: 160px;
+  min-width: 120px;
+  max-width: 100%;
+  flex: 0 1 160px;
+  align-self: center;
+  accent-color: var(--accent);
+}
+
 .sql-result,
 .diff-result,
 .profile-columns,
@@ -1286,6 +1309,11 @@ button:disabled {
   overflow: auto;
   border: 1px solid var(--border);
   background: var(--panel);
+}
+
+.sql-result {
+  height: var(--sql-result-height);
+  max-height: calc(100vh - 220px);
 }
 
 .profile-columns {

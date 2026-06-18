@@ -525,22 +525,55 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "styles.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	source := string(appJS)
 	for _, snippet := range []string{
 		`const defaultSQLQuery = "SELECT * FROM current LIMIT 25"`,
+		"const defaultSQLPaneSize = 320",
 		"sqlState: currentSQLConsoleState()",
 		"function currentSQLConsoleState()",
+		"paneSize: currentSQLPaneSize()",
+		"function applySQLPaneSize",
+		"document.body.dataset.sqlPaneSize",
 		"function cloneSQLResult(result)",
 		"function restoreSQLConsoleState(state)",
 		"restoreSQLConsoleState(state.sqlState)",
+		"applySQLPaneSize(state?.paneSize",
 		"sqlInput.value = defaultSQLQuery",
 		`sqlInput.addEventListener("input", syncActiveSQLConsoleTabState)`,
+		`sqlPaneSizeInput?.addEventListener("input"`,
 		"syncActiveSQLConsoleTabState();",
 		"document.body.dataset.sqlTabState",
 		"renderSQLResult(lastSQLResult)",
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing SQL per-tab state wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`id="sqlPaneSizeInput"`,
+		`type="range"`,
+		`aria-label="SQL result pane height"`,
+		`v=sql-pane-size-1`,
+	} {
+		if !strings.Contains(string(indexHTML), snippet) {
+			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		"--sql-result-height: 320px",
+		".sql-pane-size-input",
+		"height: var(--sql-result-height)",
+	} {
+		if !strings.Contains(string(styles), snippet) {
+			t.Fatalf("missing SQL pane-size style wiring %q", snippet)
 		}
 	}
 }
