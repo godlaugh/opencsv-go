@@ -808,6 +808,10 @@ const localeCatalog = {
     "cell.status.failed": "{{action}} failed: {{message}}",
     "cell.status.changed": "{{action}}: {{count}} cells changed",
     "cell.status.noChange": "{{action}}: no cells changed",
+    "cell.status.edited": "Cell edited",
+    "cell.status.editedCells": "{{count}} cells edited",
+    "cell.status.editReverted": "Cell edit reverted",
+    "cell.status.editFailed": "Edit failed: {{message}}",
     "cell.status.selectTwoToSwap": "Select exactly two cells to swap.",
     "cell.status.noAdjacent": "{{action}}: no adjacent cell.",
     "cell.status.selectTwoToJoin": "Select at least two cells to join.",
@@ -2231,6 +2235,10 @@ const localeCatalog = {
     "cell.status.failed": "{{action}}失败：{{message}}",
     "cell.status.changed": "{{action}}：已更改 {{count}} 个单元格",
     "cell.status.noChange": "{{action}}：没有单元格更改",
+    "cell.status.edited": "单元格已编辑",
+    "cell.status.editedCells": "已编辑 {{count}} 个单元格",
+    "cell.status.editReverted": "单元格编辑已还原",
+    "cell.status.editFailed": "编辑失败：{{message}}",
     "cell.status.selectTwoToSwap": "请选择两个单元格进行交换。",
     "cell.status.noAdjacent": "{{action}}：没有相邻单元格。",
     "cell.status.selectTwoToJoin": "请选择至少两个单元格进行合并。",
@@ -9273,7 +9281,7 @@ function revertCellValueInput() {
     cellValueDialogInput.value = value;
     syncCellValueDialog();
   }
-  status.textContent = "Cell edit reverted";
+  status.textContent = t("cell.status.editReverted");
 }
 
 function syncCellLinkState(value) {
@@ -13744,7 +13752,7 @@ function setSelectionValue(value) {
   }
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
-  submitCellEdits(edits, range.startRow, `${formatCount(edits.length)} cells edited`);
+  submitCellEdits(edits, range.startRow, localizedCellStatus("editedCells", { count: formatCount(edits.length) }));
 }
 
 function setActiveCellValue(value) {
@@ -13768,7 +13776,7 @@ function setActiveCellValue(value) {
   submitCellEdits(
     [edit],
     selected.row,
-    "Cell edited",
+    t("cell.status.edited"),
   );
 }
 
@@ -13880,7 +13888,7 @@ function submitCellEdits(edits, windowRow, message) {
       scheduleDirtyDraftSave();
     })
     .catch((error) => {
-      status.textContent = `Edit failed: ${error.message}`;
+      status.textContent = localizedCellStatus("editFailed", { message: error.message });
     });
 }
 

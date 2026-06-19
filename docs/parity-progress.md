@@ -50,6 +50,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003/004 | Multiline Cell Value editing foundation | Started | Browser Inspector/save verification |
 | FR-003/004 | Detached large-cell editor foundation | Started | Browser dialog/save verification |
 | FR-019/003/004 | Localized Column Inspector and Cell Value shell | Started | command registry static coverage, Browser Inspector locale verification |
+| FR-019/003/004 | Localized Cell Value edit feedback | Started | command registry static coverage, Browser zh-CN edit/revert status verification |
 | FR-019/020 | Localized Settings preferences slice | Started | command registry static coverage, Browser Settings locale verification |
 | FR-019/020/006 | Localized Saved Views settings slice | Started | command registry static coverage, Browser Saved Views locale verification |
 | FR-019/020/012 | Localized Link Protocols settings slice | Started | command registry static coverage, Browser Link Protocols locale verification |
