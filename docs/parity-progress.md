@@ -28,6 +28,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-002/004/013/020 | Quote rule list plus active-cell/selection/coordinate/row/column-name/pattern/value editing foundation | Started | command registry static coverage, Browser Settings add/remove-rule verification |
 | FR-019/020/013 | Localized Quote Policy settings shell | Started | command registry static coverage, Browser quote-policy locale verification |
 | FR-019/020/013 | Localized Quote Rule editor shell | Started | command registry static coverage, Browser quote-rule locale verification |
+| FR-019/020/013 | Localized Quote Rule status, import/export, and preset-apply feedback | Started | command registry static coverage, Browser zh-CN quote-rule status verification |
 | FR-019/020/013 | Localized format policy settings controls | Started | command registry static coverage, Browser delimiter/encoding/EOL locale verification |
 | FR-019/020/013 | Localized format status surfaces | Started | command registry static coverage, Browser status/Inspector locale verification |
 | FR-019/018 | Localized external-change conflict and refresh surfaces | Started | command registry static coverage, Browser dirty-conflict locale verification |

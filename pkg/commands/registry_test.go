@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -411,7 +411,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -594,7 +594,7 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing copy/export script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -662,7 +662,7 @@ func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing paste-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -742,7 +742,7 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatalf("missing aggregate localization cache bust")
 	}
 	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
@@ -787,7 +787,7 @@ func TestGridInteractionLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing grid interaction script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -906,7 +906,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -1049,7 +1049,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1175,6 +1175,7 @@ func TestFormatPresetsPersistQuoteRules(t *testing.T) {
 		"noQuoteCells: normalizeQuoteRuleCells(raw.noQuoteCells)",
 		"const presetQuoteRulesApplied = preset ? await applyPresetQuoteSettings(preset) : false",
 		`fetch("/api/quote-settings"`,
+		`tf("settings.quotes.statusAppliedPreset"`,
 		"document.body.dataset.formatPresetQuoteRules = quoteRulesSignature(settings)",
 		"|qr:${formatPresetQuoteRuleCount(preset)}",
 		"quoteRulesSummary(formatPresetQuoteSettings(preset))",
@@ -1295,7 +1296,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1339,7 +1340,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1384,7 +1385,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=diff-status-i18n-1`,
+		`v=quote-rule-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1427,7 +1428,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1436,11 +1437,13 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 		`"file.status.openedMultiple": "已打开 {{count}} 个文件；当前 {{name}}。"`,
 		`"file.status.appliedUrlFormat": "已应用 URL 格式：{{summary}}"`,
 		`"file.status.appliedFormatPreset": "已应用格式预设：{{preset}}"`,
+		`"settings.quotes.statusAppliedPreset": "已应用预设引号规则：{{summary}}。"`,
 		`tf("file.status.opening"`,
 		`tf("file.status.openFailed"`,
 		`tf("file.status.openedMultiple"`,
 		`tf("file.status.appliedUrlFormat"`,
 		`tf("file.status.appliedPresetQuoteRules"`,
+		`tf("settings.quotes.statusAppliedPreset"`,
 		`tf("file.status.appliedUrlLocation"`,
 		`tf("file.status.appliedFormatRule"`,
 		`tf("file.status.appliedFormatPreset"`,
@@ -1463,7 +1466,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1514,7 +1517,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1568,7 +1571,7 @@ func TestSmartSelectionStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=diff-status-i18n-1`) {
+	if !strings.Contains(html, `v=quote-rule-status-i18n-1`) {
 		t.Fatal("missing selection-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -2757,10 +2760,27 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		`"settings.quotes.item.noCellTitle": "单元格 {{cell}} 不加引号"`,
 		`"settings.quotes.statusCellApplied": "{{action}}：{{cell}}。"`,
 		`"settings.quotes.statusRemoved": "已移除引号规则：{{rule}}。"`,
+		`"settings.quotes.statusRulesOpenFile": "更改引号规则前请先打开文件。"`,
+		`"settings.quotes.statusCellStateEnabled": "单元格引号已启用。"`,
+		`"settings.quotes.statusRuleToggled": "{{target}}引号已{{state}}。"`,
+		`"settings.quotes.statusSelectionApplied": "{{action}}：已更新 {{count}} 个单元格。"`,
+		`"settings.quotes.statusActionReadOnly": "{{action}}被阻止：文档为只读"`,
+		`"settings.quotes.statusValuePatternMatched": "{{action}}：全文件 {{scanned}} 个单元格中匹配 {{matched}} 个{{limit}}。"`,
+		`"settings.quotes.statusExported": "已导出引号规则：{{summary}}。"`,
+		`"settings.quotes.statusImported": "已导入引号规则：{{summary}}。"`,
 		`t("settings.quotes.empty.noRules")`,
 		`t("settings.quotes.removeRule")`,
+		`t("settings.quotes.statusRulesOpenFile")`,
+		`settings.quotes.statusCellStateEnabled`,
+		`t(quoted ? "settings.quotes.statusCellStateEnabled"`,
+		`tf("settings.quotes.statusRuleToggled"`,
+		`tf("settings.quotes.statusSelectionApplied"`,
 		`tf("settings.quotes.statusCellApplied"`,
 		`tf("settings.quotes.statusRemoved"`,
+		`tf("settings.quotes.statusExported"`,
+		`tf("settings.quotes.statusImported"`,
+		`tf("settings.quotes.statusActionReadOnly"`,
+		`tf("settings.quotes.statusValuePatternMatched"`,
 		`tf("settings.quotes.empty.showingFirst"`,
 		`tf("settings.quotes.item.columnTitle"`,
 		`tf("settings.quotes.item.noCellTitle"`,
@@ -2783,7 +2803,7 @@ func TestQuoteRuleListEditingIsWired(t *testing.T) {
 		"document.body.dataset.quoteValuePatternRule = response.ok",
 		`${preview ? "preview" : matchMode}:${action}:${payload.matched}:${payload.scannedCells}:${payload.truncated ? "truncated" : "full"}`,
 		"document.body.dataset.quoteValuePatternPreview = document.body.dataset.quoteValuePatternRule",
-		"full-file matches across ${formatCount(payload.scannedCells)} cells",
+		`tf("settings.quotes.statusValuePatternMatched"`,
 		"document.body.dataset.quoteRowRangeRule = `${action}:${range.startRow}-${range.endRow}:${range.cells.length}:${signature}`",
 		"document.body.dataset.quoteCoordinateRule = `${mode}:${row}:${col}:${signature}`",
 		"quoteRuleColumnInput.dataset.syncedValue = defaultColumn",

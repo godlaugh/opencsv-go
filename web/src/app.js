@@ -570,6 +570,8 @@ const localeCatalog = {
     "common.close": "Close",
     "common.cancel": "Cancel",
     "common.refresh": "Refresh",
+    "common.previewed": "previewed",
+    "common.applied": "applied",
     "inspector.aria": "Column inspector",
     "inspector.cell": "Cell",
     "inspector.cellValue": "Cell Value",
@@ -1488,6 +1490,82 @@ const localeCatalog = {
     "settings.quotes.statusRemoveBlockedReadonly": "Quote rule removal blocked: document is read-only",
     "settings.quotes.statusRemoveFailed": "Quote rule removal failed: {{message}}",
     "settings.quotes.statusRemoved": "Removed quote rule: {{rule}}.",
+    "settings.quotes.statusCellStateOpenFile": "Open a file before changing cell quote state.",
+    "settings.quotes.statusCellStateReadOnly": "Cell quote blocked: document is read-only",
+    "settings.quotes.statusCellStateFailed": "Cell quote failed: {{message}}",
+    "settings.quotes.statusCellStateEnabled": "Cell quote enabled.",
+    "settings.quotes.statusCellStateDisabled": "Cell quote disabled.",
+    "settings.quotes.statusRulesOpenFile": "Open a file before changing quote rules.",
+    "settings.quotes.statusRulesReadOnly": "Quote rule blocked: document is read-only",
+    "settings.quotes.statusSelectColumn": "Select a column before changing column quote.",
+    "settings.quotes.statusRuleFailed": "Quote rule failed: {{message}}",
+    "settings.quotes.statusRuleToggled": "{{target}} quote {{state}}.",
+    "settings.quotes.ruleTarget.header": "Header",
+    "settings.quotes.ruleTarget.body": "Body",
+    "settings.quotes.ruleTarget.column": "Column",
+    "settings.quotes.ruleState.enabled": "enabled",
+    "settings.quotes.ruleState.disabled": "disabled",
+    "settings.quotes.statusSelectionOpenFile": "Open a file before changing selection quote rules.",
+    "settings.quotes.statusSelectionNoChange": "{{action}}: no quote overrides changed.",
+    "settings.quotes.statusSelectionFailed": "{{action}} failed: {{message}}",
+    "settings.quotes.statusSelectionApplied": "{{action}}: {{count}} cells updated.",
+    "settings.quotes.action.noQuoteSelection": "No Quote Selection",
+    "settings.quotes.action.clearSelection": "Clear Selection Quote Overrides",
+    "settings.quotes.action.cellRule": "Cell Rule",
+    "settings.quotes.action.quoteCellRule": "Quote Cell Rule",
+    "settings.quotes.action.noQuoteCellRule": "No Quote Cell Rule",
+    "settings.quotes.action.clearCellRule": "Clear Cell Rule",
+    "settings.quotes.action.clearColumnRule": "Clear Column Rule",
+    "settings.quotes.action.quoteColumnRule": "Quote Column Rule",
+    "settings.quotes.action.clearColumnPatternRule": "Clear Column Pattern Rule",
+    "settings.quotes.action.quoteColumnPatternRule": "Quote Column Pattern Rule",
+    "settings.quotes.action.valuePatternRule": "Value Pattern Rule",
+    "settings.quotes.action.previewValuePatternRule": "Preview Value Pattern Rule",
+    "settings.quotes.action.quoteValuePatternRule": "Quote Value Pattern Rule",
+    "settings.quotes.action.noQuoteValuePatternRule": "No Quote Value Pattern Rule",
+    "settings.quotes.action.clearValuePatternRule": "Clear Value Pattern Rule",
+    "settings.quotes.action.rowRangeRule": "Row Range Rule",
+    "settings.quotes.action.quoteRowRangeRule": "Quote Row Range Rule",
+    "settings.quotes.action.noQuoteRowRangeRule": "No Quote Row Range Rule",
+    "settings.quotes.action.clearRowRangeRule": "Clear Row Range Rule",
+    "settings.quotes.statusEditOpenFile": "Open a file before editing quote rules.",
+    "settings.quotes.statusActionReadOnly": "{{action}} blocked: document is read-only",
+    "settings.quotes.statusValidCellRequired": "Enter a valid source row and column for the quote rule.",
+    "settings.quotes.statusNoRulesChanged": "{{action}}: no quote rules changed.",
+    "settings.quotes.statusActionFailed": "{{action}} failed: {{message}}",
+    "settings.quotes.statusCellRuleApplied": "{{action}}: {{cell}}.",
+    "settings.quotes.statusColumnRuleApplied": "{{action}}: {{column}}.",
+    "settings.quotes.statusColumnPatternApplied": "{{action}}: {{count}} columns.",
+    "settings.quotes.statusValuePatternLimit": "; {{verb}} first {{limit}} matches",
+    "settings.quotes.statusValuePatternMatched": "{{action}}: {{matched}} full-file matches across {{scanned}} cells{{limit}}.",
+    "settings.quotes.statusValuePatternNoMatch": "{{action}}: no full-file cells matched.",
+    "settings.quotes.statusRowRangeApplied": "{{action}}: {{count}} cells.",
+    "settings.quotes.errorColumnRequired": "Enter a source column number or name.",
+    "settings.quotes.errorColumnInvalid": "Enter a valid source column number or name.",
+    "settings.quotes.errorColumnAmbiguous": "Column name matches multiple source columns; use the source column number.",
+    "settings.quotes.errorColumnPatternRequired": "Enter a column pattern before applying quote rules.",
+    "settings.quotes.errorColumnPatternRegex": "Enter a valid regular expression for the column pattern.",
+    "settings.quotes.errorColumnPatternNoMatch": "No source columns match the quote pattern.",
+    "settings.quotes.errorValuePatternRequired": "Enter a value pattern before applying quote rules.",
+    "settings.quotes.errorValuePatternRegex": "Enter a valid regular expression for the value pattern.",
+    "settings.quotes.errorRowRangeInvalid": "Enter a valid source row range for the quote rule.",
+    "settings.quotes.errorRowColumnsRequired": "Open a file with columns before applying row quote rules.",
+    "settings.quotes.errorRowLimit": "Row quote rules can update up to {{limit}} cells at once.",
+    "settings.quotes.summaryBase": "{{mode}} {{character}} {{escape}} escape",
+    "settings.quotes.summaryHeader": "header",
+    "settings.quotes.summaryBody": "body",
+    "settings.quotes.summaryColumns": "{{count}} columns",
+    "settings.quotes.summaryQuotedCells": "{{count}} quoted cells",
+    "settings.quotes.summaryNoQuoteCells": "{{count}} no-quote cells",
+    "settings.quotes.columnFallback": "column {{number}}",
+    "settings.quotes.cellLabel": "R{{row}}C{{column}}",
+    "settings.quotes.statusExportOpenFile": "Open a file before exporting quote rules.",
+    "settings.quotes.statusExported": "Exported quote rules: {{summary}}.",
+    "settings.quotes.statusImportOpenFile": "Open a file before importing quote rules.",
+    "settings.quotes.statusImportReadOnly": "Quote rule import blocked: document is read-only",
+    "settings.quotes.statusImported": "Imported quote rules: {{summary}}.",
+    "settings.quotes.statusImportFailed": "Quote rule import failed: {{message}}",
+    "settings.quotes.statusAppliedPreset": "Applied preset quote rules: {{summary}}.",
     "settings.editorAppearance": "Editor Appearance",
     "settings.appearance.gridFont": "Grid Font",
     "settings.appearance.gridSize": "Grid Size",
@@ -2032,6 +2110,8 @@ const localeCatalog = {
     "common.close": "关闭",
     "common.cancel": "取消",
     "common.refresh": "刷新",
+    "common.previewed": "预览了",
+    "common.applied": "应用了",
     "inspector.aria": "列检查器",
     "inspector.cell": "单元格",
     "inspector.cellValue": "单元格值",
@@ -2942,6 +3022,82 @@ const localeCatalog = {
     "settings.quotes.statusRemoveBlockedReadonly": "引号规则移除被阻止：文档为只读",
     "settings.quotes.statusRemoveFailed": "引号规则移除失败：{{message}}",
     "settings.quotes.statusRemoved": "已移除引号规则：{{rule}}。",
+    "settings.quotes.statusCellStateOpenFile": "更改单元格引号状态前请先打开文件。",
+    "settings.quotes.statusCellStateReadOnly": "单元格引号被阻止：文档为只读",
+    "settings.quotes.statusCellStateFailed": "单元格引号失败：{{message}}",
+    "settings.quotes.statusCellStateEnabled": "单元格引号已启用。",
+    "settings.quotes.statusCellStateDisabled": "单元格引号已禁用。",
+    "settings.quotes.statusRulesOpenFile": "更改引号规则前请先打开文件。",
+    "settings.quotes.statusRulesReadOnly": "引号规则被阻止：文档为只读",
+    "settings.quotes.statusSelectColumn": "更改列引号前请先选择一列。",
+    "settings.quotes.statusRuleFailed": "引号规则失败：{{message}}",
+    "settings.quotes.statusRuleToggled": "{{target}}引号已{{state}}。",
+    "settings.quotes.ruleTarget.header": "表头",
+    "settings.quotes.ruleTarget.body": "正文",
+    "settings.quotes.ruleTarget.column": "列",
+    "settings.quotes.ruleState.enabled": "启用",
+    "settings.quotes.ruleState.disabled": "禁用",
+    "settings.quotes.statusSelectionOpenFile": "更改选区引号规则前请先打开文件。",
+    "settings.quotes.statusSelectionNoChange": "{{action}}：引号覆盖未改变。",
+    "settings.quotes.statusSelectionFailed": "{{action}}失败：{{message}}",
+    "settings.quotes.statusSelectionApplied": "{{action}}：已更新 {{count}} 个单元格。",
+    "settings.quotes.action.noQuoteSelection": "选区不加引号",
+    "settings.quotes.action.clearSelection": "清除选区引号覆盖",
+    "settings.quotes.action.cellRule": "单元格规则",
+    "settings.quotes.action.quoteCellRule": "单元格加引号规则",
+    "settings.quotes.action.noQuoteCellRule": "单元格不加引号规则",
+    "settings.quotes.action.clearCellRule": "清除单元格规则",
+    "settings.quotes.action.clearColumnRule": "清除列规则",
+    "settings.quotes.action.quoteColumnRule": "列加引号规则",
+    "settings.quotes.action.clearColumnPatternRule": "清除列模式规则",
+    "settings.quotes.action.quoteColumnPatternRule": "列模式加引号规则",
+    "settings.quotes.action.valuePatternRule": "值模式规则",
+    "settings.quotes.action.previewValuePatternRule": "预览值模式规则",
+    "settings.quotes.action.quoteValuePatternRule": "值模式加引号规则",
+    "settings.quotes.action.noQuoteValuePatternRule": "值模式不加引号规则",
+    "settings.quotes.action.clearValuePatternRule": "清除值模式规则",
+    "settings.quotes.action.rowRangeRule": "行范围规则",
+    "settings.quotes.action.quoteRowRangeRule": "行范围加引号规则",
+    "settings.quotes.action.noQuoteRowRangeRule": "行范围不加引号规则",
+    "settings.quotes.action.clearRowRangeRule": "清除行范围规则",
+    "settings.quotes.statusEditOpenFile": "编辑引号规则前请先打开文件。",
+    "settings.quotes.statusActionReadOnly": "{{action}}被阻止：文档为只读",
+    "settings.quotes.statusValidCellRequired": "请输入有效的源行和源列作为引号规则。",
+    "settings.quotes.statusNoRulesChanged": "{{action}}：引号规则未改变。",
+    "settings.quotes.statusActionFailed": "{{action}}失败：{{message}}",
+    "settings.quotes.statusCellRuleApplied": "{{action}}：{{cell}}。",
+    "settings.quotes.statusColumnRuleApplied": "{{action}}：{{column}}。",
+    "settings.quotes.statusColumnPatternApplied": "{{action}}：{{count}} 列。",
+    "settings.quotes.statusValuePatternLimit": "；{{verb}}前 {{limit}} 个匹配",
+    "settings.quotes.statusValuePatternMatched": "{{action}}：全文件 {{scanned}} 个单元格中匹配 {{matched}} 个{{limit}}。",
+    "settings.quotes.statusValuePatternNoMatch": "{{action}}：没有匹配的全文件单元格。",
+    "settings.quotes.statusRowRangeApplied": "{{action}}：{{count}} 个单元格。",
+    "settings.quotes.errorColumnRequired": "请输入源列编号或名称。",
+    "settings.quotes.errorColumnInvalid": "请输入有效的源列编号或名称。",
+    "settings.quotes.errorColumnAmbiguous": "列名匹配多个源列；请使用源列编号。",
+    "settings.quotes.errorColumnPatternRequired": "应用引号规则前请输入列模式。",
+    "settings.quotes.errorColumnPatternRegex": "请输入有效的列模式正则表达式。",
+    "settings.quotes.errorColumnPatternNoMatch": "没有源列匹配引号模式。",
+    "settings.quotes.errorValuePatternRequired": "应用引号规则前请输入值模式。",
+    "settings.quotes.errorValuePatternRegex": "请输入有效的值模式正则表达式。",
+    "settings.quotes.errorRowRangeInvalid": "请输入有效的源行范围作为引号规则。",
+    "settings.quotes.errorRowColumnsRequired": "应用行引号规则前请先打开有列的文件。",
+    "settings.quotes.errorRowLimit": "行引号规则一次最多可更新 {{limit}} 个单元格。",
+    "settings.quotes.summaryBase": "{{mode}} {{character}} {{escape}} 转义",
+    "settings.quotes.summaryHeader": "表头",
+    "settings.quotes.summaryBody": "正文",
+    "settings.quotes.summaryColumns": "{{count}} 列",
+    "settings.quotes.summaryQuotedCells": "{{count}} 个加引号单元格",
+    "settings.quotes.summaryNoQuoteCells": "{{count}} 个不加引号单元格",
+    "settings.quotes.columnFallback": "第 {{number}} 列",
+    "settings.quotes.cellLabel": "R{{row}}C{{column}}",
+    "settings.quotes.statusExportOpenFile": "导出引号规则前请先打开文件。",
+    "settings.quotes.statusExported": "已导出引号规则：{{summary}}。",
+    "settings.quotes.statusImportOpenFile": "导入引号规则前请先打开文件。",
+    "settings.quotes.statusImportReadOnly": "引号规则导入被阻止：文档为只读",
+    "settings.quotes.statusImported": "已导入引号规则：{{summary}}。",
+    "settings.quotes.statusImportFailed": "引号规则导入失败：{{message}}",
+    "settings.quotes.statusAppliedPreset": "已应用预设引号规则：{{summary}}。",
     "settings.editorAppearance": "编辑器外观",
     "settings.appearance.gridFont": "表格字体",
     "settings.appearance.gridSize": "表格字号",
@@ -8045,11 +8201,11 @@ async function applyLineEnding() {
 
 async function toggleCellQuote() {
   if (!documentId) {
-    status.textContent = "Open a file before changing cell quote state.";
+    status.textContent = t("settings.quotes.statusCellStateOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Cell quote blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusCellStateReadOnly");
     return;
   }
   if (selected.row >= sourceRowCount) {
@@ -8066,20 +8222,20 @@ async function toggleCellQuote() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Cell quote failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusCellStateFailed", { message: payload.error ?? "unknown error" });
     return;
   }
-  applyMutationPayload(payload, quoted ? "Cell quote enabled." : "Cell quote disabled.");
+  applyMutationPayload(payload, t(quoted ? "settings.quotes.statusCellStateEnabled" : "settings.quotes.statusCellStateDisabled"));
   document.body.dataset.cellQuoteOverride = `${row}:${col}:${quoted ? "quote" : "no-quote"}`;
 }
 
 async function toggleQuoteRule(target, quoted = null) {
   if (!documentId) {
-    status.textContent = "Open a file before changing quote rules.";
+    status.textContent = t("settings.quotes.statusRulesOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Quote rule blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusRulesReadOnly");
     return;
   }
   const sourceCol = sourceColFor(selected.col);
@@ -8092,7 +8248,7 @@ async function toggleQuoteRule(target, quoted = null) {
   const body = { documentId, target, quoted: Boolean(nextQuoted) };
   if (target === "column") {
     if (sourceCol < 0) {
-      status.textContent = "Select a column before changing column quote.";
+      status.textContent = t("settings.quotes.statusSelectColumn");
       return;
     }
     body.col = sourceCol;
@@ -8104,24 +8260,27 @@ async function toggleQuoteRule(target, quoted = null) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Quote rule failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusRuleFailed", { message: payload.error ?? "unknown error" });
     syncQuotePolicyControls();
     return;
   }
-  applyMutationPayload(payload, `${quoteRuleLabel(target)} quote ${nextQuoted ? "enabled" : "disabled"}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusRuleToggled", {
+    target: quoteRuleLabel(target),
+    state: t(nextQuoted ? "settings.quotes.ruleState.enabled" : "settings.quotes.ruleState.disabled"),
+  }));
   document.body.dataset.quoteRuleOverride = `${target}:${target === "column" ? sourceCol : "*"}:${nextQuoted ? "quote" : "off"}`;
   syncQuotePolicyControls();
 }
 
 async function setSelectedCellQuoteOverrides(mode) {
   const labels = {
-    quote: "Quote Selection",
-    "no-quote": "No Quote Selection",
-    clear: "Clear Selection Quote Overrides",
+    quote: t("settings.quotes.quoteSelection"),
+    "no-quote": t("settings.quotes.action.noQuoteSelection"),
+    clear: t("settings.quotes.action.clearSelection"),
   };
-  const label = labels[mode] ?? "Quote Selection";
+  const label = labels[mode] ?? t("settings.quotes.quoteSelection");
   if (!documentId) {
-    status.textContent = "Open a file before changing selection quote rules.";
+    status.textContent = t("settings.quotes.statusSelectionOpenFile");
     return;
   }
   if (!ensureEditable(label)) return;
@@ -8146,7 +8305,7 @@ async function setSelectedCellQuoteOverrides(mode) {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteSelection = `${mode}:${cells.length}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote overrides changed.`;
+    status.textContent = tf("settings.quotes.statusSelectionNoChange", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -8156,12 +8315,12 @@ async function setSelectedCellQuoteOverrides(mode) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusSelectionFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteSelection = "error";
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${formatCount(cells.length)} cells updated.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusSelectionApplied", { action: label, count: formatCount(cells.length) }));
   syncQuotePolicyControls();
 }
 
@@ -8229,17 +8388,17 @@ async function applyActiveCellQuoteRule(mode) {
 async function applyCoordinateQuoteRule() {
   const mode = quoteRuleActionSelect.value;
   const labels = {
-    quote: "Quote Cell Rule",
-    "no-quote": "No Quote Cell Rule",
-    clear: "Clear Cell Rule",
+    quote: t("settings.quotes.action.quoteCellRule"),
+    "no-quote": t("settings.quotes.action.noQuoteCellRule"),
+    clear: t("settings.quotes.action.clearCellRule"),
   };
-  const label = labels[mode] || "Cell Rule";
+  const label = labels[mode] || t("settings.quotes.action.cellRule");
   if (!documentId) {
-    status.textContent = "Open a file before editing quote rules.";
+    status.textContent = t("settings.quotes.statusEditOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusActionReadOnly", { action: label });
     return;
   }
   const row = Number.parseInt(quoteRuleRowInput.value, 10) - 1;
@@ -8247,7 +8406,7 @@ async function applyCoordinateQuoteRule() {
   const maxSourceRow = sourceRowCount + dataStartRow - 1;
   const maxSourceCol = Math.max(0, allColumns.length - 1);
   if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0 || row > maxSourceRow || col > maxSourceCol) {
-    status.textContent = "Enter a valid source row and column for the quote rule.";
+    status.textContent = t("settings.quotes.statusValidCellRequired");
     document.body.dataset.quoteCoordinateRule = "invalid";
     return;
   }
@@ -8268,7 +8427,7 @@ async function applyCoordinateQuoteRule() {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteCoordinateRule = `${mode}:${row}:${col}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote rules changed.`;
+    status.textContent = tf("settings.quotes.statusNoRulesChanged", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -8278,13 +8437,13 @@ async function applyCoordinateQuoteRule() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusActionFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteCoordinateRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${quoteRuleCellLabel({ row, col })}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusCellRuleApplied", { action: label, cell: quoteRuleCellLabel({ row, col }) }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -8293,27 +8452,27 @@ async function applyCoordinateQuoteRule() {
 
 function resolveQuoteRuleColumn(value) {
   const raw = String(value || "").trim();
-  if (!raw) return { error: "Enter a source column number or name." };
+  if (!raw) return { error: t("settings.quotes.errorColumnRequired") };
   if (/^\d+$/.test(raw)) {
     const sourceCol = Number.parseInt(raw, 10) - 1;
     if (allColumns.some((column) => column.sourceCol === sourceCol)) return { col: sourceCol };
-    return { error: "Enter a valid source column number or name." };
+    return { error: t("settings.quotes.errorColumnInvalid") };
   }
   const matches = allColumns.filter((column) => String(column.name || "").trim().toLowerCase() === raw.toLowerCase());
   if (matches.length === 1) return { col: matches[0].sourceCol };
-  if (matches.length > 1) return { error: "Column name matches multiple source columns; use the source column number." };
-  return { error: "Enter a valid source column number or name." };
+  if (matches.length > 1) return { error: t("settings.quotes.errorColumnAmbiguous") };
+  return { error: t("settings.quotes.errorColumnInvalid") };
 }
 
 async function applyColumnQuoteRule() {
   const mode = quoteRuleColumnActionSelect.value;
-  const label = mode === "clear" ? "Clear Column Rule" : "Quote Column Rule";
+  const label = mode === "clear" ? t("settings.quotes.action.clearColumnRule") : t("settings.quotes.action.quoteColumnRule");
   if (!documentId) {
-    status.textContent = "Open a file before editing quote rules.";
+    status.textContent = t("settings.quotes.statusEditOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusActionReadOnly", { action: label });
     return;
   }
   const resolved = resolveQuoteRuleColumn(quoteRuleColumnInput.value);
@@ -8335,7 +8494,7 @@ async function applyColumnQuoteRule() {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteColumnRule = `${mode}:${col}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote rules changed.`;
+    status.textContent = tf("settings.quotes.statusNoRulesChanged", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -8345,13 +8504,13 @@ async function applyColumnQuoteRule() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusActionFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteColumnRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${quoteRuleColumnLabel(col)}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusColumnRuleApplied", { action: label, column: quoteRuleColumnLabel(col) }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -8393,8 +8552,8 @@ function matchingQuoteRuleColumns(pattern, matchMode) {
   const compiled = quotePatternMatcher(
     pattern,
     matchMode,
-    "Enter a column pattern before applying quote rules.",
-    "Enter a valid regular expression for the column pattern.",
+    t("settings.quotes.errorColumnPatternRequired"),
+    t("settings.quotes.errorColumnPatternRegex"),
   );
   if (compiled.error) return compiled;
   const columnsBySource = new Map();
@@ -8404,7 +8563,7 @@ function matchingQuoteRuleColumns(pattern, matchMode) {
   }
   const columns = Array.from(columnsBySource.keys()).sort((left, right) => left - right);
   if (!columns.length) {
-    return { error: "No source columns match the quote pattern." };
+    return { error: t("settings.quotes.errorColumnPatternNoMatch") };
   }
   return { columns };
 }
@@ -8412,13 +8571,13 @@ function matchingQuoteRuleColumns(pattern, matchMode) {
 async function applyColumnPatternQuoteRule() {
   const action = quoteRuleColumnPatternActionSelect.value;
   const matchMode = quoteRuleColumnPatternModeSelect.value;
-  const label = action === "clear" ? "Clear Column Pattern Rule" : "Quote Column Pattern Rule";
+  const label = action === "clear" ? t("settings.quotes.action.clearColumnPatternRule") : t("settings.quotes.action.quoteColumnPatternRule");
   if (!documentId) {
-    status.textContent = "Open a file before editing quote rules.";
+    status.textContent = t("settings.quotes.statusEditOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusActionReadOnly", { action: label });
     return;
   }
   const matched = matchingQuoteRuleColumns(quoteRuleColumnPatternInput.value, matchMode);
@@ -8440,7 +8599,7 @@ async function applyColumnPatternQuoteRule() {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteColumnPatternRule = `${matchMode}:${action}:${matched.columns.join(",")}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote rules changed.`;
+    status.textContent = tf("settings.quotes.statusNoRulesChanged", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -8450,13 +8609,13 @@ async function applyColumnPatternQuoteRule() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusActionFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteColumnPatternRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${formatCount(matched.columns.length)} columns.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusColumnPatternApplied", { action: label, count: formatCount(matched.columns.length) }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -8467,8 +8626,8 @@ function validateQuoteValuePattern(pattern, matchMode) {
   return quotePatternMatcher(
     pattern,
     matchMode,
-    "Enter a value pattern before applying quote rules.",
-    "Enter a valid regular expression for the value pattern.",
+    t("settings.quotes.errorValuePatternRequired"),
+    t("settings.quotes.errorValuePatternRegex"),
   );
 }
 
@@ -8476,17 +8635,17 @@ async function applyValuePatternQuoteRule(preview = false) {
   const action = quoteRuleValuePatternActionSelect.value;
   const matchMode = quoteRuleValuePatternModeSelect.value;
   const labels = {
-    quote: "Quote Value Pattern Rule",
-    "no-quote": "No Quote Value Pattern Rule",
-    clear: "Clear Value Pattern Rule",
+    quote: t("settings.quotes.action.quoteValuePatternRule"),
+    "no-quote": t("settings.quotes.action.noQuoteValuePatternRule"),
+    clear: t("settings.quotes.action.clearValuePatternRule"),
   };
-  const label = preview ? "Preview Value Pattern Rule" : labels[action] || "Value Pattern Rule";
+  const label = preview ? t("settings.quotes.action.previewValuePatternRule") : labels[action] || t("settings.quotes.action.valuePatternRule");
   if (!documentId) {
-    status.textContent = "Open a file before editing quote rules.";
+    status.textContent = t("settings.quotes.statusEditOpenFile");
     return;
   }
   if (!preview && readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusActionReadOnly", { action: label });
     return;
   }
   const validation = validateQuoteValuePattern(quoteRuleValuePatternInput.value, matchMode);
@@ -8511,16 +8670,24 @@ async function applyValuePatternQuoteRule(preview = false) {
     ? `${preview ? "preview" : matchMode}:${action}:${payload.matched}:${payload.scannedCells}:${payload.truncated ? "truncated" : "full"}`
     : "error";
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusActionFailed", { action: label, message: payload.error ?? "unknown error" });
     syncQuotePolicyControls();
     return;
   }
   const limitNote = payload.truncated
-    ? `; ${preview ? "previewed" : "applied"} first ${formatCount(payload.limit)} matches`
+    ? tf("settings.quotes.statusValuePatternLimit", {
+      verb: preview ? t("common.previewed") : t("common.applied"),
+      limit: formatCount(payload.limit),
+    })
     : "";
   const message = payload.matched > 0
-    ? `${label}: ${formatCount(payload.matched)} full-file matches across ${formatCount(payload.scannedCells)} cells${limitNote}.`
-    : `${label}: no full-file cells matched.`;
+    ? tf("settings.quotes.statusValuePatternMatched", {
+      action: label,
+      matched: formatCount(payload.matched),
+      scanned: formatCount(payload.scannedCells),
+      limit: limitNote,
+    })
+    : tf("settings.quotes.statusValuePatternNoMatch", { action: label });
   if (preview) {
     status.textContent = message;
     document.body.dataset.quoteValuePatternPreview = document.body.dataset.quoteValuePatternRule;
@@ -8540,15 +8707,15 @@ function quoteCellsForSourceRowRange(startValue, endValue, maxCells = 50_000) {
   const endRow = Number.parseInt(endValue, 10) - 1;
   const maxSourceRow = sourceRowCount + dataStartRow - 1;
   if (!Number.isInteger(startRow) || !Number.isInteger(endRow) || startRow < 0 || endRow < 0 || startRow > endRow || endRow > maxSourceRow) {
-    return { error: "Enter a valid source row range for the quote rule." };
+    return { error: t("settings.quotes.errorRowRangeInvalid") };
   }
   const sourceColumns = normalizeIntegerList(allColumns.map((column) => column.sourceCol));
   if (!sourceColumns.length) {
-    return { error: "Open a file with columns before applying row quote rules." };
+    return { error: t("settings.quotes.errorRowColumnsRequired") };
   }
   const scanCells = (endRow - startRow + 1) * sourceColumns.length;
   if (scanCells > maxCells) {
-    return { error: `Row quote rules can update up to ${formatCount(maxCells)} cells at once.` };
+    return { error: tf("settings.quotes.errorRowLimit", { limit: formatCount(maxCells) }) };
   }
   const cells = [];
   for (let row = startRow; row <= endRow; row++) {
@@ -8562,17 +8729,17 @@ function quoteCellsForSourceRowRange(startValue, endValue, maxCells = 50_000) {
 async function applyRowRangeQuoteRule() {
   const action = quoteRuleRowActionSelect.value;
   const labels = {
-    quote: "Quote Row Range Rule",
-    "no-quote": "No Quote Row Range Rule",
-    clear: "Clear Row Range Rule",
+    quote: t("settings.quotes.action.quoteRowRangeRule"),
+    "no-quote": t("settings.quotes.action.noQuoteRowRangeRule"),
+    clear: t("settings.quotes.action.clearRowRangeRule"),
   };
-  const label = labels[action] || "Row Range Rule";
+  const label = labels[action] || t("settings.quotes.action.rowRangeRule");
   if (!documentId) {
-    status.textContent = "Open a file before editing quote rules.";
+    status.textContent = t("settings.quotes.statusEditOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = `${label} blocked: document is read-only`;
+    status.textContent = tf("settings.quotes.statusActionReadOnly", { action: label });
     return;
   }
   const range = quoteCellsForSourceRowRange(quoteRuleRowStartInput.value, quoteRuleRowEndInput.value);
@@ -8600,7 +8767,7 @@ async function applyRowRangeQuoteRule() {
   const signature = quoteRulesSignature(nextSettings);
   document.body.dataset.quoteRowRangeRule = `${action}:${range.startRow}-${range.endRow}:${range.cells.length}:${signature}`;
   if (signature === quoteRulesSignature(settings)) {
-    status.textContent = `${label}: no quote rules changed.`;
+    status.textContent = tf("settings.quotes.statusNoRulesChanged", { action: label });
     return;
   }
   const response = await fetch("/api/quote-settings", {
@@ -8610,13 +8777,13 @@ async function applyRowRangeQuoteRule() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("settings.quotes.statusActionFailed", { action: label, message: payload.error ?? "unknown error" });
     document.body.dataset.quoteRowRangeRule = "error";
     syncQuotePolicyControls();
     return;
   }
   quotePolicyDraftDirty = false;
-  applyMutationPayload(payload, `${label}: ${formatCount(range.cells.length)} cells.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusRowRangeApplied", { action: label, count: formatCount(range.cells.length) }));
   syncQuotePolicyControls();
   updateFormatStatus();
   updateInspector();
@@ -8637,14 +8804,14 @@ function quoteSettingsPreservesCell(settings, cell) {
 }
 
 function quoteRuleLabel(target) {
-  if (target === "header") return "Header";
-  if (target === "body") return "Body";
-  return "Column";
+  if (target === "header") return t("settings.quotes.ruleTarget.header");
+  if (target === "body") return t("settings.quotes.ruleTarget.body");
+  return t("settings.quotes.ruleTarget.column");
 }
 
 function exportQuoteRules() {
   if (!metadata?.dialect) {
-    status.textContent = "Open a file before exporting quote rules.";
+    status.textContent = t("settings.quotes.statusExportOpenFile");
     return;
   }
   const settings = currentQuoteRuleSettings();
@@ -8659,7 +8826,7 @@ function exportQuoteRules() {
   document.body.dataset.quoteRulesExport = quoteRulesSignature(settings);
   document.body.dataset.quoteRulesExportPreview = text.slice(0, 500);
   triggerDownload(text, "opencsv-quote-rules.json", "application/json;charset=utf-8");
-  status.textContent = `Exported quote rules: ${quoteRulesSummary(settings)}.`;
+  status.textContent = tf("settings.quotes.statusExported", { summary: quoteRulesSummary(settings) });
 }
 
 function showQuoteRulesImportPanel() {
@@ -8685,11 +8852,11 @@ function syncQuoteRulesImportControls() {
 
 async function applyQuoteRulesImport() {
   if (!documentId) {
-    status.textContent = "Open a file before importing quote rules.";
+    status.textContent = t("settings.quotes.statusImportOpenFile");
     return;
   }
   if (readOnly) {
-    status.textContent = "Quote rule import blocked: document is read-only";
+    status.textContent = t("settings.quotes.statusImportReadOnly");
     return;
   }
   try {
@@ -8706,10 +8873,10 @@ async function applyQuoteRulesImport() {
     quoteRulesImportText.value = "";
     document.body.dataset.quoteRulesImport = quoteRulesSignature(settings);
     document.body.dataset.quoteRulesImportPanel = "closed";
-    applyMutationPayload(payload, `Imported quote rules: ${quoteRulesSummary(settings)}.`);
+    applyMutationPayload(payload, tf("settings.quotes.statusImported", { summary: quoteRulesSummary(settings) }));
     syncQuotePolicyControls();
   } catch (error) {
-    status.textContent = `Quote rule import failed: ${error.message}`;
+    status.textContent = tf("settings.quotes.statusImportFailed", { message: error.message });
     document.body.dataset.quoteRulesImport = "error";
   }
   syncQuoteRulesImportControls();
@@ -8842,12 +9009,16 @@ function quoteRulesSignature(settings) {
 }
 
 function quoteRulesSummary(settings) {
-  const parts = [`${settings.quoteMode} ${settings.quoteChar} ${normalizeQuoteEscapeValue(settings.quoteEscape)} escape`];
-  if (settings.quoteHeader) parts.push("header");
-  if (settings.quoteBody) parts.push("body");
-  if (settings.quoteColumns.length) parts.push(`${settings.quoteColumns.length} columns`);
-  if (settings.quoteCells.length) parts.push(`${settings.quoteCells.length} quoted cells`);
-  if (settings.noQuoteCells.length) parts.push(`${settings.noQuoteCells.length} no-quote cells`);
+  const parts = [tf("settings.quotes.summaryBase", {
+    mode: quotePolicyOptionLabel("mode", quoteModeValue({ quoteMode: settings.quoteMode })),
+    character: quotePolicyOptionLabel("char", quoteCharValue({ quoteChar: settings.quoteChar })),
+    escape: quotePolicyOptionLabel("escape", quoteEscapeValue({ quoteEscape: normalizeQuoteEscapeValue(settings.quoteEscape) })),
+  })];
+  if (settings.quoteHeader) parts.push(t("settings.quotes.summaryHeader"));
+  if (settings.quoteBody) parts.push(t("settings.quotes.summaryBody"));
+  if (settings.quoteColumns.length) parts.push(tf("settings.quotes.summaryColumns", { count: formatCount(settings.quoteColumns.length) }));
+  if (settings.quoteCells.length) parts.push(tf("settings.quotes.summaryQuotedCells", { count: formatCount(settings.quoteCells.length) }));
+  if (settings.noQuoteCells.length) parts.push(tf("settings.quotes.summaryNoQuoteCells", { count: formatCount(settings.noQuoteCells.length) }));
   return parts.join(", ");
 }
 
@@ -8975,16 +9146,19 @@ function activeQuoteRuleItems(settings, limit = Number.POSITIVE_INFINITY) {
 
 function quoteRuleColumnLabel(sourceCol) {
   const column = allColumns.find((candidate) => candidate.sourceCol === sourceCol);
-  return column?.name ? `${column.name}` : `column ${sourceCol + 1}`;
+  return column?.name ? `${column.name}` : tf("settings.quotes.columnFallback", { number: formatCount(sourceCol + 1) });
 }
 
 function quoteRuleCellLabel(cell) {
-  return `R${cell.row + 1}C${cell.col + 1}`;
+  return tf("settings.quotes.cellLabel", {
+    row: formatCount(cell.row + 1),
+    column: formatCount(cell.col + 1),
+  });
 }
 
 async function removeQuoteRule(item) {
   if (!documentId) {
-    status.textContent = "Open a file before changing quote rules.";
+    status.textContent = t("settings.quotes.statusRulesOpenFile");
     return;
   }
   if (readOnly) {
@@ -14109,7 +14283,7 @@ async function applyPresetQuoteSettings(preset) {
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error ?? "quote settings failed");
-  applyMutationPayload(payload, `Applied preset quote rules: ${quoteRulesSummary(settings)}.`);
+  applyMutationPayload(payload, tf("settings.quotes.statusAppliedPreset", { summary: quoteRulesSummary(settings) }));
   document.body.dataset.formatPresetQuoteRules = quoteRulesSignature(settings);
   return true;
 }
