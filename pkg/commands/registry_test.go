@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=save-restore-i18n-1`) {
+	if !strings.Contains(html, `v=split-workbench-i18n-2`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1124,7 +1124,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=save-restore-i18n-1`,
+		`v=split-workbench-i18n-2`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1147,6 +1147,53 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing save/restore localized frontend wiring %q", snippet)
+		}
+	}
+}
+
+func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-command="workbench.splitEditor"`,
+		`data-command="workbench.toggleSplitOrientation"`,
+		`data-command="workbench.focusNextGroup"`,
+		`data-command="workbench.moveTabToOtherGroup"`,
+		`data-command="workbench.closeSplitEditor"`,
+		`v=split-workbench-i18n-2`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing split workbench html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"workbench.status.splitOpened": "已打开拆分编辑器组"`,
+		`"workbench.status.movedToGroup": "已将 {{name}} 移到组 {{group}}"`,
+		`"workbench.status.gridSummary": "{{rows}}{{aggregate}}，{{columns}}{{path}}{{dirty}}{{mode}}{{external}} - {{selection}}{{stats}}"`,
+		`"workbench.moveToGroup": "移到组 {{number}}"`,
+		`editorGroupTitle("primary"`,
+		`tf("workbench.rowsColumns"`,
+		`tf("workbench.status.gridSummary"`,
+		`t("workbench.status.splitOpened")`,
+		`tf("workbench.status.layout"`,
+		`tf("workbench.status.noTabInGroup"`,
+		`tf("workbench.status.movedToGroup"`,
+		`t("workbench.editorTab")`,
+		`tf("workbench.moveToGroup"`,
+		`tf("workbench.statusAria"`,
+		`renderEditorGroups();`,
+		`syncStatusbarSurface();`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing split workbench localized frontend wiring %q", snippet)
 		}
 	}
 }

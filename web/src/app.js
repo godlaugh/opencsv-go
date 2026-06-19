@@ -1010,6 +1010,46 @@ const localeCatalog = {
     "workbench.focus": "Focus",
     "workbench.move": "Move",
     "workbench.close": "Close",
+    "workbench.group": "Group {{number}}",
+    "workbench.groupWithView": "Group {{number}} · {{view}}",
+    "workbench.groupsAria": "Editor groups",
+    "workbench.groupAria": "Editor group {{number}}",
+    "workbench.editorTab": "Editor Tab",
+    "workbench.moveToGroup": "Move to Group {{number}}",
+    "workbench.focusNextGroup": "Focus Next Group",
+    "workbench.empty": "Empty",
+    "workbench.ready": "Ready",
+    "workbench.emptyGroup": "Empty group",
+    "workbench.noFileOpen": "No file open",
+    "workbench.currentTab": "Current tab",
+    "workbench.columnFallback": "Column",
+    "workbench.rowsColumns": "{{rows}} rows, {{columns}} columns",
+    "workbench.rowCount": "{{rows}} rows",
+    "workbench.columnCount": "{{columns}} columns",
+    "workbench.aggregateCount": " + {{count}} aggregate",
+    "workbench.selectionCell": "row {{row}}, {{column}}",
+    "workbench.selectionColumn": "row {{row}}, column {{column}}",
+    "workbench.view.grid": "Grid",
+    "workbench.view.sql": "SQL",
+    "workbench.view.diff": "Compare",
+    "workbench.view.profile": "Profile",
+    "workbench.view.settings": "Settings",
+    "workbench.orientation.horizontal": "horizontal",
+    "workbench.orientation.vertical": "vertical",
+    "workbench.statusAria": "{{view}} status",
+    "workbench.status.layoutNotSaved": "Editor group layout could not be saved.",
+    "workbench.status.splitOpened": "Split editor group opened",
+    "workbench.status.splitClosed": "Split editor group closed",
+    "workbench.status.layout": "Split layout {{orientation}}",
+    "workbench.status.noTabInGroup": "No tab in group {{group}}.",
+    "workbench.status.noDocumentTab": "No document tab to move.",
+    "workbench.status.alreadyInGroup": "Tab already in group {{group}}",
+    "workbench.status.movedToGroup": "Moved {{name}} to group {{group}}",
+    "workbench.status.focusedGroup": "Focused editor group {{group}}",
+    "workbench.status.gridSummary": "{{rows}}{{aggregate}}, {{columns}}{{path}}{{dirty}}{{mode}}{{external}} - {{selection}}{{stats}}",
+    "workbench.status.dirtySuffix": " - edited",
+    "workbench.status.readOnlySuffix": " - read-only",
+    "workbench.status.externalSuffix": " - external change",
     "settings.title": "Settings",
     "settings.modified": "Modified",
     "settings.defaults": "Defaults",
@@ -2238,6 +2278,46 @@ const localeCatalog = {
     "workbench.focus": "聚焦",
     "workbench.move": "移动",
     "workbench.close": "关闭",
+    "workbench.group": "组 {{number}}",
+    "workbench.groupWithView": "组 {{number}} · {{view}}",
+    "workbench.groupsAria": "编辑器组",
+    "workbench.groupAria": "编辑器组 {{number}}",
+    "workbench.editorTab": "编辑器标签",
+    "workbench.moveToGroup": "移到组 {{number}}",
+    "workbench.focusNextGroup": "聚焦下一组",
+    "workbench.empty": "空",
+    "workbench.ready": "就绪",
+    "workbench.emptyGroup": "空组",
+    "workbench.noFileOpen": "未打开文件",
+    "workbench.currentTab": "当前标签",
+    "workbench.columnFallback": "列",
+    "workbench.rowsColumns": "{{rows}} 行，{{columns}} 列",
+    "workbench.rowCount": "{{rows}} 行",
+    "workbench.columnCount": "{{columns}} 列",
+    "workbench.aggregateCount": " + {{count}} 个汇总",
+    "workbench.selectionCell": "第 {{row}} 行，{{column}}",
+    "workbench.selectionColumn": "第 {{row}} 行，第 {{column}} 列",
+    "workbench.view.grid": "网格",
+    "workbench.view.sql": "SQL",
+    "workbench.view.diff": "比较",
+    "workbench.view.profile": "概况",
+    "workbench.view.settings": "设置",
+    "workbench.orientation.horizontal": "横向",
+    "workbench.orientation.vertical": "纵向",
+    "workbench.statusAria": "{{view}} 状态",
+    "workbench.status.layoutNotSaved": "编辑器组布局无法保存。",
+    "workbench.status.splitOpened": "已打开拆分编辑器组",
+    "workbench.status.splitClosed": "已关闭拆分编辑器组",
+    "workbench.status.layout": "拆分布局 {{orientation}}",
+    "workbench.status.noTabInGroup": "组 {{group}} 没有标签。",
+    "workbench.status.noDocumentTab": "没有可移动的文档标签。",
+    "workbench.status.alreadyInGroup": "标签已在组 {{group}}",
+    "workbench.status.movedToGroup": "已将 {{name}} 移到组 {{group}}",
+    "workbench.status.focusedGroup": "已聚焦编辑器组 {{group}}",
+    "workbench.status.gridSummary": "{{rows}}{{aggregate}}，{{columns}}{{path}}{{dirty}}{{mode}}{{external}} - {{selection}}{{stats}}",
+    "workbench.status.dirtySuffix": " - 已编辑",
+    "workbench.status.readOnlySuffix": " - 只读",
+    "workbench.status.externalSuffix": " - 外部更改",
     "settings.title": "设置",
     "settings.modified": "已修改",
     "settings.defaults": "默认",
@@ -3801,6 +3881,9 @@ function setLocalePreference(locale, persist = true) {
   if (profileData) renderProfile(profileData);
   syncProfileSchemaControls();
   renderSQLHistory();
+  renderEditorGroups();
+  syncStatusbarSurface();
+  syncAppTitle();
   renderFileList();
   updateInspector();
   syncCellValueDialog();
@@ -4832,14 +4915,17 @@ function draw() {
   drawRowReorderPreview(width, height);
   drawHeaders(headerCtx, width);
 
-  const selectedColumn = columns[selected.col]?.name ?? "";
+  const selectedColumn = columns[selected.col]?.name || t("workbench.columnFallback");
   const path = metadata?.path ? ` - ${metadata.path}` : "";
-  const dirtyLabel = dirty ? " - edited" : "";
+  const dirtyLabel = dirty ? t("workbench.status.dirtySuffix") : "";
   const aggregateStats = currentSelectionAggregateStats();
   const aggregate = selectionAggregateSummary(aggregateStats);
-  const modeLabel = readOnly ? " - read-only" : "";
-  const externalLabel = externalFileChanged ? " - external change" : "";
-  const aggregateLabel = aggregateRows.length ? ` + ${aggregateRows.length} aggregate` : "";
+  const modeLabel = readOnly ? t("workbench.status.readOnlySuffix") : "";
+  const externalLabel = externalFileChanged ? t("workbench.status.externalSuffix") : "";
+  const aggregateLabel = aggregateRows.length ? tf("workbench.aggregateCount", { count: aggregateRows.length }) : "";
+  const rowsLabel = tf("workbench.rowCount", { rows: sourceRowCount.toLocaleString() });
+  const columnsLabel = tf("workbench.columnCount", { columns: columns.length });
+  const selectionLabel = tf("workbench.selectionCell", { row: selected.row + 1, column: selectedColumn });
   document.body.dataset.selectionRange = documentId ? selectionSummary() : "";
   document.body.dataset.columnWidths = columns.map((column) => Math.round(column.width)).join(",");
   document.body.dataset.gridHeaderHeight = String(headerHeight);
@@ -4849,8 +4935,18 @@ function draw() {
   updateAggregateStatus(aggregateStats);
   status.textContent =
     documentId
-      ? `${sourceRowCount.toLocaleString()} rows${aggregateLabel}, ${columns.length} columns${path}${dirtyLabel}${modeLabel}${externalLabel} - row ${selected.row + 1}, ${selectedColumn}${aggregate}`
-      : "Ready";
+      ? tf("workbench.status.gridSummary", {
+        rows: rowsLabel,
+        aggregate: aggregateLabel,
+        columns: columnsLabel,
+        path,
+        dirty: dirtyLabel,
+        mode: modeLabel,
+        external: externalLabel,
+        selection: selectionLabel,
+        stats: aggregate,
+      })
+      : t("status.ready");
   renderEditorGroups();
   syncAppTitle();
   updateFormatStatus();
@@ -4868,9 +4964,12 @@ function renderEditorGroups() {
   mountCurrentEditorTab();
   editorGroups.classList.toggle("split", editorGroupsSplit);
   editorGroups.dataset.orientation = editorGroupOrientation;
+  editorGroups.setAttribute("aria-label", t("workbench.groupsAria"));
   secondaryEditorGroup.hidden = !editorGroupsSplit;
   primaryEditorGroup.classList.toggle("active", activeEditorGroup === "primary");
   secondaryEditorGroup.classList.toggle("active", editorGroupsSplit && activeEditorGroup === "secondary");
+  primaryEditorGroup.setAttribute("aria-label", tf("workbench.groupAria", { number: editorGroupNumber("primary") }));
+  secondaryEditorGroup.setAttribute("aria-label", tf("workbench.groupAria", { number: editorGroupNumber("secondary") }));
   const primaryInfo = editorGroupInfo("primary");
   const secondaryInfo = editorGroupInfo("secondary");
   const activeInfo = activeEditorGroup === "secondary" ? secondaryInfo : primaryInfo;
@@ -4878,10 +4977,10 @@ function renderEditorGroups() {
   const secondaryHasTab = editorGroupsSplit && Boolean(secondaryInfo.tab);
   primaryEditorGroup.classList.toggle("has-tab", primaryHasTab);
   secondaryEditorGroup.classList.toggle("has-tab", secondaryHasTab);
-  primaryEditorGroupTitle.textContent = `Group 1${primaryHasTab ? ` · ${primaryInfo.viewLabel}` : ""}`;
-  primaryEditorGroupMeta.textContent = primaryHasTab ? primaryInfo.selectionLabel : editorGroupsSplit ? "Empty" : "Ready";
-  secondaryEditorGroupTitle.textContent = `Group 2${secondaryHasTab ? ` · ${secondaryInfo.viewLabel}` : ""}`;
-  secondaryEditorGroupMeta.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : editorGroupsSplit ? "Empty" : primaryInfo.rowLabel;
+  primaryEditorGroupTitle.textContent = editorGroupTitle("primary", primaryInfo.viewLabel, primaryHasTab);
+  primaryEditorGroupMeta.textContent = primaryHasTab ? primaryInfo.selectionLabel : editorGroupsSplit ? t("workbench.empty") : t("workbench.ready");
+  secondaryEditorGroupTitle.textContent = editorGroupTitle("secondary", secondaryInfo.viewLabel, secondaryHasTab);
+  secondaryEditorGroupMeta.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : editorGroupsSplit ? t("workbench.empty") : primaryInfo.rowLabel;
   primaryEditorTab.hidden = !primaryHasTab;
   secondaryEditorTab.hidden = !secondaryHasTab;
   primaryEditorTab.textContent = primaryInfo.tabLabel;
@@ -4890,10 +4989,12 @@ function renderEditorGroups() {
   secondaryEditorTab.title = secondaryHasTab ? `${secondaryInfo.fileLabel} · ${secondaryInfo.selectionLabel}` : "";
   primaryEditorGroupEmpty.hidden = !editorGroupsSplit || primaryHasTab || !documentId;
   secondaryEditorGroupEmpty.hidden = !editorGroupsSplit || secondaryHasTab || !documentId;
+  primaryEditorGroupEmpty.textContent = t("workbench.emptyGroup");
+  secondaryEditorGroupEmpty.textContent = t("workbench.emptyGroup");
   secondaryEditorGroupPreview.hidden = !editorGroupsSplit || secondaryHasTab;
-  secondaryEditorGroupFile.textContent = secondaryHasTab || !editorGroupsSplit ? secondaryInfo.fileLabel : "Empty group";
-  secondaryEditorGroupView.textContent = secondaryHasTab ? secondaryInfo.viewLabel : "Ready";
-  secondaryEditorGroupSelection.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : "Ready";
+  secondaryEditorGroupFile.textContent = secondaryHasTab || !editorGroupsSplit ? secondaryInfo.fileLabel : t("workbench.emptyGroup");
+  secondaryEditorGroupView.textContent = secondaryHasTab ? secondaryInfo.viewLabel : t("workbench.ready");
+  secondaryEditorGroupSelection.textContent = secondaryHasTab ? secondaryInfo.selectionLabel : t("workbench.ready");
   document.body.dataset.editorGroupCount = editorGroupsSplit ? "2" : "1";
   document.body.dataset.editorGroupOrientation = editorGroupOrientation;
   document.body.dataset.activeEditorGroup = activeEditorGroup;
@@ -4915,6 +5016,17 @@ function renderEditorGroups() {
   focusEditorGroupButton.disabled = !editorGroupsSplit;
   moveEditorTabButton.disabled = !editorGroupsSplit || !documentId;
   closeSplitEditorButton.disabled = !editorGroupsSplit;
+}
+
+function editorGroupNumber(group) {
+  return group === "secondary" ? "2" : "1";
+}
+
+function editorGroupTitle(group, viewLabel, hasTab) {
+  const number = editorGroupNumber(group);
+  return hasTab
+    ? tf("workbench.groupWithView", { number, view: viewLabel })
+    : tf("workbench.group", { number });
 }
 
 function normalizeEditorGroup(group) {
@@ -4978,26 +5090,26 @@ function editorGroupInfo(group) {
   const tab = tabForEditorGroup(normalized);
   const isCurrent = Boolean(tab?.documentId && tab.documentId === documentId);
   const fileLabel = isCurrent
-    ? tab?.name || activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "No file open"
-    : tab?.name || "No file open";
+    ? tab?.name || activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || t("workbench.noFileOpen")
+    : tab?.name || t("workbench.noFileOpen");
   const viewLabel = isCurrent
     ? viewModeLabel()
     : viewModeLabel(tab?.viewState?.viewMode || "grid");
   const rowLabel = isCurrent
-    ? `${sourceRowCount.toLocaleString()} rows, ${columns.length} columns`
-    : `${formatCount(tab?.rowCount || 0)} rows`;
+    ? tf("workbench.rowsColumns", { rows: sourceRowCount.toLocaleString(), columns: columns.length })
+    : tf("workbench.rowCount", { rows: formatCount(tab?.rowCount || 0) });
   const selectionLabel = isCurrent
-    ? `row ${selected.row + 1}, ${columns[selected.col]?.name || "Column"}`
+    ? tf("workbench.selectionCell", { row: selected.row + 1, column: columns[selected.col]?.name || t("workbench.columnFallback") })
     : tabSelectionLabel(tab);
   const tabLabel = tab ? `${fileLabel}${(isCurrent ? dirty : tab.dirty) ? " *" : ""}` : "";
   return { tab, fileLabel, viewLabel, rowLabel, selectionLabel, tabLabel };
 }
 
 function tabSelectionLabel(tab) {
-  if (!tab?.viewState?.selected) return "Ready";
+  if (!tab?.viewState?.selected) return t("workbench.ready");
   const row = Math.max(0, Number(tab.viewState.selected.row) || 0) + 1;
   const col = Math.max(0, Number(tab.viewState.selected.col) || 0) + 1;
-  return `row ${row}, column ${col}`;
+  return tf("workbench.selectionColumn", { row, column: col });
 }
 
 function editorGroupStackSignature() {
@@ -5040,7 +5152,7 @@ function saveEditorGroupLayout() {
     localStorage.setItem(editorGroupLayoutStorageKey, JSON.stringify(layout));
     document.body.dataset.editorGroupLayoutSaved = editorGroupLayoutSignature(layout);
   } catch {
-    status.textContent = "Editor group layout could not be saved.";
+    status.textContent = t("workbench.status.layoutNotSaved");
   }
 }
 
@@ -5070,15 +5182,15 @@ function mountCurrentEditorTab() {
 function viewModeLabel(mode = viewMode) {
   switch (mode) {
     case "sql":
-      return "SQL";
+      return t("workbench.view.sql");
     case "diff":
-      return "Compare";
+      return t("workbench.view.diff");
     case "profile":
-      return "Profile";
+      return t("workbench.view.profile");
     case "settings":
-      return "Settings";
+      return t("workbench.view.settings");
     default:
-      return "Grid";
+      return t("workbench.view.grid");
   }
 }
 
@@ -5114,7 +5226,7 @@ function splitEditorGroup() {
   saveEditorGroupLayout();
   void focusEditorGroup(activeEditorGroup, { activateTab: false });
   resize();
-  status.textContent = "Split editor group opened";
+  status.textContent = t("workbench.status.splitOpened");
 }
 
 function closeSplitEditorGroup() {
@@ -5129,7 +5241,7 @@ function closeSplitEditorGroup() {
   saveEditorGroupLayout();
   void focusEditorGroup("primary", { activateTab: false });
   resize();
-  status.textContent = "Split editor group closed";
+  status.textContent = t("workbench.status.splitClosed");
 }
 
 function toggleSplitOrientation() {
@@ -5138,7 +5250,7 @@ function toggleSplitOrientation() {
   renderEditorGroups();
   saveEditorGroupLayout();
   resize();
-  status.textContent = `Split layout ${editorGroupOrientation}`;
+  status.textContent = tf("workbench.status.layout", { orientation: t(`workbench.orientation.${editorGroupOrientation}`) });
 }
 
 async function focusNextEditorGroup() {
@@ -5154,7 +5266,7 @@ function moveCurrentTabToOtherGroup() {
 async function moveEditorGroupTabToGroup(sourceGroup, targetGroup, source = "command") {
   const sourceTab = tabForEditorGroup(sourceGroup);
   if (!sourceTab?.documentId) {
-    status.textContent = `No tab in group ${sourceGroup === "secondary" ? "2" : "1"}.`;
+    status.textContent = tf("workbench.status.noTabInGroup", { group: editorGroupNumber(sourceGroup) });
     return;
   }
   if (sourceTab.documentId !== documentId) {
@@ -5165,7 +5277,7 @@ async function moveEditorGroupTabToGroup(sourceGroup, targetGroup, source = "com
 
 function moveCurrentTabToGroup(group, source = "command") {
   if (!documentId) {
-    status.textContent = "No document tab to move.";
+    status.textContent = t("workbench.status.noDocumentTab");
     return;
   }
   if (group === "secondary" && !editorGroupsSplit) {
@@ -5174,7 +5286,7 @@ function moveCurrentTabToGroup(group, source = "command") {
   if (group !== "secondary") group = "primary";
   if (currentEditorTabGroup === group) {
     void focusEditorGroup(group);
-    status.textContent = `Tab already in group ${group === "secondary" ? "2" : "1"}`;
+    status.textContent = tf("workbench.status.alreadyInGroup", { group: editorGroupNumber(group) });
     return;
   }
   const previousGroup = currentEditorTabGroup;
@@ -5188,10 +5300,10 @@ function moveCurrentTabToGroup(group, source = "command") {
   saveEditorGroupLayout();
   resize();
   void focusEditorGroup(group, { activateTab: false });
-  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Current tab";
+  const fileLabel = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || t("workbench.currentTab");
   document.body.dataset.editorTabMove = `${previousGroup}->${group}:${selectionSummary()}`;
   document.body.dataset.editorTabMoveSource = source;
-  status.textContent = `Moved ${fileLabel} to group ${group === "secondary" ? "2" : "1"}`;
+  status.textContent = tf("workbench.status.movedToGroup", { name: fileLabel, group: editorGroupNumber(group) });
 }
 
 async function focusEditorGroup(group, options = {}) {
@@ -5220,7 +5332,7 @@ async function focusEditorGroup(group, options = {}) {
   } else {
     primaryEditorGroup.focus();
   }
-  status.textContent = activeEditorGroup === "secondary" ? "Focused editor group 2" : "Focused editor group 1";
+  status.textContent = tf("workbench.status.focusedGroup", { group: editorGroupNumber(activeEditorGroup) });
 }
 
 function editorTabDragStart(event) {
@@ -5318,7 +5430,7 @@ function openEditorTabContextMenu(event) {
   void focusEditorGroup(currentGroup);
   const targetGroup = currentGroup === "primary" ? "secondary" : "primary";
   const heading = document.createElement("strong");
-  heading.textContent = "Editor Tab";
+  heading.textContent = t("workbench.editorTab");
   gridContextMenu.replaceChildren(heading);
   const addItem = (label, action, options = {}) => {
     const button = document.createElement("button");
@@ -5331,10 +5443,10 @@ function openEditorTabContextMenu(event) {
     });
     gridContextMenu.append(button);
   };
-  addItem(`Move to Group ${targetGroup === "secondary" ? "2" : "1"}`, () => moveEditorGroupTabToGroup(currentGroup, targetGroup, "context"), {
+  addItem(tf("workbench.moveToGroup", { number: editorGroupNumber(targetGroup) }), () => moveEditorGroupTabToGroup(currentGroup, targetGroup, "context"), {
     disabled: !editorGroupsSplit,
   });
-  addItem("Focus Next Group", () => focusNextEditorGroup(), { disabled: !editorGroupsSplit });
+  addItem(t("workbench.focusNextGroup"), () => focusNextEditorGroup(), { disabled: !editorGroupsSplit });
   gridContextMenu.hidden = false;
   const menuRect = gridContextMenu.getBoundingClientRect();
   const left = Math.min(event.clientX, window.innerWidth - menuRect.width - 8);
@@ -5386,7 +5498,7 @@ function syncStatusbarSurface(mode = viewMode) {
   const surface = mode === "grid" ? "grid" : "non-grid";
   statusbar.dataset.viewMode = mode;
   statusbar.dataset.editorSurface = surface;
-  statusbar.setAttribute("aria-label", `${viewModeLabel(mode)} status`);
+  statusbar.setAttribute("aria-label", tf("workbench.statusAria", { view: viewModeLabel(mode) }));
   document.body.dataset.statusbarView = mode;
   document.body.dataset.statusbarSurface = surface;
   document.body.dataset.statusbarVisible = String(!statusbar.hidden);
@@ -5459,15 +5571,15 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "command.palette") {
       button.textContent = "Cmd";
     } else if (button.dataset.command === "workbench.splitEditor") {
-      button.textContent = "Split";
+      button.textContent = t("workbench.split");
     } else if (button.dataset.command === "workbench.toggleSplitOrientation") {
-      button.textContent = "H/V";
+      button.textContent = t("workbench.orientation");
     } else if (button.dataset.command === "workbench.focusNextGroup") {
-      button.textContent = "Focus";
+      button.textContent = t("workbench.focus");
     } else if (button.dataset.command === "workbench.moveTabToOtherGroup") {
-      button.textContent = "Move";
+      button.textContent = t("workbench.move");
     } else if (button.dataset.command === "workbench.closeSplitEditor") {
-      button.textContent = "Close";
+      button.textContent = t("workbench.close");
     } else if (button.dataset.command === "file.toggleReadOnly") {
       button.textContent = t("file.readOnly");
     } else if (button.dataset.command === "diff.open") {
