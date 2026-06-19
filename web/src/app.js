@@ -1512,6 +1512,15 @@ const localeCatalog = {
     "about.updates": "Updates",
     "file.recent": "Recent",
     "file.noOpen": "No file open",
+    "file.status.opening": "Opening {{path}}...",
+    "file.status.openFailed": "Open failed: {{message}}",
+    "file.status.openedMultiple": "Opened {{count}} files; active {{name}}.",
+    "file.status.stdin": "stdin",
+    "file.status.appliedUrlFormat": "Applied URL format: {{summary}}",
+    "file.status.appliedPresetQuoteRules": "Applied preset quote rules: {{summary}}",
+    "file.status.appliedUrlLocation": "Applied URL location: {{selection}}",
+    "file.status.appliedFormatRule": "Applied format rule: {{rule}} -> {{preset}}",
+    "file.status.appliedFormatPreset": "Applied format preset: {{preset}}",
     "file.status.creatingNew": "Creating new CSV...",
     "file.status.newReady": "New file ready: {{name}}",
     "file.status.newFailed": "New file failed: {{message}}",
@@ -2793,6 +2802,15 @@ const localeCatalog = {
     "about.updates": "更新",
     "file.recent": "最近",
     "file.noOpen": "未打开文件",
+    "file.status.opening": "正在打开 {{path}}...",
+    "file.status.openFailed": "打开失败：{{message}}",
+    "file.status.openedMultiple": "已打开 {{count}} 个文件；当前 {{name}}。",
+    "file.status.stdin": "标准输入",
+    "file.status.appliedUrlFormat": "已应用 URL 格式：{{summary}}",
+    "file.status.appliedPresetQuoteRules": "已应用预设引号规则：{{summary}}",
+    "file.status.appliedUrlLocation": "已应用 URL 位置：{{selection}}",
+    "file.status.appliedFormatRule": "已应用格式规则：{{rule}} -> {{preset}}",
+    "file.status.appliedFormatPreset": "已应用格式预设：{{preset}}",
     "file.status.creatingNew": "正在创建新 CSV...",
     "file.status.newReady": "新文件已就绪：{{name}}",
     "file.status.newFailed": "新建文件失败：{{message}}",
@@ -13497,7 +13515,7 @@ async function openPath(path, options = {}) {
   captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
   if (options.showOpeningStatus !== false) {
-    status.textContent = `Opening ${path}...`;
+    status.textContent = tf("file.status.opening", { path });
   }
   let preset = options.preset ?? null;
   const formatOverride = options.formatOverride ?? null;
@@ -13561,15 +13579,24 @@ async function openPath(path, options = {}) {
   const presetQuoteRulesApplied = preset ? await applyPresetQuoteSettings(preset) : false;
   const locationApplied = await applyURLLocation(urlLocation);
   const statusMessages = [];
-  if (hasFormatOverride(formatOverride)) statusMessages.push(`Applied URL format: ${documentFormatSummary()}`);
-  if (presetQuoteRulesApplied) statusMessages.push(`Applied preset quote rules: ${quoteRulesSummary(formatPresetQuoteSettings(preset))}`);
-  if (locationApplied) statusMessages.push(`Applied URL location: ${selectionSummary()}`);
+  if (hasFormatOverride(formatOverride)) {
+    statusMessages.push(tf("file.status.appliedUrlFormat", { summary: documentFormatSummary() }));
+  }
+  if (presetQuoteRulesApplied) {
+    statusMessages.push(tf("file.status.appliedPresetQuoteRules", { summary: quoteRulesSummary(formatPresetQuoteSettings(preset)) }));
+  }
+  if (locationApplied) {
+    statusMessages.push(tf("file.status.appliedUrlLocation", { selection: selectionSummary() }));
+  }
   if (statusMessages.length) {
     status.textContent = statusMessages.join(" · ");
   } else if (matchedRule) {
-    status.textContent = `Applied format rule: ${matchedRule.pattern} -> ${preset.name || formatPresetName(preset)}`;
+    status.textContent = tf("file.status.appliedFormatRule", {
+      rule: matchedRule.pattern,
+      preset: preset.name || formatPresetName(preset),
+    });
   } else if (preset) {
-    status.textContent = `Applied format preset: ${preset.name || formatPresetName(preset)}`;
+    status.textContent = tf("file.status.appliedFormatPreset", { preset: preset.name || formatPresetName(preset) });
   }
   canvas.focus();
 }
@@ -13650,7 +13677,7 @@ function scrollRangeIntoView(range) {
 async function uploadAndOpen(file) {
   captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
-  status.textContent = `Opening ${file.name}...`;
+  status.textContent = tf("file.status.opening", { path: file.name });
   const formData = new FormData();
   formData.append("file", file);
   const response = await fetch("/api/upload-open", {
@@ -22510,7 +22537,7 @@ async function openPathInputOrPicker() {
   try {
     await openPath(path);
   } catch (error) {
-    status.textContent = `Open failed: ${error.message}`;
+    status.textContent = tf("file.status.openFailed", { message: error.message });
   }
 }
 
@@ -22573,7 +22600,10 @@ async function openInitialURLTarget() {
       document.body.dataset.multiOpenCount = String(openEntries.length);
       document.body.dataset.multiOpenActive = active.stdinSource ? "stdin" : active.path;
       document.body.dataset.multiOpenFiles = openEntries.map((entry) => entry.stdinSource ? "stdin" : entry.path).join("|");
-      status.textContent = `Opened ${openEntries.length} files; active ${active.stdinSource ? "stdin" : fileNameFromPath(active.path)}.`;
+      status.textContent = tf("file.status.openedMultiple", {
+        count: formatCount(openEntries.length),
+        name: active.stdinSource ? t("file.status.stdin") : fileNameFromPath(active.path),
+      });
     } else {
       delete document.body.dataset.multiOpenCount;
       delete document.body.dataset.multiOpenActive;
@@ -22629,7 +22659,7 @@ async function openInitialURLTarget() {
       }
     }
   } catch (error) {
-    status.textContent = `Open failed: ${error.message}`;
+    status.textContent = tf("file.status.openFailed", { message: error.message });
   }
 }
 
@@ -22780,7 +22810,7 @@ fileInput.addEventListener("change", async () => {
   try {
     await uploadAndOpen(file);
   } catch (error) {
-    status.textContent = `Open failed: ${error.message}`;
+    status.textContent = tf("file.status.openFailed", { message: error.message });
   } finally {
     fileInput.value = "";
   }

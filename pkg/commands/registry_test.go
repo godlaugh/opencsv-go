@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=xlsx-worksheet-i18n-2`) {
+	if !strings.Contains(html, `v=file-open-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1124,7 +1124,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1168,7 +1168,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1213,7 +1213,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=xlsx-worksheet-i18n-2`,
+		`v=file-open-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1241,6 +1241,42 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing XLSX worksheet localized frontend wiring %q", snippet)
+		}
+	}
+}
+
+func TestFileOpenLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=file-open-i18n-1`) {
+		t.Fatal("missing file-open script cache-bust version")
+	}
+	for _, snippet := range []string{
+		`"file.status.opening": "正在打开 {{path}}..."`,
+		`"file.status.openFailed": "打开失败：{{message}}"`,
+		`"file.status.openedMultiple": "已打开 {{count}} 个文件；当前 {{name}}。"`,
+		`"file.status.appliedUrlFormat": "已应用 URL 格式：{{summary}}"`,
+		`"file.status.appliedFormatPreset": "已应用格式预设：{{preset}}"`,
+		`tf("file.status.opening"`,
+		`tf("file.status.openFailed"`,
+		`tf("file.status.openedMultiple"`,
+		`tf("file.status.appliedUrlFormat"`,
+		`tf("file.status.appliedPresetQuoteRules"`,
+		`tf("file.status.appliedUrlLocation"`,
+		`tf("file.status.appliedFormatRule"`,
+		`tf("file.status.appliedFormatPreset"`,
+		`t("file.status.stdin")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing file-open localized frontend wiring %q", snippet)
 		}
 	}
 }
@@ -2196,7 +2232,7 @@ func TestMultiOpenURLBootIsWired(t *testing.T) {
 		`document.body.dataset.multiOpenCount`,
 		`document.body.dataset.multiOpenActive`,
 		`document.body.dataset.multiOpenFiles`,
-		`Opened ${openEntries.length} files`,
+		`tf("file.status.openedMultiple"`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing multi-open URL boot wiring %q", snippet)
