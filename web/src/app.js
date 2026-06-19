@@ -748,6 +748,37 @@ const localeCatalog = {
     "edit.status.removedDuplicateColumns": "Removed {{count}} duplicate columns",
     "edit.status.noDuplicateRows": "No duplicate rows found",
     "edit.status.noDuplicateColumns": "No duplicate columns found",
+    "cell.status.running": "{{action}}...",
+    "cell.status.failed": "{{action}} failed: {{message}}",
+    "cell.status.changed": "{{action}}: {{count}} cells changed",
+    "cell.status.noChange": "{{action}}: no cells changed",
+    "cell.status.selectTwoToSwap": "Select exactly two cells to swap.",
+    "cell.status.noAdjacent": "{{action}}: no adjacent cell.",
+    "cell.status.selectTwoToJoin": "Select at least two cells to join.",
+    "cell.status.selectTwoToJoinVertical": "Select at least two cells to join vertically.",
+    "cell.status.autoFillSelectTwo": "{{action}}: select at least two cells.",
+    "cell.status.autoFillLimit": "{{action}}: selection limit is {{limit}} cells.",
+    "cell.status.loadRows": "{{action}}: load the selected rows before filling.",
+    "cell.status.loadFilteredRows": "{{action}}: load the selected filtered rows before filling.",
+    "cell.split.dialogAria": "Confirm split overwrite",
+    "cell.split.title": "Split Cell",
+    "cell.split.close": "Close",
+    "cell.split.confirm": "Split anyway",
+    "cell.split.summaryHorizontal": "Horizontal Split Overwrite",
+    "cell.split.summaryVertical": "Vertical Split Overwrite",
+    "cell.split.detail": "Source cell: row {{row}}, column {{column}} · Separator: {{separator}} · {{count}} values.",
+    "cell.split.warning": "This {{direction}} split will overwrite {{count}} existing {{unit}}{{location}}",
+    "cell.split.warningLocation": ", starting at row {{row}}, column {{column}}.",
+    "cell.split.warningNoLocation": ".",
+    "cell.split.location": "row {{row}}, column {{column}}",
+    "cell.split.moreConflicts": " {{count}} more {{unit}} beyond {{location}}.",
+    "cell.split.review": "This split would overwrite existing data. Review the first target and retry with overwrite enabled.",
+    "cell.split.statusBlockedCount": "Split blocked by {{count}} existing cells.",
+    "cell.split.statusBlocked": "Split blocked by existing cells. Confirm to overwrite.",
+    "cell.split.directionHorizontal": "horizontal",
+    "cell.split.directionVertical": "vertical",
+    "cell.split.conflictCell": "cell",
+    "cell.split.conflictCells": "cells",
     "macro.title": "Last Macro",
     "macro.none": "No recorded macro",
     "macro.play": "Play",
@@ -2084,6 +2115,37 @@ const localeCatalog = {
     "edit.status.removedDuplicateColumns": "已删除 {{count}} 个重复列",
     "edit.status.noDuplicateRows": "未找到重复行",
     "edit.status.noDuplicateColumns": "未找到重复列",
+    "cell.status.running": "正在{{action}}...",
+    "cell.status.failed": "{{action}}失败：{{message}}",
+    "cell.status.changed": "{{action}}：已更改 {{count}} 个单元格",
+    "cell.status.noChange": "{{action}}：没有单元格更改",
+    "cell.status.selectTwoToSwap": "请选择两个单元格进行交换。",
+    "cell.status.noAdjacent": "{{action}}：没有相邻单元格。",
+    "cell.status.selectTwoToJoin": "请选择至少两个单元格进行合并。",
+    "cell.status.selectTwoToJoinVertical": "请选择至少两个单元格进行纵向合并。",
+    "cell.status.autoFillSelectTwo": "{{action}}：请选择至少两个单元格。",
+    "cell.status.autoFillLimit": "{{action}}：选区上限为 {{limit}} 个单元格。",
+    "cell.status.loadRows": "{{action}}：请先加载选中的行再填充。",
+    "cell.status.loadFilteredRows": "{{action}}：请先加载选中的筛选行再填充。",
+    "cell.split.dialogAria": "确认拆分覆盖",
+    "cell.split.title": "拆分单元格",
+    "cell.split.close": "关闭",
+    "cell.split.confirm": "仍然拆分",
+    "cell.split.summaryHorizontal": "横向拆分覆盖",
+    "cell.split.summaryVertical": "纵向拆分覆盖",
+    "cell.split.detail": "源单元格：第 {{row}} 行，第 {{column}} 列 · 分隔符：{{separator}} · {{count}} 个值。",
+    "cell.split.warning": "这次{{direction}}拆分会覆盖 {{count}} 个已有{{unit}}{{location}}",
+    "cell.split.warningLocation": "，起始于第 {{row}} 行、第 {{column}} 列。",
+    "cell.split.warningNoLocation": "。",
+    "cell.split.location": "第 {{row}} 行，第 {{column}} 列",
+    "cell.split.moreConflicts": " {{count}} 个其他{{unit}}在 {{location}} 之后。",
+    "cell.split.review": "这次拆分会覆盖现有数据。请检查第一个目标单元格后再启用覆盖。",
+    "cell.split.statusBlockedCount": "拆分被 {{count}} 个已有单元格阻止。",
+    "cell.split.statusBlocked": "拆分被已有单元格阻止。确认后可覆盖。",
+    "cell.split.directionHorizontal": "横向",
+    "cell.split.directionVertical": "纵向",
+    "cell.split.conflictCell": "单元格",
+    "cell.split.conflictCells": "单元格",
     "macro.title": "最近宏",
     "macro.none": "没有录制宏",
     "macro.play": "播放",
@@ -3258,6 +3320,15 @@ const localeCatalog = {
     "command.text.column.normalizeNFKD.description": "将当前列标准化为 Unicode NFKD 兼容分解形式。",
     "command.cell.openLink.title": "打开链接",
     "command.cell.openLink.description": "打开当前单元格中通过安全审计的链接。",
+    "command.cell.fillDown.title": "向下填充",
+    "command.cell.fillRight.title": "向右填充",
+    "command.cell.fillUp.title": "向上填充",
+    "command.cell.fillLeft.title": "向左填充",
+    "command.cell.swap.title": "交换单元格",
+    "command.cell.swapUp.title": "向上交换",
+    "command.cell.swapDown.title": "向下交换",
+    "command.cell.swapLeft.title": "向左交换",
+    "command.cell.swapRight.title": "向右交换",
     "command.cell.joinHorizontal.title": "合并单元格",
     "command.cell.splitHorizontal.title": "拆分单元格",
     "command.cell.joinVertical.title": "纵向合并单元格",
@@ -4014,6 +4085,30 @@ function localizedEditRunning(action) {
 
 function localizedEditFailed(action, message) {
   return localizedEditStatus("failed", { action, message });
+}
+
+function localizedCellStatus(key, values = {}) {
+  return tf(`cell.status.${key}`, values);
+}
+
+function localizedCellAction(commandID, fallback) {
+  return localizedCommandLabel(commandID, fallback);
+}
+
+function localizedCellRunning(action) {
+  return localizedCellStatus("running", { action });
+}
+
+function localizedCellFailed(action, message) {
+  return localizedCellStatus("failed", { action, message });
+}
+
+function localizedCellChanged(action, count) {
+  return localizedCellStatus("changed", { action, count: formatCount(count) });
+}
+
+function localizedCellNoChange(action) {
+  return localizedCellStatus("noChange", { action });
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -18779,9 +18874,10 @@ function syncColumnTransformCommand() {
 
 async function swapSelectedCells() {
   if (!documentId) return;
-  if (!ensureEditable("Swap Cells")) return;
+  const action = localizedCellAction("cell.swap", "Swap Cells");
+  if (!ensureEditable(action)) return;
   if (selectionCellCount() !== 2) {
-    status.textContent = "Select exactly two cells to swap.";
+    status.textContent = t("cell.status.selectTwoToSwap");
     return;
   }
   const cells = selectedCellsForTransform(2);
@@ -18791,7 +18887,7 @@ async function swapSelectedCells() {
     cells,
     activeRow: range.startRow,
     activeCol: range.startCol,
-    label: "Swapped cells",
+    label: action,
   });
 }
 
@@ -18806,7 +18902,7 @@ async function swapCellWithNeighbor(direction) {
   }
   const target = swapNeighborTarget(direction);
   if (!target) {
-    status.textContent = `${label}: no adjacent cell.`;
+    status.textContent = localizedCellStatus("noAdjacent", { action: label });
     return;
   }
   const activeSourceRow = sourceRowForDisplayRow(selected.row, label);
@@ -18844,20 +18940,20 @@ function swapNeighborTarget(direction) {
 
 function swapNeighborLabel(direction) {
   return {
-    up: "Swapped cell up",
-    down: "Swapped cell down",
-    left: "Swapped cell left",
-    right: "Swapped cell right",
-  }[direction] ?? "Swapped cell";
+    up: localizedCellAction("cell.swapUp", "Swap Cell Up"),
+    down: localizedCellAction("cell.swapDown", "Swap Cell Down"),
+    left: localizedCellAction("cell.swapLeft", "Swap Cell Left"),
+    right: localizedCellAction("cell.swapRight", "Swap Cell Right"),
+  }[direction] ?? localizedCellAction("cell.swap", "Swap Cell");
 }
 
 async function joinSelectedCells(direction = "horizontal") {
   if (!documentId) return;
   const vertical = direction === "vertical";
-  const title = vertical ? "Join Cells Vertically" : "Join Cells";
+  const title = vertical ? localizedCellAction("cell.joinVertical", "Join Cells Vertically") : localizedCellAction("cell.joinHorizontal", "Join Cells");
   if (!ensureEditable(title)) return;
   if (selectionCellCount() < 2) {
-    status.textContent = `Select at least two cells to ${vertical ? "join vertically" : "join"}.`;
+    status.textContent = t(vertical ? "cell.status.selectTwoToJoinVertical" : "cell.status.selectTwoToJoin");
     return;
   }
   const cells = selectedCellsForTransform();
@@ -18870,14 +18966,14 @@ async function joinSelectedCells(direction = "horizontal") {
     direction,
     activeRow: vertical ? range.startRow : selected.row,
     activeCol: vertical ? selected.col : range.startCol,
-    label: vertical ? "Joined cells vertically" : "Joined cells",
+    label: title,
   });
 }
 
 async function splitActiveCell(direction = "horizontal") {
   if (!documentId) return;
   const vertical = direction === "vertical";
-  const title = vertical ? "Split Cell Vertically" : "Split Cell";
+  const title = vertical ? localizedCellAction("cell.splitVertical", "Split Cell Vertically") : localizedCellAction("cell.splitHorizontal", "Split Cell");
   if (!ensureEditable(title)) return;
   const separator = selectedCellSeparator();
   const request = {
@@ -18886,7 +18982,7 @@ async function splitActiveCell(direction = "horizontal") {
     direction,
     activeRow: selected.row,
     activeCol: selected.col,
-    label: vertical ? "Split cell vertically" : "Split cell",
+    label: title,
   };
   const result = await runCellTool("/api/cells/split", request);
   if (result?.ok || !result?.error) return;
@@ -18931,32 +19027,54 @@ function splitCellPreviewParts(value, separator) {
 }
 
 function splitWarningMessage(conflictCount, firstRow, firstCol, direction) {
-  const directionLabel = direction === "vertical" ? "vertical" : "horizontal";
-  const plural = conflictCount === 1 ? "cell" : "cells";
-  const directionLabelText = directionLabel === "vertical" ? "vertically" : "horizontally";
-  return `This ${directionLabelText} split will overwrite ${formatCount(conflictCount)} existing ${plural}${firstRow && firstCol ? `, starting at row ${formatCount(firstRow)}, column ${formatCount(firstCol)}.` : "."}`;
+  const directionLabel = direction === "vertical" ? t("cell.split.directionVertical") : t("cell.split.directionHorizontal");
+  const unit = t(conflictCount === 1 ? "cell.split.conflictCell" : "cell.split.conflictCells");
+  const location = firstRow && firstCol
+    ? tf("cell.split.warningLocation", { row: formatCount(firstRow), column: formatCount(firstCol) })
+    : t("cell.split.warningNoLocation");
+  return tf("cell.split.warning", {
+    direction: directionLabel,
+    count: formatCount(conflictCount),
+    unit,
+    location,
+  });
+}
+
+function splitConflictLocation(row, col) {
+  return tf("cell.split.location", {
+    row: formatCount(row),
+    column: formatCount(col),
+  });
 }
 
 function openSplitOverwriteConfirmPanel(request, preview) {
   if (!splitConfirmPanel || !request) return;
   pendingSplitTool = { ...request };
-  const direction = request.direction === "vertical" ? "Vertical" : "Horizontal";
   const sourceRow = preview?.sourceRow || selected.row + 1;
   const sourceCol = preview?.sourceCol || selected.col + 1;
   const separator = printableCellSeparator(request.separator);
   const sourceParts = splitCellPreviewParts(preview?.sourceValue ?? valueAt(selected.row, selected.col), request.separator);
   const conflictInfo = preview?.conflict;
   const conflictCount = conflictInfo ? 1 + (conflictInfo.additional || 0) : 1;
-  const firstConflict = conflictInfo ? `row ${formatCount(conflictInfo.row)}, column ${formatCount(conflictInfo.col)}` : null;
-  splitConfirmSummary.textContent = `${direction} Split Overwrite`;
-  splitConfirmDetail.textContent = `Source cell: row ${formatCount(sourceRow)}, column ${formatCount(sourceCol)} · Separator: ${separator} · ${formatCount(sourceParts.length)} values.`;
+  const firstConflict = conflictInfo ? splitConflictLocation(conflictInfo.row, conflictInfo.col) : null;
+  splitConfirmSummary.textContent = t(request.direction === "vertical" ? "cell.split.summaryVertical" : "cell.split.summaryHorizontal");
+  splitConfirmDetail.textContent = tf("cell.split.detail", {
+    row: formatCount(sourceRow),
+    column: formatCount(sourceCol),
+    separator,
+    count: formatCount(sourceParts.length),
+  });
   splitConfirmWarning.textContent = conflictInfo
-    ? `${splitWarningMessage(conflictCount, conflictInfo.row, conflictInfo.col, request.direction)}${conflictInfo.additional > 0 ? ` ${formatCount(conflictInfo.additional)} more conflict${conflictInfo.additional === 1 ? "" : "s"} beyond ${firstConflict}.` : ""}`
-    : `This split would overwrite existing data. Review the first target and retry with overwrite enabled.`;
+    ? `${splitWarningMessage(conflictCount, conflictInfo.row, conflictInfo.col, request.direction)}${conflictInfo.additional > 0 ? tf("cell.split.moreConflicts", {
+      count: formatCount(conflictInfo.additional),
+      unit: t(conflictInfo.additional === 1 ? "cell.split.conflictCell" : "cell.split.conflictCells"),
+      location: firstConflict,
+    }) : ""}`
+    : t("cell.split.review");
   splitConfirmPanel.hidden = false;
   status.textContent = conflictInfo
-    ? `Split blocked by ${formatCount(conflictCount)} existing cells.`
-    : "Split blocked by existing cells. Confirm to overwrite.";
+    ? tf("cell.split.statusBlockedCount", { count: formatCount(conflictCount) })
+    : t("cell.split.statusBlocked");
   confirmSplitConfirmButton.focus();
 }
 
@@ -18990,18 +19108,18 @@ function autoFillSelection(direction) {
     ? range.endCol - range.startCol + 1
     : range.endRow - range.startRow + 1;
   if (axisLength < 2 || selectionCellCount() < 2) {
-    status.textContent = `${label}: select at least two cells.`;
+    status.textContent = localizedCellStatus("autoFillSelectTwo", { action: label });
     return;
   }
   if (selectionCellCount() > 50_000) {
-    status.textContent = `${label}: selection limit is ${formatCount(50_000)} cells.`;
+    status.textContent = localizedCellStatus("autoFillLimit", { action: label, limit: formatCount(50_000) });
     return;
   }
   const edits = autoFillEdits(range, direction);
   if (!edits) return;
   if (!edits.length) {
     document.body.dataset.autoFillPreview = `${direction}:0`;
-    status.textContent = `${label}: no cells changed`;
+    status.textContent = localizedCellNoChange(label);
     return;
   }
   document.body.dataset.autoFillPreview = `${direction}:${edits.length}`;
@@ -19009,16 +19127,16 @@ function autoFillSelection(direction) {
   applyEditsToLoadedRows(edits);
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
-  submitCellEdits(edits, range.startRow, `${label}: ${formatCount(edits.length)} cells changed`);
+  submitCellEdits(edits, range.startRow, localizedCellChanged(label, edits.length));
 }
 
 function autoFillLabel(direction) {
   return {
-    down: "Fill Down",
-    right: "Fill Right",
-    up: "Fill Up",
-    left: "Fill Left",
-  }[direction] ?? "Auto-fill";
+    down: localizedCellAction("cell.fillDown", "Fill Down"),
+    right: localizedCellAction("cell.fillRight", "Fill Right"),
+    up: localizedCellAction("cell.fillUp", "Fill Up"),
+    left: localizedCellAction("cell.fillLeft", "Fill Left"),
+  }[direction] ?? localizedCellAction("cell.fillDown", "Auto-fill");
 }
 
 function autoFillEdits(range, direction) {
@@ -19027,7 +19145,7 @@ function autoFillEdits(range, direction) {
     const rowsInOrder = direction === "up"
       ? descendingIndexes(range.startRow, range.endRow)
       : ascendingIndexes(range.startRow, range.endRow);
-    if (!ensureRowsLoaded(rowsInOrder, "Auto-fill")) return null;
+    if (!ensureRowsLoaded(rowsInOrder, autoFillLabel(direction))) return null;
     for (let col = range.startCol; col <= range.endCol; col++) {
       const sourceCol = sourceColFor(col);
       const values = rowsInOrder.map((row) => valueAt(row, col));
@@ -19043,7 +19161,7 @@ function autoFillEdits(range, direction) {
     ? descendingIndexes(range.startCol, range.endCol)
     : ascendingIndexes(range.startCol, range.endCol);
   const rowsInOrder = ascendingIndexes(range.startRow, range.endRow);
-  if (!ensureRowsLoaded(rowsInOrder, "Auto-fill")) return null;
+  if (!ensureRowsLoaded(rowsInOrder, autoFillLabel(direction))) return null;
   for (const row of rowsInOrder) {
     const values = colsInOrder.map((col) => valueAt(row, col));
     const filled = autoFillSeries(values);
@@ -19066,11 +19184,11 @@ function ensureRowsLoaded(displayRows, action) {
   for (const row of displayRows) {
     if (!rows.has(row)) {
       maybeLoadWindow(row);
-      status.textContent = `${action}: load the selected rows before filling.`;
+      status.textContent = localizedCellStatus("loadRows", { action });
       return false;
     }
     if (viewMapped && rowSource.get(row) == null) {
-      status.textContent = `${action}: load the selected filtered rows before filling.`;
+      status.textContent = localizedCellStatus("loadFilteredRows", { action });
       return false;
     }
   }
@@ -19233,7 +19351,7 @@ function numberedTextAutoFill(seed, length) {
 window.__opencsvAutoFillSeries = autoFillSeries;
 
 async function runCellTool(endpoint, options) {
-  status.textContent = `${options.label}...`;
+  status.textContent = localizedCellRunning(options.label);
   delete document.body.dataset.cellToolFailed;
   if (options.separator !== undefined) {
     document.body.dataset.cellToolEndpoint = endpoint;
@@ -19255,18 +19373,19 @@ async function runCellTool(endpoint, options) {
   if (!response.ok) {
     const error = payload.error ?? "unknown error";
     document.body.dataset.cellToolFailed = `${endpoint}:${error}`;
-    status.textContent = `${options.label} failed: ${error}`;
+    status.textContent = localizedCellFailed(options.label, error);
     return { ok: false, error, status: response.status, endpoint, payload };
   }
   const changed = payload.changed ?? 0;
-  applyMutationPayload(payload, changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`);
+  const message = changed > 0 ? localizedCellChanged(options.label, changed) : localizedCellNoChange(options.label);
+  applyMutationPayload(payload, message);
   selected = {
     row: Math.max(0, Math.min(totalRows - 1, options.activeRow)),
     col: Math.max(0, Math.min(columns.length - 1, options.activeCol)),
   };
   selectionAnchor = { ...selected };
   draw();
-  status.textContent = changed > 0 ? `${options.label}: ${formatCount(changed)} cells changed` : `${options.label}: no cells changed`;
+  status.textContent = message;
   return { ok: true, payload, endpoint };
 }
 

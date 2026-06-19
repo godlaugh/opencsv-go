@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
+	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1124,7 +1124,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1168,7 +1168,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1213,7 +1213,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=structural-edit-i18n-1`,
+		`v=cell-tool-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1256,7 +1256,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
+	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1292,7 +1292,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
+	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1328,6 +1328,52 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing structural edit localized frontend wiring %q", snippet)
+		}
+	}
+}
+
+func TestCellToolLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
+		t.Fatal("missing cell-tool script cache-bust version")
+	}
+	for _, snippet := range []string{
+		`data-i18n-aria-label="cell.split.dialogAria"`,
+		`data-i18n="cell.split.title"`,
+		`data-i18n="cell.split.confirm"`,
+		`"cell.status.changed": "{{action}}：已更改 {{count}} 个单元格"`,
+		`"cell.status.selectTwoToJoin": "请选择至少两个单元格进行合并。"`,
+		`"cell.split.summaryHorizontal": "横向拆分覆盖"`,
+		`"cell.split.statusBlockedCount": "拆分被 {{count}} 个已有单元格阻止。"`,
+		`"command.cell.fillDown.title": "向下填充"`,
+		`"command.cell.swapRight.title": "向右交换"`,
+		`function localizedCellStatus(key, values = {})`,
+		`function localizedCellAction(commandID, fallback)`,
+		`function localizedCellChanged(action, count)`,
+		`t("cell.status.selectTwoToSwap")`,
+		`localizedCellStatus("noAdjacent"`,
+		`t(vertical ? "cell.status.selectTwoToJoinVertical" : "cell.status.selectTwoToJoin")`,
+		`t(request.direction === "vertical" ? "cell.split.summaryVertical" : "cell.split.summaryHorizontal")`,
+		`tf("cell.split.detail"`,
+		`tf("cell.split.statusBlockedCount"`,
+		`localizedCellStatus("autoFillSelectTwo"`,
+		`localizedCellStatus("autoFillLimit"`,
+		`localizedCellStatus("loadFilteredRows"`,
+		`status.textContent = localizedCellRunning(options.label)`,
+		`status.textContent = localizedCellFailed(options.label, error)`,
+		`const message = changed > 0 ? localizedCellChanged(options.label, changed) : localizedCellNoChange(options.label)`,
+	} {
+		if !strings.Contains(source+html, snippet) {
+			t.Fatalf("missing cell-tool localized wiring %q", snippet)
 		}
 	}
 }

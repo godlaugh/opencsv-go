@@ -944,10 +944,10 @@
     </div>
 
     <div id="splitConfirmPanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm split overwrite">
+      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm split overwrite" data-i18n-aria-label="cell.split.dialogAria">
         <header class="condition-panel-header">
-          <strong>Split Cell</strong>
-          <button id="closeSplitConfirmButton" type="button">Close</button>
+          <strong data-i18n="cell.split.title">Split Cell</strong>
+          <button id="closeSplitConfirmButton" type="button" data-i18n="cell.split.close">Close</button>
         </header>
         <div class="transpose-confirm-body">
           <strong id="splitConfirmSummary">Split overwrite</strong>
@@ -955,8 +955,8 @@
           <p id="splitConfirmWarning" class="transpose-confirm-warning">Overwrite conflicts detected.</p>
         </div>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="cancelSplitConfirmButton" type="button" data-dialog-role="cancel">Cancel</button>
-          <button id="confirmSplitConfirmButton" type="button" data-dialog-role="confirm">Split anyway</button>
+          <button id="cancelSplitConfirmButton" type="button" data-dialog-role="cancel" data-i18n="common.cancel">Cancel</button>
+          <button id="confirmSplitConfirmButton" type="button" data-dialog-role="confirm" data-i18n="cell.split.confirm">Split anyway</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=structural-edit-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=cell-tool-i18n-1"></script>
   </body>
 </html>
