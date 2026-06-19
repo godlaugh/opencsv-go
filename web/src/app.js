@@ -791,6 +791,19 @@ const localeCatalog = {
     "copy.status.copiedSlice": "Copied {{label}}: {{shape}} as {{format}}",
     "export.status.failed": "Export failed: {{message}}",
     "export.status.exported": "Exported {{rows}}, {{columns}} to {{filename}}",
+    "grid.columnFallbackNumber": "Column {{column}}",
+    "grid.canvas.moveRow": "Move row",
+    "grid.canvas.moveColumn": "Move column",
+    "grid.canvas.fillSelection": "Fill selection",
+    "grid.canvas.resizeColumn": "Resize {{column}}",
+    "grid.canvas.dragMoveColumn": "Drag to move selected column",
+    "grid.canvas.dragMoveRow": "Drag to move selected row",
+    "grid.status.movingColumn": "Move {{column}}...",
+    "grid.status.movingRow": "Move row {{row}}...",
+    "grid.status.columnMoveCanceled": "Column move canceled.",
+    "grid.status.rowMoveCanceled": "Row move canceled.",
+    "grid.status.columnWidth": "{{column}} width {{width}}px",
+    "grid.status.columnAutoFit": "{{column}} auto-fit to {{width}}px",
     "cell.status.running": "{{action}}...",
     "cell.status.failed": "{{action}} failed: {{message}}",
     "cell.status.changed": "{{action}}: {{count}} cells changed",
@@ -2201,6 +2214,19 @@ const localeCatalog = {
     "copy.status.copiedSlice": "已复制{{label}}：{{shape}}，格式 {{format}}",
     "export.status.failed": "导出失败：{{message}}",
     "export.status.exported": "已导出 {{rows}}，{{columns}}到 {{filename}}",
+    "grid.columnFallbackNumber": "第 {{column}} 列",
+    "grid.canvas.moveRow": "移动行",
+    "grid.canvas.moveColumn": "移动列",
+    "grid.canvas.fillSelection": "填充选区",
+    "grid.canvas.resizeColumn": "调整 {{column}} 宽度",
+    "grid.canvas.dragMoveColumn": "拖动以移动所选列",
+    "grid.canvas.dragMoveRow": "拖动以移动所选行",
+    "grid.status.movingColumn": "正在移动 {{column}}...",
+    "grid.status.movingRow": "正在移动第 {{row}} 行...",
+    "grid.status.columnMoveCanceled": "列移动已取消。",
+    "grid.status.rowMoveCanceled": "行移动已取消。",
+    "grid.status.columnWidth": "{{column}} 宽度 {{width}}px",
+    "grid.status.columnAutoFit": "{{column}} 已自动适配为 {{width}}px",
     "cell.status.running": "正在{{action}}...",
     "cell.status.failed": "{{action}}失败：{{message}}",
     "cell.status.changed": "{{action}}：已更改 {{count}} 个单元格",
@@ -4245,6 +4271,18 @@ function localizedCopySliceLabel(kind, count, includeHeaders = false) {
 
 function localizedExportStatus(key, values = {}) {
   return tf(`export.status.${key}`, values);
+}
+
+function localizedGridStatus(key, values = {}) {
+  return tf(`grid.status.${key}`, values);
+}
+
+function localizedGridCanvas(key, values = {}) {
+  return tf(`grid.canvas.${key}`, values);
+}
+
+function localizedGridColumnLabel(column, index) {
+  return column?.name || tf("grid.columnFallbackNumber", { column: index + 1 });
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -9529,23 +9567,23 @@ function clearFillHandleHover() {
 function syncCanvasHoverChrome() {
   if (pendingRowReorder?.active) {
     canvas.style.cursor = "grabbing";
-    canvas.title = "Move row";
+    canvas.title = localizedGridCanvas("moveRow");
     return;
   }
   if (pendingColumnReorder?.active) {
     canvas.style.cursor = "grabbing";
-    canvas.title = "Move column";
+    canvas.title = localizedGridCanvas("moveColumn");
     return;
   }
   if (draggingFillHandle || hoverFillHandle) {
     canvas.style.cursor = "crosshair";
-    canvas.title = "Fill selection";
+    canvas.title = localizedGridCanvas("fillSelection");
     return;
   }
   const resizeColumn = resizingColumn >= 0 ? resizingColumn : hoverResizeColumn;
   if (resizeColumn >= 0 && columns[resizeColumn]) {
     canvas.style.cursor = "col-resize";
-    canvas.title = `Resize ${columns[resizeColumn].name || `Column ${resizeColumn + 1}`}`;
+    canvas.title = localizedGridCanvas("resizeColumn", { column: localizedGridColumnLabel(columns[resizeColumn], resizeColumn) });
     return;
   }
   if (hoverURL) {
@@ -9555,12 +9593,12 @@ function syncCanvasHoverChrome() {
   }
   if (pendingColumnReorder) {
     canvas.style.cursor = "grab";
-    canvas.title = "Drag to move selected column";
+    canvas.title = localizedGridCanvas("dragMoveColumn");
     return;
   }
   if (pendingRowReorder) {
     canvas.style.cursor = "grab";
-    canvas.title = "Drag to move selected row";
+    canvas.title = localizedGridCanvas("dragMoveRow");
     return;
   }
   canvas.style.cursor = "";
@@ -13216,7 +13254,9 @@ function updateColumnReorder(event) {
   if (!drag.active && distance < columnReorderDragThreshold) return;
   if (!drag.active) {
     drag.active = true;
-    status.textContent = `Move ${columns[drag.sourceVisibleCol]?.name || `Column ${drag.sourceVisibleCol + 1}`}...`;
+    status.textContent = localizedGridStatus("movingColumn", {
+      column: localizedGridColumnLabel(columns[drag.sourceVisibleCol], drag.sourceVisibleCol),
+    });
   }
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -13242,7 +13282,7 @@ async function finishColumnReorder() {
   if (targetVisibleCol === drag.sourceVisibleCol) {
     document.body.dataset.columnDragReorder = `${drag.sourceVisibleCol}->${targetVisibleCol}:cancel`;
     document.body.dataset.columnDragTarget = String(targetVisibleCol);
-    status.textContent = "Column move canceled.";
+    status.textContent = localizedGridStatus("columnMoveCanceled");
     draw();
     return;
   }
@@ -13275,7 +13315,7 @@ function updateRowReorder(event) {
   if (!drag.active && distance < rowReorderDragThreshold) return;
   if (!drag.active) {
     drag.active = true;
-    status.textContent = `Move row ${drag.sourceDisplayRow + 1}...`;
+    status.textContent = localizedGridStatus("movingRow", { row: drag.sourceDisplayRow + 1 });
   }
   const rect = canvas.getBoundingClientRect();
   const y = event.clientY - rect.top;
@@ -13301,7 +13341,7 @@ async function finishRowReorder() {
   if (targetDisplayRow === drag.sourceDisplayRow) {
     document.body.dataset.rowDragReorder = `${drag.sourceDisplayRow}->${targetDisplayRow}:cancel`;
     document.body.dataset.rowDragTarget = String(targetDisplayRow);
-    status.textContent = "Row move canceled.";
+    status.textContent = localizedGridStatus("rowMoveCanceled");
     draw();
     return;
   }
@@ -13355,7 +13395,10 @@ function updateColumnResize(clientX) {
   const width = clampColumnWidth(resizeStartWidth + clientX - resizeStartClientX);
   setColumnWidth(resizingColumn, width);
   document.body.dataset.columnResize = `${resizingColumn}:${Math.round(width)}`;
-  status.textContent = `${columns[resizingColumn].name || `Column ${resizingColumn + 1}`} width ${Math.round(width)}px`;
+  status.textContent = localizedGridStatus("columnWidth", {
+    column: localizedGridColumnLabel(columns[resizingColumn], resizingColumn),
+    width: Math.round(width),
+  });
   draw();
 }
 
@@ -13369,7 +13412,10 @@ function finishColumnResize() {
   document.body.dataset.columnResize = `${col}:${Math.round(width)}`;
   syncCanvasHoverChrome();
   draw();
-  status.textContent = `${columns[col].name || `Column ${col + 1}`} width ${Math.round(width)}px`;
+  status.textContent = localizedGridStatus("columnWidth", {
+    column: localizedGridColumnLabel(columns[col], col),
+    width: Math.round(width),
+  });
 }
 
 function autoFitVisibleColumn(col) {
@@ -13381,7 +13427,10 @@ function autoFitVisibleColumn(col) {
   setColumnWidth(col, width);
   document.body.dataset.columnResize = `${col}:${Math.round(width)}:fit`;
   draw();
-  status.textContent = `${column.name || `Column ${col + 1}`} auto-fit to ${Math.round(width)}px`;
+  status.textContent = localizedGridStatus("columnAutoFit", {
+    column: localizedGridColumnLabel(column, col),
+    width: Math.round(width),
+  });
 }
 
 function setColumnWidth(col, width) {

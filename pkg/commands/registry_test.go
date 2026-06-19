@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -583,7 +583,7 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatal("missing copy/export script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -702,7 +702,7 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatalf("missing aggregate localization cache bust")
 	}
 	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
@@ -732,6 +732,48 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing aggregate localization wiring %q", snippet)
+		}
+	}
+}
+
+func TestGridInteractionLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
+		t.Fatal("missing grid interaction script cache-bust version")
+	}
+	for _, snippet := range []string{
+		`"grid.canvas.resizeColumn": "调整 {{column}} 宽度"`,
+		`"grid.canvas.dragMoveColumn": "拖动以移动所选列"`,
+		`"grid.status.columnWidth": "{{column}} 宽度 {{width}}px"`,
+		`"grid.status.columnAutoFit": "{{column}} 已自动适配为 {{width}}px"`,
+		`"grid.status.columnMoveCanceled": "列移动已取消。"`,
+		`function localizedGridStatus(key, values = {})`,
+		`function localizedGridCanvas(key, values = {})`,
+		`function localizedGridColumnLabel(column, index)`,
+		`localizedGridCanvas("moveRow")`,
+		`localizedGridCanvas("moveColumn")`,
+		`localizedGridCanvas("fillSelection")`,
+		`localizedGridCanvas("resizeColumn"`,
+		`localizedGridCanvas("dragMoveColumn")`,
+		`localizedGridCanvas("dragMoveRow")`,
+		`localizedGridStatus("movingColumn"`,
+		`localizedGridStatus("movingRow"`,
+		`localizedGridStatus("columnMoveCanceled")`,
+		`localizedGridStatus("rowMoveCanceled")`,
+		`localizedGridStatus("columnWidth"`,
+		`localizedGridStatus("columnAutoFit"`,
+	} {
+		if !strings.Contains(source+html, snippet) {
+			t.Fatalf("missing grid interaction localization wiring %q", snippet)
 		}
 	}
 }
@@ -824,7 +866,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -967,7 +1009,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1213,7 +1255,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1257,7 +1299,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1302,7 +1344,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=copy-export-i18n-2`,
+		`v=grid-interaction-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1345,7 +1387,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1381,7 +1423,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1432,7 +1474,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=copy-export-i18n-2`) {
+	if !strings.Contains(html, `v=grid-interaction-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{
