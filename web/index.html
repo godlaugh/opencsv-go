@@ -907,20 +907,20 @@
     </div>
 
     <div id="externalChangePanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel external-change-panel" role="dialog" aria-modal="true" aria-label="External file change">
+      <section class="save-as-panel external-change-panel" role="dialog" aria-modal="true" aria-label="External file change" data-i18n-aria-label="externalChange.dialogAria">
         <header class="condition-panel-header">
           <strong id="externalChangeTitle">File Changed on Disk</strong>
-          <button id="closeExternalChangeButton" type="button">Close</button>
+          <button id="closeExternalChangeButton" type="button" data-i18n="common.close">Close</button>
         </header>
         <div class="external-change-body">
           <p id="externalChangeMessage">The backing file changed on disk.</p>
         </div>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="keepExternalChangeButton" type="button" data-dialog-role="cancel">Keep Editing</button>
-          <button id="compareExternalChangeButton" type="button" data-dialog-role="secondary">Compare Disk</button>
-          <button id="saveAsExternalChangeButton" type="button" data-dialog-role="secondary">Save As</button>
-          <button id="overwriteExternalChangeButton" type="button" data-dialog-role="confirm">Overwrite Disk</button>
-          <button id="reloadExternalChangeButton" type="button" data-dialog-role="confirm">Reload from Disk</button>
+          <button id="keepExternalChangeButton" type="button" data-dialog-role="cancel" data-i18n="externalChange.keepEditing">Keep Editing</button>
+          <button id="compareExternalChangeButton" type="button" data-dialog-role="secondary" data-i18n="externalChange.compareDisk">Compare Disk</button>
+          <button id="saveAsExternalChangeButton" type="button" data-dialog-role="secondary" data-i18n="file.saveAs">Save As</button>
+          <button id="overwriteExternalChangeButton" type="button" data-dialog-role="confirm" data-i18n="externalChange.overwriteDisk">Overwrite Disk</button>
+          <button id="reloadExternalChangeButton" type="button" data-dialog-role="confirm" data-i18n="externalChange.reloadFromDisk">Reload from Disk</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=format-status-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=external-change-i18n-1"></script>
   </body>
 </html>

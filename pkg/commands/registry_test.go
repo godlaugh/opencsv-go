@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=format-status-i18n-1`,
+		`v=external-change-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=format-status-i18n-1`) {
+	if !strings.Contains(html, `v=external-change-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=format-status-i18n-1`,
+		`v=external-change-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=format-status-i18n-1`,
+		`v=external-change-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=format-status-i18n-1`,
+		`v=external-change-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=format-status-i18n-1`,
+		`v=external-change-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1061,13 +1061,25 @@ func TestExternalOverwriteGuardIsWired(t *testing.T) {
 	markup := string(html)
 	for _, snippet := range []string{
 		`id="overwriteExternalChangeButton"`,
-		`data-dialog-role="confirm">Overwrite Disk`,
+		`data-i18n-aria-label="externalChange.dialogAria"`,
+		`data-i18n="externalChange.keepEditing"`,
+		`data-i18n="externalChange.compareDisk"`,
+		`data-i18n="externalChange.overwriteDisk"`,
+		`data-i18n="externalChange.reloadFromDisk"`,
 	} {
 		if !strings.Contains(markup, snippet) {
 			t.Fatalf("missing external overwrite markup %q", snippet)
 		}
 	}
 	for _, snippet := range []string{
+		`"externalChange.title.conflict": "未保存编辑冲突"`,
+		`"externalChange.status.changedDirty": "磁盘文件已更改，而本地编辑尚未保存。"`,
+		`"externalChange.status.refreshedManual": "已刷新外部更改"`,
+		`t("externalChange.title.conflict")`,
+		`t("externalChange.status.preparingCompare")`,
+		`tf("externalChange.status.compareFailed"`,
+		`t("externalChange.status.reloadingDiscard")`,
+		`t("externalChange.status.saveBlocked")`,
 		`allowExternalOverwrite: Boolean(options.allowExternalOverwrite)`,
 		`document.body.dataset.externalSaveBlocked = "changed"`,
 		"overwriteExternalChangeButton.hidden = !conflict",

@@ -1097,6 +1097,31 @@ const localeCatalog = {
     "format.status.readOnlyFailed": "Read-only failed: {{message}}",
     "format.status.readOnlyEnabled": "Read-only mode enabled",
     "format.status.readOnlyDisabled": "Read-only mode disabled",
+    "externalChange.dialogAria": "External file change",
+    "externalChange.title.conflict": "Unsaved Edits Conflict",
+    "externalChange.title.changed": "File Changed on Disk",
+    "externalChange.message.conflict": "The backing file changed on disk while this document has unsaved edits. Save As keeps both versions; Overwrite Disk replaces the changed file.",
+    "externalChange.message.changed": "The backing file changed on disk and can be refreshed now.",
+    "externalChange.keepEditing": "Keep Editing",
+    "externalChange.compareDisk": "Compare Disk",
+    "externalChange.overwriteDisk": "Overwrite Disk",
+    "externalChange.reloadFromDisk": "Reload from Disk",
+    "externalChange.refreshFromDisk": "Refresh from Disk",
+    "externalChange.reloadTitle.conflict": "Discard unsaved edits and load the disk file",
+    "externalChange.reloadTitle.changed": "Load the disk file",
+    "externalChange.status.preparingCompare": "Preparing disk/local compare...",
+    "externalChange.status.compareFailed": "Compare failed: {{message}}",
+    "externalChange.status.reloadingDiscard": "Reloading from disk and discarding local edits...",
+    "externalChange.status.refreshing": "Refreshing from disk...",
+    "externalChange.status.changedDirty": "File changed on disk while local edits are unsaved.",
+    "externalChange.status.changedNotify": "File changed on disk; auto-refresh is set to notify only.",
+    "externalChange.status.changed": "File changed on disk.",
+    "externalChange.status.failed": "Status failed",
+    "externalChange.status.refreshFailed": "Refresh failed: {{message}}",
+    "externalChange.status.refreshedManual": "Refreshed external changes",
+    "externalChange.status.refreshedAuto": "Auto-refreshed external changes",
+    "externalChange.status.restoredViews": "{{label}}; restored {{views}}",
+    "externalChange.status.saveBlocked": "Save blocked: file changed on disk.",
     "format.delimiter.custom": "{{delimiter}}",
     "format.quote.summary": "Quote {{mode}} {{character}} {{escape}} escape",
     "format.quote.mapLimited": "quote map limited",
@@ -2248,6 +2273,31 @@ const localeCatalog = {
     "format.status.readOnlyFailed": "只读失败：{{message}}",
     "format.status.readOnlyEnabled": "只读模式已启用",
     "format.status.readOnlyDisabled": "只读模式已关闭",
+    "externalChange.dialogAria": "外部文件更改",
+    "externalChange.title.conflict": "未保存编辑冲突",
+    "externalChange.title.changed": "磁盘文件已更改",
+    "externalChange.message.conflict": "后台文件已在磁盘上更改，而此文档还有未保存编辑。另存为会保留两个版本；覆盖磁盘会替换已更改的文件。",
+    "externalChange.message.changed": "后台文件已在磁盘上更改，现在可以刷新。",
+    "externalChange.keepEditing": "继续编辑",
+    "externalChange.compareDisk": "比较磁盘",
+    "externalChange.overwriteDisk": "覆盖磁盘",
+    "externalChange.reloadFromDisk": "从磁盘重新加载",
+    "externalChange.refreshFromDisk": "从磁盘刷新",
+    "externalChange.reloadTitle.conflict": "放弃未保存编辑并加载磁盘文件",
+    "externalChange.reloadTitle.changed": "加载磁盘文件",
+    "externalChange.status.preparingCompare": "正在准备磁盘/本地比较...",
+    "externalChange.status.compareFailed": "比较失败：{{message}}",
+    "externalChange.status.reloadingDiscard": "正在从磁盘重新加载并放弃本地编辑...",
+    "externalChange.status.refreshing": "正在从磁盘刷新...",
+    "externalChange.status.changedDirty": "磁盘文件已更改，而本地编辑尚未保存。",
+    "externalChange.status.changedNotify": "磁盘文件已更改；自动刷新设置为仅通知。",
+    "externalChange.status.changed": "磁盘文件已更改。",
+    "externalChange.status.failed": "状态检查失败",
+    "externalChange.status.refreshFailed": "刷新失败：{{message}}",
+    "externalChange.status.refreshedManual": "已刷新外部更改",
+    "externalChange.status.refreshedAuto": "已自动刷新外部更改",
+    "externalChange.status.restoredViews": "{{label}}；已恢复 {{views}}",
+    "externalChange.status.saveBlocked": "保存被阻止：磁盘文件已更改。",
     "format.delimiter.custom": "{{delimiter}}",
     "format.quote.summary": "引号 {{mode}} {{character}} {{escape}} 转义",
     "format.quote.mapLimited": "引号映射已限制",
@@ -3753,6 +3803,7 @@ function applyLocaleStrings() {
   syncQuotePolicyControls();
   syncEditorAppearanceControls();
   updateFormatStatus();
+  if (externalChangePanel && !externalChangePanel.hidden) updateExternalChangePanel();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
@@ -18924,15 +18975,15 @@ async function restoreBackup(path) {
 
 function updateExternalChangePanel() {
   const conflict = Boolean(dirty);
-  externalChangeTitle.textContent = conflict ? "Unsaved Edits Conflict" : "File Changed on Disk";
+  externalChangeTitle.textContent = conflict ? t("externalChange.title.conflict") : t("externalChange.title.changed");
   externalChangeMessage.textContent = conflict
-    ? "The backing file changed on disk while this document has unsaved edits. Save As keeps both versions; Overwrite Disk replaces the changed file."
-    : "The backing file changed on disk and can be refreshed now.";
+    ? t("externalChange.message.conflict")
+    : t("externalChange.message.changed");
   compareExternalChangeButton.hidden = !metadata?.path;
   saveAsExternalChangeButton.hidden = !conflict;
   overwriteExternalChangeButton.hidden = !conflict;
-  reloadExternalChangeButton.textContent = conflict ? "Reload from Disk" : "Refresh from Disk";
-  reloadExternalChangeButton.title = conflict ? "Discard unsaved edits and load the disk file" : "Load the disk file";
+  reloadExternalChangeButton.textContent = conflict ? t("externalChange.reloadFromDisk") : t("externalChange.refreshFromDisk");
+  reloadExternalChangeButton.title = conflict ? t("externalChange.reloadTitle.conflict") : t("externalChange.reloadTitle.changed");
 }
 
 function openExternalChangePanel() {
@@ -18966,7 +19017,7 @@ async function overwriteExternalChangeOnDisk() {
 async function compareExternalChangeWithDisk() {
   if (!documentId || !metadata?.path || !externalFileChanged) return;
   const sourceColumns = (allColumns.length ? allColumns : columns).map((column) => column.sourceCol);
-  status.textContent = "Preparing disk/local compare...";
+  status.textContent = t("externalChange.status.preparingCompare");
   const response = await fetch("/api/export-view", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18980,7 +19031,7 @@ async function compareExternalChangeWithDisk() {
   const blob = await response.blob();
   const text = await blob.text();
   if (!response.ok) {
-    status.textContent = `Compare failed: ${errorFromResponseText(text)}`;
+    status.textContent = tf("externalChange.status.compareFailed", { message: errorFromResponseText(text) });
     return;
   }
   leftDiffPath.value = metadata.path;
@@ -18999,8 +19050,8 @@ async function reloadExternalChangeFromDisk() {
   if (!documentId || !externalFileChanged) return;
   const discardDirty = Boolean(dirty);
   status.textContent = discardDirty
-    ? "Reloading from disk and discarding local edits..."
-    : "Refreshing from disk...";
+    ? t("externalChange.status.reloadingDiscard")
+    : t("externalChange.status.refreshing");
   const refreshed = await refreshCurrentDocument({ discardDirty, manual: true });
   if (refreshed) {
     externalChangePanel.hidden = true;
@@ -19058,7 +19109,7 @@ async function saveDocumentToPath(path = "", options = {}) {
       document.body.dataset.externalSaveBlocked = "changed";
       updateExternalChangePanel();
       openExternalChangePanel();
-      status.textContent = "Save blocked: file changed on disk.";
+      status.textContent = t("externalChange.status.saveBlocked");
       return;
     }
     status.textContent = `${options.saveAs ? "Save As" : "Save"} failed: ${message}`;
@@ -19124,18 +19175,18 @@ async function checkFileStatus(autoRefresh = true) {
     if (externalFileChanged && autoRefresh && !wasChanged) {
       externalChangePanelDismissed = false;
       if (dirty) {
-        status.textContent = "File changed on disk while local edits are unsaved.";
+        status.textContent = t("externalChange.status.changedDirty");
         if (!externalChangePanelDismissed) openExternalChangePanel();
       } else {
         status.textContent = autoRefreshMode === "notify"
-          ? "File changed on disk; auto-refresh is set to notify only."
-          : "File changed on disk.";
+          ? t("externalChange.status.changedNotify")
+          : t("externalChange.status.changed");
       }
     }
     updateFormatStatus();
     updateCommandState();
   } catch (error) {
-    externalStatus.textContent = "Status failed";
+    externalStatus.textContent = t("externalChange.status.failed");
   }
 }
 
@@ -19154,7 +19205,7 @@ async function refreshCurrentDocument(options = {}) {
   const payload = await response.json();
   if (!response.ok) {
     externalFileChanged = true;
-    const message = `Refresh failed: ${payload.error ?? "unknown error"}`;
+    const message = tf("externalChange.status.refreshFailed", { message: payload.error ?? "unknown error" });
     updateFormatStatus();
     draw();
     status.textContent = message;
@@ -19177,9 +19228,9 @@ async function refreshCurrentDocument(options = {}) {
   updateInspector();
   updateCommandState();
   draw();
-  const label = options.manual ? "Refreshed external changes" : "Auto-refreshed external changes";
+  const label = options.manual ? t("externalChange.status.refreshedManual") : t("externalChange.status.refreshedAuto");
   status.textContent = restoredView.length
-    ? `${label}; restored ${restoredView.join(" and ")}`
+    ? tf("externalChange.status.restoredViews", { label, views: restoredView.join(" and ") })
     : label;
   return true;
 }
