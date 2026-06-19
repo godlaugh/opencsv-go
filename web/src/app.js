@@ -766,6 +766,7 @@ const localeCatalog = {
     "edit.status.headerDisabled": "Header row disabled",
     "edit.status.movedRowTo": "Moved row {{from}} to {{to}}",
     "edit.status.movedColumnTo": "Moved column {{from}} to {{to}}",
+    "edit.status.loadFilteredRowsAction": "Load the selected filtered rows before using {{action}}.",
     "edit.status.removedDuplicateRows": "Removed {{count}} duplicate rows",
     "edit.status.removedDuplicateColumns": "Removed {{count}} duplicate columns",
     "edit.status.noDuplicateRows": "No duplicate rows found",
@@ -864,6 +865,29 @@ const localeCatalog = {
     "cell.split.directionVertical": "vertical",
     "cell.split.conflictCell": "cell",
     "cell.split.conflictCells": "cells",
+    "transpose.dialogAria": "Confirm transpose",
+    "transpose.title": "Transpose Table",
+    "transpose.close": "Close",
+    "transpose.cancel": "Cancel",
+    "transpose.confirm": "Transpose",
+    "transpose.summaryDefault": "Transpose table",
+    "transpose.detailDefault": "This operation rewrites the current table and can be undone before Save.",
+    "transpose.warningDefault": "Large transposes can take time and memory.",
+    "transpose.summary": "Transpose {{rows}} rows x {{columns}} columns",
+    "transpose.detail": "This will materialize the current table, swap rows and columns, and create one undo step before Save.",
+    "transpose.warningBlocked": "This transpose has {{cells}} cells, above the {{limit}} cell safety limit.",
+    "transpose.warningLarge": "This transpose has {{cells}} cells and may take noticeable time and memory.",
+    "transpose.status.tooLarge": "Transpose table is too large.",
+    "transpose.status.confirm": "Confirm table transpose.",
+    "transpose.status.noSelectionChange": "Transpose Selection: no cells changed.",
+    "transpose.status.selectionLimit": "Selection has {{cells}} cells; transpose limit is {{limit}}.",
+    "transpose.status.rangeTooSmall": "Each transpose range must contain at least two cells.",
+    "transpose.status.overlap": "Multi-range transpose targets must not overlap each other.",
+    "transpose.status.selected": "Transposed {{rows}}x{{columns}} selection",
+    "transpose.status.multiSelected": "Transposed {{ranges}} ranges ({{cells}} cells changed)",
+    "transpose.status.filteredRows": "Selection transpose target rows must fit while a filtered or sorted view is active.",
+    "transpose.action.table": "Transpose Table",
+    "transpose.action.selection": "Transpose Selection",
     "macro.title": "Last Macro",
     "macro.none": "No recorded macro",
     "macro.play": "Play",
@@ -2306,6 +2330,7 @@ const localeCatalog = {
     "edit.status.headerDisabled": "已禁用表头行",
     "edit.status.movedRowTo": "已将第 {{from}} 行移到第 {{to}} 行",
     "edit.status.movedColumnTo": "已将第 {{from}} 列移到第 {{to}} 列",
+    "edit.status.loadFilteredRowsAction": "使用{{action}}前请先加载选中的筛选行。",
     "edit.status.removedDuplicateRows": "已删除 {{count}} 个重复行",
     "edit.status.removedDuplicateColumns": "已删除 {{count}} 个重复列",
     "edit.status.noDuplicateRows": "未找到重复行",
@@ -2404,6 +2429,29 @@ const localeCatalog = {
     "cell.split.directionVertical": "纵向",
     "cell.split.conflictCell": "单元格",
     "cell.split.conflictCells": "单元格",
+    "transpose.dialogAria": "确认转置",
+    "transpose.title": "转置表格",
+    "transpose.close": "关闭",
+    "transpose.cancel": "取消",
+    "transpose.confirm": "转置",
+    "transpose.summaryDefault": "转置表格",
+    "transpose.detailDefault": "此操作会重写当前表格，并且可在保存前撤销。",
+    "transpose.warningDefault": "大型转置可能需要一些时间和内存。",
+    "transpose.summary": "转置 {{rows}} 行 x {{columns}} 列",
+    "transpose.detail": "这会物化当前表格、交换行列，并在保存前创建一个撤销步骤。",
+    "transpose.warningBlocked": "此次转置包含 {{cells}} 个单元格，超过 {{limit}} 个单元格安全上限。",
+    "transpose.warningLarge": "此次转置包含 {{cells}} 个单元格，可能需要明显的时间和内存。",
+    "transpose.status.tooLarge": "表格转置过大。",
+    "transpose.status.confirm": "请确认表格转置。",
+    "transpose.status.noSelectionChange": "转置选区：没有单元格更改。",
+    "transpose.status.selectionLimit": "选区包含 {{cells}} 个单元格；转置上限为 {{limit}}。",
+    "transpose.status.rangeTooSmall": "每个转置范围必须包含至少两个单元格。",
+    "transpose.status.overlap": "多范围转置目标不能相互重叠。",
+    "transpose.status.selected": "已转置 {{rows}}x{{columns}} 选区",
+    "transpose.status.multiSelected": "已转置 {{ranges}} 个范围（{{cells}} 个单元格更改）",
+    "transpose.status.filteredRows": "筛选或排序视图激活时，选区转置目标行必须位于已加载范围内。",
+    "transpose.action.table": "转置表格",
+    "transpose.action.selection": "转置选区",
     "macro.title": "最近宏",
     "macro.none": "没有录制宏",
     "macro.play": "播放",
@@ -18984,7 +19032,7 @@ async function transposeCurrentDocument() {
 
 function wholeTableTransposePlan() {
   if (!documentId) return null;
-  if (!ensureEditable("Transpose Table")) return null;
+  if (!ensureEditable(t("transpose.action.table"))) return null;
   const rows = Math.max(0, sourceRowCount + dataStartRow);
   const columnsCount = Math.max(
     columns.length,
@@ -19006,15 +19054,15 @@ function openTransposeConfirmPanel(plan) {
   const cells = formatCount(plan.cells);
   const rows = formatCount(plan.rows);
   const columnsCount = formatCount(plan.columns);
-  transposeConfirmSummary.textContent = `Transpose ${rows} rows x ${columnsCount} columns`;
-  transposeConfirmDetail.textContent = "This will materialize the current table, swap rows and columns, and create one undo step before Save.";
+  transposeConfirmSummary.textContent = tf("transpose.summary", { rows, columns: columnsCount });
+  transposeConfirmDetail.textContent = t("transpose.detail");
   transposeConfirmWarning.textContent = plan.blocked
-    ? `This transpose has ${cells} cells, above the ${formatCount(transposeMaxCells)} cell safety limit.`
-    : `This transpose has ${cells} cells and may take noticeable time and memory.`;
+    ? tf("transpose.warningBlocked", { cells, limit: formatCount(transposeMaxCells) })
+    : tf("transpose.warningLarge", { cells });
   confirmTransposeButton.disabled = plan.blocked;
   transposeConfirmPanel.hidden = false;
   document.body.dataset.transposeConfirm = plan.blocked ? `blocked:${plan.cells}` : `open:${plan.cells}`;
-  status.textContent = plan.blocked ? "Transpose table is too large." : "Confirm table transpose.";
+  status.textContent = t(plan.blocked ? "transpose.status.tooLarge" : "transpose.status.confirm");
   (plan.blocked ? cancelTransposeConfirmButton : confirmTransposeButton).focus();
 }
 
@@ -19036,38 +19084,41 @@ async function confirmWholeTableTranspose() {
 async function runWholeTableTranspose(plan = wholeTableTransposePlan()) {
   if (!plan) return;
   document.body.dataset.transposeConfirm = `run:${plan.cells}`;
-  await mutateStructure("/api/transpose", { maxCells: transposeMaxCells }, "Transposed table");
+  await mutateStructure("/api/transpose", { maxCells: transposeMaxCells }, t("transpose.action.table"));
 }
 
 function transposeSelectedRange(range, maxCells = 100_000) {
   if (!documentId || !range) return false;
-  if (!ensureEditable("Transpose Selection")) return true;
+  if (!ensureEditable(t("transpose.action.selection"))) return true;
   const plan = buildSelectionTransposePlan(range, maxCells);
   if (!plan) return true;
   if (!plan.edits.length) {
-    status.textContent = "Transpose Selection: no cells changed.";
+    status.textContent = t("transpose.status.noSelectionChange");
     document.body.dataset.transposeSelection = `${plan.rowCount}x${plan.colCount}->${plan.colCount}x${plan.rowCount}:0`;
     return true;
   }
   applySelectionTransposePlans(
     [plan],
-    `Transposed ${plan.rowCount}x${plan.colCount} selection`,
+    tf("transpose.status.selected", {
+      rows: formatCount(plan.rowCount),
+      columns: formatCount(plan.colCount),
+    }),
   );
   return true;
 }
 
 function transposeSelectedRanges(ranges, maxCells = 100_000) {
   if (!documentId || !Array.isArray(ranges) || ranges.length === 0) return false;
-  if (!ensureEditable("Transpose Selection")) return true;
+  if (!ensureEditable(t("transpose.action.selection"))) return true;
   const cellCount = ranges.reduce((count, range) => count + rangeCellCount(range), 0);
   if (cellCount > maxCells) {
-    status.textContent = `Selection has ${formatCount(cellCount)} cells; transpose limit is ${formatCount(maxCells)}.`;
+    status.textContent = tf("transpose.status.selectionLimit", { cells: formatCount(cellCount), limit: formatCount(maxCells) });
     return true;
   }
   const plans = [];
   for (const range of ranges) {
     if (rangeCellCount(range) <= 1) {
-      status.textContent = "Each transpose range must contain at least two cells.";
+      status.textContent = t("transpose.status.rangeTooSmall");
       return true;
     }
     const plan = buildSelectionTransposePlan(range, maxCells);
@@ -19077,7 +19128,7 @@ function transposeSelectedRanges(ranges, maxCells = 100_000) {
   for (let i = 0; i < plans.length; i++) {
     for (let j = i + 1; j < plans.length; j++) {
       if (rangesOverlap(plans[i].unionRange, plans[j].unionRange)) {
-        status.textContent = "Multi-range transpose targets must not overlap each other.";
+        status.textContent = t("transpose.status.overlap");
         document.body.dataset.transposeSelection = `multi:${plans.length}:overlap`;
         return true;
       }
@@ -19085,13 +19136,13 @@ function transposeSelectedRanges(ranges, maxCells = 100_000) {
   }
   const edits = plans.flatMap((plan) => plan.edits);
   if (!edits.length) {
-    status.textContent = "Transpose Selection: no cells changed.";
+    status.textContent = t("transpose.status.noSelectionChange");
     document.body.dataset.transposeSelection = `multi:${plans.length}:0`;
     return true;
   }
   applySelectionTransposePlans(
     plans,
-    `Transposed ${plans.length} ranges (${formatCount(edits.length)} cells changed)`,
+    tf("transpose.status.multiSelected", { ranges: formatCount(plans.length), cells: formatCount(edits.length) }),
   );
   return true;
 }
@@ -19105,13 +19156,13 @@ function buildSelectionTransposePlan(range, maxCells = 100_000) {
   const colCount = range.endCol - range.startCol + 1;
   const cellCount = rowCount * colCount;
   if (cellCount > maxCells) {
-    status.textContent = `Selection has ${formatCount(cellCount)} cells; transpose limit is ${formatCount(maxCells)}.`;
+    status.textContent = tf("transpose.status.selectionLimit", { cells: formatCount(cellCount), limit: formatCount(maxCells) });
     return null;
   }
   const targetEndRow = range.startRow + colCount - 1;
   const targetEndCol = range.startCol + rowCount - 1;
   if (targetEndRow >= sourceRowCount && viewMapped) {
-    status.textContent = "Selection transpose target rows must fit while a filtered or sorted view is active.";
+    status.textContent = t("transpose.status.filteredRows");
     return null;
   }
   const transposeSourceCols = new Map();
@@ -19124,7 +19175,7 @@ function buildSelectionTransposePlan(range, maxCells = 100_000) {
   }
   const sourceMatrix = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
-    if (sourceRowForDisplayRow(row, "Transpose Selection") == null) return null;
+    if (sourceRowForDisplayRow(row, t("transpose.action.selection")) == null) return null;
     const values = [];
     for (let col = range.startCol; col <= range.endCol; col++) {
       values.push(valueAt(row, col));
@@ -19135,7 +19186,7 @@ function buildSelectionTransposePlan(range, maxCells = 100_000) {
   const unionEndRow = Math.max(range.endRow, targetEndRow);
   const unionEndCol = Math.max(range.endCol, targetEndCol);
   for (let row = range.startRow; row <= unionEndRow; row++) {
-    const sourceRow = sourceRowForDisplayRow(row, "Transpose Selection");
+    const sourceRow = sourceRowForDisplayRow(row, t("transpose.action.selection"));
     if (sourceRow == null) return null;
     for (let col = range.startCol; col <= unionEndCol; col++) {
       const inSource = row <= range.endRow && col <= range.endCol;
@@ -19184,7 +19235,7 @@ function applySelectionTransposePlans(plans, message) {
 function sourceRowForDisplayRow(row, action) {
   const sourceRow = rowSource.get(row);
   if (viewMapped && sourceRow == null) {
-    status.textContent = `Load the selected filtered rows before using ${action}.`;
+    status.textContent = tf("edit.status.loadFilteredRowsAction", { action });
     return null;
   }
   return sourceRow ?? row + dataStartRow;

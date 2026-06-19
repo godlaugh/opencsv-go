@@ -259,6 +259,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-017 | Downward target row expansion for selection transpose | Started | `pkg/document` expanded-row save test, Browser command-palette/save/API verification |
 | FR-017 | Multi-range rectangular selection transpose | Started | Browser Smart Selection command-palette/save/API verification |
 | FR-017 | Whole-table transpose confirmation UI | Started | Browser command-palette confirmation/run verification |
+| FR-019/017 | Localized Transpose confirmation and selection status feedback | Started | command registry static coverage, Browser zh-CN Transpose verification |
 | FR-004 | Duplicate row/column removal and selected-cell text transforms | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser shortcut verification |
 | FR-004 | Full-width and half-width text transforms | Started | `pkg/document`/`pkg/appserver`/`pkg/commands` tests, Browser command-palette verification |
 | FR-004 | Unicode normalization text transforms | Started | `pkg/document`/`pkg/commands` tests, Browser command/API/export verification |

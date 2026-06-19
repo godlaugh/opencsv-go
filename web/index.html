@@ -926,19 +926,19 @@
     </div>
 
     <div id="transposeConfirmPanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm transpose">
+      <section class="save-as-panel transpose-confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm transpose" data-i18n-aria-label="transpose.dialogAria">
         <header class="condition-panel-header">
-          <strong>Transpose Table</strong>
-          <button id="closeTransposeConfirmButton" type="button">Close</button>
+          <strong data-i18n="transpose.title">Transpose Table</strong>
+          <button id="closeTransposeConfirmButton" type="button" data-i18n="transpose.close">Close</button>
         </header>
         <div class="transpose-confirm-body">
-          <strong id="transposeConfirmSummary">Transpose table</strong>
-          <p id="transposeConfirmDetail">This operation rewrites the current table and can be undone before Save.</p>
-          <p id="transposeConfirmWarning" class="transpose-confirm-warning">Large transposes can take time and memory.</p>
+          <strong id="transposeConfirmSummary" data-i18n="transpose.summaryDefault">Transpose table</strong>
+          <p id="transposeConfirmDetail" data-i18n="transpose.detailDefault">This operation rewrites the current table and can be undone before Save.</p>
+          <p id="transposeConfirmWarning" class="transpose-confirm-warning" data-i18n="transpose.warningDefault">Large transposes can take time and memory.</p>
         </div>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="cancelTransposeConfirmButton" type="button" data-dialog-role="cancel">Cancel</button>
-          <button id="confirmTransposeButton" type="button" data-dialog-role="confirm">Transpose</button>
+          <button id="cancelTransposeConfirmButton" type="button" data-i18n="transpose.cancel" data-dialog-role="cancel">Cancel</button>
+          <button id="confirmTransposeButton" type="button" data-i18n="transpose.confirm" data-dialog-role="confirm">Transpose</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=quote-rule-status-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=transpose-status-i18n-1"></script>
   </body>
 </html>
