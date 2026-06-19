@@ -93,6 +93,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-013/015 | Toggle header in selection foundation | Started | command registry, Browser shortcut verification |
 | FR-013/015 | Toolbar copy-format picker foundation | Started | command registry, Browser toolbar-copy verification |
 | FR-019/013/015 | Localized copy/export toolbar and status surfaces | Started | command registry static coverage, Browser zh-CN copy/export verification |
+| FR-019/013/015 | Localized clipboard paste status feedback | Started | command registry static coverage, Browser zh-CN paste status verification |
 | FR-013/015 | Row/column copy from grid context menus | Started | `/api/export-view` row/TSV slice tests, Browser context-menu verification |
 | FR-013/015 | Row/column Copy As rich formats | Started | command registry static coverage, Browser context-menu preview verification |
 | FR-015 | Export current filtered/sorted view | Started | `/api/export-view`, `pkg/document` and `pkg/appserver` tests, Browser toolbar verification |

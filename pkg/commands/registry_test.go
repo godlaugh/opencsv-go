@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -583,7 +583,7 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing copy/export script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -636,6 +636,35 @@ func TestSpreadsheetHTMLPasteIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing spreadsheet HTML paste wiring %q", snippet)
+		}
+	}
+}
+
+func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
+		t.Fatal("missing paste-status script cache-bust version")
+	}
+	for _, snippet := range []string{
+		`"paste.status.empty": "剪贴板为空。"`,
+		`"paste.status.failed": "粘贴失败：{{message}}"`,
+		`"paste.status.pasted": "已粘贴 {{count}} 个单元格"`,
+		`function localizedPasteStatus(key, values = {})`,
+		`localizedPasteStatus("failed"`,
+		`localizedPasteStatus("empty")`,
+		`localizedPasteStatus("pasted"`,
+	} {
+		if !strings.Contains(source+html, snippet) {
+			t.Fatalf("missing clipboard paste status localization wiring %q", snippet)
 		}
 	}
 }
@@ -702,7 +731,7 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatalf("missing aggregate localization cache bust")
 	}
 	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
@@ -747,7 +776,7 @@ func TestGridInteractionLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing grid interaction script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -866,7 +895,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -1009,7 +1038,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1255,7 +1284,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1299,7 +1328,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1344,7 +1373,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=cell-edit-i18n-1`,
+		`v=paste-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1387,7 +1416,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1423,7 +1452,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1474,7 +1503,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-edit-i18n-1`) {
+	if !strings.Contains(html, `v=paste-status-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{

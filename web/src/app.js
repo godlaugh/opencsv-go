@@ -789,6 +789,9 @@ const localeCatalog = {
     "copy.status.shapeRowsColumns": "{{rows}}, {{columns}}",
     "copy.status.shapeCells": "{{cells}}",
     "copy.status.copiedSlice": "Copied {{label}}: {{shape}} as {{format}}",
+    "paste.status.empty": "Clipboard is empty.",
+    "paste.status.failed": "Paste failed: {{message}}",
+    "paste.status.pasted": "Pasted {{count}} cells",
     "export.status.failed": "Export failed: {{message}}",
     "export.status.exported": "Exported {{rows}}, {{columns}} to {{filename}}",
     "grid.columnFallbackNumber": "Column {{column}}",
@@ -2216,6 +2219,9 @@ const localeCatalog = {
     "copy.status.shapeRowsColumns": "{{rows}}，{{columns}}",
     "copy.status.shapeCells": "{{cells}}",
     "copy.status.copiedSlice": "已复制{{label}}：{{shape}}，格式 {{format}}",
+    "paste.status.empty": "剪贴板为空。",
+    "paste.status.failed": "粘贴失败：{{message}}",
+    "paste.status.pasted": "已粘贴 {{count}} 个单元格",
     "export.status.failed": "导出失败：{{message}}",
     "export.status.exported": "已导出 {{rows}}，{{columns}}到 {{filename}}",
     "grid.columnFallbackNumber": "第 {{column}} 列",
@@ -4247,6 +4253,10 @@ function localizedAggregateValue(aggregate) {
 
 function localizedCopyStatus(key, values = {}) {
   return tf(`copy.status.${key}`, values);
+}
+
+function localizedPasteStatus(key, values = {}) {
+  return tf(`paste.status.${key}`, values);
 }
 
 function localizedCopyCellUnit(count) {
@@ -15234,7 +15244,7 @@ async function pasteClipboard() {
     const text = await navigator.clipboard.readText();
     pasteText(text);
   } catch (error) {
-    status.textContent = `Paste failed: ${error.message}`;
+    status.textContent = localizedPasteStatus("failed", { message: error.message });
   }
 }
 
@@ -15259,7 +15269,7 @@ function pasteText(text) {
   if (!ensureEditable("Paste")) return;
   const matrix = parseTSV(text);
   if (!matrix.length) {
-    status.textContent = "Clipboard is empty.";
+    status.textContent = localizedPasteStatus("empty");
     return;
   }
   pasteParsedMatrix(matrix, "tsv");
@@ -15305,7 +15315,7 @@ function pasteMatrix(matrix) {
   selectionAnchor = { row: startRow, col: startCol };
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
-  submitCellEdits(edits, startRow, `Pasted ${formatCount(edits.length)} cells`);
+  submitCellEdits(edits, startRow, localizedPasteStatus("pasted", { count: formatCount(edits.length) }));
 }
 
 function formatMatrix(matrix, format) {
