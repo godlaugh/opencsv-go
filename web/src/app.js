@@ -1050,6 +1050,19 @@ const localeCatalog = {
     "workbench.status.dirtySuffix": " - edited",
     "workbench.status.readOnlySuffix": " - read-only",
     "workbench.status.externalSuffix": " - external change",
+    "workbook.sheetFallback": "Sheet",
+    "workbook.sheetNumber": "Sheet {{index}}",
+    "workbook.worksheetAria": "XLSX worksheet",
+    "workbook.worksheetTitle": "XLSX worksheet",
+    "workbook.noAlternateWorksheet": "No alternate worksheet",
+    "workbook.status.openWorkbook": "Open an XLSX workbook before switching worksheets.",
+    "workbook.status.onlyOneWorksheet": "The current workbook has only one worksheet.",
+    "workbook.status.saveOrReload": "Save or reload before switching worksheets.",
+    "workbook.status.chooseWorksheet": "Choose one of {{count}} worksheets.",
+    "workbook.status.needsLocalPath": "Switch Worksheet needs a local workbook path.",
+    "workbook.status.opening": "Opening worksheet {{sheet}}...",
+    "workbook.status.opened": "Opened worksheet {{sheet}}.",
+    "workbook.status.failed": "Switch Worksheet failed: {{message}}",
     "settings.title": "Settings",
     "settings.modified": "Modified",
     "settings.defaults": "Defaults",
@@ -2318,6 +2331,19 @@ const localeCatalog = {
     "workbench.status.dirtySuffix": " - 已编辑",
     "workbench.status.readOnlySuffix": " - 只读",
     "workbench.status.externalSuffix": " - 外部更改",
+    "workbook.sheetFallback": "工作表",
+    "workbook.sheetNumber": "工作表 {{index}}",
+    "workbook.worksheetAria": "XLSX 工作表",
+    "workbook.worksheetTitle": "XLSX 工作表",
+    "workbook.noAlternateWorksheet": "没有其他工作表",
+    "workbook.status.openWorkbook": "切换工作表前请先打开 XLSX 工作簿。",
+    "workbook.status.onlyOneWorksheet": "当前工作簿只有一个工作表。",
+    "workbook.status.saveOrReload": "切换工作表前请先保存或重新加载。",
+    "workbook.status.chooseWorksheet": "请选择 {{count}} 个工作表中的一个。",
+    "workbook.status.needsLocalPath": "切换工作表需要本地工作簿路径。",
+    "workbook.status.opening": "正在打开工作表 {{sheet}}...",
+    "workbook.status.opened": "已打开工作表 {{sheet}}。",
+    "workbook.status.failed": "切换工作表失败：{{message}}",
     "settings.title": "设置",
     "settings.modified": "已修改",
     "settings.defaults": "默认",
@@ -6155,23 +6181,24 @@ function syncWorkbookSheetControls() {
   if (!workbookSheetSelect) return;
   const sheets = workbookSheetOptions();
   const signature = workbookSheetSignature(sheets);
-  if (workbookSheetSelect.dataset.signature !== signature) {
+  const renderSignature = `${localePreference}:${signature}`;
+  if (workbookSheetSelect.dataset.signature !== renderSignature) {
     const fragment = document.createDocumentFragment();
     if (!sheets.length) {
       const option = document.createElement("option");
       option.value = "";
-      option.textContent = "Sheet";
+      option.textContent = t("workbook.sheetFallback");
       fragment.append(option);
     } else {
       for (const sheet of sheets) {
         const option = document.createElement("option");
         option.value = String(sheet.index);
-        option.textContent = sheet.name || `Sheet ${sheet.index}`;
+        option.textContent = sheet.name || tf("workbook.sheetNumber", { index: sheet.index });
         fragment.append(option);
       }
     }
     workbookSheetSelect.replaceChildren(fragment);
-    workbookSheetSelect.dataset.signature = signature;
+    workbookSheetSelect.dataset.signature = renderSignature;
   }
   const selectedIndex = metadata?.workbook?.selectedSheetIndex;
   const selectedValue = Number.isInteger(selectedIndex) && selectedIndex > 0 ? String(selectedIndex) : "";
@@ -6181,10 +6208,11 @@ function syncWorkbookSheetControls() {
   workbookSheetSelect.hidden = sheets.length <= 1;
   workbookSheetSelect.disabled = !documentId || sheets.length <= 1 || dirty;
   workbookSheetSelect.title = dirty
-    ? "Save or reload before switching worksheets"
+    ? t("workbook.status.saveOrReload")
     : sheets.length > 1
-      ? "XLSX worksheet"
-      : "No alternate worksheet";
+      ? t("workbook.worksheetTitle")
+      : t("workbook.noAlternateWorksheet");
+  workbookSheetSelect.setAttribute("aria-label", t("workbook.worksheetAria"));
   document.body.dataset.workbookSheetOptions = signature;
   document.body.dataset.workbookSheetSwitchBlocked = dirty && sheets.length > 1 ? "dirty" : "";
 }
@@ -6196,22 +6224,22 @@ function canSwitchWorkbookSheet() {
 function focusWorkbookSheetSelector() {
   const sheets = workbookSheetOptions();
   if (!documentId || !sheets.length) {
-    status.textContent = "Open an XLSX workbook before switching worksheets.";
+    status.textContent = t("workbook.status.openWorkbook");
     return;
   }
   if (sheets.length <= 1) {
-    status.textContent = "The current workbook has only one worksheet.";
+    status.textContent = t("workbook.status.onlyOneWorksheet");
     return;
   }
   if (dirty) {
-    status.textContent = "Save or reload before switching worksheets.";
+    status.textContent = t("workbook.status.saveOrReload");
     syncWorkbookSheetControls();
     return;
   }
   syncWorkbookSheetControls();
   workbookSheetSelect.hidden = false;
   workbookSheetSelect.focus();
-  status.textContent = `Choose one of ${formatCount(sheets.length)} worksheets.`;
+  status.textContent = tf("workbook.status.chooseWorksheet", { count: formatCount(sheets.length) });
 }
 
 async function switchWorkbookSheet() {
@@ -6224,27 +6252,29 @@ async function switchWorkbookSheet() {
   }
   if (sheet.index === metadata?.workbook?.selectedSheetIndex) return;
   if (dirty) {
-    status.textContent = "Save or reload before switching worksheets.";
+    status.textContent = t("workbook.status.saveOrReload");
     syncWorkbookSheetControls();
     return;
   }
   const path = metadata?.path || activeFileEntry?.detail || pathInput.value.trim();
   if (!path || path === "temporary upload") {
-    status.textContent = "Switch Worksheet needs a local workbook path.";
+    status.textContent = t("workbook.status.needsLocalPath");
     syncWorkbookSheetControls();
     return;
   }
   const previousSheet = metadata?.workbook?.selectedSheetName || "";
-  status.textContent = `Opening worksheet ${sheet.name || sheet.index}...`;
-  document.body.dataset.workbookSheetSwitch = `${previousSheet}->${sheet.name || sheet.index}`;
+  const sheetLabel = sheet.name || tf("workbook.sheetNumber", { index: sheet.index });
+  status.textContent = tf("workbook.status.opening", { sheet: sheetLabel });
+  document.body.dataset.workbookSheetSwitch = `${previousSheet}->${sheetLabel}`;
   try {
     await openPath(path, {
       applyRules: false,
       formatOverride: { sheetIndex: sheet.index },
+      showOpeningStatus: false,
     });
-    status.textContent = `Opened worksheet ${sheet.name || sheet.index}.`;
+    status.textContent = tf("workbook.status.opened", { sheet: sheetLabel });
   } catch (error) {
-    status.textContent = `Switch Worksheet failed: ${error.message}`;
+    status.textContent = tf("workbook.status.failed", { message: error.message });
     syncWorkbookSheetControls();
   }
 }
@@ -13466,7 +13496,9 @@ function displayRowForSourceRow(sourceRow) {
 async function openPath(path, options = {}) {
   captureActiveOpenFileTabState();
   saveCurrentScrollPosition();
-  status.textContent = `Opening ${path}...`;
+  if (options.showOpeningStatus !== false) {
+    status.textContent = `Opening ${path}...`;
+  }
   let preset = options.preset ?? null;
   const formatOverride = options.formatOverride ?? null;
   const urlLocation = options.location ?? null;
