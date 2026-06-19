@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=dirty-close-i18n-1`,
+		`v=save-restore-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=dirty-close-i18n-1`) {
+	if !strings.Contains(html, `v=save-restore-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=dirty-close-i18n-1`,
+		`v=save-restore-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=dirty-close-i18n-1`,
+		`v=save-restore-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=dirty-close-i18n-1`,
+		`v=save-restore-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=dirty-close-i18n-1`,
+		`v=save-restore-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1100,6 +1100,53 @@ func TestExternalOverwriteGuardIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing external overwrite wiring %q", snippet)
+		}
+	}
+}
+
+func TestSaveRestoreLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	htmlBytes, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(htmlBytes)
+	for _, snippet := range []string{
+		`data-i18n-aria-label="saveAs.dialogAria"`,
+		`data-i18n="saveAs.title"`,
+		`data-i18n="saveAs.path"`,
+		`data-i18n-aria-label="saveAs.pathAria"`,
+		`data-i18n-aria-label="restore.dialogAria"`,
+		`data-i18n="restore.title"`,
+		`data-i18n-aria-label="restore.backupFilesAria"`,
+		`data-i18n="common.refresh"`,
+		`v=save-restore-i18n-1`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing save/restore localized html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"saveAs.title": "另存为"`,
+		`"saveAs.status.savedBackup": "已保存 {{path}}；备份 {{backup}}"`,
+		`"restore.title": "从备份恢复"`,
+		`"restore.status.noBackups": "没有找到此文件的备份。"`,
+		`t("saveAs.status.openCsv")`,
+		`tf("saveAs.status.savingAs"`,
+		`tf("saveAs.status.failed"`,
+		`tf("saveAs.status.savedBackup"`,
+		`t("restore.status.loading")`,
+		`tf("restore.status.failedBackups"`,
+		`t("restore.status.noBackups")`,
+		`tf("restore.status.restoring"`,
+		`tf("restore.status.restored"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing save/restore localized frontend wiring %q", snippet)
 		}
 	}
 }

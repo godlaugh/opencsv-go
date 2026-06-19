@@ -858,32 +858,32 @@
     </div>
 
     <div id="saveAsPanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel" role="dialog" aria-modal="true" aria-label="Save As">
+      <section class="save-as-panel" role="dialog" aria-modal="true" aria-label="Save As" data-i18n-aria-label="saveAs.dialogAria">
         <header class="condition-panel-header">
-          <strong>Save As</strong>
-          <button id="closeSaveAsButton" type="button">Close</button>
+          <strong data-i18n="saveAs.title">Save As</strong>
+          <button id="closeSaveAsButton" type="button" data-i18n="common.close">Close</button>
         </header>
         <label class="save-as-body">
-          <span>Path</span>
-          <input id="saveAsPath" type="text" spellcheck="false" placeholder="/tmp/output.csv" aria-label="Save as path" />
+          <span data-i18n="saveAs.path">Path</span>
+          <input id="saveAsPath" type="text" spellcheck="false" placeholder="/tmp/output.csv" aria-label="Save as path" data-i18n-aria-label="saveAs.pathAria" />
         </label>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="cancelSaveAsButton" type="button" data-dialog-role="cancel">Cancel</button>
-          <button id="confirmSaveAsButton" type="button" data-dialog-role="confirm">Save</button>
+          <button id="cancelSaveAsButton" type="button" data-dialog-role="cancel" data-i18n="common.cancel">Cancel</button>
+          <button id="confirmSaveAsButton" type="button" data-dialog-role="confirm" data-i18n="file.save">Save</button>
         </footer>
       </section>
     </div>
 
     <div id="restoreBackupPanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel restore-backup-panel" role="dialog" aria-modal="true" aria-label="Restore From Backup">
+      <section class="save-as-panel restore-backup-panel" role="dialog" aria-modal="true" aria-label="Restore From Backup" data-i18n-aria-label="restore.dialogAria">
         <header class="condition-panel-header">
-          <strong>Restore From Backup</strong>
-          <button id="closeRestoreBackupButton" type="button">Close</button>
+          <strong data-i18n="restore.title">Restore From Backup</strong>
+          <button id="closeRestoreBackupButton" type="button" data-i18n="common.close">Close</button>
         </header>
-        <div id="restoreBackupList" class="restore-backup-list" role="list" aria-label="Backup files"></div>
+        <div id="restoreBackupList" class="restore-backup-list" role="list" aria-label="Backup files" data-i18n-aria-label="restore.backupFilesAria"></div>
         <footer class="condition-actions">
-          <button id="refreshRestoreBackupsButton" type="button">Refresh</button>
-          <button id="cancelRestoreBackupButton" type="button">Cancel</button>
+          <button id="refreshRestoreBackupsButton" type="button" data-i18n="common.refresh">Refresh</button>
+          <button id="cancelRestoreBackupButton" type="button" data-i18n="common.cancel">Cancel</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=dirty-close-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=save-restore-i18n-1"></script>
   </body>
 </html>

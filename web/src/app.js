@@ -564,6 +564,7 @@ const localeCatalog = {
     "command.noMatches": "No matching commands",
     "common.close": "Close",
     "common.cancel": "Cancel",
+    "common.refresh": "Refresh",
     "inspector.aria": "Column inspector",
     "inspector.cell": "Cell",
     "inspector.cellValue": "Cell Value",
@@ -981,6 +982,29 @@ const localeCatalog = {
     "recovery.status.discarded": "Recovery draft discarded.",
     "recovery.status.notFound": "Recovery draft was not found.",
     "recovery.status.restored": "Recovered draft {{name}}. Save As to keep it.",
+    "saveAs.dialogAria": "Save As",
+    "saveAs.title": "Save As",
+    "saveAs.path": "Path",
+    "saveAs.pathAria": "Save as path",
+    "saveAs.status.openCsv": "Open a CSV before using Save As.",
+    "saveAs.status.openServe": "Open a CSV through opencsv serve before saving.",
+    "saveAs.status.enterPath": "Enter a Save As path.",
+    "saveAs.status.savingAs": "Saving as {{path}}...",
+    "saveAs.status.saving": "Saving...",
+    "saveAs.status.failed": "{{action}} failed: {{message}}",
+    "saveAs.status.saved": "Saved {{path}}",
+    "saveAs.status.savedBackup": "Saved {{path}}; backup {{backup}}",
+    "restore.dialogAria": "Restore From Backup",
+    "restore.title": "Restore From Backup",
+    "restore.backupFilesAria": "Backup files",
+    "restore.status.openCsv": "Open a CSV before restoring from backup.",
+    "restore.status.loading": "Loading backups...",
+    "restore.status.failedBackups": "Backups failed: {{message}}",
+    "restore.status.noBackups": "No backups found for this file.",
+    "restore.backupFallback": "backup",
+    "restore.status.restoring": "Restoring {{name}}...",
+    "restore.status.failed": "Restore From Backup failed: {{message}}",
+    "restore.status.restored": "Restored {{name}}: {{rows}} rows",
     "workbench.split": "Split",
     "workbench.orientation": "H/V",
     "workbench.focus": "Focus",
@@ -1776,6 +1800,7 @@ const localeCatalog = {
     "command.noMatches": "没有匹配命令",
     "common.close": "关闭",
     "common.cancel": "取消",
+    "common.refresh": "刷新",
     "inspector.aria": "列检查器",
     "inspector.cell": "单元格",
     "inspector.cellValue": "单元格值",
@@ -2185,6 +2210,29 @@ const localeCatalog = {
     "recovery.status.discarded": "恢复草稿已放弃。",
     "recovery.status.notFound": "未找到恢复草稿。",
     "recovery.status.restored": "已恢复草稿 {{name}}。请另存为以保留它。",
+    "saveAs.dialogAria": "另存为",
+    "saveAs.title": "另存为",
+    "saveAs.path": "路径",
+    "saveAs.pathAria": "另存为路径",
+    "saveAs.status.openCsv": "使用另存为前请先打开 CSV。",
+    "saveAs.status.openServe": "保存前请先通过 opencsv serve 打开 CSV。",
+    "saveAs.status.enterPath": "请输入另存为路径。",
+    "saveAs.status.savingAs": "正在另存为 {{path}}...",
+    "saveAs.status.saving": "正在保存...",
+    "saveAs.status.failed": "{{action}}失败：{{message}}",
+    "saveAs.status.saved": "已保存 {{path}}",
+    "saveAs.status.savedBackup": "已保存 {{path}}；备份 {{backup}}",
+    "restore.dialogAria": "从备份恢复",
+    "restore.title": "从备份恢复",
+    "restore.backupFilesAria": "备份文件",
+    "restore.status.openCsv": "从备份恢复前请先打开 CSV。",
+    "restore.status.loading": "正在加载备份...",
+    "restore.status.failedBackups": "备份加载失败：{{message}}",
+    "restore.status.noBackups": "没有找到此文件的备份。",
+    "restore.backupFallback": "备份",
+    "restore.status.restoring": "正在恢复 {{name}}...",
+    "restore.status.failed": "从备份恢复失败：{{message}}",
+    "restore.status.restored": "已恢复 {{name}}：{{rows}} 行",
     "workbench.split": "拆分",
     "workbench.orientation": "横/纵",
     "workbench.focus": "聚焦",
@@ -18940,10 +18988,10 @@ async function saveCurrentDocument() {
 
 function openSaveAsDialog() {
   if (!documentId) {
-    status.textContent = "Open a CSV before using Save As.";
+    status.textContent = t("saveAs.status.openCsv");
     return;
   }
-  if (!ensureEditable("Save As")) return;
+  if (!ensureEditable(t("file.saveAs"))) return;
   saveAsPath.value = suggestedSaveAsPath();
   saveAsPanel.hidden = false;
   saveAsPath.focus();
@@ -18957,12 +19005,12 @@ function closeSaveAsDialog() {
 
 async function openRestoreBackupPanel() {
   if (!documentId) {
-    status.textContent = "Open a CSV before restoring from backup.";
+    status.textContent = t("restore.status.openCsv");
     return;
   }
-  if (!ensureEditable("Restore From Backup")) return;
+  if (!ensureEditable(t("restore.title"))) return;
   restoreBackupPanel.hidden = false;
-  renderRestoreBackupMessage("Loading backups...");
+  renderRestoreBackupMessage(t("restore.status.loading"));
   await loadRestoreBackups();
 }
 
@@ -18981,7 +19029,7 @@ async function loadRestoreBackups() {
   const payload = await response.json();
   if (!response.ok) {
     document.body.dataset.backupCount = "0";
-    renderRestoreBackupMessage(`Backups failed: ${payload.error ?? "unknown error"}`);
+    renderRestoreBackupMessage(tf("restore.status.failedBackups", { message: payload.error ?? "unknown error" }));
     return;
   }
   const backups = Array.isArray(payload.backups) ? payload.backups : [];
@@ -18992,7 +19040,7 @@ async function loadRestoreBackups() {
 function renderRestoreBackupList(backups) {
   restoreBackupList.replaceChildren();
   if (!backups.length) {
-    renderRestoreBackupMessage("No backups found for this file.");
+    renderRestoreBackupMessage(t("restore.status.noBackups"));
     return;
   }
   for (const backup of backups) {
@@ -19002,7 +19050,7 @@ function renderRestoreBackupList(backups) {
     button.dataset.backupPath = backup.path ?? "";
     const detail = document.createElement("div");
     const name = document.createElement("strong");
-    name.textContent = backup.name || fileNameFromPath(backup.path || "backup");
+    name.textContent = backup.name || fileNameFromPath(backup.path || t("restore.backupFallback"));
     const path = document.createElement("span");
     path.textContent = backup.path ?? "";
     detail.append(name, path);
@@ -19018,8 +19066,9 @@ function renderRestoreBackupList(backups) {
 
 async function restoreBackup(path) {
   if (!documentId || !path) return;
-  if (!ensureEditable("Restore From Backup")) return;
-  status.textContent = `Restoring ${fileNameFromPath(path)}...`;
+  if (!ensureEditable(t("restore.title"))) return;
+  const backupName = fileNameFromPath(path);
+  status.textContent = tf("restore.status.restoring", { name: backupName });
   const response = await fetch("/api/restore-backup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19027,11 +19076,11 @@ async function restoreBackup(path) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Restore From Backup failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("restore.status.failed", { message: payload.error ?? "unknown error" });
     return;
   }
   document.body.dataset.backupRestored = path;
-  applyMutationPayload(payload, `Restored ${fileNameFromPath(path)}: ${formatCount(payload.totalRows ?? 0)} rows`);
+  applyMutationPayload(payload, tf("restore.status.restored", { name: backupName, rows: formatCount(payload.totalRows ?? 0) }));
   closeRestoreBackupPanel();
 }
 
@@ -19137,7 +19186,7 @@ function suggestedSaveAsPath() {
 async function confirmSaveAs() {
   const path = saveAsPath.value.trim();
   if (!path) {
-    status.textContent = "Enter a Save As path.";
+    status.textContent = t("saveAs.status.enterPath");
     saveAsPath.focus();
     return;
   }
@@ -19146,12 +19195,13 @@ async function confirmSaveAs() {
 
 async function saveDocumentToPath(path = "", options = {}) {
   if (!documentId) {
-    status.textContent = "Open a CSV through opencsv serve before saving.";
+    status.textContent = t("saveAs.status.openServe");
     return;
   }
-  if (!ensureEditable(options.saveAs ? "Save As" : "Save")) return;
+  const saveAction = options.saveAs ? t("file.saveAs") : t("file.save");
+  if (!ensureEditable(saveAction)) return;
   const draftIDBeforeSave = dirtyDraftID();
-  status.textContent = options.saveAs ? `Saving as ${path}...` : "Saving...";
+  status.textContent = options.saveAs ? tf("saveAs.status.savingAs", { path }) : t("saveAs.status.saving");
   const response = await fetch("/api/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19174,7 +19224,7 @@ async function saveDocumentToPath(path = "", options = {}) {
       status.textContent = t("externalChange.status.saveBlocked");
       return;
     }
-    status.textContent = `${options.saveAs ? "Save As" : "Save"} failed: ${message}`;
+    status.textContent = tf("saveAs.status.failed", { action: saveAction, message });
     return;
   }
   dirty = false;
@@ -19191,8 +19241,8 @@ async function saveDocumentToPath(path = "", options = {}) {
   }
   if (options.saveAs) closeSaveAsDialog();
   status.textContent = payload.backupPath
-    ? `Saved ${payload.path}; backup ${payload.backupPath}`
-    : `Saved ${payload.path}`;
+    ? tf("saveAs.status.savedBackup", { path: payload.path, backup: payload.backupPath })
+    : tf("saveAs.status.saved", { path: payload.path });
   await checkFileStatus(false);
 }
 
