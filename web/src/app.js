@@ -748,6 +748,28 @@ const localeCatalog = {
     "edit.status.removedDuplicateColumns": "Removed {{count}} duplicate columns",
     "edit.status.noDuplicateRows": "No duplicate rows found",
     "edit.status.noDuplicateColumns": "No duplicate columns found",
+    "aggregate.metric.count": "Count",
+    "aggregate.metric.sum": "Sum",
+    "aggregate.metric.avg": "Avg",
+    "aggregate.metric.min": "Min",
+    "aggregate.metric.max": "Max",
+    "aggregate.button.empty": "Count 0",
+    "aggregate.button.title": "Click to switch aggregate; Command-click to copy.",
+    "aggregate.summary.headersIncluded": ", headers included",
+    "aggregate.summary.selected": " - selected {{count}} cells",
+    "aggregate.summary.selectedWithHeaders": " - selected {{count}} cells{{headers}}",
+    "aggregate.summary.numeric": " - selected {{count}} cells, sum {{sum}}, avg {{avg}}, min {{min}}, max {{max}}",
+    "aggregate.status.selectMultiple": "Select multiple cells to aggregate.",
+    "aggregate.status.selectMultipleCopy": "Select multiple cells to copy an aggregate.",
+    "aggregate.status.value": "{{label}} {{value}}",
+    "aggregate.status.copied": "Copied {{label}} {{value}}",
+    "aggregate.status.copyFailed": "Aggregate copy failed: {{message}}",
+    "aggregate.status.selectDataRows": "Select data rows before adding an aggregate row.",
+    "aggregate.status.selectCellsCount": "Select cells to add a count row.",
+    "aggregate.status.selectNumericCells": "Select numeric cells to add an aggregate row.",
+    "aggregate.status.addedRow": "Added {{label}} aggregate row",
+    "aggregate.status.noNumeric": "No numeric values in the selected columns.",
+    "aggregate.status.removedRow": "Removed aggregate row",
     "cell.status.running": "{{action}}...",
     "cell.status.failed": "{{action}} failed: {{message}}",
     "cell.status.changed": "{{action}}: {{count}} cells changed",
@@ -2115,6 +2137,28 @@ const localeCatalog = {
     "edit.status.removedDuplicateColumns": "已删除 {{count}} 个重复列",
     "edit.status.noDuplicateRows": "未找到重复行",
     "edit.status.noDuplicateColumns": "未找到重复列",
+    "aggregate.metric.count": "计数",
+    "aggregate.metric.sum": "求和",
+    "aggregate.metric.avg": "平均",
+    "aggregate.metric.min": "最小值",
+    "aggregate.metric.max": "最大值",
+    "aggregate.button.empty": "计数 0",
+    "aggregate.button.title": "点击切换聚合；Command 点击复制。",
+    "aggregate.summary.headersIncluded": "，包含表头",
+    "aggregate.summary.selected": " - 已选 {{count}} 个单元格",
+    "aggregate.summary.selectedWithHeaders": " - 已选 {{count}} 个单元格{{headers}}",
+    "aggregate.summary.numeric": " - 已选 {{count}} 个单元格，求和 {{sum}}，平均 {{avg}}，最小 {{min}}，最大 {{max}}",
+    "aggregate.status.selectMultiple": "请选择多个单元格进行聚合。",
+    "aggregate.status.selectMultipleCopy": "请选择多个单元格来复制聚合值。",
+    "aggregate.status.value": "{{label}} {{value}}",
+    "aggregate.status.copied": "已复制 {{label}} {{value}}",
+    "aggregate.status.copyFailed": "聚合复制失败：{{message}}",
+    "aggregate.status.selectDataRows": "添加聚合行前请先选择数据行。",
+    "aggregate.status.selectCellsCount": "请选择单元格来添加计数行。",
+    "aggregate.status.selectNumericCells": "请选择数值单元格来添加聚合行。",
+    "aggregate.status.addedRow": "已添加{{label}}聚合行",
+    "aggregate.status.noNumeric": "所选列中没有数值。",
+    "aggregate.status.removedRow": "已移除聚合行",
     "cell.status.running": "正在{{action}}...",
     "cell.status.failed": "{{action}}失败：{{message}}",
     "cell.status.changed": "{{action}}：已更改 {{count}} 个单元格",
@@ -4109,6 +4153,18 @@ function localizedCellChanged(action, count) {
 
 function localizedCellNoChange(action) {
   return localizedCellStatus("noChange", { action });
+}
+
+function localizedAggregateStatus(key, values = {}) {
+  return tf(`aggregate.status.${key}`, values);
+}
+
+function localizedAggregateMetric(metric) {
+  return translationOrEmpty(`aggregate.metric.${metric}`) || metric;
+}
+
+function localizedAggregateValue(aggregate) {
+  return localizedAggregateStatus("value", { label: aggregate.label, value: aggregate.formatted });
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -9863,13 +9919,19 @@ function selectionAggregateStats() {
 function selectionAggregateSummary(stats = currentSelectionAggregateStats()) {
   if (stats.count <= 1) return "";
   if (stats.limited) {
-    const headerNote = includeHeadersInSelection ? ", headers included" : "";
-    return ` - selected ${formatCount(stats.count)} cells${headerNote}`;
+    const headerNote = includeHeadersInSelection ? t("aggregate.summary.headersIncluded") : "";
+    return tf("aggregate.summary.selectedWithHeaders", { count: formatCount(stats.count), headers: headerNote });
   }
   if (!stats.numericCount) {
-    return ` - selected ${formatCount(stats.count)} cells`;
+    return tf("aggregate.summary.selected", { count: formatCount(stats.count) });
   }
-  return ` - selected ${formatCount(stats.count)} cells, sum ${formatNumber(stats.sum)}, avg ${formatNumber(stats.avg)}, min ${formatNumber(stats.min)}, max ${formatNumber(stats.max)}`;
+  return tf("aggregate.summary.numeric", {
+    count: formatCount(stats.count),
+    sum: formatNumber(stats.sum),
+    avg: formatNumber(stats.avg),
+    min: formatNumber(stats.min),
+    max: formatNumber(stats.max),
+  });
 }
 
 function aggregateMetricOptions(stats = currentSelectionAggregateStats()) {
@@ -9898,13 +9960,7 @@ function activeAggregate(stats = currentSelectionAggregateStats()) {
 }
 
 function aggregateMetricLabel(metric) {
-  return {
-    count: "Count",
-    sum: "Sum",
-    avg: "Avg",
-    min: "Min",
-    max: "Max",
-  }[metric] ?? metric;
+  return localizedAggregateMetric(metric);
 }
 
 function updateAggregateStatus(stats = currentSelectionAggregateStats()) {
@@ -9917,16 +9973,17 @@ function updateAggregateStatus(stats = currentSelectionAggregateStats()) {
   if (!aggregate) {
     aggregateStatusButton.hidden = true;
     aggregateStatusButton.disabled = true;
-    aggregateStatusButton.textContent = "Count 0";
+    aggregateStatusButton.textContent = t("aggregate.button.empty");
     aggregateStatusButton.removeAttribute("aria-label");
     delete document.body.dataset.aggregateActive;
     return;
   }
   aggregateStatusButton.hidden = false;
   aggregateStatusButton.disabled = false;
-  aggregateStatusButton.textContent = `${aggregate.label} ${aggregate.formatted}`;
-  aggregateStatusButton.title = "Click to switch aggregate; Command-click to copy.";
-  aggregateStatusButton.setAttribute("aria-label", `${aggregate.label} ${aggregate.formatted}`);
+  const aggregateLabel = localizedAggregateValue(aggregate);
+  aggregateStatusButton.textContent = aggregateLabel;
+  aggregateStatusButton.title = t("aggregate.button.title");
+  aggregateStatusButton.setAttribute("aria-label", aggregateLabel);
   document.body.dataset.aggregateActive = `${aggregate.metric}:${aggregate.formatted}`;
 }
 
@@ -9934,7 +9991,7 @@ function cycleAggregateMetric() {
   const stats = selectionAggregateStats();
   const options = aggregateMetricOptions(stats);
   if (!options.length) {
-    status.textContent = "Select multiple cells to aggregate.";
+    status.textContent = localizedAggregateStatus("selectMultiple");
     return;
   }
   const current = normalizeAggregateMetric(stats);
@@ -9943,13 +10000,13 @@ function cycleAggregateMetric() {
   const aggregate = activeAggregate(stats);
   updateAggregateStatus(stats);
   draw();
-  status.textContent = `${aggregate.label} ${aggregate.formatted}`;
+  status.textContent = localizedAggregateValue(aggregate);
 }
 
 async function copyActiveAggregate() {
   const aggregate = activeAggregate();
   if (!aggregate) {
-    status.textContent = "Select multiple cells to copy an aggregate.";
+    status.textContent = localizedAggregateStatus("selectMultipleCopy");
     return;
   }
   const text = aggregate.formatted;
@@ -9957,9 +10014,9 @@ async function copyActiveAggregate() {
   document.body.dataset.aggregatePreview = `${aggregate.metric}:${text}`;
   try {
     await writeClipboardText(text);
-    status.textContent = `Copied ${aggregate.label} ${text}`;
+    status.textContent = localizedAggregateStatus("copied", { label: aggregate.label, value: text });
   } catch (error) {
-    status.textContent = `Aggregate copy failed: ${error.message}`;
+    status.textContent = localizedAggregateStatus("copyFailed", { message: error.message });
   }
 }
 
@@ -9967,7 +10024,7 @@ function insertAggregateRow(metricOverride = "") {
   if (!documentId) return;
   const range = normalizedSelection();
   if (range.endRow >= sourceRowCount) {
-    status.textContent = "Select data rows before adding an aggregate row.";
+    status.textContent = localizedAggregateStatus("selectDataRows");
     return;
   }
   const stats = selectionAggregateStats();
@@ -9975,7 +10032,7 @@ function insertAggregateRow(metricOverride = "") {
   let metric = "";
   if (metricOverride) {
     if (!options.includes(metricOverride)) {
-      status.textContent = metricOverride === "count" ? "Select cells to add a count row." : "Select numeric cells to add an aggregate row.";
+      status.textContent = metricOverride === "count" ? localizedAggregateStatus("selectCellsCount") : localizedAggregateStatus("selectNumericCells");
       return;
     }
     metric = metricOverride;
@@ -9983,7 +10040,7 @@ function insertAggregateRow(metricOverride = "") {
     metric = normalizeAggregateMetric(stats);
   }
   if (!metric) {
-    status.textContent = metricOverride === "count" ? "Select cells to add a count row." : "Select numeric cells to add an aggregate row.";
+    status.textContent = metricOverride === "count" ? localizedAggregateStatus("selectCellsCount") : localizedAggregateStatus("selectNumericCells");
     return;
   }
   const row = aggregateRowForSelection(range, metric);
@@ -9994,7 +10051,7 @@ function insertAggregateRow(metricOverride = "") {
   selectionAnchor = { ...selected };
   document.body.dataset.aggregateRowPreview = `${metric}:${row.values.join("|")}`;
   draw();
-  status.textContent = `Added ${aggregateMetricLabel(metric)} aggregate row`;
+  status.textContent = localizedAggregateStatus("addedRow", { label: aggregateMetricLabel(metric) });
 }
 
 function aggregateRowForSelection(range, metric) {
@@ -10009,7 +10066,7 @@ function aggregateRowForSelection(range, metric) {
     populated++;
   }
   if (populated === 0) {
-    status.textContent = "No numeric values in the selected columns.";
+    status.textContent = localizedAggregateStatus("noNumeric");
     return null;
   }
   return {
@@ -10054,7 +10111,7 @@ function removeSelectedAggregateRow() {
   selectionAnchor = { ...selected };
   document.body.dataset.aggregateRowPreview = `removed:${aggregateRows.length}`;
   draw();
-  status.textContent = "Removed aggregate row";
+  status.textContent = localizedAggregateStatus("removedRow");
   return true;
 }
 

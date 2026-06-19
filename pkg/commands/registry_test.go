@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
+	if !strings.Contains(html, `v=aggregate-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -647,6 +647,51 @@ func TestSelectionAggregateStatsAreCachedAndLimited(t *testing.T) {
 	}
 }
 
+func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=aggregate-i18n-1`) {
+		t.Fatalf("missing aggregate localization cache bust")
+	}
+	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
+		t.Fatalf("missing aggregate button localized html wiring")
+	}
+	for _, snippet := range []string{
+		`"aggregate.metric.sum": "求和"`,
+		`"aggregate.summary.numeric": " - 已选 {{count}} 个单元格，求和 {{sum}}，平均 {{avg}}，最小 {{min}}，最大 {{max}}"`,
+		`"aggregate.status.selectMultiple": "请选择多个单元格进行聚合。"`,
+		`"aggregate.status.copied": "已复制 {{label}} {{value}}"`,
+		`"aggregate.status.addedRow": "已添加{{label}}聚合行"`,
+		`function localizedAggregateStatus(key, values = {})`,
+		`function localizedAggregateMetric(metric)`,
+		`function localizedAggregateValue(aggregate)`,
+		`t("aggregate.button.empty")`,
+		`t("aggregate.button.title")`,
+		`tf("aggregate.summary.numeric"`,
+		`localizedAggregateStatus("selectMultiple")`,
+		`localizedAggregateStatus("selectMultipleCopy")`,
+		`localizedAggregateStatus("copyFailed"`,
+		`localizedAggregateStatus("selectDataRows")`,
+		`localizedAggregateStatus("selectCellsCount")`,
+		`localizedAggregateStatus("selectNumericCells")`,
+		`localizedAggregateStatus("addedRow"`,
+		`localizedAggregateStatus("noNumeric")`,
+		`localizedAggregateStatus("removedRow")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing aggregate localization wiring %q", snippet)
+		}
+	}
+}
+
 func TestOpenFileTabsAreWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
@@ -735,7 +780,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +923,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1124,7 +1169,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1168,7 +1213,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1213,7 +1258,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=cell-tool-i18n-1`,
+		`v=aggregate-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1256,7 +1301,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
+	if !strings.Contains(html, `v=aggregate-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1292,7 +1337,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
+	if !strings.Contains(html, `v=aggregate-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1343,7 +1388,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=cell-tool-i18n-1`) {
+	if !strings.Contains(html, `v=aggregate-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{
