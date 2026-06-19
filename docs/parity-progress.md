@@ -276,6 +276,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-019 | Locale preference and app chrome i18n foundation | Started | Browser Settings language persistence verification |
 | FR-019 | Localized command palette and shared command labels | Started | Browser command-palette/context-menu locale verification |
 | FR-019/009 | Localized Diff View controls and result table foundation | Started | command registry static coverage, Browser Diff locale verification |
+| FR-019/009 | Localized Diff View run, clipboard, goto, and merge statuses | Started | command registry static coverage, Browser zh-CN Diff status verification |
 | FR-019 | Light/dark/system theme foundation | Started | command registry, Browser command-palette verification |
 | FR-019 | High contrast theme foundation | Started | Browser Settings persistence verification |
 | FR-020 | Start/recent file sidebar foundation | Started | Browser recent-open and missing-recent cleanup verification |

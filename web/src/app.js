@@ -1090,6 +1090,18 @@ const localeCatalog = {
     "diff.side.right": "right",
     "diff.status.openedSource": "Opened {{side}} row {{row}} from compare.",
     "diff.status.openSourceFailed": "Open compare source failed: {{message}}",
+    "diff.status.chooseInputs": "Choose left CSV and right CSV path or text to compare.",
+    "diff.status.comparing": "Comparing files...",
+    "diff.status.failed": "Diff failed: {{message}}",
+    "diff.status.clipboardUnavailable": "Clipboard read is unavailable; paste CSV text into the right side.",
+    "diff.status.clipboardEmpty": "Clipboard is empty.",
+    "diff.status.clipboardLoaded": "Loaded {{count}} clipboard characters for compare.",
+    "diff.status.clipboardFailed": "Clipboard read failed: {{message}}",
+    "diff.status.goto": "Diff goto {{side}} row {{row}}.",
+    "diff.status.applying": "Applying diff change...",
+    "diff.status.mergeFailed": "Merge failed: {{message}}",
+    "diff.status.merged": "Merged {{applied}}{{backup}}",
+    "diff.status.mergeBackupSuffix": " backup {{path}}",
     "diff.status.editingCell": "Editing {{side}} row {{row}} c{{col}}...",
     "diff.status.editedCell": "Edited {{side}} row {{row}} c{{col}}{{backup}}.",
     "diff.status.editFailed": "Diff edit failed: {{message}}",
@@ -2532,6 +2544,18 @@ const localeCatalog = {
     "diff.side.right": "右侧",
     "diff.status.openedSource": "已从比较打开{{side}}第 {{row}} 行。",
     "diff.status.openSourceFailed": "打开比较源失败：{{message}}",
+    "diff.status.chooseInputs": "请选择左侧 CSV 和右侧 CSV 路径或文本进行比较。",
+    "diff.status.comparing": "正在比较文件...",
+    "diff.status.failed": "差异比较失败：{{message}}",
+    "diff.status.clipboardUnavailable": "剪贴板读取不可用；请将 CSV 文本粘贴到右侧。",
+    "diff.status.clipboardEmpty": "剪贴板为空。",
+    "diff.status.clipboardLoaded": "已加载 {{count}} 个剪贴板字符用于比较。",
+    "diff.status.clipboardFailed": "剪贴板读取失败：{{message}}",
+    "diff.status.goto": "差异跳转到{{side}}第 {{row}} 行。",
+    "diff.status.applying": "正在应用差异更改...",
+    "diff.status.mergeFailed": "合并失败：{{message}}",
+    "diff.status.merged": "已合并 {{applied}}{{backup}}",
+    "diff.status.mergeBackupSuffix": "，备份 {{path}}",
     "diff.status.editingCell": "正在编辑{{side}}第 {{row}} 行 c{{col}}...",
     "diff.status.editedCell": "已编辑{{side}}第 {{row}} 行 c{{col}}{{backup}}。",
     "diff.status.editFailed": "差异编辑失败：{{message}}",
@@ -21739,10 +21763,10 @@ async function runDiffCompare() {
   const rightPath = rightDiffPath.value.trim();
   const rightText = diffRightTextMode.checked ? diffRightText.value : "";
   if (!leftPath || (!rightPath && !rightText)) {
-    status.textContent = "Choose left CSV and right CSV path or text to compare.";
+    status.textContent = t("diff.status.chooseInputs");
     return;
   }
-  status.textContent = "Comparing files...";
+  status.textContent = t("diff.status.comparing");
   const response = await fetch("/api/diff", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -21757,8 +21781,9 @@ async function runDiffCompare() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Diff failed: ${payload.error ?? "unknown error"}`;
-    diffResult.replaceChildren(emptyDiffNode(payload.error ?? "Diff failed"));
+    const message = payload.error ?? "unknown error";
+    status.textContent = tf("diff.status.failed", { message });
+    diffResult.replaceChildren(emptyDiffNode(message));
     diffRows = [];
     activeDiffIndex = -1;
     lastDiffResult = null;
@@ -21808,7 +21833,7 @@ function setDiffRightTextMode(enabled) {
 
 async function pasteDiffClipboardText() {
   if (!navigator.clipboard?.readText) {
-    status.textContent = "Clipboard read is unavailable; paste CSV text into the right side.";
+    status.textContent = t("diff.status.clipboardUnavailable");
     setDiffRightTextMode(true);
     diffRightText.focus();
     document.body.dataset.diffClipboard = "unavailable";
@@ -21817,7 +21842,7 @@ async function pasteDiffClipboardText() {
   try {
     const text = await navigator.clipboard.readText();
     if (!text) {
-      status.textContent = "Clipboard is empty.";
+      status.textContent = t("diff.status.clipboardEmpty");
       document.body.dataset.diffClipboard = "empty";
       return;
     }
@@ -21828,9 +21853,9 @@ async function pasteDiffClipboardText() {
     document.body.dataset.diffClipboard = String(text.length);
     rightDiffPath.value = "";
     diffRightText.focus();
-    status.textContent = `Loaded ${text.length.toLocaleString()} clipboard characters for compare.`;
+    status.textContent = tf("diff.status.clipboardLoaded", { count: text.length.toLocaleString(localeLanguageTag()) });
   } catch (error) {
-    status.textContent = `Clipboard read failed: ${error.message}`;
+    status.textContent = tf("diff.status.clipboardFailed", { message: error.message });
     setDiffRightTextMode(true);
     diffRightText.focus();
     document.body.dataset.diffClipboard = "failed";
@@ -22152,7 +22177,10 @@ function applyDiffURLGoto(side, location) {
   }
   activateDiffRow(diffIndex);
   document.body.dataset.diffGotoActive = `${targetSide}:${targetRow}:${resultIndex}`;
-  status.textContent = `Diff goto ${targetSide} row ${targetRow}.`;
+  status.textContent = tf("diff.status.goto", {
+    side: localizedDiffSide(targetSide),
+    row: formatCount(targetRow),
+  });
   return true;
 }
 
@@ -22255,7 +22283,7 @@ async function mergeDiffChange(resultIndex, mode, col, direction = "right-to-lef
   const rightPath = rightDiffPath.value.trim();
   const rightText = diffRightTextMode.checked ? diffRightText.value : "";
   if (!leftPath || (!rightPath && !rightText)) return;
-  status.textContent = "Applying diff change...";
+  status.textContent = t("diff.status.applying");
   const response = await fetch("/api/diff-merge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -22273,11 +22301,11 @@ async function mergeDiffChange(resultIndex, mode, col, direction = "right-to-lef
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Merge failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("diff.status.mergeFailed", { message: payload.error ?? "unknown error" });
     return;
   }
-  const backup = payload.save?.backupPath ? ` backup ${payload.save.backupPath}` : "";
-  status.textContent = `Merged ${payload.applied}${backup}`;
+  const backup = payload.save?.backupPath ? tf("diff.status.mergeBackupSuffix", { path: payload.save.backupPath }) : "";
+  status.textContent = tf("diff.status.merged", { applied: payload.applied, backup });
   await runDiffCompare();
 }
 
