@@ -42,6 +42,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-003 | Per-file hidden-column persistence | Started | Browser hide/reload/show-all verification |
 | FR-003 | Smart Selection add/subtract/invert foundation | Started | Command registry, Browser selection-range verification |
 | FR-003 | Smart Selection mouse add/subtract gestures | Started | Browser Cmd/Ctrl drag verification |
+| FR-019/003 | Localized Smart Selection and selection status feedback | Started | command registry static coverage, Browser zh-CN selection status verification |
 | FR-003 | Cell value panel and hyperlink opening foundation | Started | Browser Inspector verification |
 | FR-003 | URL cell hover cursor and modifier-click open foundation | Started | Browser hover-state verification |
 | FR-003/012 | Cell link audit and open-link command | Started | command registry, Browser Inspector/context-menu verification |

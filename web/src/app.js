@@ -715,6 +715,21 @@ const localeCatalog = {
     "text.status.failed": "{{label}} failed: {{message}}",
     "text.status.changed": "{{label}}: {{count}} cells changed",
     "text.status.noChange": "{{label}}: no cells changed",
+    "selection.status.selectAtLeastOne": "Select at least one cell.",
+    "selection.status.transformLimit": "Selection has {{count}} cells; transform limit is {{limit}}.",
+    "selection.status.loadFilteredRowsTransform": "Load the selected filtered rows before transforming them.",
+    "selection.status.loadFilteredRowsStructure": "Load the selected filtered rows before using row structure commands.",
+    "selection.status.headerIncluded": "Header included when copying selection",
+    "selection.status.headerExcluded": "Header excluded from selection copy",
+    "selection.status.addedGesture": "Added range by gesture: {{count}} cells selected",
+    "selection.status.subtractedGesture": "Subtracted range by gesture: {{count}} cells selected",
+    "selection.status.clearedGesture": "Selection range cleared by gesture",
+    "selection.status.addedRange": "Added range to selection: {{count}} cells selected",
+    "selection.status.subtractedRange": "Subtracted range: {{count}} cells selected",
+    "selection.status.rangeCleared": "Selection range cleared",
+    "selection.status.inverted": "Inverted selection: {{count}} cells selected",
+    "selection.status.invertedEmpty": "Inverted selection is empty",
+    "selection.status.extraCleared": "Extra selection ranges cleared",
     "edit.row": "{{count}} row",
     "edit.rows": "{{count}} rows",
     "edit.column": "{{count}} column",
@@ -2150,6 +2165,21 @@ const localeCatalog = {
     "text.status.failed": "{{label}}失败：{{message}}",
     "text.status.changed": "{{label}}：已更改 {{count}} 个单元格",
     "text.status.noChange": "{{label}}：没有单元格更改",
+    "selection.status.selectAtLeastOne": "请选择至少一个单元格。",
+    "selection.status.transformLimit": "选区有 {{count}} 个单元格；转换上限为 {{limit}}。",
+    "selection.status.loadFilteredRowsTransform": "请先加载所选筛选行，再转换它们。",
+    "selection.status.loadFilteredRowsStructure": "请先加载所选筛选行，再使用行结构命令。",
+    "selection.status.headerIncluded": "复制选区时将包含表头",
+    "selection.status.headerExcluded": "复制选区时将不包含表头",
+    "selection.status.addedGesture": "已通过手势添加范围：已选 {{count}} 个单元格",
+    "selection.status.subtractedGesture": "已通过手势减去范围：已选 {{count}} 个单元格",
+    "selection.status.clearedGesture": "已通过手势清除选区范围",
+    "selection.status.addedRange": "已添加范围到选区：已选 {{count}} 个单元格",
+    "selection.status.subtractedRange": "已减去范围：已选 {{count}} 个单元格",
+    "selection.status.rangeCleared": "选区范围已清除",
+    "selection.status.inverted": "已反转选区：已选 {{count}} 个单元格",
+    "selection.status.invertedEmpty": "反转后的选区为空",
+    "selection.status.extraCleared": "已清除额外选区范围",
     "edit.row": "{{count}} 行",
     "edit.rows": "{{count}} 行",
     "edit.column": "{{count}} 列",
@@ -4203,6 +4233,10 @@ function localizedCommandStatus(key, values = {}) {
 
 function localizedTransformStatus(key, label, values = {}) {
   return tf(`text.status.${key}`, { label, ...values });
+}
+
+function localizedSelectionStatus(key, values = {}) {
+  return tf(`selection.status.${key}`, values);
 }
 
 function localizedEditStatus(key, values = {}) {
@@ -14285,7 +14319,7 @@ function selectedRowsForStructure() {
     for (let row = range.startRow; row <= range.endRow; row++) {
       const sourceRow = rowSource.get(row);
       if (viewMapped && sourceRow == null) {
-        status.textContent = "Load the selected filtered rows before using row structure commands.";
+        status.textContent = localizedSelectionStatus("loadFilteredRowsStructure");
         return null;
       }
       const recordRow = sourceRow ?? row + dataStartRow;
@@ -14350,11 +14384,14 @@ function selectedHeaders() {
 function selectedCellsForTransform(maxCells = 100_000) {
   const count = selectionCellCount();
   if (count === 0) {
-    status.textContent = "Select at least one cell.";
+    status.textContent = localizedSelectionStatus("selectAtLeastOne");
     return null;
   }
   if (count > maxCells) {
-    status.textContent = `Selection has ${formatCount(count)} cells; transform limit is ${formatCount(maxCells)}.`;
+    status.textContent = localizedSelectionStatus("transformLimit", {
+      count: formatCount(count),
+      limit: formatCount(maxCells),
+    });
     return null;
   }
   const cells = [];
@@ -14366,7 +14403,7 @@ function selectedCellsForTransform(maxCells = 100_000) {
     for (let row = range.startRow; row <= range.endRow; row++) {
       const sourceRow = rowSource.get(row);
       if (viewMapped && sourceRow == null) {
-        status.textContent = "Load the selected filtered rows before transforming them.";
+        status.textContent = localizedSelectionStatus("loadFilteredRowsTransform");
         return null;
       }
       const recordRow = sourceRow ?? row + dataStartRow;
@@ -14383,8 +14420,8 @@ function toggleHeaderInSelection() {
   setHeaderInSelection(!includeHeadersInSelection);
   draw();
   status.textContent = includeHeadersInSelection
-    ? "Header included when copying selection"
-    : "Header excluded from selection copy";
+    ? localizedSelectionStatus("headerIncluded")
+    : localizedSelectionStatus("headerExcluded");
 }
 
 function setHeaderInSelection(value) {
@@ -14426,15 +14463,15 @@ function finishSmartSelectionGesture() {
     document.body.dataset.smartSelectionGesture = `subtract:${rangeKey(range)}`;
     draw();
     status.textContent = smartSelectionRanges.length
-      ? `Subtracted range by gesture: ${formatCount(selectionCellCount())} cells selected`
-      : "Selection range cleared by gesture";
+      ? localizedSelectionStatus("subtractedGesture", { count: formatCount(selectionCellCount()) })
+      : localizedSelectionStatus("clearedGesture");
     return true;
   }
 
   setSmartSelectionRanges([...base, range]);
   document.body.dataset.smartSelectionGesture = `add:${rangeKey(range)}`;
   draw();
-  status.textContent = `Added range by gesture: ${formatCount(selectionCellCount())} cells selected`;
+  status.textContent = localizedSelectionStatus("addedGesture", { count: formatCount(selectionCellCount()) });
   return true;
 }
 
@@ -14442,7 +14479,7 @@ function addSmartSelectionRange() {
   if (!documentId || columns.length === 0 || totalRows === 0) return;
   setSmartSelectionRanges([...smartSelectionRanges, normalizedSelection()]);
   draw();
-  status.textContent = `Added range to selection: ${formatCount(selectionCellCount())} cells selected`;
+  status.textContent = localizedSelectionStatus("addedRange", { count: formatCount(selectionCellCount()) });
 }
 
 function subtractSmartSelectionRange() {
@@ -14455,8 +14492,8 @@ function subtractSmartSelectionRange() {
   focusFirstSmartSelectionCell();
   draw();
   status.textContent = smartSelectionRanges.length
-    ? `Subtracted range: ${formatCount(selectionCellCount())} cells selected`
-    : "Selection range cleared";
+    ? localizedSelectionStatus("subtractedRange", { count: formatCount(selectionCellCount()) })
+    : localizedSelectionStatus("rangeCleared");
 }
 
 function invertSmartSelection() {
@@ -14469,15 +14506,15 @@ function invertSmartSelection() {
   focusFirstSmartSelectionCell();
   draw();
   status.textContent = smartSelectionRanges.length
-    ? `Inverted selection: ${formatCount(selectionCellCount())} cells selected`
-    : "Inverted selection is empty";
+    ? localizedSelectionStatus("inverted", { count: formatCount(selectionCellCount()) })
+    : localizedSelectionStatus("invertedEmpty");
 }
 
 function clearSmartSelectionRanges() {
   if (!smartSelectionRanges.length) return false;
   setSmartSelectionRanges([]);
   draw();
-  status.textContent = "Extra selection ranges cleared";
+  status.textContent = localizedSelectionStatus("extraCleared");
   return true;
 }
 
