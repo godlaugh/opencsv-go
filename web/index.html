@@ -889,19 +889,19 @@
     </div>
 
     <div id="dirtyClosePanel" class="command-palette-backdrop" hidden>
-      <section class="save-as-panel dirty-close-panel" role="dialog" aria-modal="true" aria-label="Close unsaved tab">
+      <section class="save-as-panel dirty-close-panel" role="dialog" aria-modal="true" aria-label="Close unsaved tab" data-i18n-aria-label="dirtyClose.dialogAria">
         <header class="condition-panel-header">
-          <strong>Close Unsaved Tab</strong>
-          <button id="closeDirtyCloseButton" type="button">Close</button>
+          <strong data-i18n="dirtyClose.title">Close Unsaved Tab</strong>
+          <button id="closeDirtyCloseButton" type="button" data-i18n="common.close">Close</button>
         </header>
         <div class="transpose-confirm-body">
-          <strong id="dirtyCloseName">Unsaved document</strong>
-          <p id="dirtyCloseDetail">This tab has unsaved edits. Save it before closing, or discard the tab explicitly.</p>
-          <p class="transpose-confirm-warning">Discarding closes the tab and removes its recovery draft for this session.</p>
+          <strong id="dirtyCloseName" data-i18n="dirtyClose.unsavedDocument">Unsaved document</strong>
+          <p id="dirtyCloseDetail" data-i18n="dirtyClose.message.generic">This tab has unsaved edits. Save it before closing, or discard the tab explicitly.</p>
+          <p class="transpose-confirm-warning" data-i18n="dirtyClose.warning">Discarding closes the tab and removes its recovery draft for this session.</p>
         </div>
         <footer class="condition-actions" data-dialog-actions>
-          <button id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel">Keep Editing</button>
-          <button id="discardDirtyCloseButton" type="button" data-dialog-role="confirm">Discard Tab</button>
+          <button id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel" data-i18n="dirtyClose.keepEditing">Keep Editing</button>
+          <button id="discardDirtyCloseButton" type="button" data-dialog-role="confirm" data-i18n="dirtyClose.discardTab">Discard Tab</button>
         </footer>
       </section>
     </div>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=external-change-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=dirty-close-i18n-1"></script>
   </body>
 </html>

@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=external-change-i18n-1`,
+		`v=dirty-close-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=external-change-i18n-1`) {
+	if !strings.Contains(html, `v=dirty-close-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=external-change-i18n-1`,
+		`v=dirty-close-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=external-change-i18n-1`,
+		`v=dirty-close-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=external-change-i18n-1`,
+		`v=dirty-close-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=external-change-i18n-1`,
+		`v=dirty-close-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1030,7 +1030,19 @@ func TestDirtyDraftRecoveryIsWired(t *testing.T) {
 		"function scheduleDirtyDraftSave()",
 		"function restoreDirtyDraft(id)",
 		`body: JSON.stringify({ documentId, row, col, value })`,
-		`label.textContent = "Recovery Drafts"`,
+		`t("recovery.section")`,
+		`t("recovery.draftName")`,
+		`t("recovery.detail")`,
+		`tf("recovery.discardAria"`,
+		`t("recovery.status.discarded")`,
+		`tf("recovery.status.restored"`,
+		`"recovery.section": "恢复草稿"`,
+		`t("file.openTabs")`,
+		`tf("file.closeTabAria"`,
+		`tf(entry.rowCount === 1 ? "file.row" : "file.rows"`,
+		`t("file.flag.edited")`,
+		`t("file.flag.readOnly")`,
+		`"file.rows": "{{count}} 行"`,
 		"document.body.dataset.recoveryDraftRestored",
 		"clearDirtyDraft(draftIDBeforeSave)",
 	} {
@@ -1907,20 +1919,29 @@ func TestDirtyCloseDiscardPanelIsWired(t *testing.T) {
 	html := string(indexHTML)
 	for _, snippet := range []string{
 		`id="dirtyClosePanel"`,
-		`aria-label="Close unsaved tab"`,
-		`id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel"`,
-		`id="discardDirtyCloseButton" type="button" data-dialog-role="confirm"`,
-		`Discard Tab`,
+		`data-i18n-aria-label="dirtyClose.dialogAria"`,
+		`data-i18n="dirtyClose.title"`,
+		`data-i18n="dirtyClose.message.generic"`,
+		`data-i18n="dirtyClose.warning"`,
+		`id="cancelDirtyCloseButton" type="button" data-dialog-role="cancel" data-i18n="dirtyClose.keepEditing"`,
+		`id="discardDirtyCloseButton" type="button" data-dialog-role="confirm" data-i18n="dirtyClose.discardTab"`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing dirty-close html wiring %q", snippet)
 		}
 	}
 	for _, snippet := range []string{
+		`"dirtyClose.title": "关闭未保存标签"`,
+		`"dirtyClose.keepEditing": "继续编辑"`,
+		`"dirtyClose.status.closed": "已关闭 {{name}}。"`,
 		`const dirtyClosePanel = document.querySelector("#dirtyClosePanel")`,
 		"let pendingDirtyCloseTab = null",
 		`message === "document has unsaved changes" && !options.force`,
 		"openDirtyClosePanel(target, message)",
+		"function updateDirtyClosePanel()",
+		`tf("dirtyClose.message.detail"`,
+		`tf("dirtyClose.status.saveBeforeClosing"`,
+		`tf("dirtyClose.status.closed"`,
 		"closeOpenFileTab(target.documentId, { force: true })",
 		"document.body.dataset.closeTabConfirm",
 		"document.body.dataset.closeTabConfirmReason",

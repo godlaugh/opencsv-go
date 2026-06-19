@@ -953,6 +953,34 @@ const localeCatalog = {
     "file.save": "Save",
     "file.saveAs": "Save As",
     "file.restore": "Restore",
+    "file.openTabs": "Open Tabs",
+    "file.row": "{{count}} row",
+    "file.rows": "{{count}} rows",
+    "file.recentFile": "recent file",
+    "file.flag.edited": "edited",
+    "file.flag.readOnly": "read-only",
+    "file.closeTabAria": "Close {{name}}",
+    "dirtyClose.dialogAria": "Close unsaved tab",
+    "dirtyClose.title": "Close Unsaved Tab",
+    "dirtyClose.unsavedDocument": "Unsaved document",
+    "dirtyClose.message.generic": "This tab has unsaved edits. Save it before closing, or discard the tab explicitly.",
+    "dirtyClose.message.detail": "{{detail}} has unsaved edits. Save it before closing, or discard the tab explicitly.",
+    "dirtyClose.warning": "Discarding closes the tab and removes its recovery draft for this session.",
+    "dirtyClose.keepEditing": "Keep Editing",
+    "dirtyClose.discardTab": "Discard Tab",
+    "dirtyClose.status.saveBeforeClosing": "Save {{name}} before closing.",
+    "dirtyClose.status.closeFailed": "Close tab failed: {{message}}",
+    "dirtyClose.status.closed": "Closed {{name}}.",
+    "dirtyClose.status.closedTab": "Closed tab.",
+    "recovery.section": "Recovery Drafts",
+    "recovery.draftName": "Recovered draft",
+    "recovery.draftFile": "Recovered draft.csv",
+    "recovery.detail": "unsaved recovery draft",
+    "recovery.discardAria": "Discard {{name}}",
+    "recovery.status.clearFailed": "Recovery draft could not be cleared.",
+    "recovery.status.discarded": "Recovery draft discarded.",
+    "recovery.status.notFound": "Recovery draft was not found.",
+    "recovery.status.restored": "Recovered draft {{name}}. Save As to keep it.",
     "workbench.split": "Split",
     "workbench.orientation": "H/V",
     "workbench.focus": "Focus",
@@ -2129,6 +2157,34 @@ const localeCatalog = {
     "file.save": "保存",
     "file.saveAs": "另存为",
     "file.restore": "恢复",
+    "file.openTabs": "打开的标签",
+    "file.row": "{{count}} 行",
+    "file.rows": "{{count}} 行",
+    "file.recentFile": "最近文件",
+    "file.flag.edited": "已编辑",
+    "file.flag.readOnly": "只读",
+    "file.closeTabAria": "关闭 {{name}}",
+    "dirtyClose.dialogAria": "关闭未保存标签",
+    "dirtyClose.title": "关闭未保存标签",
+    "dirtyClose.unsavedDocument": "未保存文档",
+    "dirtyClose.message.generic": "此标签有未保存编辑。请先保存再关闭，或明确放弃此标签。",
+    "dirtyClose.message.detail": "{{detail}} 有未保存编辑。请先保存再关闭，或明确放弃此标签。",
+    "dirtyClose.warning": "放弃会关闭标签，并移除此会话的恢复草稿。",
+    "dirtyClose.keepEditing": "继续编辑",
+    "dirtyClose.discardTab": "放弃标签",
+    "dirtyClose.status.saveBeforeClosing": "关闭前请保存 {{name}}。",
+    "dirtyClose.status.closeFailed": "关闭标签失败：{{message}}",
+    "dirtyClose.status.closed": "已关闭 {{name}}。",
+    "dirtyClose.status.closedTab": "已关闭标签。",
+    "recovery.section": "恢复草稿",
+    "recovery.draftName": "已恢复草稿",
+    "recovery.draftFile": "已恢复草稿.csv",
+    "recovery.detail": "未保存的恢复草稿",
+    "recovery.discardAria": "放弃 {{name}}",
+    "recovery.status.clearFailed": "无法清除恢复草稿。",
+    "recovery.status.discarded": "恢复草稿已放弃。",
+    "recovery.status.notFound": "未找到恢复草稿。",
+    "recovery.status.restored": "已恢复草稿 {{name}}。请另存为以保留它。",
     "workbench.split": "拆分",
     "workbench.orientation": "横/纵",
     "workbench.focus": "聚焦",
@@ -3804,6 +3860,7 @@ function applyLocaleStrings() {
   syncEditorAppearanceControls();
   updateFormatStatus();
   if (externalChangePanel && !externalChangePanel.hidden) updateExternalChangePanel();
+  if (dirtyClosePanel && !dirtyClosePanel.hidden && pendingDirtyCloseTab) updateDirtyClosePanel();
   syncAboutSupportPanel();
   applyFindLocaleStrings();
   applyConditionLocaleStrings();
@@ -14881,7 +14938,7 @@ function renderOpenFileTabs() {
   if (tabs.length > 1) {
     const label = document.createElement("div");
     label.className = "file-section-label";
-    label.textContent = "Open Tabs";
+    label.textContent = t("file.openTabs");
     fileList.append(label);
   }
   for (const tab of tabs) {
@@ -15160,8 +15217,8 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
       openDirtyClosePanel(target, message);
     }
     status.textContent = message === "document has unsaved changes"
-      ? `Save ${target?.name ?? "the file"} before closing.`
-      : `Close tab failed: ${message}`;
+      ? tf("dirtyClose.status.saveBeforeClosing", { name: target?.name ?? t("dirtyClose.unsavedDocument") })
+      : tf("dirtyClose.status.closeFailed", { message });
     return false;
   }
 
@@ -15183,7 +15240,7 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
       || openFileTabs[openFileTabs.length - 1];
     if (next?.documentId) {
       await switchOpenFileTab(next.documentId, { group: tabGroup(next) });
-      status.textContent = `Closed ${closedName}.`;
+      status.textContent = tf("dirtyClose.status.closed", { name: closedName });
       return true;
     }
     clearCurrentDocumentState(closedName);
@@ -15193,7 +15250,7 @@ async function closeOpenFileTab(targetDocumentId, options = {}) {
   syncEditorGroupActiveTabs();
   renderEditorGroups();
   renderFileList();
-  status.textContent = `Closed ${closedName}.`;
+  status.textContent = tf("dirtyClose.status.closed", { name: closedName });
   return true;
 }
 
@@ -15201,17 +15258,22 @@ function openDirtyClosePanel(tab, message = "document has unsaved changes") {
   if (!tab?.documentId || !dirtyClosePanel) return;
   pendingDirtyCloseTab = {
     documentId: tab.documentId,
-    name: tab.name || "Unsaved document",
+    name: tab.name || t("dirtyClose.unsavedDocument"),
     detail: tab.detail || "",
   };
-  dirtyCloseName.textContent = pendingDirtyCloseTab.name;
-  dirtyCloseDetail.textContent = pendingDirtyCloseTab.detail
-    ? `${pendingDirtyCloseTab.detail} has unsaved edits. Save it before closing, or discard the tab explicitly.`
-    : "This tab has unsaved edits. Save it before closing, or discard the tab explicitly.";
+  updateDirtyClosePanel();
   dirtyClosePanel.hidden = false;
   document.body.dataset.closeTabConfirm = `${pendingDirtyCloseTab.documentId}:${pendingDirtyCloseTab.name}`;
   document.body.dataset.closeTabConfirmReason = message;
   discardDirtyCloseButton.focus();
+}
+
+function updateDirtyClosePanel() {
+  if (!pendingDirtyCloseTab || !dirtyClosePanel) return;
+  dirtyCloseName.textContent = pendingDirtyCloseTab.name;
+  dirtyCloseDetail.textContent = pendingDirtyCloseTab.detail
+    ? tf("dirtyClose.message.detail", { detail: pendingDirtyCloseTab.detail })
+    : t("dirtyClose.message.generic");
 }
 
 function closeDirtyClosePanel() {
@@ -15271,7 +15333,7 @@ function clearCurrentDocumentState(closedName = "") {
   clearStructureClipboard();
   renderFileList();
   draw();
-  status.textContent = closedName ? `Closed ${closedName}.` : "Closed tab.";
+  status.textContent = closedName ? tf("dirtyClose.status.closed", { name: closedName }) : t("dirtyClose.status.closedTab");
 }
 
 function renderStartActions() {
@@ -15316,7 +15378,7 @@ function renderStartActions() {
   if (drafts.length > 0) {
     const label = document.createElement("div");
     label.className = "file-section-label";
-    label.textContent = "Recovery Drafts";
+    label.textContent = t("recovery.section");
     fileList.append(label);
     for (const draft of drafts) {
       fileList.append(recoveryDraftItem(draft));
@@ -15329,8 +15391,8 @@ function recoveryDraftItem(draft) {
   row.className = "recovery-draft-row";
   row.dataset.draftId = draft.id || "";
   const restoreButton = fileButton({
-    name: draft.name || "Recovered draft",
-    detail: draft.detail || "unsaved recovery draft",
+    name: draft.name || t("recovery.draftName"),
+    detail: draft.detail || t("recovery.detail"),
     rowCount: Number.isFinite(draft.rowCount) ? draft.rowCount : null,
   }, {
     onClick: () => {
@@ -15341,7 +15403,7 @@ function recoveryDraftItem(draft) {
   discardButton.className = "file-tab-close";
   discardButton.type = "button";
   discardButton.textContent = "x";
-  discardButton.title = `Discard ${draft.name || "recovery draft"}`;
+  discardButton.title = tf("recovery.discardAria", { name: draft.name || t("recovery.draftName") });
   discardButton.setAttribute("aria-label", discardButton.title);
   discardButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -15372,8 +15434,8 @@ function fileTabItem(tab, isActive) {
   closeButton.className = "file-tab-close";
   closeButton.type = "button";
   closeButton.textContent = "x";
-  closeButton.title = `Close ${tab.name}`;
-  closeButton.setAttribute("aria-label", `Close ${tab.name}`);
+  closeButton.title = tf("file.closeTabAria", { name: tab.name });
+  closeButton.setAttribute("aria-label", closeButton.title);
   if (tab.documentId) closeButton.dataset.documentId = tab.documentId;
   closeButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -15447,11 +15509,11 @@ function fileText(name, metaText) {
 
 function fileMeta(entry) {
   const rowsText = Number.isFinite(entry.rowCount)
-    ? `${entry.rowCount.toLocaleString()} rows`
-    : "recent file";
+    ? tf(entry.rowCount === 1 ? "file.row" : "file.rows", { count: entry.rowCount.toLocaleString() })
+    : t("file.recentFile");
   const flags = [];
-  if (entry.dirty) flags.push("edited");
-  if (entry.readOnly) flags.push("read-only");
+  if (entry.dirty) flags.push(t("file.flag.edited"));
+  if (entry.readOnly) flags.push(t("file.flag.readOnly"));
   const flagText = flags.length ? ` · ${flags.join(", ")}` : "";
   return `${rowsText}${flagText} · ${entry.detail}`;
 }
@@ -15505,8 +15567,8 @@ function dirtyDrafts() {
       .filter((item) => item && typeof item.id === "string" && typeof item.csv === "string" && item.csv)
       .map((item) => ({
         id: item.id,
-        name: String(item.name || "Recovered draft.csv"),
-        detail: String(item.detail || "unsaved recovery draft"),
+        name: String(item.name || t("recovery.draftFile")),
+        detail: String(item.detail || t("recovery.detail")),
         csv: item.csv,
         rowCount: Number.isFinite(item.rowCount) ? item.rowCount : null,
         columnCount: Number.isFinite(item.columnCount) ? item.columnCount : null,
@@ -15526,7 +15588,7 @@ function dirtyDraftID() {
 }
 
 function dirtyDraftName() {
-  const name = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || "Recovered draft.csv";
+  const name = activeFileEntry?.name || fileNameFromPath(metadata?.path || "") || t("recovery.draftFile");
   return name.toLowerCase().endsWith(".csv") ? name : `${name}.csv`;
 }
 
@@ -15591,29 +15653,29 @@ function clearDirtyDraft(id = dirtyDraftID()) {
     localStorage.setItem(dirtyDraftsStorageKey, JSON.stringify(next));
     document.body.dataset.dirtyDraftCleared = id;
   } catch {
-    status.textContent = "Recovery draft could not be cleared.";
+    status.textContent = t("recovery.status.clearFailed");
   }
 }
 
 function discardDirtyDraft(id) {
   clearDirtyDraft(id);
   renderFileList();
-  status.textContent = "Recovery draft discarded.";
+  status.textContent = t("recovery.status.discarded");
 }
 
 async function restoreDirtyDraft(id) {
   const draft = dirtyDrafts().find((item) => item.id === id);
   if (!draft) {
-    status.textContent = "Recovery draft was not found.";
+    status.textContent = t("recovery.status.notFound");
     renderFileList();
     return;
   }
-  const file = new File([draft.csv], draft.name || "Recovered draft.csv", { type: "text/csv" });
+  const file = new File([draft.csv], draft.name || t("recovery.draftFile"), { type: "text/csv" });
   await uploadAndOpen(file);
   await markRecoveredDraftDirty();
   clearDirtyDraft(id);
   document.body.dataset.recoveryDraftRestored = `${draft.name}:${draft.rowCount ?? ""}:${draft.columnCount ?? ""}`;
-  status.textContent = `Recovered draft ${draft.name}. Save As to keep it.`;
+  status.textContent = tf("recovery.status.restored", { name: draft.name });
 }
 
 async function markRecoveredDraftDirty() {
