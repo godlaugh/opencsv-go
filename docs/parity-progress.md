@@ -240,6 +240,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-012 | Command registry and Command Palette foundation | Started | `pkg/commands` dispatch coverage tests, `/api/commands`, Browser command palette verification |
 | FR-012 | Command Palette fuzzy search and recent command history | Started | Browser palette verification |
 | FR-019/012 | Localized Command Palette shell and empty state | Started | command registry static coverage, Browser command-palette shell locale verification |
+| FR-019/012 | Localized command dispatch and unavailable statuses | Started | command registry static coverage, Browser zh-CN unavailable status verification |
 | FR-012 | Keyboard shortcut customization foundation | Started | command registry, local shortcut router, Browser recording verification |
 | FR-012 | Keyboard shortcut JSON import/export foundation | Started | command registry, Browser shortcut import/export verification |
 | FR-012 | Keyboard shortcut preset keymaps foundation | Started | Browser shortcut preset verification |

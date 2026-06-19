@@ -562,6 +562,11 @@ const localeCatalog = {
     "command.searchPlaceholder": "Search commands",
     "command.listAria": "Commands",
     "command.noMatches": "No matching commands",
+    "command.status.loadFailed": "Commands failed: {{message}}",
+    "command.status.unavailable": "{{command}} is unavailable.",
+    "command.status.genericUnavailable": "Command unavailable.",
+    "command.status.historySaveFailed": "Command history could not be saved.",
+    "command.status.noHandler": "Command {{command}} has no UI handler.",
     "common.close": "Close",
     "common.cancel": "Cancel",
     "common.refresh": "Refresh",
@@ -1992,6 +1997,11 @@ const localeCatalog = {
     "command.searchPlaceholder": "搜索命令",
     "command.listAria": "命令",
     "command.noMatches": "没有匹配命令",
+    "command.status.loadFailed": "命令加载失败：{{message}}",
+    "command.status.unavailable": "{{command}}不可用。",
+    "command.status.genericUnavailable": "命令不可用。",
+    "command.status.historySaveFailed": "命令历史无法保存。",
+    "command.status.noHandler": "命令 {{command}} 没有 UI 处理器。",
     "common.close": "关闭",
     "common.cancel": "取消",
     "common.refresh": "刷新",
@@ -4187,6 +4197,10 @@ function localizedCommandLabel(commandID, fallback = commandID) {
   return command ? localizedCommandTitle(command) : fallback;
 }
 
+function localizedCommandStatus(key, values = {}) {
+  return tf(`command.status.${key}`, values);
+}
+
 function localizedTransformStatus(key, label, values = {}) {
   return tf(`text.status.${key}`, { label, ...values });
 }
@@ -5997,7 +6011,7 @@ async function loadCommandRegistry() {
     applyCommandMetadata();
     updateCommandState();
   } catch (error) {
-    status.textContent = `Commands failed: ${error.message}`;
+    status.textContent = localizedCommandStatus("loadFailed", { message: error.message });
   }
 }
 
@@ -10987,7 +11001,7 @@ function runCustomShortcut(event) {
   if (!command) return false;
   event.preventDefault();
   if (isCommandDisabled(command)) {
-    status.textContent = `${localizedCommandTitle(command)} is unavailable.`;
+    status.textContent = localizedCommandStatus("unavailable", { command: localizedCommandTitle(command) });
     return true;
   }
   executeCommand(command.id);
@@ -11990,7 +12004,7 @@ function rememberCommand(commandID) {
   try {
     localStorage.setItem(commandHistoryStorageKey, JSON.stringify(next));
   } catch {
-    status.textContent = "Command history could not be saved.";
+    status.textContent = localizedCommandStatus("historySaveFailed");
   }
 }
 
@@ -12004,7 +12018,9 @@ function emptyPaletteNode(message) {
 async function executePaletteCommand(commandID) {
   const command = commandsById.get(commandID);
   if (!command || isCommandDisabled(command)) {
-    status.textContent = command ? `${localizedCommandTitle(command)} is unavailable.` : "Command unavailable.";
+    status.textContent = command
+      ? localizedCommandStatus("unavailable", { command: localizedCommandTitle(command) })
+      : localizedCommandStatus("genericUnavailable");
     return;
   }
   closeCommandPalette();
@@ -12623,7 +12639,7 @@ async function executeCommand(commandID, options = {}) {
       openDiffPanel();
       break;
     default:
-      status.textContent = `Command ${commandID} has no UI handler.`;
+      status.textContent = localizedCommandStatus("noHandler", { command: commandID });
   }
 }
 
