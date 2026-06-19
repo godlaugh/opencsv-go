@@ -1304,6 +1304,10 @@ const localeCatalog = {
     "settings.update.manual": "Manual only",
     "settings.update.off": "Off",
     "settings.update.summaryLast": "{{mode}} · last {{time}}",
+    "settings.update.resultLocalPrototype": "No remote update feed is configured for the local prototype.",
+    "settings.update.statusCompleted": "Update check completed.",
+    "settings.update.statusFailed": "Update check failed: {{message}}",
+    "settings.update.statusResultSaveFailed": "Update check result could not be saved.",
     "settings.checkNow": "Check Now",
     "settings.resetUpdates": "Reset Updates",
     "settings.noUpdateCheck": "No update check has run.",
@@ -1315,6 +1319,7 @@ const localeCatalog = {
     "settings.status.updateManual": "Update checks run manually only.",
     "settings.status.updateOff": "Update checks are off.",
     "settings.status.updateReset": "Update checks reset.",
+    "window.status.geometrySaveFailed": "Window geometry could not be saved.",
     "settings.linkProtocols": "Link Protocols",
     "settings.linkProtocols.allowed": "Allowed Custom Protocols",
     "settings.linkProtocols.allowedAria": "Allowed custom link protocols",
@@ -2860,6 +2865,10 @@ const localeCatalog = {
     "settings.update.manual": "仅手动",
     "settings.update.off": "关闭",
     "settings.update.summaryLast": "{{mode}} · 上次 {{time}}",
+    "settings.update.resultLocalPrototype": "本地原型尚未配置远程更新源。",
+    "settings.update.statusCompleted": "更新检查已完成。",
+    "settings.update.statusFailed": "更新检查失败：{{message}}",
+    "settings.update.statusResultSaveFailed": "无法保存更新检查结果。",
     "settings.checkNow": "立即检查",
     "settings.resetUpdates": "重置更新",
     "settings.noUpdateCheck": "尚未运行更新检查。",
@@ -2871,6 +2880,7 @@ const localeCatalog = {
     "settings.status.updateManual": "更新检查仅手动运行。",
     "settings.status.updateOff": "更新检查已关闭。",
     "settings.status.updateReset": "更新检查已重置。",
+    "window.status.geometrySaveFailed": "无法保存窗口布局。",
     "settings.linkProtocols": "链接协议",
     "settings.linkProtocols.allowed": "允许的自定义协议",
     "settings.linkProtocols.allowedAria": "允许的自定义链接协议",
@@ -4297,7 +4307,7 @@ function saveWindowGeometryNow() {
     localStorage.setItem(windowGeometryStorageKey, JSON.stringify(entry));
     document.body.dataset.windowGeometrySaved = windowGeometrySignature(entry);
   } catch {
-    status.textContent = "Window geometry could not be saved.";
+    status.textContent = t("window.status.geometrySaveFailed");
   }
   syncWindowGeometryDataset(entry);
 }
@@ -5044,6 +5054,14 @@ function updateCheckModeLabel(mode = updateCheckMode) {
   return t(labels[mode] || labels[defaultUpdateCheckMode]);
 }
 
+function localizedUpdateCheckMessage(message) {
+  if (!message) return t("settings.update.statusCompleted");
+  if (message === "No remote update feed is configured for the local prototype.") {
+    return t("settings.update.resultLocalPrototype");
+  }
+  return message;
+}
+
 function loadUpdateCheckState() {
   try {
     return JSON.parse(localStorage.getItem(updateCheckResultStorageKey) || "{}");
@@ -5057,7 +5075,7 @@ function saveUpdateCheckState(state) {
   try {
     localStorage.setItem(updateCheckResultStorageKey, JSON.stringify(updateCheckState));
   } catch {
-    status.textContent = "Update check result could not be saved.";
+    status.textContent = t("settings.update.statusResultSaveFailed");
   }
 }
 
@@ -5164,20 +5182,20 @@ async function checkForUpdates(source = "manual") {
       currentVersion: payload.currentVersion || "",
       latestVersion: payload.latestVersion || "",
       checkedAt: payload.checkedAt || new Date().toISOString(),
-      message: payload.message || "Update check completed.",
+      message: localizedUpdateCheckMessage(payload.message),
     };
     saveUpdateCheckState(nextState);
     document.body.dataset.updateCheckCount = String(Number(document.body.dataset.updateCheckCount || "0") + 1);
     document.body.dataset.updateCheckSkipped = "";
     if (source !== "startup") {
-      status.textContent = "Update check completed.";
+      status.textContent = t("settings.update.statusCompleted");
     }
   } catch (error) {
     const nextState = {
       status: "error",
       source,
       checkedAt: new Date().toISOString(),
-      message: `Update check failed: ${error.message}`,
+      message: tf("settings.update.statusFailed", { message: error.message }),
     };
     saveUpdateCheckState(nextState);
     if (source !== "startup") {

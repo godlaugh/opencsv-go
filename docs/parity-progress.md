@@ -311,6 +311,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-020 | Saved filters/sorts settings reset | Started | command registry static coverage, Browser Settings reset verification |
 | FR-013/020 | Quote policy settings reset | Started | command registry static coverage, Browser Settings quote reset verification |
 | FR-020 | Update check mode and manual check foundation | Started | `/api/update-check`, command registry, Browser startup/manual/off verification |
+| FR-019/020 | Localized update-check and window persistence statuses | Started | command registry static coverage, Browser zh-CN update-check verification |
 | FR-020 | Dynamic app title state foundation | Started | command registry static coverage, Browser title/dirty/surface verification |
 | FR-020 | Window geometry persistence handoff foundation | Started | command registry static coverage, Browser reload geometry verification |
 | NFR-001 | 100 MB first screen under 2s | Passing core benchmark | `opencsv bench` |
