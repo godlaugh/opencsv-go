@@ -710,6 +710,44 @@ const localeCatalog = {
     "text.status.failed": "{{label}} failed: {{message}}",
     "text.status.changed": "{{label}}: {{count}} cells changed",
     "text.status.noChange": "{{label}}: no cells changed",
+    "edit.row": "{{count}} row",
+    "edit.rows": "{{count}} rows",
+    "edit.column": "{{count}} column",
+    "edit.columns": "{{count}} columns",
+    "edit.status.readOnlyBlocked": "{{action}} blocked: document is read-only",
+    "edit.status.aggregateRowsViewOnly": "Aggregate rows are view-only.",
+    "edit.status.running": "{{action}}...",
+    "edit.status.failed": "{{action}} failed: {{message}}",
+    "edit.status.appliedRows": "{{action}}: {{rows}} rows",
+    "edit.status.cutForPaste": "Cut {{unit}} for paste.",
+    "edit.status.copyOrCutRowFirst": "Copy or cut a row first.",
+    "edit.status.copyOrCutColumnFirst": "Copy or cut a column first.",
+    "edit.status.selectColumnFirst": "Select a column first.",
+    "edit.status.openCsvFirst": "Open a CSV first",
+    "edit.status.cannotHideLastColumn": "Cannot hide the last visible column",
+    "edit.status.moved": "Moved {{unit}}",
+    "edit.status.pasted": "Pasted {{unit}}{{suffix}}",
+    "edit.status.belowSuffix": " below",
+    "edit.status.rightSuffix": " right",
+    "edit.status.pasteNoChange": "{{kind}} paste did not change the document",
+    "edit.status.rowHidden": "Row hidden",
+    "edit.status.rowAlreadyHidden": "Row was already hidden",
+    "edit.status.restoredHiddenRows": "Restored {{unit}} hidden",
+    "edit.status.allRowsAlreadyShown": "All rows already shown",
+    "edit.status.columnHidden": "Column hidden: {{column}}",
+    "edit.status.noHiddenColumns": "No hidden columns",
+    "edit.status.restoredHiddenColumns": "Restored {{unit}} hidden",
+    "edit.status.atEdge": "{{kind}} is already at the edge",
+    "edit.status.atTarget": "{{kind}} is already at the target.",
+    "edit.status.clearViewBeforeDraggingRows": "Clear filter or sort before dragging rows.",
+    "edit.status.headerEnabled": "Header row enabled",
+    "edit.status.headerDisabled": "Header row disabled",
+    "edit.status.movedRowTo": "Moved row {{from}} to {{to}}",
+    "edit.status.movedColumnTo": "Moved column {{from}} to {{to}}",
+    "edit.status.removedDuplicateRows": "Removed {{count}} duplicate rows",
+    "edit.status.removedDuplicateColumns": "Removed {{count}} duplicate columns",
+    "edit.status.noDuplicateRows": "No duplicate rows found",
+    "edit.status.noDuplicateColumns": "No duplicate columns found",
     "macro.title": "Last Macro",
     "macro.none": "No recorded macro",
     "macro.play": "Play",
@@ -2008,6 +2046,44 @@ const localeCatalog = {
     "text.status.failed": "{{label}}失败：{{message}}",
     "text.status.changed": "{{label}}：已更改 {{count}} 个单元格",
     "text.status.noChange": "{{label}}：没有单元格更改",
+    "edit.row": "{{count}} 行",
+    "edit.rows": "{{count}} 行",
+    "edit.column": "{{count}} 列",
+    "edit.columns": "{{count}} 列",
+    "edit.status.readOnlyBlocked": "{{action}}被阻止：文档为只读",
+    "edit.status.aggregateRowsViewOnly": "聚合行仅可查看。",
+    "edit.status.running": "正在{{action}}...",
+    "edit.status.failed": "{{action}}失败：{{message}}",
+    "edit.status.appliedRows": "{{action}}：{{rows}} 行",
+    "edit.status.cutForPaste": "已剪切 {{unit}}，可用于粘贴。",
+    "edit.status.copyOrCutRowFirst": "请先复制或剪切行。",
+    "edit.status.copyOrCutColumnFirst": "请先复制或剪切列。",
+    "edit.status.selectColumnFirst": "请先选择一列。",
+    "edit.status.openCsvFirst": "请先打开 CSV",
+    "edit.status.cannotHideLastColumn": "不能隐藏最后一个可见列",
+    "edit.status.moved": "已移动 {{unit}}",
+    "edit.status.pasted": "已粘贴 {{unit}}{{suffix}}",
+    "edit.status.belowSuffix": "到下方",
+    "edit.status.rightSuffix": "到右侧",
+    "edit.status.pasteNoChange": "{{kind}}粘贴没有更改文档",
+    "edit.status.rowHidden": "行已隐藏",
+    "edit.status.rowAlreadyHidden": "该行已经隐藏",
+    "edit.status.restoredHiddenRows": "已恢复隐藏的 {{unit}}",
+    "edit.status.allRowsAlreadyShown": "所有行已经显示",
+    "edit.status.columnHidden": "已隐藏列：{{column}}",
+    "edit.status.noHiddenColumns": "没有隐藏列",
+    "edit.status.restoredHiddenColumns": "已恢复隐藏的 {{unit}}",
+    "edit.status.atEdge": "{{kind}}已在边界。",
+    "edit.status.atTarget": "{{kind}}已在目标位置。",
+    "edit.status.clearViewBeforeDraggingRows": "拖动行前请先清除筛选或排序。",
+    "edit.status.headerEnabled": "已启用表头行",
+    "edit.status.headerDisabled": "已禁用表头行",
+    "edit.status.movedRowTo": "已将第 {{from}} 行移到第 {{to}} 行",
+    "edit.status.movedColumnTo": "已将第 {{from}} 列移到第 {{to}} 列",
+    "edit.status.removedDuplicateRows": "已删除 {{count}} 个重复行",
+    "edit.status.removedDuplicateColumns": "已删除 {{count}} 个重复列",
+    "edit.status.noDuplicateRows": "未找到重复行",
+    "edit.status.noDuplicateColumns": "未找到重复列",
     "macro.title": "最近宏",
     "macro.none": "没有录制宏",
     "macro.play": "播放",
@@ -3082,6 +3158,8 @@ const localeCatalog = {
     "command.column.filterBlanks.description": "将当前列筛选为空单元格。",
     "command.column.filterNonBlanks.title": "只显示非空值",
     "command.column.filterNonBlanks.description": "将当前列筛选为非空单元格。",
+    "command.edit.undo.title": "撤销",
+    "command.edit.redo.title": "重做",
     "command.edit.copy.title": "复制",
     "command.edit.copy.description": "以制表符分隔文本复制选中单元格。",
     "command.edit.copyWithHeaders.title": "复制并带表头",
@@ -3117,6 +3195,7 @@ const localeCatalog = {
     "command.selection.insertMaxRow.description": "为选中的数值单元格添加可移除的最大值行。",
     "command.selection.insertCountRow.title": "添加计数行",
     "command.selection.insertCountRow.description": "为选中的单元格添加可移除的计数行。",
+    "command.table.toggleHeaderRow.title": "切换表头行",
     "command.table.transpose.title": "转置",
     "command.table.transpose.description": "转置当前表格或选中的一个或多个矩形区域。",
     "command.table.dedupeRows.title": "删除重复行",
@@ -3187,12 +3266,21 @@ const localeCatalog = {
     "command.row.delete.title": "删除行",
     "command.row.cut.title": "剪切行",
     "command.row.paste.title": "粘贴行",
+    "command.row.pasteBelow.title": "向下粘贴行",
+    "command.row.moveUp.title": "上移行",
+    "command.row.moveDown.title": "下移行",
+    "command.row.hide.title": "隐藏行",
     "command.row.showAll.title": "显示所有行",
     "command.row.showAll.description": "恢复当前行视图中隐藏的行。",
     "command.column.insert.title": "插入列",
     "command.column.delete.title": "删除列",
     "command.column.cut.title": "剪切列",
     "command.column.paste.title": "粘贴列",
+    "command.column.pasteRight.title": "向右粘贴列",
+    "command.column.moveLeft.title": "左移列",
+    "command.column.moveRight.title": "右移列",
+    "command.column.hide.title": "隐藏列",
+    "command.column.showAll.title": "显示所有列",
     "command.view.clear.title": "清除视图",
   },
   pt: {
@@ -3902,6 +3990,30 @@ function localizedCommandLabel(commandID, fallback = commandID) {
 
 function localizedTransformStatus(key, label, values = {}) {
   return tf(`text.status.${key}`, { label, ...values });
+}
+
+function localizedEditStatus(key, values = {}) {
+  return tf(`edit.status.${key}`, values);
+}
+
+function localizedEditAction(commandID, fallback) {
+  return localizedCommandLabel(commandID, fallback);
+}
+
+function localizedEditUnit(kind, count) {
+  return tf(count === 1 ? `edit.${kind}` : `edit.${kind}s`, { count: formatCount(count) });
+}
+
+function localizedEditKind(kind) {
+  return t(`edit.${kind}`).replace("{{count}} ", "").trim() || kind;
+}
+
+function localizedEditRunning(action) {
+  return localizedEditStatus("running", { action });
+}
+
+function localizedEditFailed(action, message) {
+  return localizedEditStatus("failed", { action, message });
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -7582,7 +7694,7 @@ async function toggleCellQuote() {
     return;
   }
   if (selected.row >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const quoted = !shouldQuote(valueAt(selected.row, selected.col), selected.row, selected.col);
@@ -13294,7 +13406,7 @@ function openEditor(initialValue = undefined, options = {}) {
   if (!documentId) return;
   if (!ensureEditable("Edit")) return;
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const rect = cellRect(selected.row, selected.col);
@@ -13334,7 +13446,7 @@ function setSelectionValue(value) {
   if (!ensureEditable("Edit")) return;
   const range = normalizedSelection();
   if (range.endRow >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   windowGeneration++;
@@ -13358,7 +13470,7 @@ function setActiveCellValue(value) {
   if (!ensureEditable("Edit")) return;
   if (!documentId || columns.length === 0) return;
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   windowGeneration++;
@@ -13381,7 +13493,7 @@ function setActiveCellValue(value) {
 
 function ensureEditable(action) {
   if (!readOnly) return true;
-  status.textContent = `${action} blocked: document is read-only`;
+  status.textContent = localizedEditStatus("readOnlyBlocked", { action });
   return false;
 }
 
@@ -13852,7 +13964,7 @@ function selectedRowsForStructure() {
   const seen = new Set();
   for (const range of activeSelectionRanges()) {
     if (range.endRow >= sourceRowCount) {
-      status.textContent = "Aggregate rows are view-only.";
+      status.textContent = t("edit.status.aggregateRowsViewOnly");
       return null;
     }
     for (let row = range.startRow; row <= range.endRow; row++) {
@@ -13933,7 +14045,7 @@ function selectedCellsForTransform(maxCells = 100_000) {
   const cells = [];
   for (const range of activeSelectionRanges()) {
     if (range.endRow >= sourceRowCount) {
-      status.textContent = "Aggregate rows are view-only.";
+      status.textContent = t("edit.status.aggregateRowsViewOnly");
       return null;
     }
     for (let row = range.startRow; row <= range.endRow; row++) {
@@ -14871,7 +14983,7 @@ function pasteParsedMatrix(matrix, source) {
 function pasteMatrix(matrix) {
   if (!ensureEditable("Paste")) return;
   if (selected.row >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   windowGeneration++;
@@ -17867,7 +17979,8 @@ async function clearView() {
 
 async function undoCurrentDocument() {
   if (!documentId) return;
-  if (!ensureEditable("Undo")) return;
+  const action = localizedEditAction("edit.undo", "Undo");
+  if (!ensureEditable(action)) return;
   const response = await fetch("/api/undo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17875,15 +17988,19 @@ async function undoCurrentDocument() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Undo failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
-  applyMutationPayload(payload, `Undo: ${formatCount(payload.totalRows ?? 0)} rows`);
+  applyMutationPayload(payload, localizedEditStatus("appliedRows", {
+    action,
+    rows: formatCount(payload.totalRows ?? 0),
+  }));
 }
 
 async function redoCurrentDocument() {
   if (!documentId) return;
-  if (!ensureEditable("Redo")) return;
+  const action = localizedEditAction("edit.redo", "Redo");
+  if (!ensureEditable(action)) return;
   const response = await fetch("/api/redo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17891,32 +18008,35 @@ async function redoCurrentDocument() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Redo failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
-  applyMutationPayload(payload, `Redo: ${formatCount(payload.totalRows ?? 0)} rows`);
+  applyMutationPayload(payload, localizedEditStatus("appliedRows", {
+    action,
+    rows: formatCount(payload.totalRows ?? 0),
+  }));
 }
 
 function cutSelectedRow() {
   if (!documentId) return;
-  if (!ensureEditable("Cut Row")) return;
+  if (!ensureEditable(localizedEditAction("row.cut", "Cut Row"))) return;
   const rowSelection = selectedRowsForStructure();
   if (!rowSelection) return;
   setStructureClipboard("row", rowSelection.sourceRows, true);
   const count = rowSelection.sourceRows.length;
-  status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "row" : "rows"} for paste.`;
+  status.textContent = localizedEditStatus("cutForPaste", { unit: localizedEditUnit("row", count) });
 }
 
 async function pasteRowFromClipboard(options = {}) {
   if (!documentId) return;
-  if (!ensureEditable("Paste Row")) return;
+  if (!ensureEditable(localizedEditAction("row.paste", "Paste Row"))) return;
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const clipboard = structureClipboardFor("row");
   if (!clipboard) {
-    status.textContent = "Copy or cut a row first.";
+    status.textContent = t("edit.status.copyOrCutRowFirst");
     updateCommandState();
     return;
   }
@@ -17925,9 +18045,9 @@ async function pasteRowFromClipboard(options = {}) {
   if (targetRow == null) return;
   const sources = clipboard.sources ?? [clipboard.source];
   const action = clipboard.cut
-    ? placement === "after-selection" ? "Move row below" : "Move row"
-    : placement === "after-selection" ? "Paste row below" : "Paste row";
-  status.textContent = `${action}...`;
+    ? placement === "after-selection" ? localizedEditAction("row.moveDown", "Move row below") : localizedEditAction("row.moveDown", "Move row")
+    : placement === "after-selection" ? localizedEditAction("row.pasteBelow", "Paste row below") : localizedEditAction("row.paste", "Paste row");
+  status.textContent = localizedEditRunning(action);
   const response = await fetch("/api/row/paste", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17941,15 +18061,17 @@ async function pasteRowFromClipboard(options = {}) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${action} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   const changed = payload.changed ?? 0;
   const count = sources.length;
-  const label = `${formatCount(count)} ${count === 1 ? "row" : "rows"}`;
+  const unit = localizedEditUnit("row", count);
   const message = changed > 0
-    ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}${placement === "after-selection" ? " below" : ""}`)
-    : "Row paste did not change the document";
+    ? (clipboard.cut
+      ? localizedEditStatus("moved", { unit })
+      : localizedEditStatus("pasted", { unit, suffix: placement === "after-selection" ? t("edit.status.belowSuffix") : "" }))
+    : localizedEditStatus("pasteNoChange", { kind: localizedEditKind("row") });
   applyMutationPayload(payload, message);
   document.body.dataset.structurePaste = `row:${clipboard.cut ? "cut" : "copy"}:${placement}:${sources.join(",")}->${targetRow}`;
   if (clipboard.cut) clearStructureClipboard();
@@ -17957,25 +18079,26 @@ async function pasteRowFromClipboard(options = {}) {
 
 async function insertSelectedRow() {
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
-  await mutateStructure("/api/row/insert", { row: selectedSourceRow() }, "Inserted row");
+  await mutateStructure("/api/row/insert", { row: selectedSourceRow() }, localizedEditAction("row.insert", "Inserted row"));
 }
 
 async function deleteSelectedRow() {
   if (removeSelectedAggregateRow()) return;
-  await mutateStructure("/api/row/delete", { row: selectedSourceRow() }, "Deleted row");
+  await mutateStructure("/api/row/delete", { row: selectedSourceRow() }, localizedEditAction("row.delete", "Deleted row"));
 }
 
 async function hideSelectedRow() {
   if (!documentId) return;
-  if (!ensureEditable("Hide Row")) return;
+  const action = localizedEditAction("row.hide", "Hide Row");
+  if (!ensureEditable(action)) return;
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
-  status.textContent = "Hiding row...";
+  status.textContent = localizedEditRunning(action);
   const response = await fetch("/api/row/hide", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17983,7 +18106,7 @@ async function hideSelectedRow() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Hide row failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   viewMapped = true;
@@ -17997,11 +18120,12 @@ async function hideSelectedRow() {
   windowStart = 0;
   windowEnd = 0;
   await maybeLoadWindow(selected.row);
-  status.textContent = payload.changed ? "Row hidden" : "Row was already hidden";
+  status.textContent = payload.changed ? t("edit.status.rowHidden") : t("edit.status.rowAlreadyHidden");
 }
 
 async function showAllRows() {
   if (!documentId) return;
+  const action = localizedEditAction("row.showAll", "Show All Rows");
   const previous = sourceRowCount;
   const response = await fetch("/api/view-clear", {
     method: "POST",
@@ -18010,7 +18134,7 @@ async function showAllRows() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Show all rows failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   viewMapped = false;
@@ -18033,20 +18157,20 @@ async function showAllRows() {
   document.body.dataset.rowShowAll = `${previous}->${sourceRowCount}`;
   document.body.dataset.rowShowAllRestored = String(restored);
   status.textContent = restored > 0
-    ? `Restored ${formatCount(restored)} hidden ${restored === 1 ? "row" : "rows"}`
-    : "All rows already shown";
+    ? localizedEditStatus("restoredHiddenRows", { unit: localizedEditUnit("row", restored) })
+    : t("edit.status.allRowsAlreadyShown");
 }
 
 async function moveSelectedRow(delta) {
   if (!documentId) return;
-  if (!ensureEditable("Move Row")) return;
+  if (!ensureEditable(delta < 0 ? localizedEditAction("row.moveUp", "Move Row Up") : localizedEditAction("row.moveDown", "Move Row Down"))) return;
   if (aggregateRowAt(selected.row)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const previousRow = selected.row;
-  const label = delta < 0 ? "Moved row up" : "Moved row down";
-  status.textContent = `${label}...`;
+  const label = delta < 0 ? localizedEditAction("row.moveUp", "Moved row up") : localizedEditAction("row.moveDown", "Moved row down");
+  status.textContent = localizedEditRunning(label);
   const response = await fetch("/api/row/move", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18054,11 +18178,11 @@ async function moveSelectedRow(delta) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(label, payload.error ?? "unknown error");
     return;
   }
   const changed = payload.changed ?? 0;
-  applyMutationPayload(payload, changed > 0 ? label : "Row is already at the edge");
+  applyMutationPayload(payload, changed > 0 ? label : localizedEditStatus("atEdge", { kind: localizedEditKind("row") }));
   if (changed > 0) {
     selected = { row: Math.max(0, Math.min(totalRows - 1, previousRow + delta)), col: selected.col };
     selectionAnchor = { ...selected };
@@ -18069,29 +18193,32 @@ async function moveSelectedRow(delta) {
 
 async function moveRowToDisplay(sourceDisplayRow, targetDisplayRow, source = "command") {
   if (!documentId) return;
-  if (!ensureEditable("Move Row")) return;
+  if (!ensureEditable(localizedEditAction("row.moveDown", "Move Row"))) return;
   if (viewMapped) {
     document.body.dataset.rowDragReorder = `${sourceDisplayRow}->${targetDisplayRow}:blocked`;
-    status.textContent = "Clear filter or sort before dragging rows.";
+    status.textContent = t("edit.status.clearViewBeforeDraggingRows");
     draw();
     return;
   }
   if (aggregateRowAt(sourceDisplayRow) || aggregateRowAt(targetDisplayRow)) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
-  const sourceRow = sourceRowForDisplayRow(sourceDisplayRow, "Move Row");
-  const targetRow = sourceRowForDisplayRow(targetDisplayRow, "Move Row");
+  const sourceRow = sourceRowForDisplayRow(sourceDisplayRow, localizedEditAction("row.moveDown", "Move Row"));
+  const targetRow = sourceRowForDisplayRow(targetDisplayRow, localizedEditAction("row.moveDown", "Move Row"));
   if (sourceRow == null || targetRow == null) return;
   const delta = targetRow - sourceRow;
-  const label = `Moved row ${sourceDisplayRow + 1} to ${targetDisplayRow + 1}`;
+  const label = localizedEditStatus("movedRowTo", {
+    from: formatCount(sourceDisplayRow + 1),
+    to: formatCount(targetDisplayRow + 1),
+  });
   if (delta === 0) {
     document.body.dataset.rowDragReorder = `${sourceDisplayRow}->${targetDisplayRow}:cancel`;
-    status.textContent = "Row is already at the target.";
+    status.textContent = localizedEditStatus("atTarget", { kind: localizedEditKind("row") });
     draw();
     return;
   }
-  status.textContent = `${label}...`;
+  status.textContent = localizedEditRunning(label);
   const response = await fetch("/api/row/move", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18099,11 +18226,11 @@ async function moveRowToDisplay(sourceDisplayRow, targetDisplayRow, source = "co
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(label, payload.error ?? "unknown error");
     return;
   }
   const changed = payload.changed ?? 0;
-  applyMutationPayload(payload, changed > 0 ? label : "Row is already at the edge");
+  applyMutationPayload(payload, changed > 0 ? label : localizedEditStatus("atEdge", { kind: localizedEditKind("row") }));
   if (changed > 0) {
     const movedRow = Math.max(0, Math.min(sourceRowCount - 1, targetDisplayRow));
     selected = { row: movedRow, col: 0 };
@@ -18117,37 +18244,37 @@ async function moveRowToDisplay(sourceDisplayRow, targetDisplayRow, source = "co
 }
 
 async function insertSelectedColumn() {
-  await mutateStructure("/api/column/insert", { col: sourceColFor(selected.col) }, "Inserted column");
+  await mutateStructure("/api/column/insert", { col: sourceColFor(selected.col) }, localizedEditAction("column.insert", "Inserted column"));
 }
 
 async function deleteSelectedColumn() {
-  await mutateStructure("/api/column/delete", { col: sourceColFor(selected.col) }, "Deleted column");
+  await mutateStructure("/api/column/delete", { col: sourceColFor(selected.col) }, localizedEditAction("column.delete", "Deleted column"));
 }
 
 function cutSelectedColumn() {
   if (!documentId) return;
-  if (!ensureEditable("Cut Column")) return;
+  if (!ensureEditable(localizedEditAction("column.cut", "Cut Column"))) return;
   if (!columns[selected.col]) {
-    status.textContent = "Select a column first.";
+    status.textContent = t("edit.status.selectColumnFirst");
     return;
   }
   const sourceCols = selectedColumnsForStructure();
   if (!sourceCols) return;
   setStructureClipboard("column", sourceCols, true);
   const count = sourceCols.length;
-  status.textContent = `Cut ${formatCount(count)} ${count === 1 ? "column" : "columns"} for paste.`;
+  status.textContent = localizedEditStatus("cutForPaste", { unit: localizedEditUnit("column", count) });
 }
 
 async function pasteColumnFromClipboard(options = {}) {
   if (!documentId) return;
-  if (!ensureEditable("Paste Column")) return;
+  if (!ensureEditable(localizedEditAction("column.paste", "Paste Column"))) return;
   if (!columns[selected.col]) {
-    status.textContent = "Select a column first.";
+    status.textContent = t("edit.status.selectColumnFirst");
     return;
   }
   const clipboard = structureClipboardFor("column");
   if (!clipboard) {
-    status.textContent = "Copy or cut a column first.";
+    status.textContent = t("edit.status.copyOrCutColumnFirst");
     updateCommandState();
     return;
   }
@@ -18156,9 +18283,9 @@ async function pasteColumnFromClipboard(options = {}) {
   if (targetCol == null) return;
   const sources = clipboard.sources ?? [clipboard.source];
   const action = clipboard.cut
-    ? placement === "after-selection" ? "Move column right" : "Move column"
-    : placement === "after-selection" ? "Paste column right" : "Paste column";
-  status.textContent = `${action}...`;
+    ? placement === "after-selection" ? localizedEditAction("column.moveRight", "Move column right") : localizedEditAction("column.moveRight", "Move column")
+    : placement === "after-selection" ? localizedEditAction("column.pasteRight", "Paste column right") : localizedEditAction("column.paste", "Paste column");
+  status.textContent = localizedEditRunning(action);
   const response = await fetch("/api/column/paste", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18172,15 +18299,17 @@ async function pasteColumnFromClipboard(options = {}) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${action} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   const changed = payload.changed ?? 0;
   const count = sources.length;
-  const label = `${formatCount(count)} ${count === 1 ? "column" : "columns"}`;
+  const unit = localizedEditUnit("column", count);
   const message = changed > 0
-    ? (clipboard.cut ? `Moved ${label}` : `Pasted ${label}${placement === "after-selection" ? " right" : ""}`)
-    : "Column paste did not change the document";
+    ? (clipboard.cut
+      ? localizedEditStatus("moved", { unit })
+      : localizedEditStatus("pasted", { unit, suffix: placement === "after-selection" ? t("edit.status.rightSuffix") : "" }))
+    : localizedEditStatus("pasteNoChange", { kind: localizedEditKind("column") });
   applyMutationPayload(payload, message);
   document.body.dataset.structurePaste = `column:${clipboard.cut ? "cut" : "copy"}:${placement}:${sources.join(",")}->${targetCol}`;
   if (clipboard.cut) clearStructureClipboard();
@@ -18188,10 +18317,10 @@ async function pasteColumnFromClipboard(options = {}) {
 
 function hideSelectedColumn() {
   if (!documentId || columns.length <= 1) {
-    status.textContent = columns.length <= 1 ? "Cannot hide the last visible column" : "Open a CSV first";
+    status.textContent = columns.length <= 1 ? t("edit.status.cannotHideLastColumn") : t("edit.status.openCsvFirst");
     return;
   }
-  if (!ensureEditable("Hide Column")) return;
+  if (!ensureEditable(localizedEditAction("column.hide", "Hide Column"))) return;
   const sourceCol = sourceColFor(selected.col);
   hiddenSourceColumns.add(sourceCol);
   applyHiddenColumns();
@@ -18202,14 +18331,14 @@ function hideSelectedColumn() {
   closeColumnMenu();
   draw();
   updateInspector();
-  status.textContent = `Column hidden: ${columnNameForSource(sourceCol)}`;
+  status.textContent = localizedEditStatus("columnHidden", { column: columnNameForSource(sourceCol) });
 }
 
 function showAllHiddenColumns() {
   if (!documentId) return;
   const count = hiddenSourceColumns.size;
   if (count === 0) {
-    status.textContent = "No hidden columns";
+    status.textContent = t("edit.status.noHiddenColumns");
     return;
   }
   const sourceCol = sourceColFor(selected.col);
@@ -18225,34 +18354,37 @@ function showAllHiddenColumns() {
   closeColumnMenu();
   draw();
   updateInspector();
-  status.textContent = `Restored ${formatCount(count)} hidden ${count === 1 ? "column" : "columns"}`;
+  status.textContent = localizedEditStatus("restoredHiddenColumns", { unit: localizedEditUnit("column", count) });
 }
 
 async function moveSelectedColumn(delta) {
   if (!documentId) return;
   const previousCol = selected.col;
-  const label = delta < 0 ? "Moved column left" : "Moved column right";
+  const label = delta < 0 ? localizedEditAction("column.moveLeft", "Moved column left") : localizedEditAction("column.moveRight", "Moved column right");
   await moveColumnToVisible(previousCol, Math.max(0, Math.min(columns.length - 1, previousCol + delta)), "command", label);
 }
 
 async function moveColumnToVisible(sourceVisibleCol, targetVisibleCol, source = "command", labelOverride = "") {
   if (!documentId) return;
-  if (!ensureEditable("Move Column")) return;
+  if (!ensureEditable(localizedEditAction("column.moveRight", "Move Column"))) return;
   if (!columns[sourceVisibleCol] || !columns[targetVisibleCol]) {
-    status.textContent = "Select a column first.";
+    status.textContent = t("edit.status.selectColumnFirst");
     return;
   }
   const sourceCol = sourceColFor(sourceVisibleCol);
   const targetCol = sourceColFor(targetVisibleCol);
   const delta = targetCol - sourceCol;
-  const label = labelOverride || `Moved column ${sourceVisibleCol + 1} to ${targetVisibleCol + 1}`;
+  const label = labelOverride || localizedEditStatus("movedColumnTo", {
+    from: formatCount(sourceVisibleCol + 1),
+    to: formatCount(targetVisibleCol + 1),
+  });
   if (delta === 0) {
     document.body.dataset.columnDragReorder = `${sourceVisibleCol}->${targetVisibleCol}:cancel`;
-    status.textContent = "Column is already at the target.";
+    status.textContent = localizedEditStatus("atTarget", { kind: localizedEditKind("column") });
     draw();
     return;
   }
-  status.textContent = `${label}...`;
+  status.textContent = localizedEditRunning(label);
   const response = await fetch("/api/column/move", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18260,11 +18392,11 @@ async function moveColumnToVisible(sourceVisibleCol, targetVisibleCol, source = 
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(label, payload.error ?? "unknown error");
     return;
   }
   const changed = payload.changed ?? 0;
-  applyMutationPayload(payload, changed > 0 ? label : "Column is already at the edge");
+  applyMutationPayload(payload, changed > 0 ? label : localizedEditStatus("atEdge", { kind: localizedEditKind("column") }));
   if (changed > 0) {
     const movedCol = Math.max(0, Math.min(columns.length - 1, targetVisibleCol));
     selected = { row: 0, col: movedCol };
@@ -18412,7 +18544,7 @@ function transposeSelectedRanges(ranges, maxCells = 100_000) {
 
 function buildSelectionTransposePlan(range, maxCells = 100_000) {
   if (range.endRow >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return null;
   }
   const rowCount = range.endRow - range.startRow + 1;
@@ -18506,10 +18638,10 @@ function sourceRowForDisplayRow(row, action) {
 
 async function toggleHeaderRow() {
   if (!documentId || !metadata) return;
-  if (!ensureEditable("Toggle Header Row")) return;
+  if (!ensureEditable(localizedEditAction("table.toggleHeaderRow", "Toggle Header Row"))) return;
   const hasHeader = !Boolean(metadata.dialect?.hasHeader);
-  const label = hasHeader ? "Header row enabled" : "Header row disabled";
-  status.textContent = `${label}...`;
+  const label = hasHeader ? t("edit.status.headerEnabled") : t("edit.status.headerDisabled");
+  status.textContent = localizedEditRunning(label);
   const response = await fetch("/api/header-mode", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18517,7 +18649,7 @@ async function toggleHeaderRow() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Toggle Header Row failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(localizedEditAction("table.toggleHeaderRow", "Toggle Header Row"), payload.error ?? "unknown error");
     return;
   }
   applyMutationPayload(payload, label);
@@ -18526,8 +18658,9 @@ async function toggleHeaderRow() {
 
 async function dedupeRows() {
   if (!documentId) return;
-  if (!ensureEditable("Remove Duplicate Rows")) return;
-  status.textContent = "Removing duplicate rows...";
+  const action = localizedEditAction("table.dedupeRows", "Remove Duplicate Rows");
+  if (!ensureEditable(action)) return;
+  status.textContent = localizedEditRunning(action);
   const response = await fetch("/api/dedupe-rows", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18535,22 +18668,23 @@ async function dedupeRows() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Remove Duplicate Rows failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   const removed = payload.changed ?? 0;
   applyMutationPayload(
     payload,
     removed > 0
-      ? `Removed ${formatCount(removed)} duplicate rows`
-      : "No duplicate rows found",
+      ? localizedEditStatus("removedDuplicateRows", { count: formatCount(removed) })
+      : t("edit.status.noDuplicateRows"),
   );
 }
 
 async function dedupeColumns() {
   if (!documentId) return;
-  if (!ensureEditable("Remove Duplicate Columns")) return;
-  status.textContent = "Removing duplicate columns...";
+  const action = localizedEditAction("table.dedupeColumns", "Remove Duplicate Columns");
+  if (!ensureEditable(action)) return;
+  status.textContent = localizedEditRunning(action);
   const response = await fetch("/api/dedupe-columns", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18558,15 +18692,15 @@ async function dedupeColumns() {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `Remove Duplicate Columns failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(action, payload.error ?? "unknown error");
     return;
   }
   const removed = payload.changed ?? 0;
   applyMutationPayload(
     payload,
     removed > 0
-      ? `Removed ${formatCount(removed)} duplicate columns`
-      : "No duplicate columns found",
+      ? localizedEditStatus("removedDuplicateColumns", { count: formatCount(removed) })
+      : t("edit.status.noDuplicateColumns"),
   );
 }
 
@@ -18667,7 +18801,7 @@ async function swapCellWithNeighbor(direction) {
   if (!ensureEditable(label)) return;
   const origin = { row: selected.row, col: selected.col };
   if (selected.row >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const target = swapNeighborTarget(direction);
@@ -18849,7 +18983,7 @@ function autoFillSelection(direction) {
   if (!ensureEditable(label)) return;
   const range = normalizedSelection();
   if (range.endRow >= sourceRowCount) {
-    status.textContent = "Aggregate rows are view-only.";
+    status.textContent = t("edit.status.aggregateRowsViewOnly");
     return;
   }
   const axisLength = direction === "left" || direction === "right"
@@ -19139,7 +19273,7 @@ async function runCellTool(endpoint, options) {
 async function mutateStructure(endpoint, body, label) {
   if (!documentId) return;
   if (!ensureEditable(label)) return;
-  status.textContent = `${label}...`;
+  status.textContent = localizedEditRunning(label);
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19147,10 +19281,13 @@ async function mutateStructure(endpoint, body, label) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    status.textContent = `${label} failed: ${payload.error ?? "unknown error"}`;
+    status.textContent = localizedEditFailed(label, payload.error ?? "unknown error");
     return;
   }
-  applyMutationPayload(payload, `${label}: ${formatCount(payload.totalRows ?? 0)} rows`);
+  applyMutationPayload(payload, localizedEditStatus("appliedRows", {
+    action: label,
+    rows: formatCount(payload.totalRows ?? 0),
+  }));
 }
 
 async function saveCurrentDocument() {

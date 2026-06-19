@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=file-open-i18n-1`) {
+	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -400,7 +400,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -735,7 +735,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -878,7 +878,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1124,7 +1124,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1168,7 +1168,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1213,7 +1213,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=file-open-i18n-1`,
+		`v=structural-edit-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1256,7 +1256,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=file-open-i18n-1`) {
+	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1277,6 +1277,57 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing file-open localized frontend wiring %q", snippet)
+		}
+	}
+}
+
+func TestStructuralEditLocalizationIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	if !strings.Contains(html, `v=structural-edit-i18n-1`) {
+		t.Fatal("missing structural-edit script cache-bust version")
+	}
+	for _, snippet := range []string{
+		`"edit.status.aggregateRowsViewOnly": "聚合行仅可查看。"`,
+		`"edit.status.failed": "{{action}}失败：{{message}}"`,
+		`"edit.status.cutForPaste": "已剪切 {{unit}}，可用于粘贴。"`,
+		`"edit.status.restoredHiddenRows": "已恢复隐藏的 {{unit}}"`,
+		`"edit.status.columnHidden": "已隐藏列：{{column}}"`,
+		`"edit.status.movedRowTo": "已将第 {{from}} 行移到第 {{to}} 行"`,
+		`"edit.status.movedColumnTo": "已将第 {{from}} 列移到第 {{to}} 列"`,
+		`"edit.status.noDuplicateRows": "未找到重复行"`,
+		`"command.edit.undo.title": "撤销"`,
+		`"command.row.hide.title": "隐藏行"`,
+		`"command.column.pasteRight.title": "向右粘贴列"`,
+		`function localizedEditStatus(key, values = {})`,
+		`function localizedEditAction(commandID, fallback)`,
+		`function localizedEditUnit(kind, count)`,
+		`function localizedEditKind(kind)`,
+		`localizedEditFailed(action, payload.error ?? "unknown error")`,
+		`localizedEditStatus("cutForPaste"`,
+		`t("edit.status.copyOrCutRowFirst")`,
+		`t("edit.status.copyOrCutColumnFirst")`,
+		`t("edit.status.rowHidden")`,
+		`t("edit.status.allRowsAlreadyShown")`,
+		`localizedEditStatus("movedRowTo"`,
+		`localizedEditStatus("movedColumnTo"`,
+		`localizedEditStatus("columnHidden"`,
+		`localizedEditStatus("restoredHiddenColumns"`,
+		`localizedEditStatus("removedDuplicateRows"`,
+		`localizedEditStatus("removedDuplicateColumns"`,
+		`localizedEditStatus("appliedRows"`,
+		`t("edit.status.aggregateRowsViewOnly")`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing structural edit localized frontend wiring %q", snippet)
 		}
 	}
 }
