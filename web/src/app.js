@@ -770,6 +770,27 @@ const localeCatalog = {
     "aggregate.status.addedRow": "Added {{label}} aggregate row",
     "aggregate.status.noNumeric": "No numeric values in the selected columns.",
     "aggregate.status.removedRow": "Removed aggregate row",
+    "copy.cell": "{{count}} cell",
+    "copy.cells": "{{count}} cells",
+    "copy.slice.row": "row",
+    "copy.slice.rows": "rows",
+    "copy.slice.rowWithHeaders": "row with headers",
+    "copy.slice.rowsWithHeaders": "rows with headers",
+    "copy.slice.column": "column",
+    "copy.slice.columns": "columns",
+    "copy.slice.columnWithHeader": "column with header",
+    "copy.slice.columnsWithHeaders": "columns with headers",
+    "copy.status.noCells": "No cells selected to copy.",
+    "copy.status.withHeaders": " with headers",
+    "copy.status.copiedSelection": "Copied {{cells}}{{headers}} as {{format}}",
+    "copy.status.failed": "Copy failed: {{message}}",
+    "copy.status.sliceFailed": "Copy {{label}} failed: {{message}}",
+    "copy.status.noSliceData": "No {{label}} data to copy.",
+    "copy.status.shapeRowsColumns": "{{rows}}, {{columns}}",
+    "copy.status.shapeCells": "{{cells}}",
+    "copy.status.copiedSlice": "Copied {{label}}: {{shape}} as {{format}}",
+    "export.status.failed": "Export failed: {{message}}",
+    "export.status.exported": "Exported {{rows}}, {{columns}} to {{filename}}",
     "cell.status.running": "{{action}}...",
     "cell.status.failed": "{{action}} failed: {{message}}",
     "cell.status.changed": "{{action}}: {{count}} cells changed",
@@ -2159,6 +2180,27 @@ const localeCatalog = {
     "aggregate.status.addedRow": "已添加{{label}}聚合行",
     "aggregate.status.noNumeric": "所选列中没有数值。",
     "aggregate.status.removedRow": "已移除聚合行",
+    "copy.cell": "{{count}} 个单元格",
+    "copy.cells": "{{count}} 个单元格",
+    "copy.slice.row": "行",
+    "copy.slice.rows": "行",
+    "copy.slice.rowWithHeaders": "带表头的行",
+    "copy.slice.rowsWithHeaders": "带表头的行",
+    "copy.slice.column": "列",
+    "copy.slice.columns": "列",
+    "copy.slice.columnWithHeader": "带表头的列",
+    "copy.slice.columnsWithHeaders": "带表头的列",
+    "copy.status.noCells": "没有选中可复制的单元格。",
+    "copy.status.withHeaders": "并带表头",
+    "copy.status.copiedSelection": "已复制 {{cells}}{{headers}}为 {{format}}",
+    "copy.status.failed": "复制失败：{{message}}",
+    "copy.status.sliceFailed": "复制{{label}}失败：{{message}}",
+    "copy.status.noSliceData": "没有可复制的{{label}}数据。",
+    "copy.status.shapeRowsColumns": "{{rows}}，{{columns}}",
+    "copy.status.shapeCells": "{{cells}}",
+    "copy.status.copiedSlice": "已复制{{label}}：{{shape}}，格式 {{format}}",
+    "export.status.failed": "导出失败：{{message}}",
+    "export.status.exported": "已导出 {{rows}}，{{columns}}到 {{filename}}",
     "cell.status.running": "正在{{action}}...",
     "cell.status.failed": "{{action}}失败：{{message}}",
     "cell.status.changed": "{{action}}：已更改 {{count}} 个单元格",
@@ -3268,6 +3310,8 @@ const localeCatalog = {
     "command.edit.redo.title": "重做",
     "command.edit.copy.title": "复制",
     "command.edit.copy.description": "以制表符分隔文本复制选中单元格。",
+    "command.edit.copySelectedFormat.title": "复制所选格式",
+    "command.edit.copySelectedFormat.description": "使用工具栏复制格式复制选中单元格。",
     "command.edit.copyWithHeaders.title": "复制并带表头",
     "command.edit.copyWithHeaders.description": "复制选中单元格并包含表头行。",
     "command.edit.copyCsv.title": "复制为 CSV",
@@ -4165,6 +4209,42 @@ function localizedAggregateMetric(metric) {
 
 function localizedAggregateValue(aggregate) {
   return localizedAggregateStatus("value", { label: aggregate.label, value: aggregate.formatted });
+}
+
+function localizedCopyStatus(key, values = {}) {
+  return tf(`copy.status.${key}`, values);
+}
+
+function localizedCopyCellUnit(count) {
+  return tf(count === 1 ? "copy.cell" : "copy.cells", { count: formatCount(count) });
+}
+
+function localizedCopyShape(rows, cols, cellCount) {
+  if (rows && cols) {
+    return localizedCopyStatus("shapeRowsColumns", {
+      rows: localizedEditUnit("row", rows),
+      columns: localizedEditUnit("column", cols),
+    });
+  }
+  return localizedCopyStatus("shapeCells", { cells: localizedCopyCellUnit(cellCount) });
+}
+
+function localizedCopySliceLabel(kind, count, includeHeaders = false) {
+  let key;
+  if (kind === "row") {
+    key = includeHeaders
+      ? count === 1 ? "copy.slice.rowWithHeaders" : "copy.slice.rowsWithHeaders"
+      : count === 1 ? "copy.slice.row" : "copy.slice.rows";
+  } else {
+    key = includeHeaders
+      ? count === 1 ? "copy.slice.columnWithHeader" : "copy.slice.columnsWithHeaders"
+      : count === 1 ? "copy.slice.column" : "copy.slice.columns";
+  }
+  return t(key);
+}
+
+function localizedExportStatus(key, values = {}) {
+  return tf(`export.status.${key}`, values);
 }
 
 function setLocalePreference(locale, persist = true) {
@@ -5892,13 +5972,13 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "diff.open") {
       button.textContent = "Compare";
     } else if (button.dataset.command === "file.exportView") {
-      button.textContent = "Export";
+      button.textContent = t("file.export");
     } else if (button.dataset.command === "file.exportXlsx") {
       button.textContent = "XLSX";
     } else if (button.dataset.command === "file.restoreBackup") {
       button.textContent = "Restore";
     } else if (button.dataset.command === "edit.copySelectedFormat") {
-      button.textContent = "Copy";
+      button.textContent = t("edit.copy");
     } else if (button.dataset.command === "edit.replacePreview") {
       button.textContent = "Preview";
     } else if (button.dataset.command === "view.filterBuilder") {
@@ -14377,17 +14457,21 @@ async function copySelection(format = "tsv", options = {}) {
     : matrix;
   const text = formatMatrix(copyMatrix, format);
   if (!text) {
-    status.textContent = "No cells selected to copy.";
+    status.textContent = localizedCopyStatus("noCells");
     return;
   }
   window.__opencsvLastCopiedText = text;
   document.body.dataset.copyPreview = text.slice(0, 500);
   try {
     await writeClipboardText(text);
-    const headerLabel = includeHeaders ? " with headers" : "";
-    status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel} as ${format.toUpperCase()}`;
+    const headerLabel = includeHeaders ? localizedCopyStatus("withHeaders") : "";
+    status.textContent = localizedCopyStatus("copiedSelection", {
+      cells: localizedCopyCellUnit(selectionCellCount()),
+      headers: headerLabel,
+      format: format.toUpperCase(),
+    });
   } catch (error) {
-    status.textContent = `Copy failed: ${error.message}`;
+    status.textContent = localizedCopyStatus("failed", { message: error.message });
   }
 }
 
@@ -14403,9 +14487,7 @@ async function copyActiveRow(options = {}) {
   if (!rowSelection) return;
   const rowCount = rowSelection.sourceRows.length;
   const copied = await copyExportViewSlice({
-    label: includeHeaders
-      ? rowCount === 1 ? "row with headers" : "rows with headers"
-      : rowCount === 1 ? "row" : "rows",
+    label: localizedCopySliceLabel("row", rowCount, includeHeaders),
     body: {
       documentId,
       rows: rowSelection.displayRows,
@@ -14430,9 +14512,7 @@ async function copyActiveColumn(options = {}) {
   if (!sourceCols) return;
   const colCount = sourceCols.length;
   const copied = await copyExportViewSlice({
-    label: includeHeaders
-      ? colCount === 1 ? "column with header" : "columns with headers"
-      : colCount === 1 ? "column" : "columns",
+    label: localizedCopySliceLabel("column", colCount, includeHeaders),
     body: {
       documentId,
       columns: sourceCols,
@@ -14475,11 +14555,11 @@ async function copyExportViewSlice({ label, body, cellCount, format = "tsv", onC
   const blob = await response.blob();
   const text = await blob.text();
   if (!response.ok) {
-    status.textContent = `Copy ${label} failed: ${errorFromResponseText(text)}`;
+    status.textContent = localizedCopyStatus("sliceFailed", { label, message: errorFromResponseText(text) });
     return false;
   }
   if (!text) {
-    status.textContent = `No ${label} data to copy.`;
+    status.textContent = localizedCopyStatus("noSliceData", { label });
     return false;
   }
   window.__opencsvLastCopiedText = text;
@@ -14490,10 +14570,10 @@ async function copyExportViewSlice({ label, body, cellCount, format = "tsv", onC
     await writeClipboardText(text);
     const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
     const cols = Number(response.headers.get("X-Opencsv-Columns") || 0);
-    const shape = rows && cols ? `${formatCount(rows)} rows, ${formatCount(cols)} columns` : `${formatCount(cellCount)} cells`;
-    status.textContent = `Copied ${label}: ${shape} as ${copyFormatLabel(format)}`;
+    const shape = localizedCopyShape(rows, cols, cellCount);
+    status.textContent = localizedCopyStatus("copiedSlice", { label, shape, format: copyFormatLabel(format) });
   } catch (error) {
-    status.textContent = `Copy ${label} failed: ${error.message}`;
+    status.textContent = localizedCopyStatus("sliceFailed", { label, message: error.message });
   }
   return true;
 }
@@ -14510,7 +14590,7 @@ async function exportCurrentView(format = "") {
   });
   const blob = await response.blob();
   if (!response.ok) {
-    status.textContent = `Export failed: ${errorFromResponseText(await blob.text())}`;
+    status.textContent = localizedExportStatus("failed", { message: errorFromResponseText(await blob.text()) });
     return;
   }
 
@@ -14533,7 +14613,11 @@ async function exportCurrentView(format = "") {
   }
   const rows = Number(response.headers.get("X-Opencsv-Rows") || 0);
   const cols = Number(response.headers.get("X-Opencsv-Columns") || visibleColumns.length);
-  status.textContent = `Exported ${formatCount(rows)} rows, ${formatCount(cols)} columns to ${filename}`;
+  status.textContent = localizedExportStatus("exported", {
+    rows: localizedEditUnit("row", rows),
+    columns: localizedEditUnit("column", cols),
+    filename,
+  });
 }
 
 async function copyCurrentSQLResult() {
@@ -22534,8 +22618,12 @@ window.addEventListener("copy", (event) => {
   event.clipboardData.setData("text/plain", text);
   window.__opencsvLastCopiedText = text;
   document.body.dataset.copyPreview = text.slice(0, 500);
-  const headerLabel = includeHeadersInSelection ? " with headers" : "";
-  status.textContent = `Copied ${formatCount(selectionCellCount())} cells${headerLabel}`;
+  const headerLabel = includeHeadersInSelection ? localizedCopyStatus("withHeaders") : "";
+  status.textContent = localizedCopyStatus("copiedSelection", {
+    cells: localizedCopyCellUnit(selectionCellCount()),
+    headers: headerLabel,
+    format: copyFormatLabel("tsv"),
+  });
 });
 
 window.addEventListener("paste", (event) => {
