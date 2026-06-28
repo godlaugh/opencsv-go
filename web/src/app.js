@@ -6395,15 +6395,15 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "selection.cycleAggregate") {
       updateAggregateStatus(selectionAggregateStats());
     } else if (button.dataset.command === "settings.exportShortcuts") {
-      button.textContent = "Export";
+      button.textContent = t("shortcut.export");
     } else if (button.dataset.command === "settings.importShortcuts") {
-      button.textContent = "Import";
+      button.textContent = t("shortcut.import");
     } else if (button.dataset.command === "settings.checkForUpdates") {
-      button.textContent = "Check Now";
+      button.textContent = t("settings.checkNow");
     } else if (button.dataset.command === "view.exportSavedSets") {
-      button.textContent = "Export Views";
+      button.textContent = t("settings.savedViews.export");
     } else if (button.dataset.command === "view.importSavedSets") {
-      button.textContent = "Import Views";
+      button.textContent = t("settings.savedViews.import");
     } else if (button.dataset.command !== "view.sql" && button.dataset.command !== "view.profile") {
       button.textContent = localizedCommandTitle(command).replace("Replace All", t("edit.all"));
     }
