@@ -570,6 +570,7 @@ const localeCatalog = {
     "common.close": "Close",
     "common.cancel": "Cancel",
     "common.refresh": "Refresh",
+    "common.unknownError": "unknown error",
     "common.previewed": "previewed",
     "common.applied": "applied",
     "inspector.aria": "Column inspector",
@@ -1320,6 +1321,7 @@ const localeCatalog = {
     "settings.status.updateOff": "Update checks are off.",
     "settings.status.updateReset": "Update checks reset.",
     "window.status.geometrySaveFailed": "Window geometry could not be saved.",
+    "window.status.loadFailed": "Window load failed: {{message}}",
     "settings.linkProtocols": "Link Protocols",
     "settings.linkProtocols.allowed": "Allowed Custom Protocols",
     "settings.linkProtocols.allowedAria": "Allowed custom link protocols",
@@ -1682,6 +1684,7 @@ const localeCatalog = {
     "settings.formats.quoteEscape.backslash": "Backslash",
     "settings.formats.direction.up": "up",
     "settings.formats.direction.down": "down",
+    "settings.formats.statusOpenFileBeforeSave": "Open a file before saving a format preset.",
     "settings.formats.statusOpenLocal": "Open a local file before applying a format preset.",
     "settings.formats.statusDeleted": "Deleted format preset.",
     "settings.formats.statusPresetOrderUnchanged": "Format preset order unchanged.",
@@ -1795,6 +1798,12 @@ const localeCatalog = {
     "file.status.creatingNew": "Creating new CSV...",
     "file.status.newReady": "New file ready: {{name}}",
     "file.status.newFailed": "New file failed: {{message}}",
+    "file.status.switchingTab": "Switching to {{name}}...",
+    "file.status.openTabUnavailable": "Open tab unavailable: {{message}}",
+    "file.status.switchedTab": "Switched to {{name}}.",
+    "file.status.recentSaveFailed": "Recent files could not be saved.",
+    "file.status.recentUpdateFailed": "Recent files could not be updated.",
+    "file.status.removedMissingRecent": "Removed missing recent file: {{message}}",
     "status.ready": "Ready",
     "status.languageChanged": "Language updated.",
     "status.languageReset": "Language reset.",
@@ -2139,6 +2148,7 @@ const localeCatalog = {
     "common.close": "关闭",
     "common.cancel": "取消",
     "common.refresh": "刷新",
+    "common.unknownError": "未知错误",
     "common.previewed": "预览了",
     "common.applied": "应用了",
     "inspector.aria": "列检查器",
@@ -2881,6 +2891,7 @@ const localeCatalog = {
     "settings.status.updateOff": "更新检查已关闭。",
     "settings.status.updateReset": "更新检查已重置。",
     "window.status.geometrySaveFailed": "无法保存窗口布局。",
+    "window.status.loadFailed": "窗口加载失败：{{message}}",
     "settings.linkProtocols": "链接协议",
     "settings.linkProtocols.allowed": "允许的自定义协议",
     "settings.linkProtocols.allowedAria": "允许的自定义链接协议",
@@ -3243,6 +3254,7 @@ const localeCatalog = {
     "settings.formats.quoteEscape.backslash": "反斜杠",
     "settings.formats.direction.up": "上移",
     "settings.formats.direction.down": "下移",
+    "settings.formats.statusOpenFileBeforeSave": "保存格式预设前请先打开文件。",
     "settings.formats.statusOpenLocal": "应用格式预设前请先打开本地文件。",
     "settings.formats.statusDeleted": "格式预设已删除。",
     "settings.formats.statusPresetOrderUnchanged": "格式预设顺序未改变。",
@@ -3356,6 +3368,12 @@ const localeCatalog = {
     "file.status.creatingNew": "正在创建新 CSV...",
     "file.status.newReady": "新文件已就绪：{{name}}",
     "file.status.newFailed": "新建文件失败：{{message}}",
+    "file.status.switchingTab": "正在切换到 {{name}}...",
+    "file.status.openTabUnavailable": "打开的标签不可用：{{message}}",
+    "file.status.switchedTab": "已切换到 {{name}}。",
+    "file.status.recentSaveFailed": "无法保存最近文件。",
+    "file.status.recentUpdateFailed": "无法更新最近文件。",
+    "file.status.removedMissingRecent": "已移除缺失的最近文件：{{message}}",
     "status.ready": "就绪",
     "status.languageChanged": "语言已更新。",
     "status.languageReset": "语言已重置。",
@@ -7221,7 +7239,7 @@ function renderFormatPresetSelect() {
 function saveCurrentFormatPreset(rulePattern = "") {
   const preset = currentFormatPreset();
   if (!preset) {
-    status.textContent = "Open a file before saving a format preset.";
+    status.textContent = t("settings.formats.statusOpenFileBeforeSave");
     return null;
   }
   const id = formatPresetID(preset);
@@ -16093,13 +16111,13 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
   activeEditorGroup = targetGroup;
   editorGroupActiveTabs[targetGroup] = tab.documentId;
   setOpenFileTabGroup(tab.documentId, targetGroup);
-  status.textContent = `Switching to ${tab.name}...`;
+  status.textContent = tf("file.status.switchingTab", { name: tab.name });
   const response = await fetch(`/api/session?id=${encodeURIComponent(tab.documentId)}`);
   const payload = await response.json();
   if (!response.ok) {
     openFileTabs = openFileTabs.filter((item) => item.documentId !== tab.documentId);
     renderFileList();
-    status.textContent = `Open tab unavailable: ${payload.error ?? "unknown error"}`;
+    status.textContent = tf("file.status.openTabUnavailable", { message: payload.error ?? t("common.unknownError") });
     return;
   }
   const session = payload.session;
@@ -16133,7 +16151,7 @@ async function switchOpenFileTab(targetDocumentId, options = {}) {
   draw();
   startFileStatusChecks();
   await checkFileStatus(false);
-  status.textContent = `Switched to ${activeFileEntry.name}.`;
+  status.textContent = tf("file.status.switchedTab", { name: activeFileEntry.name });
 }
 
 function pathInputValueForOpenSession(session, detail, fallbackName = "") {
@@ -16497,7 +16515,7 @@ function rememberRecentFile(entry) {
   try {
     localStorage.setItem(recentFilesStorageKey, JSON.stringify(next));
   } catch {
-    status.textContent = "Recent files could not be saved.";
+    status.textContent = t("file.status.recentSaveFailed");
   }
 }
 
@@ -16506,7 +16524,7 @@ function removeRecentFile(detail) {
   try {
     localStorage.setItem(recentFilesStorageKey, JSON.stringify(next));
   } catch {
-    status.textContent = "Recent files could not be updated.";
+    status.textContent = t("file.status.recentUpdateFailed");
   }
 }
 
@@ -16653,7 +16671,7 @@ async function openRecentFile(entry) {
   } catch (error) {
     removeRecentFile(entry.detail);
     renderFileList();
-    status.textContent = `Removed missing recent file: ${error.message}`;
+    status.textContent = tf("file.status.removedMissingRecent", { message: error.message });
   }
 }
 
@@ -16739,7 +16757,7 @@ async function maybeLoadWindow(row) {
     syncTotalRows();
     draw();
   } catch (error) {
-    status.textContent = `Window load failed: ${error.message}`;
+    status.textContent = tf("window.status.loadFailed", { message: error.message });
   } finally {
     loadingWindow = false;
   }

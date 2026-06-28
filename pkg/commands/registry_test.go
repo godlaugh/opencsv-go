@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -411,7 +411,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -594,7 +594,7 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing copy/export script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -662,7 +662,7 @@ func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing paste-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -742,7 +742,7 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatalf("missing aggregate localization cache bust")
 	}
 	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
@@ -787,7 +787,7 @@ func TestGridInteractionLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing grid interaction script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -906,7 +906,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -1049,7 +1049,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="settings.formats.applyImport"`,
 		`data-i18n="settings.formats.cancelImport"`,
 		`data-i18n="settings.noMatches"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1065,6 +1065,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.update.statusFailed": "更新检查失败：{{message}}"`,
 		`"settings.update.statusResultSaveFailed": "无法保存更新检查结果。"`,
 		`"window.status.geometrySaveFailed": "无法保存窗口布局。"`,
+		`"window.status.loadFailed": "窗口加载失败：{{message}}"`,
 		`"settings.noMatchesFor": "没有匹配“{{query}}”的设置。"`,
 		`"settings.savedViews.summary": "{{filters}} 个筛选，{{recent}} 条最近记录，{{sorts}} 个排序 · 历史 {{history}}"`,
 		`"settings.savedViews.statusReset": "保存的筛选、最近筛选和保存的排序已重置。"`,
@@ -1093,6 +1094,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"settings.formats.rowMeta": "{{preview}} · {{rules}} 条规则 · {{quoteRules}} 条引号规则"`,
 		`"settings.formats.field.delimiter": "分隔符"`,
 		`"settings.formats.quoteMode.manual": "手动"`,
+		`"settings.formats.statusOpenFileBeforeSave": "保存格式预设前请先打开文件。"`,
 		`"settings.formats.statusRuleAdded": "已添加格式规则：{{rule}}"`,
 		`"settings.formats.statusSavedPreset": "已保存格式预设：{{preset}}"`,
 		`tf("settings.theme.summarySystem"`,
@@ -1103,6 +1105,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`tf("settings.update.statusFailed"`,
 		`t("settings.update.statusResultSaveFailed")`,
 		`t("window.status.geometrySaveFailed")`,
+		`tf("window.status.loadFailed"`,
 		`tf("settings.savedViews.summary"`,
 		`t("settings.savedViews.noMatches")`,
 		`t("settings.savedViews.apply")`,
@@ -1146,6 +1149,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`t("settings.formats.statusReset")`,
 		`tf("settings.formats.statusUpdatedPreset"`,
 		`t("settings.formats.statusCustomDelimiterRequired")`,
+		`t("settings.formats.statusOpenFileBeforeSave")`,
 		`tf("settings.formats.statusRuleRemoved"`,
 		`tf("settings.formats.statusRuleMoved"`,
 		`t("settings.formats.statusRuleRequired")`,
@@ -1306,7 +1310,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1350,7 +1354,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1395,7 +1399,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=update-status-i18n-1`,
+		`v=shell-status-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1438,7 +1442,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1447,6 +1451,12 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 		`"file.status.openedMultiple": "已打开 {{count}} 个文件；当前 {{name}}。"`,
 		`"file.status.appliedUrlFormat": "已应用 URL 格式：{{summary}}"`,
 		`"file.status.appliedFormatPreset": "已应用格式预设：{{preset}}"`,
+		`"file.status.switchingTab": "正在切换到 {{name}}..."`,
+		`"file.status.openTabUnavailable": "打开的标签不可用：{{message}}"`,
+		`"file.status.switchedTab": "已切换到 {{name}}。"`,
+		`"file.status.recentSaveFailed": "无法保存最近文件。"`,
+		`"file.status.recentUpdateFailed": "无法更新最近文件。"`,
+		`"file.status.removedMissingRecent": "已移除缺失的最近文件：{{message}}"`,
 		`"settings.quotes.statusAppliedPreset": "已应用预设引号规则：{{summary}}。"`,
 		`tf("file.status.opening"`,
 		`tf("file.status.openFailed"`,
@@ -1457,6 +1467,12 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 		`tf("file.status.appliedUrlLocation"`,
 		`tf("file.status.appliedFormatRule"`,
 		`tf("file.status.appliedFormatPreset"`,
+		`tf("file.status.switchingTab"`,
+		`tf("file.status.openTabUnavailable"`,
+		`tf("file.status.switchedTab"`,
+		`t("file.status.recentSaveFailed")`,
+		`t("file.status.recentUpdateFailed")`,
+		`tf("file.status.removedMissingRecent"`,
 		`t("file.status.stdin")`,
 	} {
 		if !strings.Contains(source, snippet) {
@@ -1476,7 +1492,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1527,7 +1543,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1581,7 +1597,7 @@ func TestSmartSelectionStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing selection-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -2528,7 +2544,7 @@ func TestTransposeLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=update-status-i18n-1`) {
+	if !strings.Contains(html, `v=shell-status-i18n-1`) {
 		t.Fatal("missing transpose localization script cache-bust version")
 	}
 	for _, snippet := range []string{

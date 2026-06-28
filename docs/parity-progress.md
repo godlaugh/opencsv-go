@@ -283,6 +283,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-019 | High contrast theme foundation | Started | Browser Settings persistence verification |
 | FR-020 | Start/recent file sidebar foundation | Started | Browser recent-open and missing-recent cleanup verification |
 | FR-019/020/010/011 | Localized file-open and URL multi-open statuses | Started | command registry static coverage, Browser file-open locale verification |
+| FR-019/020 | Localized shell tab/recent/window status feedback | Started | command registry static coverage, Browser zh-CN missing-recent cleanup verification |
 | FR-019/004 | Localized structural edit statuses | Started | command registry static coverage, Browser row/column structural locale verification |
 | FR-019/004 | Localized cell tool and auto-fill statuses | Started | command registry static coverage, Browser join/split/conflict locale verification |
 | FR-020 | Start page New File and Settings quick actions | Started | `/api/new`, command registry/static tests, Browser New File/Save As verification |
