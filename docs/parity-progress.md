@@ -57,6 +57,7 @@ This document tracks implementation status against `docs/product-prd.md`.
 | FR-019/020/006 | Localized Saved Views settings slice | Started | command registry static coverage, Browser Saved Views locale verification |
 | FR-019/020/012 | Localized Link Protocols settings slice | Started | command registry static coverage, Browser Link Protocols locale verification |
 | FR-019/020 | Localized Editor Appearance settings slice | Started | command registry static coverage, Browser Appearance locale verification |
+| FR-019/020/013 | Localized status-bar format preset controls | Started | command registry static coverage, Browser zh-CN format-control verification |
 | FR-019/020/005 | Localized File Format Presets settings shell | Started | command registry static coverage, Browser format-preset locale verification |
 | FR-019/020/005 | Localized File Format Presets row editor and rule controls | Started | command registry static coverage, Browser format-preset row locale verification |
 | FR-019/020 | Localized Settings search empty state | Started | command registry static coverage, Browser Settings search locale verification |

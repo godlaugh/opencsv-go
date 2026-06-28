@@ -1642,11 +1642,18 @@ const localeCatalog = {
     "settings.formats.up": "Up",
     "settings.formats.down": "Down",
     "settings.formats.apply": "Apply",
+    "settings.formats.applyPreset": "Apply",
     "settings.formats.delete": "Delete",
     "settings.formats.remove": "Remove",
     "settings.formats.addRule": "Add Rule",
+    "settings.formats.savePreset": "Save Preset",
+    "settings.formats.saveRule": "Save Rule",
     "settings.formats.saveEdit": "Save Edit",
     "settings.formats.noAutomaticRules": "No automatic rules",
+    "settings.formats.presetAria": "Format preset",
+    "settings.formats.presetEmpty": "Preset",
+    "settings.formats.rulePatternAria": "Format rule pattern",
+    "settings.formats.rulePatternPlaceholder": "*.csv",
     "settings.formats.addRulePlaceholder": "name:*.csv, path:/exports/*, content:marker",
     "settings.formats.movePresetUpAria": "Move preset {{preset}} up",
     "settings.formats.movePresetDownAria": "Move preset {{preset}} down",
@@ -3212,11 +3219,18 @@ const localeCatalog = {
     "settings.formats.up": "上移",
     "settings.formats.down": "下移",
     "settings.formats.apply": "应用",
+    "settings.formats.applyPreset": "应用",
     "settings.formats.delete": "删除",
     "settings.formats.remove": "移除",
     "settings.formats.addRule": "添加规则",
+    "settings.formats.savePreset": "保存预设",
+    "settings.formats.saveRule": "保存规则",
     "settings.formats.saveEdit": "保存编辑",
     "settings.formats.noAutomaticRules": "没有自动规则",
+    "settings.formats.presetAria": "格式预设",
+    "settings.formats.presetEmpty": "预设",
+    "settings.formats.rulePatternAria": "格式规则模式",
+    "settings.formats.rulePatternPlaceholder": "*.csv",
     "settings.formats.addRulePlaceholder": "name:*.csv, path:/exports/*, content:marker",
     "settings.formats.movePresetUpAria": "将预设 {{preset}} 上移",
     "settings.formats.movePresetDownAria": "将预设 {{preset}} 下移",
@@ -4746,6 +4760,7 @@ function applyLocaleStrings() {
   applySQLLocaleStrings();
   applyDiffLocaleStrings();
   renderViewChips();
+  renderFormatPresetSelect();
   const readyLabels = new Set(Object.values(localeCatalog).map((catalog) => catalog["status.ready"]).filter(Boolean));
   if (!documentId && status && readyLabels.has(status.textContent)) {
     status.textContent = t("status.ready");
@@ -6352,11 +6367,11 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "view.filterBuilder") {
       button.textContent = "Builder";
     } else if (button.dataset.command === "format.savePreset") {
-      button.textContent = "Save Preset";
+      button.textContent = t("settings.formats.savePreset");
     } else if (button.dataset.command === "format.applyPreset") {
-      button.textContent = "Apply";
+      button.textContent = t("settings.formats.applyPreset");
     } else if (button.dataset.command === "format.saveRule") {
-      button.textContent = "Save Rule";
+      button.textContent = t("settings.formats.saveRule");
     } else if (button.dataset.command === "format.applyDelimiter") {
       button.textContent = t("settings.policy.applyDelimiter");
     } else if (button.dataset.command === "format.applyEncoding") {
@@ -7221,7 +7236,7 @@ function saveFormatPresets(presets) {
 function renderFormatPresetSelect() {
   const selectedValue = formatPresetSelect.value;
   const presets = formatPresets();
-  const options = [new Option("Preset", "")];
+  const options = [new Option(t("settings.formats.presetEmpty"), "")];
   for (const preset of presets) {
     const ruleCount = preset.rules?.length ?? 0;
     const label = ruleCount > 0 ? `${preset.name || preset.id} (${ruleCount})` : preset.name || preset.id;

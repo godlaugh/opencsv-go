@@ -704,13 +704,13 @@
           <select id="workbookSheetSelect" class="status-select workbook-sheet-select" aria-label="XLSX worksheet" title="XLSX worksheet" data-i18n-aria-label="workbook.worksheetAria" data-i18n-title="workbook.worksheetTitle" hidden disabled>
             <option value="">Sheet</option>
           </select>
-          <select id="formatPresetSelect" class="status-select" aria-label="Format preset">
-            <option value="">Preset</option>
+          <select id="formatPresetSelect" class="status-select" aria-label="Format preset" data-i18n-aria-label="settings.formats.presetAria">
+            <option value="" data-i18n="settings.formats.presetEmpty">Preset</option>
           </select>
-          <button id="saveFormatPresetButton" class="status-toggle" type="button" data-command="format.savePreset">Save Preset</button>
-          <button id="applyFormatPresetButton" class="status-toggle" type="button" data-command="format.applyPreset">Apply</button>
-          <input id="formatRuleInput" class="status-input" type="text" placeholder="*.csv" aria-label="Format rule pattern" />
-          <button id="saveFormatRuleButton" class="status-toggle" type="button" data-command="format.saveRule">Save Rule</button>
+          <button id="saveFormatPresetButton" class="status-toggle" type="button" data-command="format.savePreset" data-i18n="settings.formats.savePreset">Save Preset</button>
+          <button id="applyFormatPresetButton" class="status-toggle" type="button" data-command="format.applyPreset" data-i18n="settings.formats.applyPreset">Apply</button>
+          <input id="formatRuleInput" class="status-input" type="text" placeholder="*.csv" aria-label="Format rule pattern" data-i18n-placeholder="settings.formats.rulePatternPlaceholder" data-i18n-aria-label="settings.formats.rulePatternAria" />
+          <button id="saveFormatRuleButton" class="status-toggle" type="button" data-command="format.saveRule" data-i18n="settings.formats.saveRule">Save Rule</button>
           <span id="readOnlyStatus">Editable</span>
           <button id="externalStatus" class="status-toggle external-status" type="button" disabled>Synced</button>
         </footer>
@@ -1139,6 +1139,6 @@
 
     <section id="gridContextMenu" class="grid-context-menu" role="menu" aria-label="Grid context menu" hidden></section>
 
-    <script type="module" src="./src/app.js?v=shell-status-i18n-1"></script>
+    <script type="module" src="./src/app.js?v=format-controls-i18n-1"></script>
   </body>
 </html>
