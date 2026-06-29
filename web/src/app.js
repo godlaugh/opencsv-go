@@ -12050,6 +12050,41 @@ async function handleConditionBuilderEnter(event) {
   await applyConditionBuilder();
 }
 
+function handleConditionBuilderRowShortcut(event) {
+  if (!conditionBuilderOpen || !event.altKey || event.metaKey || event.ctrlKey) return false;
+  const row = event.target?.closest?.(".condition-row-extra");
+  if (!row || !conditionRows.contains(row)) return false;
+  const index = Number(row.dataset.conditionIndex ?? -1);
+  if (!Number.isInteger(index) || index < 0) return false;
+
+  let action = "";
+  if (!event.shiftKey && event.key === "ArrowUp") {
+    action = "move-up";
+  } else if (!event.shiftKey && event.key === "ArrowDown") {
+    action = "move-down";
+  } else if (event.shiftKey && event.key.toLowerCase() === "d") {
+    action = "duplicate";
+  }
+  if (!action) return false;
+
+  if (action === "move-down" && index >= conditionRows.querySelectorAll(".condition-row-extra").length - 1) {
+    event.preventDefault();
+    return true;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  document.body.dataset.conditionRowKeyboardAction = `${index + 2}:${action}`;
+  if (action === "move-up") {
+    moveConditionRow(index, -1);
+  } else if (action === "move-down") {
+    moveConditionRow(index, 1);
+  } else {
+    duplicateConditionRow(index);
+  }
+  return true;
+}
+
 async function applyConditionBuilder() {
   if (!documentId) return;
   const built = conditionBuilderExpressionFromDOM();
@@ -24719,7 +24754,10 @@ for (const input of [
 ]) {
   input.addEventListener("keydown", handleConditionBuilderEnter);
 }
-conditionRows.addEventListener("keydown", handleConditionBuilderEnter);
+conditionRows.addEventListener("keydown", async (event) => {
+  if (handleConditionBuilderRowShortcut(event)) return;
+  await handleConditionBuilderEnter(event);
+});
 commandInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
