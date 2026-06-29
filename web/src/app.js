@@ -12039,6 +12039,17 @@ function previewConditionBuilder() {
   status.textContent = t("condition.status.previewReady");
 }
 
+async function handleConditionBuilderEnter(event) {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  if (event.shiftKey) {
+    document.body.dataset.conditionBuilderPreviewShortcut = "shift-enter";
+    previewConditionBuilder();
+    return;
+  }
+  await applyConditionBuilder();
+}
+
 async function applyConditionBuilder() {
   if (!documentId) return;
   const built = conditionBuilderExpressionFromDOM();
@@ -24706,17 +24717,9 @@ for (const input of [
   conditionOperator,
   conditionValue,
 ]) {
-  input.addEventListener("keydown", async (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    await applyConditionBuilder();
-  });
+  input.addEventListener("keydown", handleConditionBuilderEnter);
 }
-conditionRows.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") return;
-  event.preventDefault();
-  await applyConditionBuilder();
-});
+conditionRows.addEventListener("keydown", handleConditionBuilderEnter);
 commandInput.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter") return;
   event.preventDefault();
