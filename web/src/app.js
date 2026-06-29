@@ -982,6 +982,10 @@ const localeCatalog = {
     "condition.treeAction.choose": "Choose action",
     "condition.treeActionAria": "Condition tree action",
     "condition.runTreeAction": "Run",
+    "condition.rowAction": "Row Action",
+    "condition.rowAction.choose": "Choose action",
+    "condition.rowActionAria": "Condition {{number}} row action",
+    "condition.runRowAction": "Run",
     "condition.groupAll": "Group All",
     "condition.allAnd": "All AND",
     "condition.allOr": "All OR",
@@ -1050,6 +1054,7 @@ const localeCatalog = {
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
     "condition.status.chooseTreeAction": "Choose a condition tree action.",
+    "condition.status.chooseRowAction": "Choose an action for condition {{number}}.",
     "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
     "condition.status.closeGroups": "Close every condition group before applying.",
     "condition.status.chooseColumn": "Choose a column to filter.",
@@ -2567,6 +2572,10 @@ const localeCatalog = {
     "condition.treeAction.choose": "选择操作",
     "condition.treeActionAria": "条件树操作",
     "condition.runTreeAction": "运行",
+    "condition.rowAction": "行操作",
+    "condition.rowAction.choose": "选择操作",
+    "condition.rowActionAria": "条件 {{number}} 行操作",
+    "condition.runRowAction": "运行",
     "condition.groupAll": "全部分组",
     "condition.allAnd": "全部且",
     "condition.allOr": "全部或",
@@ -2635,6 +2644,7 @@ const localeCatalog = {
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
     "condition.status.chooseTreeAction": "请选择条件树操作。",
+    "condition.status.chooseRowAction": "请选择条件 {{number}} 的操作。",
     "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
     "condition.status.closeGroups": "应用前请关闭所有条件分组。",
     "condition.status.chooseColumn": "请选择要筛选的列。",
@@ -11797,6 +11807,17 @@ function conditionExtraRowElement(row, index) {
   const actions = document.createElement("div");
   actions.className = "condition-row-actions";
 
+  const rowActionLabel = document.createElement("label");
+  rowActionLabel.className = "condition-row-action-menu";
+  rowActionLabel.append(conditionLabelText("condition.rowAction"));
+  const rowActionSelect = conditionRowActionSelect(index, number);
+  rowActionLabel.append(rowActionSelect);
+  const runRowActionButton = document.createElement("button");
+  runRowActionButton.type = "button";
+  runRowActionButton.dataset.conditionAction = "row-menu";
+  runRowActionButton.textContent = t("condition.runRowAction");
+  runRowActionButton.title = tf("condition.rowActionAria", { number });
+
   const moveUpButton = document.createElement("button");
   moveUpButton.type = "button";
   moveUpButton.dataset.conditionAction = "move-up";
@@ -11834,9 +11855,43 @@ function conditionExtraRowElement(row, index) {
   removeButton.dataset.conditionAction = "remove";
   removeButton.textContent = t("condition.remove");
   removeButton.title = tf("condition.removeTitle", { number });
-  actions.append(moveUpButton, moveDownButton, duplicateButton, groupButton, ungroupButton, removeButton);
+  actions.append(
+    rowActionLabel,
+    runRowActionButton,
+    moveUpButton,
+    moveDownButton,
+    duplicateButton,
+    groupButton,
+    ungroupButton,
+    removeButton,
+  );
   fieldset.append(actions);
   return fieldset;
+}
+
+function conditionRowActionSelect(index, number) {
+  const select = document.createElement("select");
+  select.className = "condition-row-action-select";
+  select.setAttribute("aria-label", tf("condition.rowActionAria", { number }));
+  const options = [
+    ["", "condition.rowAction.choose"],
+    ["move-up", "condition.moveUp"],
+    ["move-down", "condition.moveDown"],
+    ["duplicate", "condition.duplicate"],
+    ["group-previous", "condition.groupPrevious"],
+    ["ungroup-previous", "condition.ungroupPrevious"],
+    ["remove", "condition.remove"],
+  ];
+  for (const [value, labelKey] of options) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = t(labelKey);
+    if (value === "move-down" && index >= conditionExtraRows.length - 1) {
+      option.disabled = true;
+    }
+    select.append(option);
+  }
+  return select;
 }
 
 function conditionLabelText(key) {
@@ -12165,6 +12220,30 @@ function runConditionTreeAction() {
   } else {
     status.textContent = t("condition.status.chooseTreeAction");
     conditionTreeActionSelect?.focus();
+  }
+}
+
+function runConditionRowMenuAction(extraIndex, action) {
+  const number = extraIndex + 2;
+  document.body.dataset.conditionRowMenuAction = `${number}:${action || ""}`;
+  if (!action) {
+    status.textContent = tf("condition.status.chooseRowAction", { number: formatCount(number) });
+    const select = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${extraIndex}"] .condition-row-action-select`);
+    select?.focus();
+    return;
+  }
+  if (action === "remove") {
+    removeConditionRow(extraIndex);
+  } else if (action === "duplicate") {
+    duplicateConditionRow(extraIndex);
+  } else if (action === "group-previous") {
+    groupConditionWithPrevious(extraIndex, 1);
+  } else if (action === "ungroup-previous") {
+    groupConditionWithPrevious(extraIndex, -1);
+  } else if (action === "move-up") {
+    moveConditionRow(extraIndex, -1);
+  } else if (action === "move-down") {
+    moveConditionRow(extraIndex, 1);
   }
 }
 
@@ -24523,6 +24602,8 @@ conditionRows.addEventListener("click", (event) => {
   const index = Number(row?.dataset.conditionIndex ?? -1);
   if (button.dataset.conditionAction === "remove") {
     removeConditionRow(index);
+  } else if (button.dataset.conditionAction === "row-menu") {
+    runConditionRowMenuAction(index, row?.querySelector(".condition-row-action-select")?.value || "");
   } else if (button.dataset.conditionAction === "duplicate") {
     duplicateConditionRow(index);
   } else if (button.dataset.conditionAction === "group-previous") {

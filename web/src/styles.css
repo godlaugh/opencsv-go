@@ -2252,6 +2252,12 @@ button:disabled {
   align-self: end;
 }
 
+.condition-row-action-menu {
+  display: grid;
+  gap: 5px;
+  min-width: 132px;
+}
+
 .condition-row-actions button {
   align-self: end;
   min-height: 34px;
