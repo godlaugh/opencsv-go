@@ -360,6 +360,7 @@ const conditionPanel = document.querySelector("#conditionPanel");
 const conditionColumn = document.querySelector("#conditionColumn");
 const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
+const conditionPreviewText = document.querySelector("#conditionPreviewText");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
 const conditionTreeActionSelect = document.querySelector("#conditionTreeActionSelect");
@@ -374,6 +375,7 @@ const addConditionButton = document.querySelector("#addConditionButton");
 const groupAllConditionsButton = document.querySelector("#groupAllConditionsButton");
 const conditionAllAndButton = document.querySelector("#conditionAllAndButton");
 const conditionAllOrButton = document.querySelector("#conditionAllOrButton");
+const previewConditionButton = document.querySelector("#previewConditionButton");
 const applyConditionButton = document.querySelector("#applyConditionButton");
 const clearConditionButton = document.querySelector("#clearConditionButton");
 const columnMenu = document.querySelector("#columnMenu");
@@ -978,6 +980,9 @@ const localeCatalog = {
     "condition.add": "Add Condition",
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
+    "condition.previewTitle": "SQL Preview",
+    "condition.previewEmpty": "No preview yet",
+    "condition.previewButton": "Preview SQL",
     "condition.treeAction": "Tree Action",
     "condition.treeAction.choose": "Choose action",
     "condition.treeActionAria": "Condition tree action",
@@ -1055,6 +1060,7 @@ const localeCatalog = {
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
     "condition.status.chooseTreeAction": "Choose a condition tree action.",
     "condition.status.chooseRowAction": "Choose an action for condition {{number}}.",
+    "condition.status.previewReady": "SQL preview is ready.",
     "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
     "condition.status.closeGroups": "Close every condition group before applying.",
     "condition.status.chooseColumn": "Choose a column to filter.",
@@ -2568,6 +2574,9 @@ const localeCatalog = {
     "condition.add": "添加条件",
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
+    "condition.previewTitle": "SQL 预览",
+    "condition.previewEmpty": "尚无预览",
+    "condition.previewButton": "预览 SQL",
     "condition.treeAction": "树操作",
     "condition.treeAction.choose": "选择操作",
     "condition.treeActionAria": "条件树操作",
@@ -2645,6 +2654,7 @@ const localeCatalog = {
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
     "condition.status.chooseTreeAction": "请选择条件树操作。",
     "condition.status.chooseRowAction": "请选择条件 {{number}} 的操作。",
+    "condition.status.previewReady": "SQL 预览已就绪。",
     "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
     "condition.status.closeGroups": "应用前请关闭所有条件分组。",
     "condition.status.chooseColumn": "请选择要筛选的列。",
@@ -5147,6 +5157,9 @@ function applyConditionLocaleStrings() {
   if (conditionValue) conditionValue.setAttribute("aria-label", tf("condition.valueAria", { number: 1 }));
   if (conditionTreeActionSelect) conditionTreeActionSelect.setAttribute("aria-label", t("condition.treeActionAria"));
   if (conditionRows) conditionRows.setAttribute("aria-label", t("condition.additional"));
+  if (conditionPreviewText && conditionPreviewText.dataset.previewState !== "ready") {
+    renderConditionPreview("", conditionPreviewText.dataset.previewState || "idle");
+  }
   setSelectOptionLabels(conditionTemplateSelect, conditionTemplateLabelKeys());
   setSelectOptionLabels(conditionOperator, conditionOperatorLabelKeys());
   setSelectOptionLabels(conditionTreeActionSelect, conditionTreeActionLabelKeys());
@@ -11651,6 +11664,7 @@ function openConditionBuilder() {
   conditionOperator.value = conditionOperator.value || "contains";
   conditionTemplateSelect.value = "";
   document.body.dataset.conditionTemplate = "";
+  clearConditionPreview();
   updateConditionValueState();
   conditionPanel.hidden = false;
   conditionValue.focus();
@@ -11695,6 +11709,7 @@ function renderConditionExtraRows() {
   conditionExtraRows = normalizeConditionExtraRowsForGroups(conditionExtraRows);
   conditionRows.replaceChildren(...conditionExtraRows.map((row, index) => conditionExtraRowElement(row, index)));
   updateConditionValueState();
+  markConditionPreviewDirty();
 }
 
 function normalizeConditionExtraRowsForGroups(rows) {
@@ -11961,8 +11976,28 @@ function conditionValuePlaceholder(operator) {
   return "";
 }
 
-async function applyConditionBuilder() {
-  if (!documentId) return;
+function renderConditionPreview(expression = "", state = "idle") {
+  if (!conditionPreviewText) return;
+  const panel = conditionPreviewText.closest(".condition-preview-panel");
+  const normalizedState = state === "ready" || state === "error" ? state : "idle";
+  conditionPreviewText.dataset.previewState = normalizedState;
+  if (panel) panel.dataset.state = normalizedState;
+  conditionPreviewText.textContent = expression || t("condition.previewEmpty");
+}
+
+function clearConditionPreview() {
+  renderConditionPreview("", "idle");
+  document.body.dataset.conditionBuilderPreview = "";
+  document.body.dataset.conditionBuilderPreviewState = "idle";
+}
+
+function markConditionPreviewDirty() {
+  if (conditionPreviewText?.dataset.previewState === "ready") {
+    clearConditionPreview();
+  }
+}
+
+function conditionBuilderExpressionFromDOM() {
   readConditionExtraRowsFromDOM();
   const builderRows = conditionBuilderRowStatesFromDOM();
   const builders = conditionBuilderRowsFromDOM();
@@ -11970,7 +12005,7 @@ async function applyConditionBuilder() {
   const groupedTerms = [];
   for (const [index, builder] of builders.entries()) {
     const next = conditionExpression(builder.sourceCol, builder.operator, builder.value, builder.valueInput);
-    if (!next) return;
+    if (!next) return null;
     nodes.push({
       join: index === 0 ? "" : builder.join,
       expression: next,
@@ -11981,23 +12016,52 @@ async function applyConditionBuilder() {
   const expression = hasExplicitGroups
     ? conditionGroupedExpression(groupedTerms)
     : conditionNodesExpression(nodes);
-  if (!expression) return;
-  document.body.dataset.conditionPreview = expression;
-  document.body.dataset.conditionNestedGroupCount = String(groupedTerms.reduce((sum, term) => sum + term.groupStart, 0));
-  document.body.dataset.conditionRowCount = String(builders.length);
-  document.body.dataset.conditionGroupingMode = hasExplicitGroups ? "explicit" : "implicit";
-  commandInput.value = `where ${expression}`;
+  if (!expression) return null;
+  return { builderRows, builders, expression, groupedTerms, hasExplicitGroups };
+}
+
+function previewConditionBuilder() {
+  if (!documentId) return;
+  const built = conditionBuilderExpressionFromDOM();
+  if (!built) {
+    renderConditionPreview(status.textContent || t("condition.status.chooseOperator"), "error");
+    document.body.dataset.conditionBuilderPreviewState = "error";
+    return;
+  }
+  renderConditionPreview(built.expression, "ready");
+  document.body.dataset.conditionBuilderPreview = built.expression;
+  document.body.dataset.conditionBuilderPreviewState = "ready";
+  document.body.dataset.conditionNestedGroupCount = String(
+    built.groupedTerms.reduce((sum, term) => sum + term.groupStart, 0),
+  );
+  document.body.dataset.conditionRowCount = String(built.builders.length);
+  document.body.dataset.conditionGroupingMode = built.hasExplicitGroups ? "explicit" : "implicit";
+  status.textContent = t("condition.status.previewReady");
+}
+
+async function applyConditionBuilder() {
+  if (!documentId) return;
+  const built = conditionBuilderExpressionFromDOM();
+  if (!built) return;
+  document.body.dataset.conditionPreview = built.expression;
+  document.body.dataset.conditionNestedGroupCount = String(
+    built.groupedTerms.reduce((sum, term) => sum + term.groupStart, 0),
+  );
+  document.body.dataset.conditionRowCount = String(built.builders.length);
+  document.body.dataset.conditionGroupingMode = built.hasExplicitGroups ? "explicit" : "implicit";
+  renderConditionPreview(built.expression, "ready");
+  commandInput.value = `where ${built.expression}`;
   closeConditionBuilder();
   const visibleCol = visibleColForSource(Number(conditionColumn.value));
   await applyFilterRequest(
-    { documentId, mode: "sql", expression },
+    { documentId, mode: "sql", expression: built.expression },
     t("condition.filterLabel"),
     visibleCol >= 0 ? visibleCol : selected.col,
     {
       matched: "condition.status.matched",
       failed: "condition.status.failed",
     },
-    { builderRows },
+    { builderRows: built.builderRows },
   );
 }
 
@@ -12030,7 +12094,9 @@ function useConditionTemplate() {
   conditionValue.value = draft.value ?? "";
   updateConditionValueState();
   document.body.dataset.conditionTemplate = `${template}:${columns.find((column) => column.sourceCol === draft.column)?.name || draft.column}:${draft.operator}:${String(draft.value ?? "").slice(0, 80)}`;
-  document.body.dataset.conditionPreview = conditionExpression(draft.column, draft.operator, draft.value ?? "", conditionValue);
+  const expression = conditionExpression(draft.column, draft.operator, draft.value ?? "", conditionValue);
+  document.body.dataset.conditionPreview = expression;
+  renderConditionPreview(expression, expression ? "ready" : "error");
   status.textContent = tf("condition.status.ready", { label: conditionTemplateLabel(template) });
   conditionValue.focus();
   if (conditionOperatorNeedsValue(draft.operator)) conditionValue.select();
@@ -24581,8 +24647,13 @@ filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
 closeConditionButton.addEventListener("click", closeConditionBuilder);
 conditionOperator.addEventListener("change", updateConditionValueState);
+conditionColumn.addEventListener("change", markConditionPreviewDirty);
+conditionOperator.addEventListener("change", markConditionPreviewDirty);
+conditionValue.addEventListener("input", markConditionPreviewDirty);
 conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
+conditionPrimaryOpenGroup.addEventListener("change", markConditionPreviewDirty);
+conditionPrimaryCloseGroup.addEventListener("change", markConditionPreviewDirty);
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 runConditionTreeActionButton.addEventListener("click", runConditionTreeAction);
@@ -24592,8 +24663,10 @@ groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
 conditionAllAndButton.addEventListener("click", () => setAllConditionJoins("AND"));
 conditionAllOrButton.addEventListener("click", () => setAllConditionJoins("OR"));
 conditionRows.addEventListener("change", updateConditionValueState);
+conditionRows.addEventListener("change", markConditionPreviewDirty);
 conditionRows.addEventListener("input", () => {
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
+  markConditionPreviewDirty();
 });
 conditionRows.addEventListener("click", (event) => {
   const button = event.target.closest("[data-condition-action]");
@@ -24616,6 +24689,7 @@ conditionRows.addEventListener("click", (event) => {
     moveConditionRow(index, 1);
   }
 });
+previewConditionButton.addEventListener("click", previewConditionBuilder);
 applyConditionButton.addEventListener("click", applyConditionBuilder);
 clearConditionButton.addEventListener("click", async () => {
   closeConditionBuilder();

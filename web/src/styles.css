@@ -2209,6 +2209,33 @@ button:disabled {
   cursor: pointer;
 }
 
+.condition-preview-panel {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-subtle);
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.condition-preview-panel code {
+  display: block;
+  max-height: 92px;
+  overflow: auto;
+  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.condition-preview-panel[data-state="error"] {
+  border-color: var(--danger);
+}
+
 .condition-row {
   display: grid;
   grid-template-columns: 62px 62px minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);

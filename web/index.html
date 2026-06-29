@@ -1082,6 +1082,10 @@
             </label>
           </fieldset>
           <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
+          <section class="condition-preview-panel" aria-live="polite">
+            <strong data-i18n="condition.previewTitle">SQL Preview</strong>
+            <code id="conditionPreviewText" data-i18n="condition.previewEmpty">No preview yet</code>
+          </section>
         </div>
         <footer class="condition-actions" data-dialog-actions>
           <label class="condition-tree-action-control">
@@ -1102,6 +1106,7 @@
           <button id="conditionAllOrButton" type="button" data-i18n="condition.allOr">All OR</button>
           <button id="balanceConditionGroupsButton" type="button" data-i18n="condition.balanceGroups">Balance Groups</button>
           <button id="clearConditionGroupsButton" type="button" data-i18n="condition.clearGroups">Clear Groups</button>
+          <button id="previewConditionButton" type="button" data-i18n="condition.previewButton">Preview SQL</button>
           <button id="applyConditionButton" type="button" data-i18n="condition.apply" data-dialog-role="confirm">Apply</button>
           <button id="clearConditionButton" type="button" data-i18n="condition.clearView" data-dialog-role="cancel">Clear View</button>
         </footer>
