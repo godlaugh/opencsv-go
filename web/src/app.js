@@ -674,6 +674,8 @@ const localeCatalog = {
     "view.status.removeSortKeyFirst": "Add a secondary sort key before removing one.",
     "view.status.removedSortKey": "Removed {{key}}; sorted {{sort}}",
     "view.status.sorted": "Sorted {{sort}}",
+    "view.status.sortUndo": "Undid sort view.",
+    "view.status.sortRedo": "Redid sort view.",
     "view.status.sortFailed": "Sort failed: {{message}}",
     "view.status.exportedSavedViews": "Exported {{filters}} filters, {{sorts}} sorts.",
     "view.status.importedSavedViews": "Imported {{filters}} filters, {{sorts}} sorts.",
@@ -2276,6 +2278,8 @@ const localeCatalog = {
     "view.status.removeSortKeyFirst": "请先添加次级排序键再移除。",
     "view.status.removedSortKey": "已移除 {{key}}；已排序：{{sort}}",
     "view.status.sorted": "已排序：{{sort}}",
+    "view.status.sortUndo": "已撤销排序视图。",
+    "view.status.sortRedo": "已重做排序视图。",
     "view.status.sortFailed": "排序失败：{{message}}",
     "view.status.exportedSavedViews": "已导出 {{filters}} 个筛选、{{sorts}} 个排序。",
     "view.status.importedSavedViews": "已导入 {{filters}} 个筛选、{{sorts}} 个排序。",
@@ -4343,6 +4347,8 @@ let viewMapped = false;
 let sortDescending = false;
 let sortKeys = [];
 let sortStable = true;
+let sortViewUndoStack = [];
+let sortViewRedoStack = [];
 let commandsById = new Map();
 let viewMode = "grid";
 let editorGroupLayout = loadEditorGroupLayout();
@@ -15069,8 +15075,7 @@ function loadDocument(document) {
   syncSQLResultActions();
   dataStartRow = document.metadata.dialect.hasHeader ? 1 : 0;
   viewMapped = false;
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   clearActiveFilter();
   invalidateFindState();
   document.preview.forEach((record, index) => {
@@ -15100,6 +15105,7 @@ function loadDocument(document) {
   encodingDraftDirty = false;
   lineEndingDraftDirty = false;
   dirty = false;
+  clearSortViewHistory();
 }
 
 function applyMutationPayload(payload, message) {
@@ -16849,8 +16855,7 @@ function clearCurrentDocumentState(closedName = "") {
   externalFileChanged = false;
   externalChangePanelDismissed = false;
   viewMapped = false;
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   clearActiveFilter();
   invalidateFindState();
   setSmartSelectionRanges([]);
@@ -18781,9 +18786,9 @@ async function applyFilterRequest(body, label, preserveCol = selected.col, statu
     return false;
   }
   viewMapped = true;
+  if (!descriptorOptions.preserveSortHistory) clearSortViewHistory();
   document.body.dataset.filterStreamed = String(Boolean(payload.streamed));
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   const descriptor = filterDescriptorFromRequest(body, label, descriptorOptions);
   setActiveFilter(descriptor);
   rememberRecentFilter(body, descriptor);
@@ -18879,8 +18884,7 @@ async function resetViewMappingForReplay(selectedSourceCol = selected.col) {
     return false;
   }
   viewMapped = false;
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   rows = new Map();
   rowSource = new Map();
   aggregateRows = [];
@@ -18901,6 +18905,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "", opti
   if (!documentId || columns.length === 0 || nextKeys.length === 0) return false;
   const primaryKey = nextKeys[0];
   const stable = options.stable ?? sortStable;
+  const undoSnapshot = options.recordUndo === false ? null : captureViewSnapshot();
   const response = await fetch("/api/sort", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18920,6 +18925,7 @@ async function applySortKeys(nextKeys, selectedColumn, successMessage = "", opti
     status.textContent = tf("view.status.sortFailed", { message: payload.error ?? "unknown error" });
     return false;
   }
+  if (undoSnapshot) pushSortViewUndoSnapshot(undoSnapshot);
   viewMapped = true;
   sortKeys = nextKeys;
   sortStable = payload.stable !== false;
@@ -19112,9 +19118,9 @@ async function applyColumnValueChecklist() {
     return;
   }
   viewMapped = true;
+  clearSortViewHistory();
   document.body.dataset.valueFilterStreamed = String(Boolean(payload.streamed));
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   const descriptor = valueFilterDescriptor(sourceCol, values, includeBlank);
   setActiveFilter(descriptor);
   rememberRecentFilter({ mode: "sql", expression: descriptor.expression }, descriptor);
@@ -19149,8 +19155,8 @@ async function clearView() {
     return;
   }
   viewMapped = false;
-  sortDescending = false;
-  sortKeys = [];
+  clearSortViewHistory();
+  clearSortState();
   clearActiveFilter();
   hiddenSourceColumns = new Set();
   applyHiddenColumns();
@@ -19174,6 +19180,7 @@ async function undoCurrentDocument() {
   if (!documentId) return;
   const action = localizedEditAction("edit.undo", "Undo");
   if (!ensureEditable(action)) return;
+  if (await undoSortView()) return;
   const response = await fetch("/api/undo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19194,6 +19201,7 @@ async function redoCurrentDocument() {
   if (!documentId) return;
   const action = localizedEditAction("edit.redo", "Redo");
   if (!ensureEditable(action)) return;
+  if (await redoSortView()) return;
   const response = await fetch("/api/redo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19331,8 +19339,7 @@ async function showAllRows() {
     return;
   }
   viewMapped = false;
-  sortDescending = false;
-  sortKeys = [];
+  clearSortState();
   clearActiveFilter();
   rows = new Map();
   rowSource = new Map();
@@ -20885,6 +20892,84 @@ function captureViewSnapshot() {
   };
 }
 
+function cloneViewSnapshot(snapshot) {
+  if (!snapshot) return null;
+  return {
+    filter: snapshot.filter ? { ...snapshot.filter } : null,
+    sortKeys: (snapshot.sortKeys ?? []).map((key) => ({ ...key })),
+    sortStable: snapshot.sortStable !== false,
+    selectedSourceCol: Number.isInteger(snapshot.selectedSourceCol) ? snapshot.selectedSourceCol : selected.col,
+  };
+}
+
+function clearSortViewHistory() {
+  sortViewUndoStack = [];
+  sortViewRedoStack = [];
+  document.body.dataset.sortViewUndoDepth = "0";
+  document.body.dataset.sortViewRedoDepth = "0";
+}
+
+function clearSortState() {
+  sortDescending = false;
+  sortKeys = [];
+  document.body.dataset.sortKeyCount = "0";
+}
+
+function pushSortViewUndoSnapshot(snapshot) {
+  const cloned = cloneViewSnapshot(snapshot);
+  if (!cloned) return;
+  sortViewUndoStack.push(cloned);
+  if (sortViewUndoStack.length > 20) sortViewUndoStack.shift();
+  sortViewRedoStack = [];
+  document.body.dataset.sortViewUndoDepth = String(sortViewUndoStack.length);
+  document.body.dataset.sortViewRedoDepth = "0";
+}
+
+async function restoreViewHistorySnapshot(snapshot) {
+  if (!documentId || !snapshot) return false;
+  const selectedSourceCol = Number.isInteger(snapshot.selectedSourceCol) ? snapshot.selectedSourceCol : selected.col;
+  const reset = await resetViewMappingForReplay(selectedSourceCol);
+  if (!reset) return false;
+  if (!snapshot.filter?.expression) clearActiveFilter();
+  await restoreViewSnapshot(snapshot);
+  renderViewChips();
+  return true;
+}
+
+async function undoSortView() {
+  if (!sortViewUndoStack.length) return false;
+  const current = cloneViewSnapshot(captureViewSnapshot());
+  const target = sortViewUndoStack.pop();
+  const restored = await restoreViewHistorySnapshot(target);
+  if (!restored) {
+    sortViewUndoStack.push(target);
+    return true;
+  }
+  if (current) sortViewRedoStack.push(current);
+  document.body.dataset.sortViewUndo = `${sortViewUndoStack.length}:${sortViewRedoStack.length}`;
+  document.body.dataset.sortViewUndoDepth = String(sortViewUndoStack.length);
+  document.body.dataset.sortViewRedoDepth = String(sortViewRedoStack.length);
+  status.textContent = t("view.status.sortUndo");
+  return true;
+}
+
+async function redoSortView() {
+  if (!sortViewRedoStack.length) return false;
+  const current = cloneViewSnapshot(captureViewSnapshot());
+  const target = sortViewRedoStack.pop();
+  const restored = await restoreViewHistorySnapshot(target);
+  if (!restored) {
+    sortViewRedoStack.push(target);
+    return true;
+  }
+  if (current) sortViewUndoStack.push(current);
+  document.body.dataset.sortViewRedo = `${sortViewUndoStack.length}:${sortViewRedoStack.length}`;
+  document.body.dataset.sortViewUndoDepth = String(sortViewUndoStack.length);
+  document.body.dataset.sortViewRedoDepth = String(sortViewRedoStack.length);
+  status.textContent = t("view.status.sortRedo");
+  return true;
+}
+
 async function restoreViewSnapshot(snapshot) {
   if (!documentId || !snapshot) {
     document.body.dataset.refreshViewRestored = "";
@@ -20900,6 +20985,8 @@ async function restoreViewSnapshot(snapshot) {
       { documentId, mode: "sql", expression: snapshot.filter.expression },
       "Restored filter",
       preserveCol >= 0 ? preserveCol : selected.col,
+      {},
+      { preserveSortHistory: true },
     );
     if (filterRestored) {
       setActiveFilter(snapshot.filter);
@@ -20920,7 +21007,7 @@ async function restoreViewSnapshot(snapshot) {
       resolvedSortKeys,
       visibleCol >= 0 ? visibleCol : Math.max(0, Math.min(columns.length - 1, selected.col)),
       "Restored sort",
-      { stable: snapshot.sortStable !== false },
+      { stable: snapshot.sortStable !== false, recordUndo: false },
     );
     if (sortRestored) restored.push("sort");
   }
