@@ -1084,6 +1084,18 @@
           <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
         </div>
         <footer class="condition-actions" data-dialog-actions>
+          <label class="condition-tree-action-control">
+            <span data-i18n="condition.treeAction">Tree Action</span>
+            <select id="conditionTreeActionSelect" aria-label="Condition tree action">
+              <option value="" data-i18n="condition.treeAction.choose">Choose action</option>
+              <option value="groupAll" data-i18n="condition.groupAll">Group All</option>
+              <option value="allAnd" data-i18n="condition.allAnd">All AND</option>
+              <option value="allOr" data-i18n="condition.allOr">All OR</option>
+              <option value="balance" data-i18n="condition.balanceGroups">Balance Groups</option>
+              <option value="clearGroups" data-i18n="condition.clearGroups">Clear Groups</option>
+            </select>
+          </label>
+          <button id="runConditionTreeActionButton" type="button" data-i18n="condition.runTreeAction">Run</button>
           <button id="addConditionButton" type="button" data-i18n="condition.add">Add Condition</button>
           <button id="groupAllConditionsButton" type="button" data-i18n="condition.groupAll">Group All</button>
           <button id="conditionAllAndButton" type="button" data-i18n="condition.allAnd">All AND</button>

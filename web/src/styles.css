@@ -2159,7 +2159,17 @@ button:disabled {
 
 .condition-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
   border-top: 1px solid var(--border);
+}
+
+.condition-tree-action-control {
+  display: grid;
+  grid-template-columns: auto minmax(132px, 170px);
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .condition-grid {
@@ -2316,6 +2326,7 @@ button:disabled {
 
 .condition-grid select,
 .condition-grid input,
+.condition-actions select,
 .save-as-body input {
   height: 34px;
   min-width: 0;

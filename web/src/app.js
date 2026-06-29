@@ -362,6 +362,8 @@ const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
+const conditionTreeActionSelect = document.querySelector("#conditionTreeActionSelect");
+const runConditionTreeActionButton = document.querySelector("#runConditionTreeActionButton");
 const balanceConditionGroupsButton = document.querySelector("#balanceConditionGroupsButton");
 const clearConditionGroupsButton = document.querySelector("#clearConditionGroupsButton");
 const conditionPrimaryOpenGroup = document.querySelector("#conditionPrimaryOpenGroup");
@@ -976,6 +978,10 @@ const localeCatalog = {
     "condition.add": "Add Condition",
     "condition.apply": "Apply",
     "condition.clearView": "Clear View",
+    "condition.treeAction": "Tree Action",
+    "condition.treeAction.choose": "Choose action",
+    "condition.treeActionAria": "Condition tree action",
+    "condition.runTreeAction": "Run",
     "condition.groupAll": "Group All",
     "condition.allAnd": "All AND",
     "condition.allOr": "All OR",
@@ -1043,6 +1049,7 @@ const localeCatalog = {
     "condition.status.clearedGroups": "Cleared {{count}} condition group markers.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
+    "condition.status.chooseTreeAction": "Choose a condition tree action.",
     "condition.status.tooManyCloses": "Condition {{number}} closes more groups than are open.",
     "condition.status.closeGroups": "Close every condition group before applying.",
     "condition.status.chooseColumn": "Choose a column to filter.",
@@ -2556,6 +2563,10 @@ const localeCatalog = {
     "condition.add": "添加条件",
     "condition.apply": "应用",
     "condition.clearView": "清除视图",
+    "condition.treeAction": "树操作",
+    "condition.treeAction.choose": "选择操作",
+    "condition.treeActionAria": "条件树操作",
+    "condition.runTreeAction": "运行",
     "condition.groupAll": "全部分组",
     "condition.allAnd": "全部且",
     "condition.allOr": "全部或",
@@ -2623,6 +2634,7 @@ const localeCatalog = {
     "condition.status.clearedGroups": "已清除 {{count}} 个条件分组标记。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
+    "condition.status.chooseTreeAction": "请选择条件树操作。",
     "condition.status.tooManyCloses": "条件 {{number}} 关闭的分组多于已打开分组。",
     "condition.status.closeGroups": "应用前请关闭所有条件分组。",
     "condition.status.chooseColumn": "请选择要筛选的列。",
@@ -5092,6 +5104,17 @@ function conditionTemplateLabelKeys() {
   };
 }
 
+function conditionTreeActionLabelKeys() {
+  return {
+    "": "condition.treeAction.choose",
+    groupAll: "condition.groupAll",
+    allAnd: "condition.allAnd",
+    allOr: "condition.allOr",
+    balance: "condition.balanceGroups",
+    clearGroups: "condition.clearGroups",
+  };
+}
+
 function applyConditionLocaleStrings() {
   const dialog = conditionPanel?.querySelector(".condition-panel");
   const templateBar = conditionPanel?.querySelector(".condition-template-bar");
@@ -5112,9 +5135,11 @@ function applyConditionLocaleStrings() {
   if (conditionColumn) conditionColumn.setAttribute("aria-label", tf("condition.columnAria", { number: 1 }));
   if (conditionOperator) conditionOperator.setAttribute("aria-label", tf("condition.operatorAria", { number: 1 }));
   if (conditionValue) conditionValue.setAttribute("aria-label", tf("condition.valueAria", { number: 1 }));
+  if (conditionTreeActionSelect) conditionTreeActionSelect.setAttribute("aria-label", t("condition.treeActionAria"));
   if (conditionRows) conditionRows.setAttribute("aria-label", t("condition.additional"));
   setSelectOptionLabels(conditionTemplateSelect, conditionTemplateLabelKeys());
   setSelectOptionLabels(conditionOperator, conditionOperatorLabelKeys());
+  setSelectOptionLabels(conditionTreeActionSelect, conditionTreeActionLabelKeys());
   if (conditionRows?.querySelector(".condition-row-extra")) {
     readConditionExtraRowsFromDOM();
     renderConditionExtraRows();
@@ -12122,6 +12147,25 @@ function balanceConditionGroups() {
     });
   }
   conditionValue.focus();
+}
+
+function runConditionTreeAction() {
+  const action = conditionTreeActionSelect?.value || "";
+  document.body.dataset.conditionTreeMenuAction = action;
+  if (action === "groupAll") {
+    groupAllConditionRows();
+  } else if (action === "allAnd") {
+    setAllConditionJoins("AND");
+  } else if (action === "allOr") {
+    setAllConditionJoins("OR");
+  } else if (action === "balance") {
+    balanceConditionGroups();
+  } else if (action === "clearGroups") {
+    clearConditionGroups();
+  } else {
+    status.textContent = t("condition.status.chooseTreeAction");
+    conditionTreeActionSelect?.focus();
+  }
 }
 
 function groupAllConditionRows() {
@@ -24462,6 +24506,7 @@ conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
+runConditionTreeActionButton.addEventListener("click", runConditionTreeAction);
 balanceConditionGroupsButton.addEventListener("click", balanceConditionGroups);
 clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
 groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
