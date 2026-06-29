@@ -12064,6 +12064,12 @@ function handleConditionBuilderRowShortcut(event) {
     action = "move-down";
   } else if (event.shiftKey && event.key.toLowerCase() === "d") {
     action = "duplicate";
+  } else if (event.shiftKey && event.key.toLowerCase() === "g") {
+    action = "group-previous";
+  } else if (event.shiftKey && event.key.toLowerCase() === "u") {
+    action = "ungroup-previous";
+  } else if (event.shiftKey && (event.key === "Backspace" || event.key === "Delete")) {
+    action = "remove";
   }
   if (!action) return false;
 
@@ -12079,6 +12085,12 @@ function handleConditionBuilderRowShortcut(event) {
     moveConditionRow(index, -1);
   } else if (action === "move-down") {
     moveConditionRow(index, 1);
+  } else if (action === "group-previous") {
+    groupConditionWithPrevious(index, 1);
+  } else if (action === "ungroup-previous") {
+    groupConditionWithPrevious(index, -1);
+  } else if (action === "remove") {
+    removeConditionRow(index);
   } else {
     duplicateConditionRow(index);
   }
