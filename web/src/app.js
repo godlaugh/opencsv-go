@@ -6337,9 +6337,9 @@ function applyCommandMetadata() {
       ? `${localizedCommandDescription(command)} (${shortcut})`
       : localizedCommandDescription(command);
     if (button.dataset.command === "edit.replaceAll") {
-      button.textContent = "All";
+      button.textContent = t("edit.all");
     } else if (button.dataset.command === "command.palette") {
-      button.textContent = "Cmd";
+      button.textContent = t("nav.command");
     } else if (button.dataset.command === "workbench.splitEditor") {
       button.textContent = t("workbench.split");
     } else if (button.dataset.command === "workbench.toggleSplitOrientation") {
@@ -6353,19 +6353,19 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "file.toggleReadOnly") {
       button.textContent = t("file.readOnly");
     } else if (button.dataset.command === "diff.open") {
-      button.textContent = "Compare";
+      button.textContent = t("diff.compare");
     } else if (button.dataset.command === "file.exportView") {
       button.textContent = t("file.export");
     } else if (button.dataset.command === "file.exportXlsx") {
       button.textContent = "XLSX";
     } else if (button.dataset.command === "file.restoreBackup") {
-      button.textContent = "Restore";
+      button.textContent = t("file.restore");
     } else if (button.dataset.command === "edit.copySelectedFormat") {
       button.textContent = t("edit.copy");
     } else if (button.dataset.command === "edit.replacePreview") {
-      button.textContent = "Preview";
+      button.textContent = t("edit.preview");
     } else if (button.dataset.command === "view.filterBuilder") {
-      button.textContent = "Builder";
+      button.textContent = t("view.builder");
     } else if (button.dataset.command === "format.savePreset") {
       button.textContent = t("settings.formats.savePreset");
     } else if (button.dataset.command === "format.applyPreset") {
@@ -6385,13 +6385,13 @@ function applyCommandMetadata() {
     } else if (button.dataset.command === "format.importQuoteRules") {
       button.textContent = t("settings.quotes.import");
     } else if (button.dataset.command === "format.toggleCellQuote") {
-      button.textContent = "Toggle";
+      button.textContent = t("inspector.toggleQuote");
     } else if (button.dataset.command === "column.showAll") {
       button.textContent = t("column.showAllShort");
     } else if (button.dataset.command === "sql.copyResultCsv") {
-      button.textContent = "Copy CSV";
+      button.textContent = `${t("sql.copy")} CSV`;
     } else if (button.dataset.command === "sql.exportResultCsv") {
-      button.textContent = "Export CSV";
+      button.textContent = `${t("sql.export")} CSV`;
     } else if (button.dataset.command === "selection.cycleAggregate") {
       updateAggregateStatus(selectionAggregateStats());
     } else if (button.dataset.command === "settings.exportShortcuts") {
