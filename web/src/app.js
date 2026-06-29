@@ -362,6 +362,7 @@ const conditionOperator = document.querySelector("#conditionOperator");
 const conditionValue = document.querySelector("#conditionValue");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
+const balanceConditionGroupsButton = document.querySelector("#balanceConditionGroupsButton");
 const clearConditionGroupsButton = document.querySelector("#clearConditionGroupsButton");
 const conditionPrimaryOpenGroup = document.querySelector("#conditionPrimaryOpenGroup");
 const conditionPrimaryCloseGroup = document.querySelector("#conditionPrimaryCloseGroup");
@@ -978,6 +979,7 @@ const localeCatalog = {
     "condition.groupAll": "Group All",
     "condition.allAnd": "All AND",
     "condition.allOr": "All OR",
+    "condition.balanceGroups": "Balance Groups",
     "condition.clearGroups": "Clear Groups",
     "condition.remove": "Remove",
     "condition.duplicate": "Duplicate",
@@ -1036,6 +1038,8 @@ const localeCatalog = {
     "condition.status.maxGroups": "The selected conditions already use the maximum group depth.",
     "condition.status.allAnd": "Set all condition joins to AND.",
     "condition.status.allOr": "Set all condition joins to OR.",
+    "condition.status.groupsAlreadyBalanced": "Condition groups are already balanced.",
+    "condition.status.balancedGroups": "Balanced condition groups: removed {{removed}} markers and added {{added}} closing markers.",
     "condition.status.clearedGroups": "Cleared {{count}} condition group markers.",
     "condition.status.selectCell": "Select a cell before using a quick condition.",
     "condition.status.unsupportedQuick": "Choose a supported quick condition.",
@@ -2555,6 +2559,7 @@ const localeCatalog = {
     "condition.groupAll": "全部分组",
     "condition.allAnd": "全部且",
     "condition.allOr": "全部或",
+    "condition.balanceGroups": "平衡分组",
     "condition.clearGroups": "清除分组",
     "condition.remove": "移除",
     "condition.duplicate": "复制",
@@ -2613,6 +2618,8 @@ const localeCatalog = {
     "condition.status.maxGroups": "所选条件已达到最大分组深度。",
     "condition.status.allAnd": "已将所有条件连接设为且。",
     "condition.status.allOr": "已将所有条件连接设为或。",
+    "condition.status.groupsAlreadyBalanced": "条件分组已平衡。",
+    "condition.status.balancedGroups": "已平衡条件分组：移除 {{removed}} 个标记，并添加 {{added}} 个关闭标记。",
     "condition.status.clearedGroups": "已清除 {{count}} 个条件分组标记。",
     "condition.status.selectCell": "使用快速条件前请先选择一个单元格。",
     "condition.status.unsupportedQuick": "请选择支持的快速条件。",
@@ -12061,6 +12068,59 @@ function clearConditionGroups() {
   document.body.dataset.conditionGroupClear = `${cleared}->0`;
   document.body.dataset.conditionGroupingMode = "implicit";
   status.textContent = tf("condition.status.clearedGroups", { count: formatCount(cleared) });
+  conditionValue.focus();
+}
+
+function balanceConditionGroups() {
+  const rows = conditionBuilderRowStatesFromDOM();
+  let depth = 0;
+  let removed = 0;
+  let added = 0;
+  for (const row of rows) {
+    const open = conditionGroupCount(row.groupStart);
+    const close = conditionGroupCount(row.groupEnd);
+    depth += open;
+    if (close > depth) {
+      removed += close - depth;
+      row.groupEnd = depth;
+      depth = 0;
+    } else {
+      depth -= close;
+    }
+  }
+  const lastRow = rows[rows.length - 1];
+  if (lastRow && depth > 0) {
+    const room = Math.max(0, 3 - conditionGroupCount(lastRow.groupEnd));
+    const closing = Math.min(room, depth);
+    if (closing > 0) {
+      lastRow.groupEnd = conditionGroupCount(lastRow.groupEnd) + closing;
+      added += closing;
+      depth -= closing;
+    }
+  }
+  for (let index = rows.length - 1; index >= 0 && depth > 0; index--) {
+    const open = conditionGroupCount(rows[index].groupStart);
+    const removing = Math.min(open, depth);
+    if (removing > 0) {
+      rows[index].groupStart = open - removing;
+      removed += removing;
+      depth -= removing;
+    }
+  }
+  if (removed === 0 && added === 0) {
+    status.textContent = t("condition.status.groupsAlreadyBalanced");
+  } else {
+    setConditionBuilderRows(rows);
+    document.body.dataset.conditionGroupAction = "balance";
+    document.body.dataset.conditionGroupBalance = `${removed}:${added}`;
+    document.body.dataset.conditionGroupingMode = rows.some((row) => row.groupStart > 0 || row.groupEnd > 0)
+      ? "explicit"
+      : "implicit";
+    status.textContent = tf("condition.status.balancedGroups", {
+      removed: formatCount(removed),
+      added: formatCount(added),
+    });
+  }
   conditionValue.focus();
 }
 
@@ -24402,6 +24462,7 @@ conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
+balanceConditionGroupsButton.addEventListener("click", balanceConditionGroups);
 clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
 groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
 conditionAllAndButton.addEventListener("click", () => setAllConditionJoins("AND"));
