@@ -320,7 +320,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 		`id="clearMacroButton"`,
 		`data-command="macro.clearLast"`,
 		`data-i18n="macro.clear"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command macro html wiring %q", snippet)
@@ -335,7 +335,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 			t.Fatalf("missing command macro style wiring %q", snippet)
 		}
 	}
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing macro script cache-bust version")
 	}
 }
@@ -359,7 +359,7 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-placeholder="command.searchPlaceholder"`,
 		`id="paletteList"`,
 		`data-i18n-aria-label="command.listAria"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing command palette localized html wiring %q", snippet)
@@ -411,7 +411,7 @@ func TestInspectorShellLocalizationIsWired(t *testing.T) {
 		`data-i18n="inspector.toggleQuote"`,
 		`data-i18n-aria-label="inspector.dialogAria"`,
 		`data-i18n="inspector.cellValue"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing inspector localized html wiring %q", snippet)
@@ -594,7 +594,7 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing copy/export script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -662,7 +662,7 @@ func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing paste-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -742,7 +742,7 @@ func TestSelectionAggregateLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatalf("missing aggregate localization cache bust")
 	}
 	if !strings.Contains(html, `data-i18n="aggregate.button.empty"`) {
@@ -787,7 +787,7 @@ func TestGridInteractionLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing grid interaction script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -906,7 +906,7 @@ func TestSQLConsolePerTabStateIsWired(t *testing.T) {
 		`id="sqlPaneSizeInput"`,
 		`type="range"`,
 		`aria-label="SQL result pane height"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(string(indexHTML), snippet) {
 			t.Fatalf("missing SQL pane-size html wiring %q", snippet)
@@ -1056,7 +1056,7 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`data-i18n-aria-label="settings.formats.rulePatternAria"`,
 		`data-i18n="settings.formats.saveRule"`,
 		`data-i18n="settings.noMatches"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing settings localized html wiring %q", snippet)
@@ -1198,6 +1198,24 @@ func TestSettingsShellLocalizationIsWired(t *testing.T) {
 		`"command.workbench.moveTabToOtherGroup.description": "将当前文档标签移动到另一个编辑器组。"`,
 		`"command.workbench.closeSplitEditor.description": "关闭第二个编辑器组。"`,
 		`"command.file.closeTab.description": "关闭当前打开的文件标签页，并保护未保存编辑。"`,
+		`"command.format.savePreset.description": "将当前分隔符、表头和编码检测结果保存为可复用的格式预设。"`,
+		`"command.format.applyPreset.description": "使用选中的格式预设重新打开当前路径。"`,
+		`"command.format.saveRule.description": "把文件名、路径或内容规则关联到当前格式预设，用于自动应用。"`,
+		`"command.format.exportPresets.description": "将保存的文件格式预设和自动规则下载为 JSON。"`,
+		`"command.format.importPresets.description": "从 JSON 导入文件格式预设和自动规则。"`,
+		`"command.format.applyDelimiter.description": "更新当前文档的保存分隔符。"`,
+		`"command.format.applyEncoding.description": "更新当前文档的保存编码。"`,
+		`"command.format.applyLineEnding.description": "更新当前文档的保存换行符。"`,
+		`"command.format.applyQuotePolicy.description": "更新当前文档保存格式的引号字符和引号模式。"`,
+		`"command.format.switchWorksheet.description": "聚焦当前工作簿的 XLSX 工作表选择器。"`,
+		`"command.format.exportQuoteRules.description": "将当前文档的引号策略和规则映射下载为 JSON。"`,
+		`"command.format.importQuoteRules.description": "将引号策略和规则映射 JSON 导入当前文档。"`,
+		`"command.format.toggleHeaderQuote.description": "切换表头行的显式引号保留。"`,
+		`"command.format.toggleBodyQuote.description": "切换正文行的显式引号保留。"`,
+		`"command.format.toggleColumnQuote.description": "切换当前列的显式引号保留。"`,
+		`"command.format.quoteSelection.description": "将每个选中单元格标记为保存时加引号。"`,
+		`"command.format.noQuoteSelection.description": "为每个选中单元格设置显式不加引号覆盖。"`,
+		`"command.format.clearSelectionQuote.description": "移除选中单元格的显式加引号和不加引号覆盖。"`,
 		`t("settings.status.updateOff")`,
 		`tf("settings.noMatchesFor"`,
 		`t("settings.noMatches")`,
@@ -1353,7 +1371,7 @@ func TestSaveRestoreLocalizationIsWired(t *testing.T) {
 		`data-i18n="restore.title"`,
 		`data-i18n-aria-label="restore.backupFilesAria"`,
 		`data-i18n="common.refresh"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing save/restore localized html wiring %q", snippet)
@@ -1397,7 +1415,7 @@ func TestSplitWorkbenchLocalizationIsWired(t *testing.T) {
 		`data-command="workbench.focusNextGroup"`,
 		`data-command="workbench.moveTabToOtherGroup"`,
 		`data-command="workbench.closeSplitEditor"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing split workbench html wiring %q", snippet)
@@ -1442,7 +1460,7 @@ func TestXLSXWorksheetLocalizationIsWired(t *testing.T) {
 		`id="workbookSheetSelect"`,
 		`data-i18n-aria-label="workbook.worksheetAria"`,
 		`data-i18n-title="workbook.worksheetTitle"`,
-		`v=workbench-command-i18n-1`,
+		`v=format-command-i18n-1`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing XLSX worksheet localized html wiring %q", snippet)
@@ -1485,7 +1503,7 @@ func TestFileOpenLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing file-open script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1535,7 +1553,7 @@ func TestStructuralEditLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing structural-edit script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1586,7 +1604,7 @@ func TestCellToolLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing cell-tool script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -1640,7 +1658,7 @@ func TestSmartSelectionStatusLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing selection-status script cache-bust version")
 	}
 	for _, snippet := range []string{
@@ -2589,7 +2607,7 @@ func TestTransposeLocalizationIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
-	if !strings.Contains(html, `v=workbench-command-i18n-1`) {
+	if !strings.Contains(html, `v=format-command-i18n-1`) {
 		t.Fatal("missing transpose localization script cache-bust version")
 	}
 	for _, snippet := range []string{
