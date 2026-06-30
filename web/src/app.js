@@ -12601,9 +12601,9 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
   }
   switch (operator) {
     case "contains":
-      return `${identifier} LIKE ${sqlStringLiteral(`%${value}%`)}`;
+      return likeConditionExpression(identifier, value, { prefixAny: true, suffixAny: true });
     case "notContains":
-      return `${identifier} NOT LIKE ${sqlStringLiteral(`%${value}%`)}`;
+      return likeConditionExpression(identifier, value, { prefixAny: true, suffixAny: true, negate: true });
     case "equals":
       return `${identifier} = ${sqlStringLiteral(value)}`;
     case "notEquals":
@@ -12613,9 +12613,9 @@ function conditionExpression(sourceCol, operator, value, valueInput = conditionV
     case "notInList":
       return listConditionExpression(identifier, value, valueInput, true);
     case "startsWith":
-      return `${identifier} LIKE ${sqlStringLiteral(`${value}%`)}`;
+      return likeConditionExpression(identifier, value, { suffixAny: true });
     case "endsWith":
-      return `${identifier} LIKE ${sqlStringLiteral(`%${value}`)}`;
+      return likeConditionExpression(identifier, value, { prefixAny: true });
     case "blank":
       return `${identifier} = ''`;
     case "notBlank":
@@ -12718,6 +12718,16 @@ function conditionRangeParts(value) {
 
 function booleanConditionExpression(identifier, expected) {
   return `${identifier} IS ${expected ? "TRUE" : "FALSE"}`;
+}
+
+function likeConditionExpression(identifier, value, options = {}) {
+  const escaped = escapeLikePatternLiteral(value);
+  const pattern = `${options.prefixAny ? "%" : ""}${escaped}${options.suffixAny ? "%" : ""}`;
+  return `${identifier} ${options.negate ? "NOT " : ""}LIKE ${sqlStringLiteral(pattern)} ESCAPE '!'`;
+}
+
+function escapeLikePatternLiteral(value) {
+  return String(value).replace(/[!%_]/g, (char) => `!${char}`);
 }
 
 function dateConditionExpression(identifier, operator, value, valueInput) {
