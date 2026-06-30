@@ -652,6 +652,30 @@ func TestSpreadsheetHTMLPasteIsWired(t *testing.T) {
 	}
 }
 
+func TestSpreadsheetPasteCanExtendGrid(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function sourceColForPasteTarget",
+		"const previousRows = sourceRowCount",
+		"const previousColumns = columns.length",
+		"if (viewMapped && row >= sourceRowCount) break",
+		"const sourceRow = sourceRowForDisplayRow(row, \"Paste\")",
+		"const sourceCol = sourceColForPasteTarget(col)",
+		"ensureSourceRowsForEdits(edits)",
+		"ensureSourceColumnsForEdits(edits)",
+		"document.body.dataset.pasteExtent",
+		"document.body.dataset.pasteExpanded",
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing expanding spreadsheet paste wiring %q", snippet)
+		}
+	}
+}
+
 func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {

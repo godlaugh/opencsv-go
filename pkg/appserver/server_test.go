@@ -783,6 +783,47 @@ func TestServerBatchEditUndo(t *testing.T) {
 	}
 }
 
+func TestServerBatchEditExtendsRowsAndColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "expand.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	editPayload := postJSON(t, handler, "/api/edit-batch", map[string]any{
+		"documentId": documentID,
+		"edits": []map[string]any{
+			{"row": 2, "col": 2, "value": "10"},
+			{"row": 3, "col": 3, "value": "Paris"},
+		},
+	})
+	if editPayload["count"].(float64) != 2 {
+		t.Fatalf("batch edit count = %#v, want 2", editPayload["count"])
+	}
+
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	if windowPayload["totalRows"].(float64) != 4 {
+		t.Fatalf("totalRows after expansion = %#v, want 4", windowPayload["totalRows"])
+	}
+	rows := windowPayload["rows"].([]any)
+	third := rows[2].([]any)
+	if len(third) < 3 || third[2] != "10" {
+		t.Fatalf("third row after expansion = %#v", third)
+	}
+	fourth := rows[3].([]any)
+	if len(fourth) < 4 || fourth[3] != "Paris" {
+		t.Fatalf("fourth row after expansion = %#v", fourth)
+	}
+}
+
 func TestServerHeaderMode(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "header.csv")

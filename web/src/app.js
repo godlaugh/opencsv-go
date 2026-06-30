@@ -5914,6 +5914,12 @@ function sourceColFor(col) {
   return columns[col]?.sourceCol ?? col;
 }
 
+function sourceColForPasteTarget(col) {
+  if (col < columns.length) return sourceColFor(col);
+  const maxExistingSourceCol = Math.max(-1, ...allColumns.map((column) => column.sourceCol));
+  return maxExistingSourceCol + (col - columns.length) + 1;
+}
+
 function visibleColForSource(sourceCol) {
   return columns.findIndex((column) => column.sourceCol === sourceCol);
 }
@@ -16206,26 +16212,41 @@ function pasteMatrix(matrix) {
   const edits = [];
   const startRow = selected.row;
   const startCol = selected.col;
+  const previousRows = sourceRowCount;
+  const previousColumns = columns.length;
+  let pastedRows = 0;
+  let pastedColumns = 0;
   for (let rowOffset = 0; rowOffset < matrix.length; rowOffset++) {
     const row = startRow + rowOffset;
-    if (row >= sourceRowCount) break;
+    if (viewMapped && row >= sourceRowCount) break;
+    const sourceRow = sourceRowForDisplayRow(row, "Paste");
+    if (sourceRow == null) break;
     const record = rows.get(row) ?? [];
     const values = matrix[rowOffset] ?? [];
+    pastedRows++;
+    pastedColumns = Math.max(pastedColumns, values.length);
     for (let colOffset = 0; colOffset < values.length; colOffset++) {
       const col = startCol + colOffset;
-      if (col >= columns.length) break;
-      const sourceCol = sourceColFor(col);
+      const sourceCol = sourceColForPasteTarget(col);
       while (record.length <= sourceCol) record.push("");
       record[sourceCol] = values[colOffset];
-      edits.push({ row: rowSource.get(row) ?? row + dataStartRow, col: sourceCol, value: values[colOffset] });
+      edits.push({ row: sourceRow, col: sourceCol, value: values[colOffset] });
     }
     rows.set(row, record);
   }
+  if (!edits.length) {
+    status.textContent = localizedPasteStatus("empty");
+    return;
+  }
+  ensureSourceRowsForEdits(edits);
+  ensureSourceColumnsForEdits(edits);
   selected = {
-    row: Math.min(totalRows - 1, startRow + matrix.length - 1),
-    col: Math.min(columns.length - 1, startCol + Math.max(...matrix.map((row) => row.length), 1) - 1),
+    row: Math.min(totalRows - 1, startRow + Math.max(pastedRows, 1) - 1),
+    col: Math.min(columns.length - 1, startCol + Math.max(pastedColumns, 1) - 1),
   };
   selectionAnchor = { row: startRow, col: startCol };
+  document.body.dataset.pasteExtent = `${startRow}:${startCol}-${selected.row}:${selected.col}:${edits.length}`;
+  document.body.dataset.pasteExpanded = `${previousRows}->${sourceRowCount}:${previousColumns}->${columns.length}`;
   autoFitColumnsForEdits(edits);
   syncCellValueAfterEdit();
   submitCellEdits(edits, startRow, localizedPasteStatus("pasted", { count: formatCount(edits.length) }));
