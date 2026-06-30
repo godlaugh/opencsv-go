@@ -1001,16 +1001,16 @@
     </div>
 
     <div id="conditionPanel" class="command-palette-backdrop" hidden>
-      <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder">
+      <section class="condition-panel" role="dialog" aria-modal="true" aria-label="Filter builder" data-i18n-aria-label="condition.title">
         <header class="condition-panel-header">
           <strong data-i18n="condition.title">Filter Builder</strong>
           <button id="closeConditionButton" type="button" data-i18n="condition.close">Close</button>
         </header>
         <div class="condition-grid">
-          <div class="condition-template-bar" aria-label="Quick filter conditions">
+          <div class="condition-template-bar" aria-label="Quick filter conditions" data-i18n-aria-label="condition.quickConditions">
             <label>
               <span data-i18n="condition.quick">Quick Condition</span>
-              <select id="conditionTemplateSelect" aria-label="Quick filter condition">
+              <select id="conditionTemplateSelect" aria-label="Quick filter condition" data-i18n-aria-label="condition.quickConditions">
                 <option value="" data-i18n="condition.template.choose">Choose template</option>
                 <option value="selectedEquals" data-i18n="condition.template.selectedEquals">Selected cell equals</option>
                 <option value="selectedContains" data-i18n="condition.template.selectedContains">Selected cell contains</option>
@@ -1081,16 +1081,16 @@
               <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" />
             </label>
           </fieldset>
-          <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions"></div>
-          <section class="condition-preview-panel" aria-live="polite">
+          <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions" data-i18n-aria-label="condition.additional"></div>
+          <section class="condition-preview-panel" aria-live="polite" aria-label="SQL Preview" data-i18n-aria-label="condition.previewTitle">
             <strong data-i18n="condition.previewTitle">SQL Preview</strong>
             <code id="conditionPreviewText" data-i18n="condition.previewEmpty">No preview yet</code>
           </section>
         </div>
-        <footer class="condition-actions" data-dialog-actions>
+        <footer class="condition-actions" data-dialog-actions aria-label="Filter builder actions" data-i18n-aria-label="condition.actionsAria">
           <label class="condition-tree-action-control">
             <span data-i18n="condition.treeAction">Tree Action</span>
-            <select id="conditionTreeActionSelect" aria-label="Condition tree action">
+            <select id="conditionTreeActionSelect" aria-label="Condition tree action" data-i18n-aria-label="condition.treeActionAria">
               <option value="" data-i18n="condition.treeAction.choose">Choose action</option>
               <option value="groupAll" data-i18n="condition.groupAll">Group All</option>
               <option value="allAnd" data-i18n="condition.allAnd">All AND</option>

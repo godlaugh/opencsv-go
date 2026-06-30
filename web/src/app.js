@@ -985,6 +985,7 @@ const localeCatalog = {
     "condition.previewTitle": "SQL Preview",
     "condition.previewEmpty": "No preview yet",
     "condition.previewButton": "Preview SQL",
+    "condition.actionsAria": "Filter builder actions",
     "condition.treeAction": "Tree Action",
     "condition.treeAction.choose": "Choose action",
     "condition.treeActionAria": "Condition tree action",
@@ -2583,6 +2584,7 @@ const localeCatalog = {
     "condition.previewTitle": "SQL 预览",
     "condition.previewEmpty": "尚无预览",
     "condition.previewButton": "预览 SQL",
+    "condition.actionsAria": "筛选构建器操作",
     "condition.treeAction": "树操作",
     "condition.treeAction.choose": "选择操作",
     "condition.treeActionAria": "条件树操作",
@@ -5151,9 +5153,13 @@ function conditionTreeActionLabelKeys() {
 function applyConditionLocaleStrings() {
   const dialog = conditionPanel?.querySelector(".condition-panel");
   const templateBar = conditionPanel?.querySelector(".condition-template-bar");
+  const actionBar = conditionPanel?.querySelector(".condition-actions");
+  const previewPanel = conditionPanel?.querySelector(".condition-preview-panel");
   if (filterBuilderButton) filterBuilderButton.title = t("condition.title");
   if (dialog) dialog.setAttribute("aria-label", t("condition.title"));
   if (templateBar) templateBar.setAttribute("aria-label", t("condition.quickConditions"));
+  if (actionBar) actionBar.setAttribute("aria-label", t("condition.actionsAria"));
+  if (previewPanel) previewPanel.setAttribute("aria-label", t("condition.previewTitle"));
   if (conditionTemplateSelect) conditionTemplateSelect.setAttribute("aria-label", t("condition.quickConditions"));
   if (conditionPrimaryOpenGroup) {
     conditionPrimaryOpenGroup.setAttribute("aria-label", tf("condition.group.openAria", { number: 1 }));
