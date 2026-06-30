@@ -34,15 +34,15 @@
             <button id="openButton" type="button" data-command="file.open">Open</button>
           </form>
           <div class="tool-actions">
-            <input id="commandInput" type="text" placeholder="Find/filter..." aria-label="Find or filter text" />
-            <input id="replaceInput" type="text" placeholder="Replace..." aria-label="Replace text" />
-            <div class="find-options" aria-label="Find options">
+            <input id="commandInput" type="text" placeholder="Find/filter..." aria-label="Find or filter text" data-i18n-aria-label="find.placeholder" />
+            <input id="replaceInput" type="text" placeholder="Replace..." aria-label="Replace text" data-i18n-aria-label="find.replacePlaceholder" />
+            <div class="find-options" aria-label="Find options" data-i18n-aria-label="find.optionsAria">
               <button id="findCaseButton" type="button" title="Match case" aria-pressed="false">Aa</button>
               <button id="findWholeButton" type="button" title="Match whole cell" aria-pressed="false">=</button>
               <button id="findRegexButton" type="button" title="Use regular expression" aria-pressed="false">.*</button>
               <button id="findSelectionButton" type="button" title="Search in selection" aria-pressed="false">Sel</button>
             </div>
-            <select id="copyFormatSelect" class="copy-format-select" aria-label="Copy format">
+            <select id="copyFormatSelect" class="copy-format-select" aria-label="Copy format" data-i18n-aria-label="copy.formatAria">
               <option value="tsv">TSV</option>
               <option value="csv">CSV</option>
               <option value="markdown">Markdown</option>
@@ -73,7 +73,7 @@
             <button id="replaceAllButton" type="button" title="Replace all matches" data-command="edit.replaceAll">All</button>
             <button id="diffButton" type="button" title="Compare files" data-command="diff.open">Compare</button>
             <button id="readOnlyButton" type="button" title="Toggle read-only mode" data-command="file.toggleReadOnly">Read Only</button>
-            <select id="exportFormatSelect" class="copy-format-select" aria-label="Export format">
+            <select id="exportFormatSelect" class="copy-format-select" aria-label="Export format" data-i18n-aria-label="export.formatAria">
               <option value="csv">CSV</option>
               <option value="tsv">TSV</option>
               <option value="markdown">Markdown</option>

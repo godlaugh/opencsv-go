@@ -2257,6 +2257,8 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 	for _, id := range []string{
 		"commandInput",
 		"replaceInput",
+		"copyFormatSelect",
+		"exportFormatSelect",
 		"findCaseButton",
 		"findSelectionButton",
 		"replacePreviewButton",
@@ -2266,8 +2268,22 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		}
 	}
 	for _, snippet := range []string{
+		`data-i18n-aria-label="find.placeholder"`,
+		`data-i18n-aria-label="find.replacePlaceholder"`,
+		`data-i18n-aria-label="find.optionsAria"`,
+		`data-i18n-aria-label="copy.formatAria"`,
+		`data-i18n-aria-label="export.formatAria"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing find/copy/export aria localization html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
 		`"find.placeholder"`,
 		`"find.placeholder": "查找/筛选`,
+		`"find.optionsAria": "查找选项"`,
+		`"copy.formatAria": "复制格式"`,
+		`"export.formatAria": "导出格式"`,
 		`"replace.status.preview": "预览`,
 		"applyFindLocaleStrings",
 		`commandInput.placeholder = t("find.placeholder")`,
