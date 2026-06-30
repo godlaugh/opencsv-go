@@ -18709,7 +18709,10 @@ function filterDescriptorFromRequest(body, label, options = {}) {
     return filterDescriptor(`where ${body.expression}`, body.expression, options);
   }
   if (body.query && Number.isInteger(body.column)) {
-    const expression = `${sqlColumnIdentifier(body.column)} LIKE ${sqlStringLiteral(`%${body.query}%`)}`;
+    const expression = likeConditionExpression(sqlColumnIdentifier(body.column), body.query, {
+      prefixAny: true,
+      suffixAny: true,
+    });
     return filterDescriptor(`${columnNameForSource(body.column)} contains ${body.query}`, expression, options);
   }
   if (body.query) {
@@ -18752,7 +18755,9 @@ function containsAnyColumnExpression(query) {
     .filter((sourceCol, index, values) => values.indexOf(sourceCol) === index);
   const columnsToSearch = sourceColumns.length ? sourceColumns : [0];
   return columnsToSearch
-    .map((sourceCol) => `${sqlColumnIdentifier(sourceCol)} LIKE ${sqlStringLiteral(`%${query}%`)}`)
+    .map((sourceCol) =>
+      likeConditionExpression(sqlColumnIdentifier(sourceCol), query, { prefixAny: true, suffixAny: true }),
+    )
     .join(" OR ");
 }
 
