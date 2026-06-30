@@ -3870,6 +3870,8 @@ const localeCatalog = {
     "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
     "command.view.editFilterBuilder.title": "在筛选构建器中编辑",
     "command.view.editFilterBuilder.description": "将当前由构建器创建的筛选重新载入可视化编辑器。",
+    "command.view.openFilterInSQL.title": "在 SQL 控制台打开当前筛选",
+    "command.view.openFilterInSQL.description": "将当前活动筛选作为 SQL 查询载入 SQL 控制台。",
     "command.condition.addRow.title": "添加筛选条件行",
     "command.condition.addRow.description": "向筛选构建器添加另一条件行。",
     "command.condition.useTemplate.title": "使用筛选条件模板",
@@ -6984,7 +6986,9 @@ function isCommandDisabled(command) {
   const needsSQLResult = sqlResultCommandIDs.has(command.id);
   const needsSQLTarget = sqlResultTargetCommandIDs.has(command.id);
   const needsSQLSelection = sqlResultSelectionCommandIDs.has(command.id);
-  const needsActiveFilter = command.id === "view.saveFilter";
+  const needsActiveFilter =
+    command.id === "view.saveFilter" ||
+    command.id === "view.openFilterInSQL";
   const needsBuilderFilter = command.id === "view.editFilterBuilder";
   const needsConditionBuilder =
     command.id === "condition.addRow" ||
@@ -13818,6 +13822,9 @@ async function executeCommand(commandID, options = {}) {
     case "view.editFilterBuilder":
       openActiveFilterInBuilder();
       break;
+    case "view.openFilterInSQL":
+      openActiveFilterInSQL();
+      break;
     case "condition.addRow":
       addConditionRow();
       break;
@@ -18578,23 +18585,27 @@ function renderViewChips() {
 
     const sqlButton = document.createElement("button");
     sqlButton.type = "button";
+    sqlButton.dataset.command = "view.openFilterInSQL";
     setChipButtonText(sqlButton, "view.chip.sql", "view.chip.openSql");
-    sqlButton.addEventListener("click", openActiveFilterInSQL);
+    sqlButton.addEventListener("click", () => executeCommand("view.openFilterInSQL"));
 
     const editButton = document.createElement("button");
     editButton.type = "button";
+    editButton.dataset.command = "view.editFilterBuilder";
     setChipButtonText(editButton, "view.chip.edit", "view.chip.editBuilder");
-    editButton.addEventListener("click", openActiveFilterInBuilder);
+    editButton.addEventListener("click", () => executeCommand("view.editFilterBuilder"));
 
     const saveButton = document.createElement("button");
     saveButton.type = "button";
+    saveButton.dataset.command = "view.saveFilter";
     setChipButtonText(saveButton, "view.chip.save", "view.chip.saveFilter");
-    saveButton.addEventListener("click", saveActiveFilter);
+    saveButton.addEventListener("click", () => executeCommand("view.saveFilter"));
 
     const clearButton = document.createElement("button");
     clearButton.type = "button";
+    clearButton.dataset.command = "view.clear";
     setChipButtonText(clearButton, "view.chip.clear", "view.chip.clearView");
-    clearButton.addEventListener("click", clearView);
+    clearButton.addEventListener("click", () => executeCommand("view.clear"));
 
     chip.append(label, sqlButton);
     if (normalizeConditionBuilderRows(activeFilter.builderRows).length) {
