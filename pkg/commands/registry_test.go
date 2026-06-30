@@ -313,6 +313,7 @@ func TestCommandMacroRecordingIsWired(t *testing.T) {
 	}
 	for _, snippet := range []string{
 		`class="shortcut-macro-bar"`,
+		`data-i18n-aria-label="macro.title"`,
 		`id="macroSummary"`,
 		`data-i18n="macro.title"`,
 		`id="playMacroButton"`,
