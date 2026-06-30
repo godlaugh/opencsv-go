@@ -2517,9 +2517,11 @@ func TestStartPageSupportSurfaceIsWired(t *testing.T) {
 	html := string(indexHTML)
 	for _, snippet := range []string{
 		`id="aboutSupportPanel"`,
+		`data-i18n-aria-label="about.dialogAria"`,
 		`id="aboutUpdateSummary"`,
 		`id="aboutCheckUpdatesButton"`,
 		`data-i18n="about.licenseValue"`,
+		`data-i18n="settings.noUpdateCheck"`,
 	} {
 		if !strings.Contains(html, snippet) {
 			t.Fatalf("missing about/support html wiring %q", snippet)
@@ -2533,6 +2535,7 @@ func TestStartPageSupportSurfaceIsWired(t *testing.T) {
 		`t("start.support")`,
 		`document.body.dataset.aboutSupportPanel`,
 		`document.body.dataset.aboutSupportStatus`,
+		`"about.dialogAria": "关于与支持"`,
 		`"command.help.aboutSupport.title": "关于与支持"`,
 	} {
 		if !strings.Contains(source, snippet) {
