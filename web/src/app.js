@@ -176,6 +176,8 @@ const profileRulePatternInput = document.querySelector("#profileRulePatternInput
 const profileRuleDefaultInput = document.querySelector("#profileRuleDefaultInput");
 const profileRuleMinInput = document.querySelector("#profileRuleMinInput");
 const profileRuleMaxInput = document.querySelector("#profileRuleMaxInput");
+const profileRuleExclusiveMinToggle = document.querySelector("#profileRuleExclusiveMinToggle");
+const profileRuleExclusiveMaxToggle = document.querySelector("#profileRuleExclusiveMaxToggle");
 const profileRuleMinLengthInput = document.querySelector("#profileRuleMinLengthInput");
 const profileRuleMaxLengthInput = document.querySelector("#profileRuleMaxLengthInput");
 const saveProfileRuleButton = document.querySelector("#saveProfileRuleButton");
@@ -1966,6 +1968,8 @@ const localeCatalog = {
     "profile.rule.default": "Default",
     "profile.rule.min": "Min",
     "profile.rule.max": "Max",
+    "profile.rule.exclusiveMin": "Exclusive Min",
+    "profile.rule.exclusiveMax": "Exclusive Max",
     "profile.rule.minLength": "Min Length",
     "profile.rule.maxLength": "Max Length",
     "profile.rule.defaultSummary": "default {{value}}",
@@ -3606,6 +3610,8 @@ const localeCatalog = {
     "profile.rule.default": "默认值",
     "profile.rule.min": "最小值",
     "profile.rule.max": "最大值",
+    "profile.rule.exclusiveMin": "排除最小值",
+    "profile.rule.exclusiveMax": "排除最大值",
     "profile.rule.minLength": "最小长度",
     "profile.rule.maxLength": "最大长度",
     "profile.rule.defaultSummary": "默认值 {{value}}",
@@ -22230,8 +22236,14 @@ function profileRuleFromBuilder() {
   const maxValue = Number.parseFloat(profileRuleMaxInput.value);
   const minLengthValue = Number.parseInt(profileRuleMinLengthInput.value, 10);
   const maxLengthValue = Number.parseInt(profileRuleMaxLengthInput.value, 10);
-  if (profileRuleMinInput.value.trim() !== "" && Number.isFinite(minValue)) rule.min = minValue;
-  if (profileRuleMaxInput.value.trim() !== "" && Number.isFinite(maxValue)) rule.max = maxValue;
+  if (profileRuleMinInput.value.trim() !== "" && Number.isFinite(minValue)) {
+    rule.min = minValue;
+    if (profileRuleExclusiveMinToggle.checked) rule.exclusiveMinimum = true;
+  }
+  if (profileRuleMaxInput.value.trim() !== "" && Number.isFinite(maxValue)) {
+    rule.max = maxValue;
+    if (profileRuleExclusiveMaxToggle.checked) rule.exclusiveMaximum = true;
+  }
   if (profileRuleMinLengthInput.value.trim() !== "" && Number.isInteger(minLengthValue) && minLengthValue >= 0) {
     rule.minLength = minLengthValue;
   }
@@ -22321,6 +22333,8 @@ function clearProfileRuleBuilder(resetStatus = true) {
   profileRuleDefaultInput.value = "";
   profileRuleMinInput.value = "";
   profileRuleMaxInput.value = "";
+  profileRuleExclusiveMinToggle.checked = false;
+  profileRuleExclusiveMaxToggle.checked = false;
   profileRuleMinLengthInput.value = "";
   profileRuleMaxLengthInput.value = "";
   saveProfileRuleButton.textContent = t("profile.rule.save");
@@ -22345,6 +22359,8 @@ function editProfileRule(index) {
   profileRuleDefaultInput.value = rule.default || "";
   profileRuleMinInput.value = rule.min ?? "";
   profileRuleMaxInput.value = rule.max ?? "";
+  profileRuleExclusiveMinToggle.checked = Boolean(rule.exclusiveMinimum);
+  profileRuleExclusiveMaxToggle.checked = Boolean(rule.exclusiveMaximum);
   profileRuleMinLengthInput.value = rule.minLength ?? "";
   profileRuleMaxLengthInput.value = rule.maxLength ?? "";
   saveProfileRuleButton.textContent = t("profile.rule.update");
