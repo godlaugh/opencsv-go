@@ -2737,6 +2737,8 @@ func TestKeyboardShortcutsShellEntryIsWired(t *testing.T) {
 		`data-command="settings.keyboardShortcuts"`,
 		`aria-label="Keyboard Shortcuts"`,
 		`data-i18n-aria-label="settings.keyboardShortcuts"`,
+		`data-i18n-title="settings.keyboardShortcuts"`,
+		`data-i18n="nav.shortcuts"`,
 		`data-i18n="settings.keyboardShortcuts"`,
 		`data-i18n="shortcut.export"`,
 		`data-i18n="shortcut.import"`,
