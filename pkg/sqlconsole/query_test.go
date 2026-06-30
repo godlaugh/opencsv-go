@@ -3,6 +3,7 @@ package sqlconsole
 import (
 	"context"
 	"errors"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -144,6 +145,35 @@ func TestExecuteSupportsCColumnsAndFileRef(t *testing.T) {
 	}
 	if len(result.Rows) != 1 || result.Rows[0][0] != "Linus" {
 		t.Fatalf("unexpected rows: %#v", result.Rows)
+	}
+}
+
+func TestExecuteSupportsFileURLRef(t *testing.T) {
+	path := "/tmp/file url.csv"
+	source := Source{
+		Path:    path,
+		Headers: []string{"id", "name"},
+		Records: [][]string{
+			{"id", "name"},
+			{"1", "Ada"},
+			{"2", "Grace"},
+		},
+	}
+	fileURL := (&url.URL{Scheme: "file", Path: path}).String()
+	result, err := Execute(`SELECT name FROM "`+fileURL+`" WHERE id = 2`, func(ref string) (Source, error) {
+		if ref != path {
+			t.Fatalf("normalized file URL ref = %q, want %q", ref, path)
+		}
+		return source, nil
+	}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Source != path {
+		t.Fatalf("source = %q, want %q", result.Source, path)
+	}
+	if len(result.Rows) != 1 || result.Rows[0][0] != "Grace" {
+		t.Fatalf("unexpected file URL rows: %#v", result.Rows)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -3992,6 +3993,15 @@ func TestServerSQLFileReference(t *testing.T) {
 	textHeaderRows := textHeaderPayload["rows"].([]any)
 	if len(textHeaderRows) != 1 || textHeaderRows[0].([]any)[0] != "Asia Pacific" {
 		t.Fatalf("unexpected SQL text-header rows: %#v", textHeaderRows)
+	}
+
+	fileURL := (&url.URL{Scheme: "file", Path: path}).String()
+	fileURLPayload := postJSON(t, New(dir).Handler(), "/api/sql", map[string]any{
+		"query": `SELECT name FROM "` + fileURL + `" WHERE id = 1`,
+	})
+	fileURLRows := fileURLPayload["rows"].([]any)
+	if len(fileURLRows) != 1 || fileURLRows[0].([]any)[0] != "Ada" {
+		t.Fatalf("unexpected SQL file URL rows: %#v", fileURLRows)
 	}
 }
 
