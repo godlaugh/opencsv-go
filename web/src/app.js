@@ -18698,6 +18698,17 @@ function openActiveFilterInBuilder() {
   setViewMode("grid");
   openConditionBuilder();
   setConditionBuilderRows(builderRows);
+  const built = conditionBuilderExpressionFromDOM();
+  if (built) {
+    renderConditionPreview(built.expression, "ready");
+    document.body.dataset.conditionBuilderPreview = built.expression;
+    document.body.dataset.conditionBuilderPreviewState = "ready";
+    document.body.dataset.conditionNestedGroupCount = String(
+      built.groupedTerms.reduce((sum, term) => sum + term.groupStart, 0),
+    );
+    document.body.dataset.conditionRowCount = String(built.builders.length);
+    document.body.dataset.conditionGroupingMode = built.hasExplicitGroups ? "explicit" : "implicit";
+  }
   document.body.dataset.conditionBuilderReopened = `${builderRows.length}:${activeFilter.expression || ""}`;
   status.textContent = t("view.status.filterToBuilder");
   conditionValue.focus();
