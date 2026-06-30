@@ -137,23 +137,23 @@
                 </div>
                 <div id="sqlResult" class="sql-result" aria-live="polite"></div>
               </section>
-              <section id="diffPanel" class="diff-panel" hidden aria-label="CSV diff">
+              <section id="diffPanel" class="diff-panel" hidden aria-label="CSV diff" data-i18n-aria-label="diff.panelAria">
                 <div class="diff-editor-row">
-                  <input id="leftDiffPath" type="text" placeholder="/tmp/old.csv" aria-label="Left CSV path" />
-                  <input id="rightDiffPath" type="text" placeholder="/tmp/new.csv" aria-label="Right CSV path" />
+                  <input id="leftDiffPath" type="text" placeholder="/tmp/old.csv" aria-label="Left CSV path" data-i18n-aria-label="diff.leftPathAria" />
+                  <input id="rightDiffPath" type="text" placeholder="/tmp/new.csv" aria-label="Right CSV path" data-i18n-aria-label="diff.rightPathAria" />
                   <button id="runDiffButton" type="button">Run</button>
                 </div>
-                <div class="diff-options" aria-label="Compare options">
+                <div class="diff-options" aria-label="Compare options" data-i18n-aria-label="diff.optionsAria">
                   <label><input id="diffIgnoreCase" type="checkbox" /> <span id="diffIgnoreCaseLabel">Ignore case</span></label>
                   <label><input id="diffIgnoreWhitespace" type="checkbox" /> <span id="diffIgnoreWhitespaceLabel">Ignore whitespace</span></label>
                   <label><input id="diffMatchHeaders" type="checkbox" /> <span id="diffMatchHeadersLabel">Match headers</span></label>
-                  <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" />
-                  <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3, updated" aria-label="Ignored diff columns" />
-                  <button id="diffPrevButton" type="button" title="Previous difference">↑</button>
-                  <button id="diffNextButton" type="button" title="Next difference">↓</button>
+                  <input id="diffKeyColumn" type="text" placeholder="Key column e.g. id or 1" aria-label="Diff key column" data-i18n-aria-label="diff.keyColumnAria" />
+                  <input id="diffIgnoredColumns" type="text" placeholder="Ignore columns e.g. 3, updated" aria-label="Ignored diff columns" data-i18n-aria-label="diff.ignoredColumnsAria" />
+                  <button id="diffPrevButton" type="button" title="Previous difference" aria-label="Previous difference" data-i18n-aria-label="diff.previousDifference">↑</button>
+                  <button id="diffNextButton" type="button" title="Next difference" aria-label="Next difference" data-i18n-aria-label="diff.nextDifference">↓</button>
                 </div>
-                <div class="diff-filter-row" aria-label="Diff result filters">
-                  <select id="diffStatusFilter" aria-label="Diff status filter">
+                <div class="diff-filter-row" aria-label="Diff result filters" data-i18n-aria-label="diff.filterRowAria">
+                  <select id="diffStatusFilter" aria-label="Diff status filter" data-i18n-aria-label="diff.statusFilterAria">
                     <option value="all">All rows</option>
                     <option value="differences">Differences</option>
                     <option value="changed">Changed</option>
@@ -161,8 +161,8 @@
                     <option value="deleted">Deleted</option>
                     <option value="unchanged">Unchanged</option>
                   </select>
-                  <input id="diffSearchInput" type="text" placeholder="Search diff rows..." aria-label="Search diff rows" />
-                  <select id="diffSortSelect" aria-label="Sort diff rows">
+                  <input id="diffSearchInput" type="text" placeholder="Search diff rows..." aria-label="Search diff rows" data-i18n-aria-label="diff.searchAria" />
+                  <select id="diffSortSelect" aria-label="Sort diff rows" data-i18n-aria-label="diff.sortAria">
                     <option value="source">Source order</option>
                     <option value="status">Status</option>
                     <option value="leftRow">Left row</option>
@@ -170,14 +170,14 @@
                     <option value="leftText">Left text</option>
                     <option value="rightText">Right text</option>
                   </select>
-                  <button id="diffSortDirectionButton" type="button" data-direction="asc" aria-pressed="false" title="Sort ascending">Asc</button>
+                  <button id="diffSortDirectionButton" type="button" data-direction="asc" aria-pressed="false" title="Sort ascending" aria-label="Sort ascending">Asc</button>
                   <button id="diffClearFilterButton" type="button">Clear</button>
                 </div>
                 <div class="diff-text-controls">
                   <label class="diff-text-toggle"><input id="diffRightTextMode" type="checkbox" /> <span id="diffRightTextModeLabel">Compare right side as text</span></label>
                   <button id="diffPasteClipboardButton" type="button">Paste Clipboard</button>
                 </div>
-                <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" hidden></textarea>
+                <textarea id="diffRightText" class="diff-text-source" spellcheck="false" placeholder="Paste CSV text here" aria-label="Right CSV text" data-i18n-aria-label="diff.rightTextAria" hidden></textarea>
                 <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
                 <div id="diffResult" class="diff-result"></div>
               </section>

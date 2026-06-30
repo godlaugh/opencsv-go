@@ -1080,10 +1080,18 @@ const localeCatalog = {
     "diff.ignoreCase": "Ignore case",
     "diff.ignoreWhitespace": "Ignore whitespace",
     "diff.matchHeaders": "Match headers",
+    "diff.panelAria": "CSV diff",
+    "diff.leftPathAria": "Left CSV path",
+    "diff.rightPathAria": "Right CSV path",
+    "diff.optionsAria": "Compare options",
     "diff.keyColumnPlaceholder": "Key column e.g. id or 1",
+    "diff.keyColumnAria": "Diff key column",
     "diff.ignoredColumnsPlaceholder": "Ignore columns e.g. 3, updated",
+    "diff.ignoredColumnsAria": "Ignored diff columns",
     "diff.previousDifference": "Previous difference",
     "diff.nextDifference": "Next difference",
+    "diff.filterRowAria": "Diff result filters",
+    "diff.statusFilterAria": "Diff status filter",
     "diff.status.all": "All rows",
     "diff.status.differences": "Differences",
     "diff.status.changed": "Changed",
@@ -1091,6 +1099,8 @@ const localeCatalog = {
     "diff.status.deleted": "Deleted",
     "diff.status.unchanged": "Unchanged",
     "diff.searchPlaceholder": "Search diff rows...",
+    "diff.searchAria": "Search diff rows",
+    "diff.sortAria": "Sort diff rows",
     "diff.sort.source": "Source order",
     "diff.sort.status": "Status",
     "diff.sort.leftRow": "Left row",
@@ -1105,6 +1115,7 @@ const localeCatalog = {
     "diff.rightTextMode": "Compare right side as text",
     "diff.pasteClipboard": "Paste Clipboard",
     "diff.rightTextPlaceholder": "Paste CSV text here",
+    "diff.rightTextAria": "Right CSV text",
     "diff.summary.unchanged": "Unchanged",
     "diff.summary.changed": "Changed",
     "diff.summary.added": "Added",
@@ -2693,10 +2704,18 @@ const localeCatalog = {
     "diff.ignoreCase": "忽略大小写",
     "diff.ignoreWhitespace": "忽略空白",
     "diff.matchHeaders": "按表头匹配",
+    "diff.panelAria": "CSV 差异",
+    "diff.leftPathAria": "左侧 CSV 路径",
+    "diff.rightPathAria": "右侧 CSV 路径",
+    "diff.optionsAria": "比较选项",
     "diff.keyColumnPlaceholder": "键列，例如 id 或 1",
+    "diff.keyColumnAria": "差异键列",
     "diff.ignoredColumnsPlaceholder": "忽略列，例如 3, updated",
+    "diff.ignoredColumnsAria": "忽略的差异列",
     "diff.previousDifference": "上一个差异",
     "diff.nextDifference": "下一个差异",
+    "diff.filterRowAria": "差异结果筛选",
+    "diff.statusFilterAria": "差异状态筛选",
     "diff.status.all": "全部行",
     "diff.status.differences": "差异",
     "diff.status.changed": "已更改",
@@ -2704,6 +2723,8 @@ const localeCatalog = {
     "diff.status.deleted": "已删除",
     "diff.status.unchanged": "未更改",
     "diff.searchPlaceholder": "搜索差异行...",
+    "diff.searchAria": "搜索差异行",
+    "diff.sortAria": "排序差异行",
     "diff.sort.source": "源顺序",
     "diff.sort.status": "状态",
     "diff.sort.leftRow": "左行",
@@ -2718,6 +2739,7 @@ const localeCatalog = {
     "diff.rightTextMode": "将右侧作为文本比较",
     "diff.pasteClipboard": "粘贴剪贴板",
     "diff.rightTextPlaceholder": "在此粘贴 CSV 文本",
+    "diff.rightTextAria": "右侧 CSV 文本",
     "diff.summary.unchanged": "未更改",
     "diff.summary.changed": "已更改",
     "diff.summary.added": "已添加",
@@ -5276,6 +5298,19 @@ function applySQLLocaleStrings() {
 }
 
 function applyDiffLocaleStrings() {
+  if (diffPanel) diffPanel.setAttribute("aria-label", t("diff.panelAria"));
+  if (leftDiffPath) leftDiffPath.setAttribute("aria-label", t("diff.leftPathAria"));
+  if (rightDiffPath) rightDiffPath.setAttribute("aria-label", t("diff.rightPathAria"));
+  const diffOptions = diffPanel?.querySelector(".diff-options");
+  if (diffOptions) diffOptions.setAttribute("aria-label", t("diff.optionsAria"));
+  if (diffKeyColumn) diffKeyColumn.setAttribute("aria-label", t("diff.keyColumnAria"));
+  if (diffIgnoredColumns) diffIgnoredColumns.setAttribute("aria-label", t("diff.ignoredColumnsAria"));
+  const diffFilterRow = diffPanel?.querySelector(".diff-filter-row");
+  if (diffFilterRow) diffFilterRow.setAttribute("aria-label", t("diff.filterRowAria"));
+  if (diffStatusFilter) diffStatusFilter.setAttribute("aria-label", t("diff.statusFilterAria"));
+  if (diffSearchInput) diffSearchInput.setAttribute("aria-label", t("diff.searchAria"));
+  if (diffSortSelect) diffSortSelect.setAttribute("aria-label", t("diff.sortAria"));
+  if (diffRightText) diffRightText.setAttribute("aria-label", t("diff.rightTextAria"));
   const textTargets = [
     [runDiffButton, "diff.run"],
     [diffIgnoreCaseLabel, "diff.ignoreCase"],
@@ -5292,8 +5327,16 @@ function applyDiffLocaleStrings() {
   setDiffPlaceholder(diffIgnoredColumns, "diff.ignoredColumnsPlaceholder");
   setDiffPlaceholder(diffSearchInput, "diff.searchPlaceholder");
   setDiffPlaceholder(diffRightText, "diff.rightTextPlaceholder");
-  if (diffPrevButton) diffPrevButton.title = t("diff.previousDifference");
-  if (diffNextButton) diffNextButton.title = t("diff.nextDifference");
+  if (diffPrevButton) {
+    const previousLabel = t("diff.previousDifference");
+    diffPrevButton.title = previousLabel;
+    diffPrevButton.setAttribute("aria-label", previousLabel);
+  }
+  if (diffNextButton) {
+    const nextLabel = t("diff.nextDifference");
+    diffNextButton.title = nextLabel;
+    diffNextButton.setAttribute("aria-label", nextLabel);
+  }
   setSelectOptionLabels(diffStatusFilter, {
     all: "diff.status.all",
     differences: "diff.status.differences",
@@ -23240,7 +23283,9 @@ function setDiffSortDirection(direction) {
   diffSortDirectionButton.dataset.direction = normalized;
   diffSortDirectionButton.textContent = normalized === "desc" ? t("diff.sort.desc") : t("diff.sort.asc");
   diffSortDirectionButton.setAttribute("aria-pressed", String(normalized === "desc"));
-  diffSortDirectionButton.title = normalized === "desc" ? t("diff.sortDescending") : t("diff.sortAscending");
+  const label = normalized === "desc" ? t("diff.sortDescending") : t("diff.sortAscending");
+  diffSortDirectionButton.title = label;
+  diffSortDirectionButton.setAttribute("aria-label", label);
 }
 
 function toggleDiffSortDirection() {

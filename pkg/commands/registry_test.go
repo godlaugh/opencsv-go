@@ -2055,6 +2055,25 @@ func TestDiffViewI18nIsWired(t *testing.T) {
 	}
 	source := string(appJS)
 	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-i18n-aria-label="diff.panelAria"`,
+		`data-i18n-aria-label="diff.leftPathAria"`,
+		`data-i18n-aria-label="diff.rightPathAria"`,
+		`data-i18n-aria-label="diff.optionsAria"`,
+		`data-i18n-aria-label="diff.keyColumnAria"`,
+		`data-i18n-aria-label="diff.ignoredColumnsAria"`,
+		`data-i18n-aria-label="diff.previousDifference"`,
+		`data-i18n-aria-label="diff.nextDifference"`,
+		`data-i18n-aria-label="diff.filterRowAria"`,
+		`data-i18n-aria-label="diff.statusFilterAria"`,
+		`data-i18n-aria-label="diff.searchAria"`,
+		`data-i18n-aria-label="diff.sortAria"`,
+		`data-i18n-aria-label="diff.rightTextAria"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing diff i18n aria anchor %s", snippet)
+		}
+	}
 	for _, id := range []string{
 		"diffIgnoreCaseLabel",
 		"diffIgnoreWhitespaceLabel",
@@ -2082,7 +2101,29 @@ func TestDiffViewI18nIsWired(t *testing.T) {
 		`"diff.status.clipboardLoaded": "已加载 {{count}} 个剪贴板字符用于比较。"`,
 		`"diff.status.goto": "差异跳转到{{side}}第 {{row}} 行。"`,
 		`"diff.status.merged": "已合并 {{applied}}{{backup}}"`,
+		`"diff.panelAria": "CSV 差异"`,
+		`"diff.leftPathAria": "左侧 CSV 路径"`,
+		`"diff.rightPathAria": "右侧 CSV 路径"`,
+		`"diff.optionsAria": "比较选项"`,
+		`"diff.keyColumnAria": "差异键列"`,
+		`"diff.ignoredColumnsAria": "忽略的差异列"`,
+		`"diff.filterRowAria": "差异结果筛选"`,
+		`"diff.statusFilterAria": "差异状态筛选"`,
+		`"diff.searchAria": "搜索差异行"`,
+		`"diff.sortAria": "排序差异行"`,
+		`"diff.rightTextAria": "右侧 CSV 文本"`,
 		"applyDiffLocaleStrings",
+		`t("diff.panelAria")`,
+		`t("diff.leftPathAria")`,
+		`t("diff.rightPathAria")`,
+		`t("diff.optionsAria")`,
+		`t("diff.keyColumnAria")`,
+		`t("diff.ignoredColumnsAria")`,
+		`t("diff.filterRowAria")`,
+		`t("diff.statusFilterAria")`,
+		`t("diff.searchAria")`,
+		`t("diff.sortAria")`,
+		`t("diff.rightTextAria")`,
 		"setSelectOptionLabels(diffStatusFilter",
 		"localizedDiffStatus(row.status)",
 		"appendDiffOpenSourceActions",
