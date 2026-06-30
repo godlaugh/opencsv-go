@@ -2171,6 +2171,7 @@ func TestFilterURLBootAndStreamingMarkerIsWired(t *testing.T) {
 		"document.body.dataset.filterUrlBoot",
 		"document.body.dataset.filterStreamed",
 		"document.body.dataset.columnValuesStreamed",
+		"document.body.dataset.columnValuesOrder",
 		"document.body.dataset.valueFilterStreamed",
 		`"/api/filter-values"`,
 		`/api/column-values?id=`,

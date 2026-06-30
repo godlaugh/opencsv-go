@@ -14540,6 +14540,7 @@ function renderColumnValuesLoading() {
   node.textContent = t("column.valuesLoading");
   columnMenuValues.append(node);
   columnApplyValues.disabled = true;
+  document.body.dataset.columnValuesOrder = "";
 }
 
 async function loadColumnMenuValues(col) {
@@ -14559,11 +14560,13 @@ async function loadColumnMenuValues(col) {
     node.textContent = tf("column.valuesFailed", { message: error.message });
     columnMenuValues.append(node);
     columnApplyValues.disabled = true;
+    document.body.dataset.columnValuesOrder = "error";
   }
 }
 
 function renderColumnMenuValues(values, totalDistinct) {
   columnMenuValues.replaceChildren();
+  document.body.dataset.columnValuesOrder = values.map((item) => item.blank ? "" : String(item.value ?? "")).join("|");
   if (!values.length) {
     const node = document.createElement("div");
     node.className = "column-values-empty";
