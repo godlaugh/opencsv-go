@@ -11792,6 +11792,7 @@ function shortcutKeyName(key) {
 function openConditionBuilder() {
   if (!documentId) return;
   conditionBuilderOpen = true;
+  document.body.dataset.conditionBuilderClose = "open";
   renderConditionColumns();
   conditionColumn.value = String(sourceColFor(selected.col));
   if (!conditionColumn.value && conditionColumn.options.length > 0) {
@@ -11807,9 +11808,10 @@ function openConditionBuilder() {
   conditionValue.select();
 }
 
-function closeConditionBuilder() {
+function closeConditionBuilder(reason = "button") {
   conditionBuilderOpen = false;
   conditionPanel.hidden = true;
+  document.body.dataset.conditionBuilderClose = String(reason || "button");
   canvas.focus();
 }
 
@@ -12186,6 +12188,14 @@ async function handleConditionBuilderEnter(event) {
   await applyConditionBuilder();
 }
 
+function handleConditionBuilderEscape(event) {
+  if (event.key !== "Escape" || !conditionBuilderOpen) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  closeConditionBuilder("escape");
+  return true;
+}
+
 function handleConditionBuilderRowShortcut(event) {
   if (!conditionBuilderOpen || !event.altKey || event.metaKey || event.ctrlKey) return false;
   const row = event.target?.closest?.(".condition-row-extra");
@@ -12245,7 +12255,7 @@ async function applyConditionBuilder() {
   document.body.dataset.conditionGroupingMode = built.hasExplicitGroups ? "explicit" : "implicit";
   renderConditionPreview(built.expression, "ready");
   commandInput.value = `where ${built.expression}`;
-  closeConditionBuilder();
+  closeConditionBuilder("apply");
   const visibleCol = visibleColForSource(Number(conditionColumn.value));
   await applyFilterRequest(
     { documentId, mode: "sql", expression: built.expression },
@@ -24115,7 +24125,7 @@ function handleGlobalShortcut(event) {
   }
   if (event.key === "Escape" && conditionBuilderOpen) {
     event.preventDefault();
-    closeConditionBuilder();
+    closeConditionBuilder("escape");
     return true;
   }
   if (event.key === "Escape" && cellValueDialogOpen) {
@@ -25089,7 +25099,7 @@ filterButton.addEventListener("click", filterCurrentQuery);
 recentFilterSelect.addEventListener("change", applyFilterDropdownSelection);
 filterBuilderButton.addEventListener("click", openConditionBuilder);
 sortButton.addEventListener("click", sortSelectedColumn);
-closeConditionButton.addEventListener("click", closeConditionBuilder);
+closeConditionButton.addEventListener("click", () => closeConditionBuilder("button"));
 conditionOperator.addEventListener("change", updateConditionValueState);
 conditionColumn.addEventListener("change", markConditionPreviewDirty);
 conditionOperator.addEventListener("change", markConditionPreviewDirty);
@@ -25136,15 +25146,16 @@ conditionRows.addEventListener("click", (event) => {
 previewConditionButton.addEventListener("click", previewConditionBuilder);
 applyConditionButton.addEventListener("click", applyConditionBuilder);
 clearConditionButton.addEventListener("click", async () => {
-  closeConditionBuilder();
+  closeConditionBuilder("clear");
   await clearView();
 });
 conditionPanel.addEventListener("mousedown", (event) => {
   if (event.target === conditionPanel) {
     event.preventDefault();
-    closeConditionBuilder();
+    closeConditionBuilder("overlay");
   }
 });
+conditionPanel.addEventListener("keydown", handleConditionBuilderEscape);
 for (const input of [
   conditionColumn,
   conditionOperator,
