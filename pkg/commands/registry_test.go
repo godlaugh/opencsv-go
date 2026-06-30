@@ -354,6 +354,11 @@ func TestCommandPaletteShellLocalizationIsWired(t *testing.T) {
 	source := string(appJS)
 	html := string(indexHTML)
 	for _, snippet := range []string{
+		`id="paletteButton"`,
+		`data-command="command.palette"`,
+		`data-i18n="nav.command"`,
+		`data-i18n-title="command.paletteAria"`,
+		`data-i18n-aria-label="command.paletteAria"`,
 		`id="commandPalette"`,
 		`data-i18n-aria-label="command.paletteAria"`,
 		`id="paletteInput"`,
