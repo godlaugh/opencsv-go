@@ -3880,6 +3880,18 @@ const localeCatalog = {
     "command.condition.balanceGroups.description": "修复筛选构建器中的不平衡显式分组。",
     "command.condition.clearGroups.title": "清除筛选条件分组",
     "command.condition.clearGroups.description": "移除筛选构建器条件中的显式分组。",
+    "command.condition.moveRowUp.title": "上移筛选条件行",
+    "command.condition.moveRowUp.description": "将活动的筛选构建器条件行上移。",
+    "command.condition.moveRowDown.title": "下移筛选条件行",
+    "command.condition.moveRowDown.description": "将活动的筛选构建器条件行下移。",
+    "command.condition.duplicateRow.title": "复制筛选条件行",
+    "command.condition.duplicateRow.description": "复制活动的筛选构建器条件行。",
+    "command.condition.groupRow.title": "分组筛选条件行",
+    "command.condition.groupRow.description": "将活动的筛选构建器条件行与上一条件分组。",
+    "command.condition.ungroupRow.title": "解组筛选条件行",
+    "command.condition.ungroupRow.description": "移除活动的筛选构建器条件行与上一条件外的一层分组。",
+    "command.condition.removeRow.title": "移除筛选条件行",
+    "command.condition.removeRow.description": "移除活动的筛选构建器条件行。",
     "command.view.sort.title": "排序",
     "command.view.sort.description": "排序选中的列。",
     "command.column.sortAscending.title": "按列升序排序",
@@ -4536,6 +4548,7 @@ let macroDraftCommands = [];
 let lastCommandMacro = loadLastCommandMacro();
 let conditionBuilderOpen = false;
 let conditionExtraRows = [];
+let activeConditionRowIndex = -1;
 let columnMenuColumn = -1;
 let readOnly = false;
 let externalFileChanged = false;
@@ -6978,6 +6991,15 @@ function isCommandDisabled(command) {
   const needsConditionBuilderGroups =
     command.id === "condition.balanceGroups" ||
     command.id === "condition.clearGroups";
+  const needsConditionRow =
+    command.id === "condition.moveRowUp" ||
+    command.id === "condition.moveRowDown" ||
+    command.id === "condition.duplicateRow" ||
+    command.id === "condition.groupRow" ||
+    command.id === "condition.ungroupRow" ||
+    command.id === "condition.removeRow";
+  const needsConditionRowMoveDown = command.id === "condition.moveRowDown";
+  const needsConditionRowUngroup = command.id === "condition.ungroupRow";
   const needsMultiSort = command.id === "view.removeLastSortKey";
   const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
@@ -7105,6 +7127,9 @@ function isCommandDisabled(command) {
     (needsConditionBuilder && !conditionBuilderOpen) ||
     (needsConditionBuilderRows && conditionBuilderRowCount() < 2) ||
     (needsConditionBuilderGroups && conditionBuilderGroupTotal() === 0) ||
+    (needsConditionRow && !activeConditionRowAvailable()) ||
+    (needsConditionRowMoveDown && !activeConditionRowCanMoveDown()) ||
+    (needsConditionRowUngroup && !activeConditionRowCanUngroup()) ||
     (needsMultiSort && sortKeys.length <= 1) ||
     (needsAggregate && currentSelectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
@@ -11929,6 +11954,8 @@ function openConditionBuilder() {
 
 function closeConditionBuilder(reason = "button") {
   conditionBuilderOpen = false;
+  activeConditionRowIndex = -1;
+  document.body.dataset.conditionActiveRow = "";
   conditionPanel.hidden = true;
   document.body.dataset.conditionBuilderClose = String(reason || "button");
   updateCommandState();
@@ -11966,6 +11993,7 @@ function conditionOperatorOptionsFragment() {
 function renderConditionExtraRows() {
   conditionExtraRows = normalizeConditionExtraRowsForGroups(conditionExtraRows);
   conditionRows.replaceChildren(...conditionExtraRows.map((row, index) => conditionExtraRowElement(row, index)));
+  setActiveConditionRowIndex(activeConditionRowIndex);
   updateConditionValueState();
   markConditionPreviewDirty();
 }
@@ -11995,6 +12023,7 @@ function conditionExtraRowElement(row, index) {
   const fieldset = document.createElement("fieldset");
   fieldset.className = "condition-row condition-row-extra";
   fieldset.dataset.conditionIndex = String(index);
+  fieldset.setAttribute("aria-selected", index === activeConditionRowIndex ? "true" : "false");
 
   const legend = document.createElement("legend");
   legend.textContent = tf("condition.legend", { number });
@@ -12093,12 +12122,14 @@ function conditionExtraRowElement(row, index) {
 
   const moveUpButton = document.createElement("button");
   moveUpButton.type = "button";
+  moveUpButton.dataset.command = "condition.moveRowUp";
   moveUpButton.dataset.conditionAction = "move-up";
   moveUpButton.textContent = t("condition.moveUp");
   moveUpButton.title = tf("condition.moveUpTitle", { number });
 
   const moveDownButton = document.createElement("button");
   moveDownButton.type = "button";
+  moveDownButton.dataset.command = "condition.moveRowDown";
   moveDownButton.dataset.conditionAction = "move-down";
   moveDownButton.textContent = t("condition.moveDown");
   moveDownButton.title = tf("condition.moveDownTitle", { number });
@@ -12106,18 +12137,21 @@ function conditionExtraRowElement(row, index) {
 
   const duplicateButton = document.createElement("button");
   duplicateButton.type = "button";
+  duplicateButton.dataset.command = "condition.duplicateRow";
   duplicateButton.dataset.conditionAction = "duplicate";
   duplicateButton.textContent = t("condition.duplicate");
   duplicateButton.title = tf("condition.duplicateTitle", { number });
 
   const groupButton = document.createElement("button");
   groupButton.type = "button";
+  groupButton.dataset.command = "condition.groupRow";
   groupButton.dataset.conditionAction = "group-previous";
   groupButton.textContent = t("condition.groupPrevious");
   groupButton.title = tf("condition.groupPreviousTitle", { number });
 
   const ungroupButton = document.createElement("button");
   ungroupButton.type = "button";
+  ungroupButton.dataset.command = "condition.ungroupRow";
   ungroupButton.dataset.conditionAction = "ungroup-previous";
   ungroupButton.textContent = t("condition.ungroupPrevious");
   ungroupButton.title = tf("condition.ungroupPreviousTitle", { number });
@@ -12125,6 +12159,7 @@ function conditionExtraRowElement(row, index) {
   const removeButton = document.createElement("button");
   removeButton.className = "condition-remove-button";
   removeButton.type = "button";
+  removeButton.dataset.command = "condition.removeRow";
   removeButton.dataset.conditionAction = "remove";
   removeButton.textContent = t("condition.remove");
   removeButton.title = tf("condition.removeTitle", { number });
@@ -12205,6 +12240,41 @@ function conditionBuilderGroupTotal() {
     (count, row) => count + conditionGroupCount(row.groupStart) + conditionGroupCount(row.groupEnd),
     0,
   );
+}
+
+function normalizeConditionRowIndex(index) {
+  const rowCount = conditionRows.querySelectorAll(".condition-row-extra").length;
+  const value = Number.parseInt(index, 10);
+  if (!Number.isInteger(value) || value < 0 || value >= rowCount) return -1;
+  return value;
+}
+
+function setActiveConditionRowIndex(index) {
+  activeConditionRowIndex = normalizeConditionRowIndex(index);
+  document.body.dataset.conditionActiveRow = activeConditionRowIndex >= 0 ? String(activeConditionRowIndex + 2) : "";
+  conditionRows.querySelectorAll(".condition-row-extra").forEach((row) => {
+    row.setAttribute("aria-selected", row.dataset.conditionIndex === String(activeConditionRowIndex) ? "true" : "false");
+  });
+  return activeConditionRowIndex;
+}
+
+function activeConditionRowAvailable() {
+  return conditionBuilderOpen && normalizeConditionRowIndex(activeConditionRowIndex) >= 0;
+}
+
+function activeConditionRowCanMoveDown() {
+  const rowCount = conditionRows.querySelectorAll(".condition-row-extra").length;
+  const index = normalizeConditionRowIndex(activeConditionRowIndex);
+  return index >= 0 && index < rowCount - 1;
+}
+
+function activeConditionRowCanUngroup() {
+  const index = normalizeConditionRowIndex(activeConditionRowIndex);
+  if (index < 0) return false;
+  const current = index + 1;
+  const previous = current - 1;
+  const rows = conditionBuilderRowStatesFromDOM();
+  return conditionGroupCount(rows[previous]?.groupStart) > 0 && conditionGroupCount(rows[current]?.groupEnd) > 0;
 }
 
 function updateConditionValueState() {
@@ -12361,18 +12431,19 @@ function handleConditionBuilderRowShortcut(event) {
   event.preventDefault();
   event.stopPropagation();
   document.body.dataset.conditionRowKeyboardAction = `${index + 2}:${action}`;
+  setActiveConditionRowIndex(index);
   if (action === "move-up") {
-    moveConditionRow(index, -1);
+    void executeCommand("condition.moveRowUp");
   } else if (action === "move-down") {
-    moveConditionRow(index, 1);
+    void executeCommand("condition.moveRowDown");
   } else if (action === "group-previous") {
-    groupConditionWithPrevious(index, 1);
+    void executeCommand("condition.groupRow");
   } else if (action === "ungroup-previous") {
-    groupConditionWithPrevious(index, -1);
+    void executeCommand("condition.ungroupRow");
   } else if (action === "remove") {
-    removeConditionRow(index);
+    void executeCommand("condition.removeRow");
   } else {
-    duplicateConditionRow(index);
+    void executeCommand("condition.duplicateRow");
   }
   return true;
 }
@@ -12481,6 +12552,7 @@ function removeConditionRow(index) {
   if (!Number.isInteger(index) || index < 0) return;
   readConditionExtraRowsFromDOM();
   conditionExtraRows.splice(index, 1);
+  activeConditionRowIndex = Math.min(index, conditionExtraRows.length - 1);
   renderConditionExtraRows();
   conditionValue.focus();
 }
@@ -12500,6 +12572,7 @@ function duplicateConditionRow(index) {
     groupEnd: 0,
   };
   conditionExtraRows.splice(index + 1, 0, duplicate);
+  activeConditionRowIndex = index + 1;
   renderConditionExtraRows();
   const fromNumber = index + 2;
   const toNumber = fromNumber + 1;
@@ -12528,6 +12601,8 @@ function groupConditionWithPrevious(extraIndex, direction) {
     rows[current].groupEnd = currentEnd - 1;
   }
   setConditionBuilderRows(rows);
+  activeConditionRowIndex = extraIndex;
+  setActiveConditionRowIndex(activeConditionRowIndex);
   const fromNumber = previous + 1;
   const toNumber = current + 1;
   document.body.dataset.conditionGroupAction = `${grouping ? "group" : "ungroup"}:${fromNumber}-${toNumber}`;
@@ -12632,24 +12707,24 @@ function runConditionTreeAction() {
 function runConditionRowMenuAction(extraIndex, action) {
   const number = extraIndex + 2;
   document.body.dataset.conditionRowMenuAction = `${number}:${action || ""}`;
+  setActiveConditionRowIndex(extraIndex);
   if (!action) {
     status.textContent = tf("condition.status.chooseRowAction", { number: formatCount(number) });
     const select = conditionRows.querySelector(`.condition-row-extra[data-condition-index="${extraIndex}"] .condition-row-action-select`);
     select?.focus();
     return;
   }
-  if (action === "remove") {
-    removeConditionRow(extraIndex);
-  } else if (action === "duplicate") {
-    duplicateConditionRow(extraIndex);
-  } else if (action === "group-previous") {
-    groupConditionWithPrevious(extraIndex, 1);
-  } else if (action === "ungroup-previous") {
-    groupConditionWithPrevious(extraIndex, -1);
-  } else if (action === "move-up") {
-    moveConditionRow(extraIndex, -1);
-  } else if (action === "move-down") {
-    moveConditionRow(extraIndex, 1);
+  const commandByAction = {
+    remove: "condition.removeRow",
+    duplicate: "condition.duplicateRow",
+    "group-previous": "condition.groupRow",
+    "ungroup-previous": "condition.ungroupRow",
+    "move-up": "condition.moveRowUp",
+    "move-down": "condition.moveRowDown",
+  };
+  const commandID = commandByAction[action];
+  if (commandID) {
+    void executeCommand(commandID);
   }
 }
 
@@ -12709,6 +12784,8 @@ function moveConditionRow(extraIndex, direction) {
     rows[1].join = connector;
   }
   setConditionBuilderRows(rows);
+  activeConditionRowIndex = to - 1;
+  setActiveConditionRowIndex(activeConditionRowIndex);
   document.body.dataset.conditionReorder = `${from + 1}->${to + 1}`;
   status.textContent = tf("condition.status.reordered", {
     from: formatCount(from + 1),
@@ -13741,6 +13818,24 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "condition.clearGroups":
       clearConditionGroups();
+      break;
+    case "condition.moveRowUp":
+      moveConditionRow(activeConditionRowIndex, -1);
+      break;
+    case "condition.moveRowDown":
+      moveConditionRow(activeConditionRowIndex, 1);
+      break;
+    case "condition.duplicateRow":
+      duplicateConditionRow(activeConditionRowIndex);
+      break;
+    case "condition.groupRow":
+      groupConditionWithPrevious(activeConditionRowIndex, 1);
+      break;
+    case "condition.ungroupRow":
+      groupConditionWithPrevious(activeConditionRowIndex, -1);
+      break;
+    case "condition.removeRow":
+      removeConditionRow(activeConditionRowIndex);
       break;
     case "view.saveFilter":
       saveActiveFilter();
@@ -25479,21 +25574,46 @@ conditionRows.addEventListener("click", (event) => {
   if (!button || button.disabled) return;
   const row = button.closest(".condition-row-extra");
   const index = Number(row?.dataset.conditionIndex ?? -1);
+  setActiveConditionRowIndex(index);
   if (button.dataset.conditionAction === "remove") {
-    removeConditionRow(index);
+    void executeCommand("condition.removeRow");
   } else if (button.dataset.conditionAction === "row-menu") {
     runConditionRowMenuAction(index, row?.querySelector(".condition-row-action-select")?.value || "");
   } else if (button.dataset.conditionAction === "duplicate") {
-    duplicateConditionRow(index);
+    void executeCommand("condition.duplicateRow");
   } else if (button.dataset.conditionAction === "group-previous") {
-    groupConditionWithPrevious(index, 1);
+    void executeCommand("condition.groupRow");
   } else if (button.dataset.conditionAction === "ungroup-previous") {
-    groupConditionWithPrevious(index, -1);
+    void executeCommand("condition.ungroupRow");
   } else if (button.dataset.conditionAction === "move-up") {
-    moveConditionRow(index, -1);
+    void executeCommand("condition.moveRowUp");
   } else if (button.dataset.conditionAction === "move-down") {
-    moveConditionRow(index, 1);
+    void executeCommand("condition.moveRowDown");
   }
+});
+conditionRows.addEventListener("pointerdown", (event) => {
+  const row = event.target.closest(".condition-row-extra");
+  if (!row || !conditionRows.contains(row)) return;
+  setActiveConditionRowIndex(Number(row.dataset.conditionIndex ?? -1));
+  updateCommandState();
+});
+conditionRows.addEventListener("focusin", (event) => {
+  const row = event.target.closest(".condition-row-extra");
+  if (!row || !conditionRows.contains(row)) return;
+  setActiveConditionRowIndex(Number(row.dataset.conditionIndex ?? -1));
+  updateCommandState();
+});
+conditionRows.addEventListener("input", (event) => {
+  const row = event.target.closest(".condition-row-extra");
+  if (!row || !conditionRows.contains(row)) return;
+  setActiveConditionRowIndex(Number(row.dataset.conditionIndex ?? -1));
+  updateCommandState();
+});
+conditionRows.addEventListener("change", (event) => {
+  const row = event.target.closest(".condition-row-extra");
+  if (!row || !conditionRows.contains(row)) return;
+  setActiveConditionRowIndex(Number(row.dataset.conditionIndex ?? -1));
+  updateCommandState();
 });
 previewConditionButton.addEventListener("click", previewConditionBuilder);
 applyConditionButton.addEventListener("click", applyConditionBuilder);
