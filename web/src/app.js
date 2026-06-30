@@ -4336,6 +4336,7 @@ let structureClipboard = null;
 let documentId = "";
 let activeFileEntry = null;
 let openFileTabs = [];
+let openTabVisibilitySequence = 0;
 let metadata = null;
 let rows = new Map();
 let rowSource = new Map();
@@ -17100,7 +17101,16 @@ function ensureActiveOpenFileTabVisible() {
     scrollOpenFileTabIntoView(activeTab);
   }
   window.scrollTo(0, 0);
+  openTabVisibilitySequence += 1;
+  document.body.dataset.openTabVisibilityCheck = `${openTabVisibilitySequence}:${activeTab?.dataset.documentId || ""}`;
   syncOpenFileTabOverflowState();
+  window.requestAnimationFrame(() => {
+    const currentActiveTab = fileList.querySelector(".file-tab-row.active");
+    if (currentActiveTab) {
+      scrollOpenFileTabIntoView(currentActiveTab);
+    }
+    syncOpenFileTabOverflowState();
+  });
 }
 
 function scrollOpenFileTabIntoView(tabNode) {

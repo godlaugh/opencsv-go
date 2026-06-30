@@ -904,6 +904,7 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 	source := string(appJS)
 	for _, snippet := range []string{
 		"let openFileTabs = []",
+		"let openTabVisibilitySequence = 0",
 		"function renderOpenFileTabs()",
 		"function closeOpenFileTab",
 		"async function closeActiveOpenFileTab",
@@ -932,6 +933,7 @@ func TestOpenFileTabsAreWired(t *testing.T) {
 		"closeOpenFileTab(target.documentId, { force: true })",
 		"document.body.dataset.openTabOverflow",
 		"document.body.dataset.activeOpenTabVisible",
+		"document.body.dataset.openTabVisibilityCheck",
 		"document.body.dataset.openTabCount",
 		"document.body.dataset.openTabs",
 		"document.body.dataset.activeOpenTab",
