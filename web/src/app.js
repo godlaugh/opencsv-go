@@ -1978,6 +1978,7 @@ const localeCatalog = {
     "profile.rule.clear": "Clear Rule",
     "profile.rule.none": "No schema rules.",
     "profile.rule.edit": "Edit",
+    "profile.rule.duplicate": "Duplicate",
     "profile.rule.remove": "Remove",
     "profile.rule.rule": "Rule {{index}}",
     "profile.rule.locationOnly": "location only",
@@ -2076,6 +2077,7 @@ const localeCatalog = {
     "profile.rule.cleared": "Cleared schema rule editor.",
     "profile.rule.notFound": "Schema rule not found.",
     "profile.rule.editing": "Editing schema rule {{index}}.",
+    "profile.rule.duplicated": "Duplicated schema rule {{index}}.",
     "profile.rule.removed": "Removed schema rule.",
     "profile.quickFix.readOnly": "Read-only mode blocks quick fixes.",
     "profile.quickFix.noFile": "Open a file before applying fixes.",
@@ -3620,6 +3622,7 @@ const localeCatalog = {
     "profile.rule.clear": "清除规则",
     "profile.rule.none": "没有架构规则。",
     "profile.rule.edit": "编辑",
+    "profile.rule.duplicate": "复制",
     "profile.rule.remove": "移除",
     "profile.rule.rule": "规则 {{index}}",
     "profile.rule.locationOnly": "仅定位",
@@ -3718,6 +3721,7 @@ const localeCatalog = {
     "profile.rule.cleared": "已清除架构规则编辑器。",
     "profile.rule.notFound": "未找到架构规则。",
     "profile.rule.editing": "正在编辑架构规则 {{index}}。",
+    "profile.rule.duplicated": "已复制架构规则 {{index}}。",
     "profile.rule.removed": "已移除架构规则。",
     "profile.quickFix.readOnly": "只读模式会阻止快速修复。",
     "profile.quickFix.noFile": "请先打开文件再应用修复。",
@@ -3844,6 +3848,12 @@ const localeCatalog = {
     "command.profile.saveRule.description": "保存或更新当前在 Profile 架构规则构建器中编写的规则。",
     "command.profile.clearRule.title": "清除概况规则编辑器",
     "command.profile.clearRule.description": "清空 Profile 架构规则构建器草稿并返回添加模式。",
+    "command.profile.editRule.title": "编辑选中概况规则",
+    "command.profile.editRule.description": "将选中的 Profile 架构规则载入可视化规则构建器。",
+    "command.profile.duplicateRule.title": "复制选中概况规则",
+    "command.profile.duplicateRule.description": "在原规则下方复制选中的 Profile 架构规则。",
+    "command.profile.removeRule.title": "移除选中概况规则",
+    "command.profile.removeRule.description": "从当前架构移除选中的 Profile 架构规则。",
     "command.view.filter.title": "筛选",
     "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
     "command.view.filterBuilder.title": "筛选构建器",
@@ -4492,6 +4502,7 @@ let profileSchemaVisible = false;
 let profileSchemaText = localStorage.getItem(profileSchemaStorageKey) || "";
 let savedProfileSchemasState = loadSavedProfileSchemas();
 let editingProfileRuleIndex = -1;
+let activeProfileRuleIndex = -1;
 let paletteOpen = false;
 let paletteItems = [];
 let paletteIndex = 0;
@@ -6961,6 +6972,10 @@ function isCommandDisabled(command) {
     command.id === "profile.deleteSavedSchema";
   const needsProfileSchemaExport = command.id === "profile.exportSchemas";
   const needsProfileSchemaImportText = command.id === "profile.applySchemaImport";
+  const needsProfileRuleSelection =
+    command.id === "profile.editRule" ||
+    command.id === "profile.duplicateRule" ||
+    command.id === "profile.removeRule";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -7072,6 +7087,7 @@ function isCommandDisabled(command) {
     (needsSavedProfileSchema && !savedProfileSchemasState.some((schema) => schema.id === savedProfileSchemaSelect.value)) ||
     (needsProfileSchemaExport && savedProfileSchemasState.length === 0) ||
     (needsProfileSchemaImportText && !profileSchemaImportText.value.trim()) ||
+    (needsProfileRuleSelection && profileRuleCount() === 0) ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -13756,6 +13772,15 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "profile.clearRule":
       clearProfileRuleBuilder();
+      break;
+    case "profile.editRule":
+      editProfileRule(effectiveProfileRuleIndex());
+      break;
+    case "profile.duplicateRule":
+      duplicateProfileRule(effectiveProfileRuleIndex());
+      break;
+    case "profile.removeRule":
+      removeProfileRule(effectiveProfileRuleIndex());
       break;
     case "diff.open":
       openDiffPanel();
@@ -22281,6 +22306,30 @@ function schemaDraftFromText() {
   }
 }
 
+function profileRuleCount() {
+  const schema = schemaDraftFromText();
+  return Array.isArray(schema.columns) ? schema.columns.length : 0;
+}
+
+function normalizeProfileRuleIndex(index, rules = null) {
+  const count = Array.isArray(rules) ? rules.length : profileRuleCount();
+  const ruleIndex = Number.parseInt(index, 10);
+  if (!Number.isInteger(ruleIndex) || ruleIndex < 0 || ruleIndex >= count) {
+    return count > 0 ? 0 : -1;
+  }
+  return ruleIndex;
+}
+
+function effectiveProfileRuleIndex() {
+  return normalizeProfileRuleIndex(activeProfileRuleIndex);
+}
+
+function setActiveProfileRuleIndex(index, rules = null) {
+  activeProfileRuleIndex = normalizeProfileRuleIndex(index, rules);
+  document.body.dataset.profileRuleActive = activeProfileRuleIndex >= 0 ? String(activeProfileRuleIndex) : "";
+  return activeProfileRuleIndex;
+}
+
 function profileRuleFromBuilder() {
   const rule = {};
   const name = profileRuleNameInput.value.trim();
@@ -22371,6 +22420,8 @@ function saveProfileRuleFromBuilder() {
   }
   const schema = schemaDraftFromText();
   const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
+  const updating = editingProfileRuleIndex >= 0 && editingProfileRuleIndex < rules.length;
+  const targetIndex = updating ? editingProfileRuleIndex : rules.length;
   if (editingProfileRuleIndex >= 0 && editingProfileRuleIndex < rules.length) {
     rules[editingProfileRuleIndex] = rule;
   } else {
@@ -22380,9 +22431,10 @@ function saveProfileRuleFromBuilder() {
   profileSchemaText = JSON.stringify(schema, null, 2);
   localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
   profileData = null;
-  document.body.dataset.profileRuleBuilder = `${editingProfileRuleIndex >= 0 ? "update" : "add"}:${schema.columns.length}`;
-  const message = editingProfileRuleIndex >= 0 ? t("profile.rule.updated") : t("profile.rule.added");
+  setActiveProfileRuleIndex(targetIndex, schema.columns);
+  const message = updating ? t("profile.rule.updated") : t("profile.rule.added");
   clearProfileRuleBuilder(false);
+  document.body.dataset.profileRuleBuilder = `${updating ? "update" : "add"}:${schema.columns.length}`;
   syncProfileSchemaControls();
   status.textContent = message;
   void loadProfile(true);
@@ -22411,12 +22463,15 @@ function clearProfileRuleBuilder(resetStatus = true) {
 
 function editProfileRule(index) {
   const schema = schemaDraftFromText();
-  const rule = schema.columns?.[index];
+  const rules = Array.isArray(schema.columns) ? schema.columns : [];
+  const targetIndex = normalizeProfileRuleIndex(index, rules);
+  const rule = rules[targetIndex];
   if (!rule) {
     status.textContent = t("profile.rule.notFound");
     return;
   }
-  editingProfileRuleIndex = index;
+  setActiveProfileRuleIndex(targetIndex, rules);
+  editingProfileRuleIndex = targetIndex;
   profileRuleNameInput.value = rule.name || "";
   profileRuleColumnInput.value = rule.column || "";
   profileRuleTypeSelect.value = rule.type || "";
@@ -22432,33 +22487,61 @@ function editProfileRule(index) {
   profileRuleMinLengthInput.value = rule.minLength ?? "";
   profileRuleMaxLengthInput.value = rule.maxLength ?? "";
   saveProfileRuleButton.textContent = t("profile.rule.update");
-  document.body.dataset.profileRuleBuilder = `edit:${index}`;
-  status.textContent = tf("profile.rule.editing", { index: index + 1 });
+  document.body.dataset.profileRuleBuilder = `edit:${targetIndex}`;
+  status.textContent = tf("profile.rule.editing", { index: targetIndex + 1 });
 }
 
 function removeProfileRule(index) {
   const schema = schemaDraftFromText();
   const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
-  if (index < 0 || index >= rules.length) {
+  const targetIndex = normalizeProfileRuleIndex(index, rules);
+  if (targetIndex < 0 || targetIndex >= rules.length) {
     status.textContent = t("profile.rule.notFound");
     return;
   }
-  rules.splice(index, 1);
+  rules.splice(targetIndex, 1);
   schema.columns = rules;
   profileSchemaText = JSON.stringify(schema, null, 2);
   localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
   profileData = null;
+  setActiveProfileRuleIndex(Math.min(targetIndex, rules.length - 1), rules);
   clearProfileRuleBuilder(false);
-  document.body.dataset.profileRuleBuilder = `remove:${rules.length}`;
+  document.body.dataset.profileRuleBuilder = `remove:${targetIndex}:${rules.length}`;
   syncProfileSchemaControls();
   status.textContent = t("profile.rule.removed");
   void loadProfile(true);
 }
 
+function duplicateProfileRule(index) {
+  const schema = schemaDraftFromText();
+  const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
+  const targetIndex = normalizeProfileRuleIndex(index, rules);
+  const rule = rules[targetIndex];
+  if (!rule) {
+    status.textContent = t("profile.rule.notFound");
+    return;
+  }
+  const duplicate = JSON.parse(JSON.stringify(rule));
+  rules.splice(targetIndex + 1, 0, duplicate);
+  schema.columns = rules;
+  profileSchemaText = JSON.stringify(schema, null, 2);
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  profileData = null;
+  setActiveProfileRuleIndex(targetIndex + 1, rules);
+  clearProfileRuleBuilder(false);
+  document.body.dataset.profileRuleBuilder = `duplicate:${targetIndex}->${targetIndex + 1}:${rules.length}`;
+  syncProfileSchemaControls();
+  status.textContent = tf("profile.rule.duplicated", { index: targetIndex + 2 });
+  void loadProfile(true);
+}
+
 function renderProfileRuleList(rules) {
   if (!profileRuleList) return;
+  const safeRules = Array.isArray(rules) ? rules : [];
+  setActiveProfileRuleIndex(activeProfileRuleIndex, safeRules);
+  profileRuleList.setAttribute("role", "listbox");
   profileRuleList.replaceChildren();
-  if (!rules.length) {
+  if (!safeRules.length) {
     const empty = document.createElement("div");
     empty.className = "profile-rule-empty";
     empty.textContent = t("profile.rule.none");
@@ -22466,10 +22549,26 @@ function renderProfileRuleList(rules) {
     document.body.dataset.profileRuleListCount = "0";
     return;
   }
-  for (const [index, rule] of rules.entries()) {
+  for (const [index, rule] of safeRules.entries()) {
     const item = document.createElement("div");
     item.className = "profile-rule-item";
     item.dataset.ruleIndex = String(index);
+    item.tabIndex = 0;
+    item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", index === activeProfileRuleIndex ? "true" : "false");
+    const selectRule = () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      renderProfileRuleList(safeRules);
+    };
+    item.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      selectRule();
+    });
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      selectRule();
+    });
     const label = document.createElement("strong");
     label.textContent = profileRuleTitle(rule, index);
     const detail = document.createElement("span");
@@ -22478,17 +22577,33 @@ function renderProfileRuleList(rules) {
     actions.className = "profile-rule-item-actions";
     const editButton = document.createElement("button");
     editButton.type = "button";
+    editButton.dataset.command = "profile.editRule";
     editButton.textContent = t("profile.rule.edit");
-    editButton.addEventListener("click", () => editProfileRule(index));
+    editButton.addEventListener("click", () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      void executeCommand("profile.editRule");
+    });
+    const duplicateButton = document.createElement("button");
+    duplicateButton.type = "button";
+    duplicateButton.dataset.command = "profile.duplicateRule";
+    duplicateButton.textContent = t("profile.rule.duplicate");
+    duplicateButton.addEventListener("click", () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      void executeCommand("profile.duplicateRule");
+    });
     const removeButton = document.createElement("button");
     removeButton.type = "button";
+    removeButton.dataset.command = "profile.removeRule";
     removeButton.textContent = t("profile.rule.remove");
-    removeButton.addEventListener("click", () => removeProfileRule(index));
-    actions.append(editButton, removeButton);
+    removeButton.addEventListener("click", () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      void executeCommand("profile.removeRule");
+    });
+    actions.append(editButton, duplicateButton, removeButton);
     item.append(label, detail, actions);
     profileRuleList.append(item);
   }
-  document.body.dataset.profileRuleListCount = String(rules.length);
+  document.body.dataset.profileRuleListCount = String(safeRules.length);
 }
 
 function profileRuleTitle(rule, index) {

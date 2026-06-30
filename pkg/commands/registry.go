@@ -252,6 +252,9 @@ func Registry() []Command {
 		{ID: "profile.cancelSchemaImport", Title: "Cancel Profile Schema Import", Description: "Close the Profile schema import panel without importing.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"close schema import", "cancel profile schema json"}},
 		{ID: "profile.saveRule", Title: "Save Profile Rule", Description: "Save or update the rule currently authored in the Profile schema rule builder.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"save validation rule", "schema rule save", "add profile rule"}},
 		{ID: "profile.clearRule", Title: "Clear Profile Rule Editor", Description: "Clear the Profile schema rule builder draft and return it to add mode.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"clear validation rule", "reset rule builder", "clear profile rule"}},
+		{ID: "profile.editRule", Title: "Edit Selected Profile Rule", Description: "Load the selected Profile schema rule into the visual rule builder.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"edit validation rule", "edit schema rule", "profile rule edit"}},
+		{ID: "profile.duplicateRule", Title: "Duplicate Selected Profile Rule", Description: "Duplicate the selected Profile schema rule below the original rule.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"duplicate validation rule", "copy schema rule", "profile rule duplicate"}},
+		{ID: "profile.removeRule", Title: "Remove Selected Profile Rule", Description: "Remove the selected Profile schema rule from the current schema.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"delete validation rule", "remove schema rule", "profile rule remove"}},
 		{ID: "diff.open", Title: "Compare Files", Description: "Compare two CSV files side by side.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"diff", "compare"}},
 	}
 }
