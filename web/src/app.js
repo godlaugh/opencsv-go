@@ -3731,6 +3731,8 @@ const localeCatalog = {
     "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
     "command.view.filterBuilder.title": "筛选构建器",
     "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
+    "command.view.editFilterBuilder.title": "在筛选构建器中编辑",
+    "command.view.editFilterBuilder.description": "将当前由构建器创建的筛选重新载入可视化编辑器。",
     "command.view.sort.title": "排序",
     "command.view.sort.description": "排序选中的列。",
     "command.column.sortAscending.title": "按列升序排序",
@@ -6755,6 +6757,7 @@ function isCommandDisabled(command) {
   const needsSQLTarget = sqlResultTargetCommandIDs.has(command.id);
   const needsSQLSelection = sqlResultSelectionCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
+  const needsBuilderFilter = command.id === "view.editFilterBuilder";
   const needsMultiSort = command.id === "view.removeLastSortKey";
   const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
@@ -6865,6 +6868,7 @@ function isCommandDisabled(command) {
     (needsSQLTarget && !sqlResultTargetForCommand()) ||
     (needsSQLSelection && !sqlSelectedResultMatrix(lastSQLResult)) ||
     (needsActiveFilter && !activeFilter) ||
+    (needsBuilderFilter && normalizeConditionBuilderRows(activeFilter?.builderRows).length === 0) ||
     (needsMultiSort && sortKeys.length <= 1) ||
     (needsAggregate && currentSelectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
@@ -13449,6 +13453,9 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "view.filterBuilder":
       openConditionBuilder();
+      break;
+    case "view.editFilterBuilder":
+      openActiveFilterInBuilder();
       break;
     case "view.saveFilter":
       saveActiveFilter();
