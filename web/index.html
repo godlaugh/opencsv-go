@@ -185,9 +185,9 @@
                 <div class="profile-toolbar" aria-label="Validation schema" data-i18n-aria-label="profile.toolbarAria">
                   <button id="runProfileButton" type="button" data-command="profile.run" data-i18n="profile.run">Run Profile</button>
                   <button id="cancelProfileButton" type="button" data-command="profile.cancel" data-i18n="profile.cancel" hidden>Cancel</button>
-                  <button id="toggleProfileSchemaButton" type="button" aria-expanded="false" data-i18n="profile.schema">Schema</button>
-                  <button id="saveProfileSchemaButton" type="button" data-i18n="profile.saveSchema">Save Schema</button>
-                  <button id="resetProfileSchemaButton" type="button" data-i18n="profile.resetSchema">Reset Schema</button>
+                  <button id="toggleProfileSchemaButton" type="button" data-command="profile.toggleSchema" aria-expanded="false" data-i18n="profile.schema">Schema</button>
+                  <button id="saveProfileSchemaButton" type="button" data-command="profile.saveSchema" data-i18n="profile.saveSchema">Save Schema</button>
+                  <button id="resetProfileSchemaButton" type="button" data-command="profile.resetSchema" data-i18n="profile.resetSchema">Reset Schema</button>
                   <span id="profileSchemaStatus">No schema</span>
                 </div>
                 <div class="profile-schema-manager" aria-label="Saved validation schemas" data-i18n-aria-label="profile.schemaManagerAria">
@@ -195,16 +195,16 @@
                   <select id="savedProfileSchemaSelect" aria-label="Saved validation schemas" data-i18n-aria-label="profile.savedSchemasAria">
                     <option value="">Saved schemas</option>
                   </select>
-                  <button id="applyProfileSchemaButton" type="button" data-i18n="profile.apply">Apply</button>
-                  <button id="deleteProfileSchemaButton" type="button" data-i18n="profile.delete">Delete</button>
-                  <button id="exportProfileSchemasButton" type="button" data-i18n="profile.export">Export</button>
-                  <button id="showImportProfileSchemasButton" type="button" data-i18n="profile.import">Import</button>
+                  <button id="applyProfileSchemaButton" type="button" data-command="profile.applySavedSchema" data-i18n="profile.apply">Apply</button>
+                  <button id="deleteProfileSchemaButton" type="button" data-command="profile.deleteSavedSchema" data-i18n="profile.delete">Delete</button>
+                  <button id="exportProfileSchemasButton" type="button" data-command="profile.exportSchemas" data-i18n="profile.export">Export</button>
+                  <button id="showImportProfileSchemasButton" type="button" data-command="profile.importSchemas" data-i18n="profile.import">Import</button>
                 </div>
                 <div id="profileSchemaImportPanel" class="profile-schema-import-panel" hidden>
                   <textarea id="profileSchemaImportText" spellcheck="false" aria-label="Profile schema import JSON" data-i18n-aria-label="profile.schemaImportAria" placeholder='{"kind":"opencsv-profile-schemas","schemas":[]}'></textarea>
                   <div class="profile-schema-import-actions">
-                    <button id="applyProfileSchemaImportButton" type="button" data-i18n="profile.import">Import</button>
-                    <button id="cancelProfileSchemaImportButton" type="button" data-i18n="profile.cancel">Cancel</button>
+                    <button id="applyProfileSchemaImportButton" type="button" data-command="profile.applySchemaImport" data-i18n="profile.import">Import</button>
+                    <button id="cancelProfileSchemaImportButton" type="button" data-command="profile.cancelSchemaImport" data-i18n="profile.cancel">Cancel</button>
                   </div>
                 </div>
                 <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" data-i18n-aria-label="profile.schemaJsonAria" hidden>{

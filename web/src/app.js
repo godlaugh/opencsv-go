@@ -3822,6 +3822,24 @@ const localeCatalog = {
     "command.profile.run.description": "运行当前文档的列概况和验证。",
     "command.profile.cancel.title": "取消概况",
     "command.profile.cancel.description": "取消正在进行的概况分析。",
+    "command.profile.toggleSchema.title": "切换概况架构",
+    "command.profile.toggleSchema.description": "显示或隐藏 Profile 视图中的验证架构编辑器。",
+    "command.profile.saveSchema.title": "保存概况架构",
+    "command.profile.saveSchema.description": "验证并保存当前 Profile 验证架构。",
+    "command.profile.resetSchema.title": "重置概况架构",
+    "command.profile.resetSchema.description": "清除当前 Profile 验证架构。",
+    "command.profile.applySavedSchema.title": "应用已保存概况架构",
+    "command.profile.applySavedSchema.description": "将选中的已保存验证架构应用到当前文档。",
+    "command.profile.deleteSavedSchema.title": "删除已保存概况架构",
+    "command.profile.deleteSavedSchema.description": "删除选中的已保存验证架构。",
+    "command.profile.exportSchemas.title": "导出概况架构",
+    "command.profile.exportSchemas.description": "将已保存的 Profile 验证架构下载为 JSON。",
+    "command.profile.importSchemas.title": "导入概况架构",
+    "command.profile.importSchemas.description": "打开 Profile 架构导入面板以导入保存的验证架构 JSON。",
+    "command.profile.applySchemaImport.title": "应用概况架构导入",
+    "command.profile.applySchemaImport.description": "导入当前在导入面板中输入的 Profile 架构 JSON。",
+    "command.profile.cancelSchemaImport.title": "取消概况架构导入",
+    "command.profile.cancelSchemaImport.description": "关闭 Profile 架构导入面板且不导入。",
     "command.view.filter.title": "筛选",
     "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
     "command.view.filterBuilder.title": "筛选构建器",
@@ -6932,6 +6950,13 @@ function isCommandDisabled(command) {
   const needsWorkbookSheet = command.id === "format.switchWorksheet";
   const needsProfileIdle = command.id === "profile.run";
   const needsProfileCancel = command.id === "profile.cancel";
+  const needsProfileSchemaText = command.id === "profile.saveSchema";
+  const needsProfileSchemaReset = command.id === "profile.resetSchema";
+  const needsSavedProfileSchema =
+    command.id === "profile.applySavedSchema" ||
+    command.id === "profile.deleteSavedSchema";
+  const needsProfileSchemaExport = command.id === "profile.exportSchemas";
+  const needsProfileSchemaImportText = command.id === "profile.applySchemaImport";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -7038,6 +7063,11 @@ function isCommandDisabled(command) {
     (needsWorkbookSheet && !canSwitchWorkbookSheet()) ||
     (needsProfileIdle && profileLoading) ||
     (needsProfileCancel && !activeProfileController) ||
+    (needsProfileSchemaText && !profileSchemaText.trim()) ||
+    (needsProfileSchemaReset && !profileSchemaText.trim() && !localStorage.getItem(profileSchemaStorageKey)) ||
+    (needsSavedProfileSchema && !savedProfileSchemasState.some((schema) => schema.id === savedProfileSchemaSelect.value)) ||
+    (needsProfileSchemaExport && savedProfileSchemasState.length === 0) ||
+    (needsProfileSchemaImportText && !profileSchemaImportText.value.trim()) ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -13689,6 +13719,33 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "profile.cancel":
       cancelProfileRequest();
+      break;
+    case "profile.toggleSchema":
+      toggleProfileSchemaEditor();
+      break;
+    case "profile.saveSchema":
+      saveProfileSchema();
+      break;
+    case "profile.resetSchema":
+      resetProfileSchema();
+      break;
+    case "profile.applySavedSchema":
+      applySavedProfileSchema();
+      break;
+    case "profile.deleteSavedSchema":
+      deleteSavedProfileSchema();
+      break;
+    case "profile.exportSchemas":
+      exportProfileSchemas();
+      break;
+    case "profile.importSchemas":
+      showProfileSchemaImportPanel();
+      break;
+    case "profile.applySchemaImport":
+      applyProfileSchemaImport();
+      break;
+    case "profile.cancelSchemaImport":
+      cancelProfileSchemaImport();
       break;
     case "diff.open":
       openDiffPanel();
@@ -24660,18 +24717,18 @@ sqlTabButton.addEventListener("click", () => {
 profileTabButton.addEventListener("click", openProfilePanel);
 runProfileButton.addEventListener("click", () => executeCommand("profile.run"));
 cancelProfileButton.addEventListener("click", () => executeCommand("profile.cancel"));
-toggleProfileSchemaButton.addEventListener("click", toggleProfileSchemaEditor);
+toggleProfileSchemaButton.addEventListener("click", () => executeCommand("profile.toggleSchema"));
 profileSchemaInput.addEventListener("input", updateProfileSchemaDraft);
-saveProfileSchemaButton.addEventListener("click", saveProfileSchema);
-resetProfileSchemaButton.addEventListener("click", resetProfileSchema);
+saveProfileSchemaButton.addEventListener("click", () => executeCommand("profile.saveSchema"));
+resetProfileSchemaButton.addEventListener("click", () => executeCommand("profile.resetSchema"));
 savedProfileSchemaSelect.addEventListener("change", () => syncSavedProfileSchemaControls());
-applyProfileSchemaButton.addEventListener("click", applySavedProfileSchema);
-deleteProfileSchemaButton.addEventListener("click", deleteSavedProfileSchema);
-exportProfileSchemasButton.addEventListener("click", exportProfileSchemas);
-showImportProfileSchemasButton.addEventListener("click", showProfileSchemaImportPanel);
+applyProfileSchemaButton.addEventListener("click", () => executeCommand("profile.applySavedSchema"));
+deleteProfileSchemaButton.addEventListener("click", () => executeCommand("profile.deleteSavedSchema"));
+exportProfileSchemasButton.addEventListener("click", () => executeCommand("profile.exportSchemas"));
+showImportProfileSchemasButton.addEventListener("click", () => executeCommand("profile.importSchemas"));
 profileSchemaImportText.addEventListener("input", () => syncSavedProfileSchemaControls());
-applyProfileSchemaImportButton.addEventListener("click", applyProfileSchemaImport);
-cancelProfileSchemaImportButton.addEventListener("click", cancelProfileSchemaImport);
+applyProfileSchemaImportButton.addEventListener("click", () => executeCommand("profile.applySchemaImport"));
+cancelProfileSchemaImportButton.addEventListener("click", () => executeCommand("profile.cancelSchemaImport"));
 saveProfileRuleButton.addEventListener("click", saveProfileRuleFromBuilder);
 clearProfileRuleButton.addEventListener("click", () => clearProfileRuleBuilder());
 settingsTabButton.addEventListener("click", openSettingsPanel);
