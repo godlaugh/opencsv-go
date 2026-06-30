@@ -181,8 +181,8 @@
                 <div id="diffSummary" class="diff-summary" aria-live="polite"></div>
                 <div id="diffResult" class="diff-result"></div>
               </section>
-              <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile">
-                <div class="profile-toolbar" aria-label="Validation schema">
+              <section id="profilePanel" class="profile-panel" hidden aria-label="Data profile" data-i18n-aria-label="profile.panelAria">
+                <div class="profile-toolbar" aria-label="Validation schema" data-i18n-aria-label="profile.toolbarAria">
                   <button id="runProfileButton" type="button" data-command="profile.run" data-i18n="profile.run">Run Profile</button>
                   <button id="cancelProfileButton" type="button" data-command="profile.cancel" data-i18n="profile.cancel" hidden>Cancel</button>
                   <button id="toggleProfileSchemaButton" type="button" aria-expanded="false" data-i18n="profile.schema">Schema</button>
@@ -190,9 +190,9 @@
                   <button id="resetProfileSchemaButton" type="button" data-i18n="profile.resetSchema">Reset Schema</button>
                   <span id="profileSchemaStatus">No schema</span>
                 </div>
-                <div class="profile-schema-manager" aria-label="Saved validation schemas">
-                  <input id="profileSchemaNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="Schema name" aria-label="Schema name" data-i18n-placeholder="profile.schemaNamePlaceholder" />
-                  <select id="savedProfileSchemaSelect" aria-label="Saved validation schemas">
+                <div class="profile-schema-manager" aria-label="Saved validation schemas" data-i18n-aria-label="profile.schemaManagerAria">
+                  <input id="profileSchemaNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="Schema name" aria-label="Schema name" data-i18n-placeholder="profile.schemaNamePlaceholder" data-i18n-aria-label="profile.schemaNameAria" />
+                  <select id="savedProfileSchemaSelect" aria-label="Saved validation schemas" data-i18n-aria-label="profile.savedSchemasAria">
                     <option value="">Saved schemas</option>
                   </select>
                   <button id="applyProfileSchemaButton" type="button" data-i18n="profile.apply">Apply</button>
@@ -201,18 +201,18 @@
                   <button id="showImportProfileSchemasButton" type="button" data-i18n="profile.import">Import</button>
                 </div>
                 <div id="profileSchemaImportPanel" class="profile-schema-import-panel" hidden>
-                  <textarea id="profileSchemaImportText" spellcheck="false" aria-label="Profile schema import JSON" placeholder='{"kind":"opencsv-profile-schemas","schemas":[]}'></textarea>
+                  <textarea id="profileSchemaImportText" spellcheck="false" aria-label="Profile schema import JSON" data-i18n-aria-label="profile.schemaImportAria" placeholder='{"kind":"opencsv-profile-schemas","schemas":[]}'></textarea>
                   <div class="profile-schema-import-actions">
                     <button id="applyProfileSchemaImportButton" type="button" data-i18n="profile.import">Import</button>
                     <button id="cancelProfileSchemaImportButton" type="button" data-i18n="profile.cancel">Cancel</button>
                   </div>
                 </div>
-                <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" hidden>{
+                <textarea id="profileSchemaInput" class="profile-schema-input" spellcheck="false" aria-label="Validation schema JSON" data-i18n-aria-label="profile.schemaJsonAria" hidden>{
   "columns": [
     { "name": "id", "required": true, "type": "integer", "unique": true }
   ]
 }</textarea>
-                <div id="profileRuleBuilder" class="profile-rule-builder" aria-label="Schema rule builder">
+                <div id="profileRuleBuilder" class="profile-rule-builder" aria-label="Schema rule builder" data-i18n-aria-label="profile.ruleBuilderAria">
                   <label>
                     <span data-i18n="profile.rule.columnName">Column name</span>
                     <input id="profileRuleNameInput" type="text" autocomplete="off" spellcheck="false" placeholder="id" />
@@ -272,7 +272,7 @@
                     <button id="clearProfileRuleButton" type="button" data-i18n="profile.rule.clear">Clear Rule</button>
                   </div>
                 </div>
-                <div id="profileRuleList" class="profile-rule-list" aria-label="Schema rules"></div>
+                <div id="profileRuleList" class="profile-rule-list" aria-label="Schema rules" data-i18n-aria-label="profile.ruleListAria"></div>
                 <div id="profileSummary" class="profile-summary" aria-live="polite"></div>
                 <div id="profileColumns" class="profile-columns"></div>
                 <div id="profileIssues" class="profile-issues"></div>

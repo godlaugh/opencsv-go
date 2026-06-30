@@ -1914,8 +1914,17 @@ const localeCatalog = {
     "profile.export": "Export",
     "profile.import": "Import",
     "profile.cancel": "Cancel",
+    "profile.panelAria": "Data profile",
+    "profile.toolbarAria": "Validation schema",
+    "profile.schemaManagerAria": "Saved validation schemas",
     "profile.schemaNamePlaceholder": "Schema name",
+    "profile.schemaNameAria": "Schema name",
     "profile.savedSchemas": "Saved schemas",
+    "profile.savedSchemasAria": "Saved validation schemas",
+    "profile.schemaImportAria": "Profile schema import JSON",
+    "profile.schemaJsonAria": "Validation schema JSON",
+    "profile.ruleBuilderAria": "Schema rule builder",
+    "profile.ruleListAria": "Schema rules",
     "profile.noSchema": "No schema",
     "profile.schemaRules": "{{count}} schema rules",
     "profile.invalidSchema": "Invalid schema JSON",
@@ -3518,8 +3527,17 @@ const localeCatalog = {
     "profile.export": "导出",
     "profile.import": "导入",
     "profile.cancel": "取消",
+    "profile.panelAria": "数据概况",
+    "profile.toolbarAria": "验证架构",
+    "profile.schemaManagerAria": "已保存验证架构",
     "profile.schemaNamePlaceholder": "架构名称",
+    "profile.schemaNameAria": "架构名称",
     "profile.savedSchemas": "已保存架构",
+    "profile.savedSchemasAria": "已保存验证架构",
+    "profile.schemaImportAria": "概况架构导入 JSON",
+    "profile.schemaJsonAria": "验证架构 JSON",
+    "profile.ruleBuilderAria": "架构规则构建器",
+    "profile.ruleListAria": "架构规则",
     "profile.noSchema": "没有架构",
     "profile.schemaRules": "{{count}} 条架构规则",
     "profile.invalidSchema": "架构 JSON 无效",
@@ -5201,6 +5219,18 @@ function applyConditionLocaleStrings() {
 }
 
 function applyProfileLocaleStrings() {
+  if (profilePanel) profilePanel.setAttribute("aria-label", t("profile.panelAria"));
+  const profileToolbar = profilePanel?.querySelector(".profile-toolbar");
+  if (profileToolbar) profileToolbar.setAttribute("aria-label", t("profile.toolbarAria"));
+  const profileSchemaManager = profilePanel?.querySelector(".profile-schema-manager");
+  if (profileSchemaManager) profileSchemaManager.setAttribute("aria-label", t("profile.schemaManagerAria"));
+  if (profileSchemaNameInput) profileSchemaNameInput.setAttribute("aria-label", t("profile.schemaNameAria"));
+  if (savedProfileSchemaSelect) savedProfileSchemaSelect.setAttribute("aria-label", t("profile.savedSchemasAria"));
+  if (profileSchemaImportText) profileSchemaImportText.setAttribute("aria-label", t("profile.schemaImportAria"));
+  if (profileSchemaInput) profileSchemaInput.setAttribute("aria-label", t("profile.schemaJsonAria"));
+  const profileRuleBuilder = profilePanel?.querySelector("#profileRuleBuilder");
+  if (profileRuleBuilder) profileRuleBuilder.setAttribute("aria-label", t("profile.ruleBuilderAria"));
+  if (profileRuleList) profileRuleList.setAttribute("aria-label", t("profile.ruleListAria"));
   setSelectOptionLabels(profileRuleTypeSelect, {
     "": "profile.type.any",
     string: "profile.type.string",
