@@ -8,7 +8,7 @@
   </head>
   <body>
     <main class="app-shell">
-      <aside class="sidebar" aria-label="Workspace">
+      <aside class="sidebar" aria-label="Workspace" data-i18n-aria-label="shell.workspaceAria">
         <div class="brand">opencsv</div>
         <div id="fileList" class="file-list">
           <div class="empty-file-list">
@@ -20,7 +20,7 @@
 
       <section class="workspace">
         <header class="toolbar">
-          <div class="segmented" aria-label="View mode">
+          <div class="segmented" aria-label="View mode" data-i18n-aria-label="shell.viewModeAria">
             <button id="gridTabButton" class="active" type="button">Grid</button>
             <button id="sqlTabButton" type="button" data-command="view.sql">SQL</button>
             <button id="profileTabButton" type="button" data-command="view.profile">Profile</button>
@@ -29,7 +29,7 @@
             <button id="paletteButton" type="button" data-command="command.palette">Cmd</button>
           </div>
           <form class="file-open" id="openForm">
-            <input id="pathInput" type="text" placeholder="/tmp/opencsv-sample.csv" aria-label="CSV path" />
+            <input id="pathInput" type="text" placeholder="/tmp/opencsv-sample.csv" aria-label="CSV path" data-i18n-aria-label="file.pathAria" />
             <input id="fileInput" type="file" accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-hidden="true" tabindex="-1" />
             <button id="openButton" type="button" data-command="file.open">Open</button>
           </form>
@@ -98,7 +98,7 @@
           </div>
         </header>
 
-        <section id="editorGroups" class="editor-groups" aria-label="Editor groups" data-orientation="horizontal">
+        <section id="editorGroups" class="editor-groups" aria-label="Editor groups" data-orientation="horizontal" data-i18n-aria-label="workbench.groupsAria">
           <section id="primaryEditorGroup" class="editor-group active" data-group-id="primary" tabindex="0" aria-label="Editor group 1">
             <header class="editor-group-header">
               <strong id="primaryEditorGroupTitle">Group 1</strong>
@@ -107,10 +107,10 @@
             </header>
             <div id="primaryEditorGroupBody" class="editor-group-body">
               <div id="primaryEditorGroupEmpty" class="editor-group-empty" hidden>Empty group</div>
-              <section class="grid-frame" aria-label="CSV grid prototype">
+              <section class="grid-frame" aria-label="CSV grid prototype" data-i18n-aria-label="grid.frameAria">
               <canvas id="grid" width="1200" height="760"></canvas>
               <canvas id="gridHeader" aria-hidden="true"></canvas>
-              <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
+              <textarea id="editor" spellcheck="false" aria-label="Cell editor" data-i18n-aria-label="grid.cellEditorAria"></textarea>
               <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console" data-i18n-aria-label="sql.panelAria">
                 <div class="sql-editor-row">
                   <textarea id="sqlInput" spellcheck="false" aria-label="SQL query" data-i18n-aria-label="sql.queryAria">SELECT * FROM current LIMIT 25</textarea>

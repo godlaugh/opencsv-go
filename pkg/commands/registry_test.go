@@ -628,6 +628,47 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 }
 
+func TestShellAccessibilityI18nIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`data-i18n-aria-label="shell.workspaceAria"`,
+		`data-i18n-aria-label="shell.viewModeAria"`,
+		`data-i18n-aria-label="file.pathAria"`,
+		`data-i18n-aria-label="workbench.groupsAria"`,
+		`data-i18n-aria-label="grid.frameAria"`,
+		`data-i18n-aria-label="grid.cellEditorAria"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing shell accessibility i18n html wiring %q", snippet)
+		}
+	}
+	for _, snippet := range []string{
+		`"shell.workspaceAria": "工作区"`,
+		`"shell.viewModeAria": "视图模式"`,
+		`"file.pathAria": "CSV 路径"`,
+		`"workbench.groupsAria": "编辑器组"`,
+		`"grid.frameAria": "CSV 表格原型"`,
+		`"grid.cellEditorAria": "单元格编辑器"`,
+		`root.querySelectorAll("[data-i18n-aria-label]")`,
+		`editorGroups.setAttribute("aria-label", t("workbench.groupsAria"))`,
+		`primaryEditorGroup.setAttribute("aria-label", tf("workbench.groupAria"`,
+		`secondaryEditorGroup.setAttribute("aria-label", tf("workbench.groupAria"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing shell accessibility i18n source wiring %q", snippet)
+		}
+	}
+}
+
 func TestTabularCopyWritesHTMLFlavorWhenAvailable(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
