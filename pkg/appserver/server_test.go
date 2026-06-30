@@ -3369,6 +3369,20 @@ func TestServerSQLFilterTemporalArithmetic(t *testing.T) {
 	sqlFilterPayload = postJSON(t, handler, "/api/filter", map[string]any{
 		"documentId": documentID,
 		"mode":       "sql",
+		"expression": "CAST(created_at AS date) + INTERVAL '1' month = DATE '2026-06-27' AND CAST(stamp AS timestamp) + INTERVAL '1-2' year to month = TIMESTAMP '2027-07-27 14:30:00'",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 1 {
+		t.Fatalf("SQL year/month interval arithmetic filter totalRows = %#v, want 1", sqlFilterPayload["totalRows"])
+	}
+	windowPayload = getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=2")
+	rows = windowPayload["rows"].([]any)
+	if len(rows) != 1 || rows[0].([]any)[0] != "1" {
+		t.Fatalf("SQL year/month interval filtered window rows = %#v, want row 1", rows)
+	}
+
+	sqlFilterPayload = postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
 		"expression": "CAST(stamp AS timestamp) + INTERVAL '-1:30' hour to minute = TIMESTAMP '2026-05-27 13:00:00'",
 	})
 	if sqlFilterPayload["totalRows"].(float64) != 1 {
