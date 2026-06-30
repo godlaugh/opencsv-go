@@ -3840,6 +3840,10 @@ const localeCatalog = {
     "command.profile.applySchemaImport.description": "导入当前在导入面板中输入的 Profile 架构 JSON。",
     "command.profile.cancelSchemaImport.title": "取消概况架构导入",
     "command.profile.cancelSchemaImport.description": "关闭 Profile 架构导入面板且不导入。",
+    "command.profile.saveRule.title": "保存概况规则",
+    "command.profile.saveRule.description": "保存或更新当前在 Profile 架构规则构建器中编写的规则。",
+    "command.profile.clearRule.title": "清除概况规则编辑器",
+    "command.profile.clearRule.description": "清空 Profile 架构规则构建器草稿并返回添加模式。",
     "command.view.filter.title": "筛选",
     "command.view.filter.description": "按文本或 SQL WHERE 表达式筛选行。",
     "command.view.filterBuilder.title": "筛选构建器",
@@ -13747,6 +13751,12 @@ async function executeCommand(commandID, options = {}) {
     case "profile.cancelSchemaImport":
       cancelProfileSchemaImport();
       break;
+    case "profile.saveRule":
+      saveProfileRuleFromBuilder();
+      break;
+    case "profile.clearRule":
+      clearProfileRuleBuilder();
+      break;
     case "diff.open":
       openDiffPanel();
       break;
@@ -22395,6 +22405,7 @@ function clearProfileRuleBuilder(resetStatus = true) {
   profileRuleMinLengthInput.value = "";
   profileRuleMaxLengthInput.value = "";
   saveProfileRuleButton.textContent = t("profile.rule.save");
+  document.body.dataset.profileRuleBuilder = "clear";
   if (resetStatus) status.textContent = t("profile.rule.cleared");
 }
 
@@ -24729,8 +24740,8 @@ showImportProfileSchemasButton.addEventListener("click", () => executeCommand("p
 profileSchemaImportText.addEventListener("input", () => syncSavedProfileSchemaControls());
 applyProfileSchemaImportButton.addEventListener("click", () => executeCommand("profile.applySchemaImport"));
 cancelProfileSchemaImportButton.addEventListener("click", () => executeCommand("profile.cancelSchemaImport"));
-saveProfileRuleButton.addEventListener("click", saveProfileRuleFromBuilder);
-clearProfileRuleButton.addEventListener("click", () => clearProfileRuleBuilder());
+saveProfileRuleButton.addEventListener("click", () => executeCommand("profile.saveRule"));
+clearProfileRuleButton.addEventListener("click", () => executeCommand("profile.clearRule"));
 settingsTabButton.addEventListener("click", openSettingsPanel);
 shortcutsTabButton.addEventListener("click", () => executeCommand("settings.keyboardShortcuts"));
 closeAboutSupportButton.addEventListener("click", closeAboutSupportPanel);

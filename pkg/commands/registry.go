@@ -250,6 +250,8 @@ func Registry() []Command {
 		{ID: "profile.importSchemas", Title: "Import Profile Schemas", Description: "Open the Profile schema import panel for saved validation schema JSON.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"import validation schemas", "restore profile schemas"}},
 		{ID: "profile.applySchemaImport", Title: "Apply Profile Schema Import", Description: "Import the Profile schema JSON currently entered in the import panel.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"apply schema import", "import profile schema json"}},
 		{ID: "profile.cancelSchemaImport", Title: "Cancel Profile Schema Import", Description: "Close the Profile schema import panel without importing.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"close schema import", "cancel profile schema json"}},
+		{ID: "profile.saveRule", Title: "Save Profile Rule", Description: "Save or update the rule currently authored in the Profile schema rule builder.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"save validation rule", "schema rule save", "add profile rule"}},
+		{ID: "profile.clearRule", Title: "Clear Profile Rule Editor", Description: "Clear the Profile schema rule builder draft and return it to add mode.", Scope: ScopeView, RequiresDoc: true, Implemented: true, Aliases: []string{"clear validation rule", "reset rule builder", "clear profile rule"}},
 		{ID: "diff.open", Title: "Compare Files", Description: "Compare two CSV files side by side.", Scope: ScopeGlobal, Implemented: true, Aliases: []string{"diff", "compare"}},
 	}
 }
