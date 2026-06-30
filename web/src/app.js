@@ -16186,12 +16186,13 @@ function pasteHTMLTable(htmlText) {
 
 function pasteText(text) {
   if (!ensureEditable("Paste")) return;
-  const matrix = parseTSV(text);
+  const parsed = parsePlainTextMatrix(text);
+  const matrix = parsed.matrix;
   if (!matrix.length) {
     status.textContent = localizedPasteStatus("empty");
     return;
   }
-  pasteParsedMatrix(matrix, "tsv");
+  pasteParsedMatrix(matrix, parsed.source);
 }
 
 function pasteParsedMatrix(matrix, source) {
@@ -16340,7 +16341,26 @@ function escapeLaTeX(value) {
     .replaceAll("\n", "\\\\ ");
 }
 
+function parsePlainTextMatrix(text) {
+  if (String(text ?? "").includes("\t")) {
+    return { matrix: parseTSV(text), source: "tsv" };
+  }
+  const csv = parseCSV(text);
+  if (csv.some((row) => row.length > 1)) {
+    return { matrix: csv, source: "csv" };
+  }
+  return { matrix: parseTSV(text), source: "tsv" };
+}
+
 function parseTSV(text) {
+  return parseDelimitedText(text, "\t");
+}
+
+function parseCSV(text) {
+  return parseDelimitedText(text, ",");
+}
+
+function parseDelimitedText(text, delimiter) {
   if (!text) return [];
   if (text.replaceAll("\r", "").replaceAll("\n", "") === "") return [];
   const matrix = [];
@@ -16375,7 +16395,7 @@ function parseTSV(text) {
       quoted = true;
       fieldStart = false;
       rowBreak = false;
-    } else if (char === "\t") {
+    } else if (char === delimiter) {
       row.push(field);
       field = "";
       fieldStart = true;
@@ -16453,6 +16473,8 @@ function htmlTableCellText(cell) {
 }
 
 window.__opencsvParseTSV = parseTSV;
+window.__opencsvParseCSV = parseCSV;
+window.__opencsvParsePlainTextMatrix = parsePlainTextMatrix;
 window.__opencsvParseHTMLTable = parseHTMLTable;
 
 function updateFileList(name, detail, rowCount, options = {}) {

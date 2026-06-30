@@ -676,6 +676,29 @@ func TestSpreadsheetPasteCanExtendGrid(t *testing.T) {
 	}
 }
 
+func TestPlainTextCSVPasteIsWired(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function parsePlainTextMatrix",
+		"function parseDelimitedText",
+		"function parseCSV",
+		`return { matrix: parseTSV(text), source: "tsv" }`,
+		`return { matrix: csv, source: "csv" }`,
+		`const parsed = parsePlainTextMatrix(text)`,
+		`pasteParsedMatrix(matrix, parsed.source)`,
+		`window.__opencsvParseCSV = parseCSV`,
+		`window.__opencsvParsePlainTextMatrix = parsePlainTextMatrix`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing CSV paste wiring %q", snippet)
+		}
+	}
+}
+
 func TestClipboardPasteStatusLocalizationIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
