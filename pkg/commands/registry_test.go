@@ -684,10 +684,14 @@ func TestPlainTextCSVPasteIsWired(t *testing.T) {
 	source := string(appJS)
 	for _, snippet := range []string{
 		"function parsePlainTextMatrix",
+		"function hasUnquotedDelimiter",
 		"function parseDelimitedText",
 		"function parseCSV",
+		`if (hasUnquotedDelimiter(input, "\t"))`,
+		`if (hasUnquotedDelimiter(input, ","))`,
+		`char === "," || char === "\t"`,
 		`return { matrix: parseTSV(text), source: "tsv" }`,
-		`return { matrix: csv, source: "csv" }`,
+		`return { matrix: parseCSV(text), source: "csv" }`,
 		`const parsed = parsePlainTextMatrix(text)`,
 		`pasteParsedMatrix(matrix, parsed.source)`,
 		`window.__opencsvParseCSV = parseCSV`,

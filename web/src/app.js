@@ -16342,14 +16342,45 @@ function escapeLaTeX(value) {
 }
 
 function parsePlainTextMatrix(text) {
-  if (String(text ?? "").includes("\t")) {
+  const input = String(text ?? "");
+  if (hasUnquotedDelimiter(input, "\t")) {
     return { matrix: parseTSV(text), source: "tsv" };
   }
-  const csv = parseCSV(text);
-  if (csv.some((row) => row.length > 1)) {
-    return { matrix: csv, source: "csv" };
+  if (hasUnquotedDelimiter(input, ",")) {
+    return { matrix: parseCSV(text), source: "csv" };
   }
   return { matrix: parseTSV(text), source: "tsv" };
+}
+
+function hasUnquotedDelimiter(text, delimiter) {
+  let quoted = false;
+  let fieldStart = true;
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          index++;
+        } else {
+          quoted = false;
+        }
+      }
+      continue;
+    }
+    if (char === '"' && fieldStart) {
+      quoted = true;
+      fieldStart = false;
+    } else if (char === "," || char === "\t") {
+      if (char === delimiter) return true;
+      fieldStart = true;
+    } else if (char === "\r" || char === "\n") {
+      if (char === "\r" && text[index + 1] === "\n") index++;
+      fieldStart = true;
+    } else {
+      fieldStart = false;
+    }
+  }
+  return false;
 }
 
 function parseTSV(text) {
