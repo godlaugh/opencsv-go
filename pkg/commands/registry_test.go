@@ -3230,6 +3230,7 @@ func TestCustomCellLinkPromptIsWired(t *testing.T) {
 		`document.body.dataset.linkConfirmRemembered`,
 		`window.__opencsvLastOpenedLink`,
 		`openCellLinkWithPrompt(link);`,
+		`"link.prompt.dialogAria": "打开自定义链接"`,
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("missing custom link prompt wiring %q", snippet)
@@ -3239,6 +3240,7 @@ func TestCustomCellLinkPromptIsWired(t *testing.T) {
 		`id="linkConfirmDialog"`,
 		`id="linkConfirmRemember"`,
 		`id="confirmOpenLinkButton"`,
+		`data-i18n-aria-label="link.prompt.dialogAria"`,
 		`data-i18n="link.prompt.title"`,
 	} {
 		if !strings.Contains(html, snippet) {
