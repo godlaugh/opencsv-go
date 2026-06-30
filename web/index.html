@@ -1028,7 +1028,7 @@
             <legend data-i18n="condition.legendOne">Condition 1</legend>
             <label class="condition-group-open-control">
               <span>(</span>
-              <select id="conditionPrimaryOpenGroup" aria-label="Open group before condition 1">
+              <select id="conditionPrimaryOpenGroup" aria-label="Open group before condition 1" data-i18n-aria-label="condition.group.openAria">
                 <option value="0">0</option>
                 <option value="1">(</option>
                 <option value="2">((</option>
@@ -1037,7 +1037,7 @@
             </label>
             <label class="condition-group-close-control">
               <span>)</span>
-              <select id="conditionPrimaryCloseGroup" aria-label="Close group after condition 1">
+              <select id="conditionPrimaryCloseGroup" aria-label="Close group after condition 1" data-i18n-aria-label="condition.group.closeAria">
                 <option value="0">0</option>
                 <option value="1">)</option>
                 <option value="2">))</option>
@@ -1046,11 +1046,11 @@
             </label>
             <label>
               <span data-i18n="condition.column">Column</span>
-              <select id="conditionColumn" aria-label="Filter column"></select>
+              <select id="conditionColumn" aria-label="Filter column" data-i18n-aria-label="condition.columnAria"></select>
             </label>
             <label>
               <span data-i18n="condition.operator">Operator</span>
-              <select id="conditionOperator" aria-label="Filter operator">
+              <select id="conditionOperator" aria-label="Filter operator" data-i18n-aria-label="condition.operatorAria">
                 <option value="contains" data-i18n="condition.operator.contains">contains</option>
                 <option value="notContains" data-i18n="condition.operator.notContains">does not contain</option>
                 <option value="equals" data-i18n="condition.operator.equals">equals</option>
@@ -1078,7 +1078,7 @@
             </label>
             <label>
               <span data-i18n="condition.value">Value</span>
-              <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" />
+              <input id="conditionValue" type="text" autocomplete="off" spellcheck="false" aria-label="Filter value" data-i18n-aria-label="condition.valueAria" />
             </label>
           </fieldset>
           <div id="conditionRows" class="condition-extra-rows" aria-label="Additional filter conditions" data-i18n-aria-label="condition.additional"></div>
