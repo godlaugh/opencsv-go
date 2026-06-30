@@ -824,6 +824,43 @@ func TestServerBatchEditExtendsRowsAndColumns(t *testing.T) {
 	}
 }
 
+func TestServerBatchEditExpansionSavesToDisk(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "expand-save.csv")
+	if err := os.WriteFile(path, []byte("id,name\n1,Ada\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 3,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	_ = postJSON(t, handler, "/api/edit-batch", map[string]any{
+		"documentId": documentID,
+		"edits": []map[string]any{
+			{"row": 2, "col": 2, "value": "10"},
+			{"row": 3, "col": 3, "value": "Paris"},
+		},
+	})
+	_ = postJSON(t, handler, "/api/save", map[string]any{
+		"documentId": documentID,
+		"backup":     true,
+	})
+
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "id,name\n1,Ada\n,,10\n,,,Paris\n"
+	if string(saved) != want {
+		t.Fatalf("saved bytes = %q, want %q", saved, want)
+	}
+}
+
 func TestServerHeaderMode(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "header.csv")
