@@ -13895,6 +13895,7 @@ async function executeCommand(commandID, options = {}) {
       await filterActiveColumnForCommand(commandID);
       break;
     case "view.clear":
+      if (conditionBuilderOpen) closeConditionBuilder("clear");
       await clearView();
       break;
     case "view.sql":
@@ -25644,10 +25645,7 @@ conditionRows.addEventListener("change", (event) => {
 });
 previewConditionButton.addEventListener("click", () => executeCommand("condition.preview"));
 applyConditionButton.addEventListener("click", () => executeCommand("condition.apply"));
-clearConditionButton.addEventListener("click", async () => {
-  closeConditionBuilder("clear");
-  await clearView();
-});
+clearConditionButton.addEventListener("click", () => executeCommand("view.clear"));
 conditionPanel.addEventListener("mousedown", (event) => {
   if (event.target === conditionPanel) {
     event.preventDefault();
