@@ -2110,6 +2110,9 @@ func TestDiffViewI18nIsWired(t *testing.T) {
 		`data-i18n-aria-label="diff.statusFilterAria"`,
 		`data-i18n-aria-label="diff.searchAria"`,
 		`data-i18n-aria-label="diff.sortAria"`,
+		`data-i18n="diff.sort.asc"`,
+		`data-i18n-title="diff.sortAscending"`,
+		`data-i18n-aria-label="diff.sortAscending"`,
 		`data-i18n-aria-label="diff.rightTextAria"`,
 	} {
 		if !strings.Contains(html, snippet) {
