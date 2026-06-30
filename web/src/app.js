@@ -12160,6 +12160,8 @@ function useConditionTemplate() {
   document.body.dataset.conditionTemplate = `${template}:${columns.find((column) => column.sourceCol === draft.column)?.name || draft.column}:${draft.operator}:${String(draft.value ?? "").slice(0, 80)}`;
   const expression = conditionExpression(draft.column, draft.operator, draft.value ?? "", conditionValue);
   document.body.dataset.conditionPreview = expression;
+  document.body.dataset.conditionBuilderPreview = expression;
+  document.body.dataset.conditionBuilderPreviewState = expression ? "ready" : "error";
   renderConditionPreview(expression, expression ? "ready" : "error");
   status.textContent = tf("condition.status.ready", { label: conditionTemplateLabel(template) });
   conditionValue.focus();
