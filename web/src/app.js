@@ -18078,12 +18078,21 @@ function renderViewChips() {
     setChipButtonText(applyButton, "view.chip.apply", "view.chip.applySavedFilter", values);
     applyButton.addEventListener("click", () => applySavedFilter(filter.id));
 
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    setChipButtonText(editButton, "view.chip.edit", "view.chip.editBuilder", values);
+    editButton.addEventListener("click", () => openSavedFilterInBuilder(filter.id));
+
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     setChipButtonText(deleteButton, "view.chip.delete", "view.chip.deleteSavedFilter", values);
     deleteButton.addEventListener("click", () => deleteSavedFilter(filter.id));
 
-    chip.append(label, applyButton, deleteButton);
+    chip.append(label, applyButton);
+    if (normalizeConditionBuilderRows(filter.builderRows).length) {
+      chip.append(editButton);
+    }
+    chip.append(deleteButton);
     viewChips.append(chip);
   }
 
@@ -18692,8 +18701,8 @@ function openActiveFilterInSQL() {
   status.textContent = t("view.status.filterToSql");
 }
 
-function openActiveFilterInBuilder() {
-  const builderRows = normalizeConditionBuilderRows(activeFilter?.builderRows);
+function replayFilterRowsInBuilder(builderRows) {
+  builderRows = normalizeConditionBuilderRows(builderRows);
   if (!builderRows.length) return;
   setViewMode("grid");
   openConditionBuilder();
@@ -18709,10 +18718,35 @@ function openActiveFilterInBuilder() {
     document.body.dataset.conditionRowCount = String(built.builders.length);
     document.body.dataset.conditionGroupingMode = built.hasExplicitGroups ? "explicit" : "implicit";
   }
-  document.body.dataset.conditionBuilderReopened = `${builderRows.length}:${activeFilter.expression || ""}`;
-  status.textContent = t("view.status.filterToBuilder");
+  return builderRows;
+}
+
+function focusReplayedConditionBuilder() {
   conditionValue.focus();
   if (conditionOperatorNeedsValue(conditionOperator.value)) conditionValue.select();
+}
+
+function openActiveFilterInBuilder() {
+  const builderRows = replayFilterRowsInBuilder(activeFilter?.builderRows);
+  if (!builderRows) return;
+  document.body.dataset.conditionBuilderReopened = `${builderRows.length}:${activeFilter.expression || ""}`;
+  status.textContent = t("view.status.filterToBuilder");
+  focusReplayedConditionBuilder();
+}
+
+function openSavedFilterInBuilder(filterID) {
+  const filter = savedFilters().find((item) => item.id === filterID);
+  if (!filter) {
+    status.textContent = t("view.status.savedFilterNotFound");
+    renderViewChips();
+    return;
+  }
+  const builderRows = replayFilterRowsInBuilder(filter.builderRows);
+  if (!builderRows) return;
+  commandInput.value = `where ${filter.expression}`;
+  document.body.dataset.savedFilterBuilderReopened = `${filter.name}:${builderRows.length}:${filter.expression}`;
+  status.textContent = t("view.status.filterToBuilder");
+  focusReplayedConditionBuilder();
 }
 
 function filterDescriptorFromRequest(body, label, options = {}) {
