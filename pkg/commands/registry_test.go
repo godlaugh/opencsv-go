@@ -2106,17 +2106,45 @@ func TestSQLConsoleI18nIsWired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexHTML, err := os.ReadFile(filepath.Join("..", "..", "web", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	source := string(appJS)
+	html := string(indexHTML)
+	for _, snippet := range []string{
+		`id="sqlPanel"`,
+		`data-i18n-aria-label="sql.panelAria"`,
+		`data-i18n-aria-label="sql.queryAria"`,
+		`data-i18n-aria-label="sql.resultFormatAria"`,
+		`data-i18n-aria-label="sql.paneSizeAria"`,
+		`data-i18n-title="sql.paneSizeAria"`,
+		`data-i18n-aria-label="sql.historyAria"`,
+	} {
+		if !strings.Contains(html, snippet) {
+			t.Fatalf("missing SQL i18n html wiring %q", snippet)
+		}
+	}
 	for _, snippet := range []string{
 		`"sql.status.returned"`,
 		`"sql.status.returnedTimed"`,
 		`"sql.status.returnedTimedRows"`,
 		`"sql.status.runningRows"`,
 		`"sql.context.copySelectionAs"`,
+		`"sql.panelAria": "SQL 控制台"`,
+		`"sql.queryAria": "SQL 查询"`,
+		`"sql.resultFormatAria": "SQL 结果格式"`,
+		`"sql.paneSizeAria": "SQL 结果面板高度"`,
+		`"sql.historyAria": "SQL 查询历史"`,
 		`"sql.status.returned": "SQL 返回`,
 		`"sql.status.returnedTimed": "SQL 返回`,
 		`"sql.status.runningRows": "正在加载`,
 		"applySQLLocaleStrings",
+		`t("sql.panelAria")`,
+		`t("sql.queryAria")`,
+		`t("sql.resultFormatAria")`,
+		`t("sql.paneSizeAria")`,
+		`t("sql.historyAria")`,
 		"renderSQLHistory()",
 		"renderSQLResult(lastSQLResult)",
 		`const statusKey = payload.progress?.loadedRows ? "sql.status.returnedTimedRows" : "sql.status.returnedTimed"`,

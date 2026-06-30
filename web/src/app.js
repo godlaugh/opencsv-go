@@ -1846,6 +1846,11 @@ const localeCatalog = {
     "sql.export": "Export",
     "sql.openResult": "Open Result",
     "sql.clear": "Clear",
+    "sql.panelAria": "SQL console",
+    "sql.queryAria": "SQL query",
+    "sql.resultFormatAria": "SQL result format",
+    "sql.paneSizeAria": "SQL result pane height",
+    "sql.historyAria": "SQL query history",
     "sql.empty.prompt": "Run SQL to inspect results.",
     "sql.empty.history": "No query history",
     "sql.empty.rows": "No rows",
@@ -3445,6 +3450,11 @@ const localeCatalog = {
     "sql.export": "导出",
     "sql.openResult": "打开结果",
     "sql.clear": "清除",
+    "sql.panelAria": "SQL 控制台",
+    "sql.queryAria": "SQL 查询",
+    "sql.resultFormatAria": "SQL 结果格式",
+    "sql.paneSizeAria": "SQL 结果面板高度",
+    "sql.historyAria": "SQL 查询历史",
     "sql.empty.prompt": "运行 SQL 以查看结果。",
     "sql.empty.history": "没有查询历史",
     "sql.empty.rows": "没有行",
@@ -5222,6 +5232,16 @@ function applySQLLocaleStrings() {
     if (element) element.textContent = t(key);
   }
   if (cancelSqlButton) cancelSqlButton.title = t("common.cancel");
+  if (sqlPanel) sqlPanel.setAttribute("aria-label", t("sql.panelAria"));
+  if (sqlInput) sqlInput.setAttribute("aria-label", t("sql.queryAria"));
+  if (sqlResultFormatSelect) sqlResultFormatSelect.setAttribute("aria-label", t("sql.resultFormatAria"));
+  if (sqlPaneSizeInput) {
+    const label = t("sql.paneSizeAria");
+    sqlPaneSizeInput.setAttribute("aria-label", label);
+    sqlPaneSizeInput.title = label;
+  }
+  const historyRow = sqlHistoryList?.closest(".sql-history-row");
+  if (historyRow) historyRow.setAttribute("aria-label", t("sql.historyAria"));
   syncSQLResultActions();
 }
 

@@ -111,12 +111,12 @@
               <canvas id="grid" width="1200" height="760"></canvas>
               <canvas id="gridHeader" aria-hidden="true"></canvas>
               <textarea id="editor" spellcheck="false" aria-label="Cell editor"></textarea>
-              <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console">
+              <section id="sqlPanel" class="sql-panel" hidden aria-label="SQL console" data-i18n-aria-label="sql.panelAria">
                 <div class="sql-editor-row">
-                  <textarea id="sqlInput" spellcheck="false" aria-label="SQL query">SELECT * FROM current LIMIT 25</textarea>
+                  <textarea id="sqlInput" spellcheck="false" aria-label="SQL query" data-i18n-aria-label="sql.queryAria">SELECT * FROM current LIMIT 25</textarea>
                   <button id="runSqlButton" type="button">Run</button>
                   <button id="cancelSqlButton" type="button" data-i18n="common.cancel" hidden>Cancel</button>
-                  <select id="sqlResultFormatSelect" class="copy-format-select" aria-label="SQL result format" disabled>
+                  <select id="sqlResultFormatSelect" class="copy-format-select" aria-label="SQL result format" data-i18n-aria-label="sql.resultFormatAria" disabled>
                     <option value="csv">CSV</option>
                     <option value="tsv">TSV</option>
                     <option value="markdown">Markdown</option>
@@ -129,9 +129,9 @@
                   <button id="openSqlResultButton" type="button" disabled>Open Result</button>
                   <button id="copySqlResultButton" type="button" disabled>Copy</button>
                   <button id="exportSqlResultButton" type="button" disabled>Export</button>
-                  <input id="sqlPaneSizeInput" class="sql-pane-size-input" type="range" min="180" max="560" step="20" value="320" aria-label="SQL result pane height" title="SQL result pane height" />
+                  <input id="sqlPaneSizeInput" class="sql-pane-size-input" type="range" min="180" max="560" step="20" value="320" aria-label="SQL result pane height" title="SQL result pane height" data-i18n-aria-label="sql.paneSizeAria" data-i18n-title="sql.paneSizeAria" />
                 </div>
-                <div class="sql-history-row" aria-label="SQL query history">
+                <div class="sql-history-row" aria-label="SQL query history" data-i18n-aria-label="sql.historyAria">
                   <div id="sqlHistoryList" class="sql-history-list"></div>
                   <button id="clearSqlHistoryButton" type="button">Clear</button>
                 </div>
