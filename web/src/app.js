@@ -3870,6 +3870,14 @@ const localeCatalog = {
     "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
     "command.view.editFilterBuilder.title": "在筛选构建器中编辑",
     "command.view.editFilterBuilder.description": "将当前由构建器创建的筛选重新载入可视化编辑器。",
+    "command.condition.addRow.title": "添加筛选条件行",
+    "command.condition.addRow.description": "向筛选构建器添加另一条件行。",
+    "command.condition.useTemplate.title": "使用筛选条件模板",
+    "command.condition.useTemplate.description": "使用选中的快速条件模板填充筛选构建器。",
+    "command.condition.preview.title": "预览筛选构建器 SQL",
+    "command.condition.preview.description": "预览当前筛选构建器行生成的 SQL 表达式。",
+    "command.condition.apply.title": "应用筛选构建器",
+    "command.condition.apply.description": "将当前筛选构建器行应用为活动筛选。",
     "command.condition.groupAll.title": "全部分组筛选条件",
     "command.condition.groupAll.description": "将所有筛选构建器条件包入一个显式分组。",
     "command.condition.allAnd.title": "筛选条件全部设为且",
@@ -6979,11 +6987,16 @@ function isCommandDisabled(command) {
   const needsActiveFilter = command.id === "view.saveFilter";
   const needsBuilderFilter = command.id === "view.editFilterBuilder";
   const needsConditionBuilder =
+    command.id === "condition.addRow" ||
+    command.id === "condition.useTemplate" ||
+    command.id === "condition.preview" ||
+    command.id === "condition.apply" ||
     command.id === "condition.groupAll" ||
     command.id === "condition.allAnd" ||
     command.id === "condition.allOr" ||
     command.id === "condition.balanceGroups" ||
     command.id === "condition.clearGroups";
+  const needsConditionTemplate = command.id === "condition.useTemplate";
   const needsConditionBuilderRows =
     command.id === "condition.groupAll" ||
     command.id === "condition.allAnd" ||
@@ -7125,6 +7138,7 @@ function isCommandDisabled(command) {
     (needsActiveFilter && !activeFilter) ||
     (needsBuilderFilter && normalizeConditionBuilderRows(activeFilter?.builderRows).length === 0) ||
     (needsConditionBuilder && !conditionBuilderOpen) ||
+    (needsConditionTemplate && !conditionTemplateSelect.value) ||
     (needsConditionBuilderRows && conditionBuilderRowCount() < 2) ||
     (needsConditionBuilderGroups && conditionBuilderGroupTotal() === 0) ||
     (needsConditionRow && !activeConditionRowAvailable()) ||
@@ -13803,6 +13817,18 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "view.editFilterBuilder":
       openActiveFilterInBuilder();
+      break;
+    case "condition.addRow":
+      addConditionRow();
+      break;
+    case "condition.useTemplate":
+      useConditionTemplate();
+      break;
+    case "condition.preview":
+      previewConditionBuilder();
+      break;
+    case "condition.apply":
+      await applyConditionBuilder();
       break;
     case "condition.groupAll":
       groupAllConditionRows();
@@ -25555,8 +25581,9 @@ conditionPrimaryOpenGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryCloseGroup.addEventListener("change", updateConditionValueState);
 conditionPrimaryOpenGroup.addEventListener("change", markConditionPreviewDirty);
 conditionPrimaryCloseGroup.addEventListener("change", markConditionPreviewDirty);
-useConditionTemplateButton.addEventListener("click", useConditionTemplate);
-addConditionButton.addEventListener("click", addConditionRow);
+conditionTemplateSelect.addEventListener("change", updateCommandState);
+useConditionTemplateButton.addEventListener("click", () => executeCommand("condition.useTemplate"));
+addConditionButton.addEventListener("click", () => executeCommand("condition.addRow"));
 runConditionTreeActionButton.addEventListener("click", runConditionTreeAction);
 balanceConditionGroupsButton.addEventListener("click", () => executeCommand("condition.balanceGroups"));
 clearConditionGroupsButton.addEventListener("click", () => executeCommand("condition.clearGroups"));
@@ -25615,8 +25642,8 @@ conditionRows.addEventListener("change", (event) => {
   setActiveConditionRowIndex(Number(row.dataset.conditionIndex ?? -1));
   updateCommandState();
 });
-previewConditionButton.addEventListener("click", previewConditionBuilder);
-applyConditionButton.addEventListener("click", applyConditionBuilder);
+previewConditionButton.addEventListener("click", () => executeCommand("condition.preview"));
+applyConditionButton.addEventListener("click", () => executeCommand("condition.apply"));
 clearConditionButton.addEventListener("click", async () => {
   closeConditionBuilder("clear");
   await clearView();
