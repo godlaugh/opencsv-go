@@ -417,6 +417,39 @@ func (expr isNullExpr) eval(ctx evalContext) (value, error) {
 	return boolValue(isNull), nil
 }
 
+type isTruthExpr struct {
+	target expr
+	want   bool
+	not    bool
+}
+
+func (expr isTruthExpr) eval(ctx evalContext) (value, error) {
+	target, err := expr.target.eval(ctx)
+	if err != nil {
+		return nullValue(), err
+	}
+	matched := false
+	if target.kind != valueNull {
+		matched = sqlBool(target) == expr.want
+	}
+	if expr.not {
+		matched = !matched
+	}
+	return boolValue(matched), nil
+}
+
+func sqlBool(input value) bool {
+	if input.kind == valueString {
+		switch strings.ToLower(strings.TrimSpace(input.text)) {
+		case "true", "t", "yes", "y", "on":
+			return true
+		case "false", "f", "no", "n", "off":
+			return false
+		}
+	}
+	return truthy(input)
+}
+
 type callExpr struct {
 	name string
 	args []expr
@@ -1535,10 +1568,16 @@ func (parser *parser) parseComparison() (expr, error) {
 
 	if parser.matchKeyword("is") {
 		not := parser.matchKeyword("not")
-		if !parser.matchKeyword("null") {
-			return nil, errors.New("expected null after is")
+		if parser.matchKeyword("null") || parser.matchKeyword("unknown") {
+			return isNullExpr{target: left, not: not}, nil
 		}
-		return isNullExpr{target: left, not: not}, nil
+		if parser.matchKeyword("true") {
+			return isTruthExpr{target: left, want: true, not: not}, nil
+		}
+		if parser.matchKeyword("false") {
+			return isTruthExpr{target: left, want: false, not: not}, nil
+		}
+		return nil, errors.New("expected null, unknown, true, or false after is")
 	}
 
 	if parser.matchKeyword("not") {

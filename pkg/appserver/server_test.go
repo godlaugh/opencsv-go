@@ -3327,6 +3327,40 @@ func TestServerSQLFilterLikeEscape(t *testing.T) {
 	}
 }
 
+func TestServerSQLFilterBooleanIsPredicates(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "boolean-predicate.csv")
+	if err := os.WriteFile(path, []byte("id,approved,archived\n1,true,false\n2,false,false\n3,1,0\n4,,true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": "approved IS TRUE AND archived IS FALSE",
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 2 {
+		t.Fatalf("SQL boolean predicate filter totalRows = %#v, want 2", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 2 {
+		t.Fatalf("SQL boolean predicate filtered rows = %#v, want 2 rows", rows)
+	}
+	gotIDs := []string{rows[0].([]any)[0].(string), rows[1].([]any)[0].(string)}
+	if strings.Join(gotIDs, ",") != "1,3" {
+		t.Fatalf("SQL boolean predicate filtered IDs = %#v, want 1,3", gotIDs)
+	}
+}
+
 func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "temporal.csv")

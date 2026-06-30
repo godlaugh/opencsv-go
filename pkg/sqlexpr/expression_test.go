@@ -121,6 +121,38 @@ func TestMatchCastTryCastAndNulls(t *testing.T) {
 	}
 }
 
+func TestMatchBooleanIsPredicates(t *testing.T) {
+	headers := []string{"flag", "disabled", "blank", "amount"}
+	record := []string{"true", "0", "", "12"}
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{expr: "flag IS TRUE", want: true},
+		{expr: "flag IS NOT FALSE", want: true},
+		{expr: "disabled IS FALSE", want: true},
+		{expr: "disabled IS NOT TRUE", want: true},
+		{expr: "blank IS FALSE", want: true},
+		{expr: "amount IS TRUE", want: true},
+		{expr: "missing IS UNKNOWN", want: true},
+		{expr: "missing IS NOT TRUE", want: true},
+		{expr: "missing IS FALSE", want: false},
+		{expr: "TRY_CAST(flag AS boolean) IS TRUE", want: true},
+		{expr: "TRY_CAST('not-bool' AS boolean) IS UNKNOWN", want: true},
+	}
+
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q) = %v, want %v", tt.expr, got, tt.want)
+		}
+	}
+}
+
 func TestMatchBigIntPrecision(t *testing.T) {
 	headers := []string{"id", "label"}
 	record := []string{"9007199254740993", "Grace"}
@@ -323,5 +355,8 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("amount BETWEEN 1", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected between syntax error")
+	}
+	if _, err := Match("amount IS MAYBE", []string{"amount"}, []string{"10"}); err == nil {
+		t.Fatal("expected is-predicate syntax error")
 	}
 }
