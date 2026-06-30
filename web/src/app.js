@@ -12715,12 +12715,7 @@ function conditionRangeParts(value) {
 }
 
 function booleanConditionExpression(identifier, expected) {
-  const normalized = `LOWER(TRIM(${identifier}))`;
-  const trimmed = `TRIM(${identifier})`;
-  if (expected) {
-    return `(${normalized} = 'true' OR ${trimmed} = '1')`;
-  }
-  return `(${normalized} = 'false' OR ${trimmed} = '0' OR ${trimmed} = '')`;
+  return `${identifier} IS ${expected ? "TRUE" : "FALSE"}`;
 }
 
 function dateConditionExpression(identifier, operator, value, valueInput) {
