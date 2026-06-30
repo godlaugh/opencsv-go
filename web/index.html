@@ -34,13 +34,13 @@
             <button id="openButton" type="button" data-command="file.open">Open</button>
           </form>
           <div class="tool-actions">
-            <input id="commandInput" type="text" placeholder="Find/filter..." aria-label="Find or filter text" data-i18n-aria-label="find.placeholder" />
-            <input id="replaceInput" type="text" placeholder="Replace..." aria-label="Replace text" data-i18n-aria-label="find.replacePlaceholder" />
+            <input id="commandInput" type="text" placeholder="Find/filter..." aria-label="Find or filter text" data-i18n-placeholder="find.placeholder" data-i18n-aria-label="find.placeholder" />
+            <input id="replaceInput" type="text" placeholder="Replace..." aria-label="Replace text" data-i18n-placeholder="find.replacePlaceholder" data-i18n-aria-label="find.replacePlaceholder" />
             <div class="find-options" aria-label="Find options" data-i18n-aria-label="find.optionsAria">
-              <button id="findCaseButton" type="button" title="Match case" aria-pressed="false">Aa</button>
-              <button id="findWholeButton" type="button" title="Match whole cell" aria-pressed="false">=</button>
-              <button id="findRegexButton" type="button" title="Use regular expression" aria-pressed="false">.*</button>
-              <button id="findSelectionButton" type="button" title="Search in selection" aria-pressed="false">Sel</button>
+              <button id="findCaseButton" type="button" title="Match case" data-i18n-title="find.matchCase" aria-pressed="false">Aa</button>
+              <button id="findWholeButton" type="button" title="Match whole cell" data-i18n-title="find.wholeCell" aria-pressed="false">=</button>
+              <button id="findRegexButton" type="button" title="Use regular expression" data-i18n-title="find.regex" aria-pressed="false">.*</button>
+              <button id="findSelectionButton" type="button" title="Search in selection" data-i18n-title="find.selection" aria-pressed="false">Sel</button>
             </div>
             <select id="copyFormatSelect" class="copy-format-select" aria-label="Copy format" data-i18n-aria-label="copy.formatAria">
               <option value="tsv">TSV</option>

@@ -2269,9 +2269,15 @@ func TestFindReplaceI18nIsWired(t *testing.T) {
 		}
 	}
 	for _, snippet := range []string{
+		`data-i18n-placeholder="find.placeholder"`,
 		`data-i18n-aria-label="find.placeholder"`,
+		`data-i18n-placeholder="find.replacePlaceholder"`,
 		`data-i18n-aria-label="find.replacePlaceholder"`,
 		`data-i18n-aria-label="find.optionsAria"`,
+		`data-i18n-title="find.matchCase"`,
+		`data-i18n-title="find.wholeCell"`,
+		`data-i18n-title="find.regex"`,
+		`data-i18n-title="find.selection"`,
 		`data-i18n-aria-label="copy.formatAria"`,
 		`data-i18n-aria-label="export.formatAria"`,
 	} {
