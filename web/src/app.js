@@ -363,6 +363,7 @@ const conditionValue = document.querySelector("#conditionValue");
 const conditionPreviewText = document.querySelector("#conditionPreviewText");
 const conditionTemplateSelect = document.querySelector("#conditionTemplateSelect");
 const useConditionTemplateButton = document.querySelector("#useConditionTemplateButton");
+const conditionShortcutStrip = document.querySelector("#conditionShortcutStrip");
 const conditionTreeActionSelect = document.querySelector("#conditionTreeActionSelect");
 const runConditionTreeActionButton = document.querySelector("#runConditionTreeActionButton");
 const balanceConditionGroupsButton = document.querySelector("#balanceConditionGroupsButton");
@@ -976,6 +977,14 @@ const localeCatalog = {
     "condition.template.activeTrue": "Active column true",
     "condition.template.activeFalse": "Active column false",
     "condition.useTemplate": "Use Template",
+    "condition.shortcutsAria": "Filter builder shortcuts",
+    "condition.shortcut.preview": "Preview SQL",
+    "condition.shortcut.apply": "Apply filter",
+    "condition.shortcut.close": "Close",
+    "condition.shortcut.move": "Move row",
+    "condition.shortcut.duplicate": "Duplicate row",
+    "condition.shortcut.group": "Group or ungroup",
+    "condition.shortcut.remove": "Remove row",
     "condition.legendOne": "Condition 1",
     "condition.legend": "Condition {{number}}",
     "condition.join": "Join",
@@ -2608,6 +2617,14 @@ const localeCatalog = {
     "condition.template.activeTrue": "当前列为真",
     "condition.template.activeFalse": "当前列为假",
     "condition.useTemplate": "使用模板",
+    "condition.shortcutsAria": "筛选构建器快捷键",
+    "condition.shortcut.preview": "预览 SQL",
+    "condition.shortcut.apply": "应用筛选",
+    "condition.shortcut.close": "关闭",
+    "condition.shortcut.move": "移动行",
+    "condition.shortcut.duplicate": "复制行",
+    "condition.shortcut.group": "分组或解组",
+    "condition.shortcut.remove": "移除行",
     "condition.legendOne": "条件 1",
     "condition.legend": "条件 {{number}}",
     "condition.join": "连接",
@@ -5219,11 +5236,16 @@ function conditionTreeActionLabelKeys() {
 function applyConditionLocaleStrings() {
   const dialog = conditionPanel?.querySelector(".condition-panel");
   const templateBar = conditionPanel?.querySelector(".condition-template-bar");
+  const shortcutStrip = conditionShortcutStrip ?? conditionPanel?.querySelector(".condition-shortcut-strip");
   const actionBar = conditionPanel?.querySelector(".condition-actions");
   const previewPanel = conditionPanel?.querySelector(".condition-preview-panel");
   if (filterBuilderButton) filterBuilderButton.title = t("condition.title");
   if (dialog) dialog.setAttribute("aria-label", t("condition.title"));
   if (templateBar) templateBar.setAttribute("aria-label", t("condition.quickConditions"));
+  if (shortcutStrip) {
+    shortcutStrip.setAttribute("aria-label", t("condition.shortcutsAria"));
+    document.body.dataset.conditionShortcutHints = String(shortcutStrip.querySelectorAll("kbd").length);
+  }
   if (actionBar) actionBar.setAttribute("aria-label", t("condition.actionsAria"));
   if (previewPanel) previewPanel.setAttribute("aria-label", t("condition.previewTitle"));
   if (conditionTemplateSelect) conditionTemplateSelect.setAttribute("aria-label", t("condition.quickConditions"));

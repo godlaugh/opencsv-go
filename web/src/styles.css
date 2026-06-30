@@ -2209,6 +2209,43 @@ button:disabled {
   cursor: pointer;
 }
 
+.condition-shortcut-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-subtle);
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.condition-shortcut-strip > span {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 2px 7px;
+}
+
+.condition-shortcut-strip kbd {
+  min-width: 18px;
+  border: 1px solid var(--border);
+  border-bottom-color: var(--muted);
+  border-radius: 4px;
+  background: var(--panel-subtle);
+  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .condition-preview-panel {
   display: grid;
   gap: 6px;
