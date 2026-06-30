@@ -15446,10 +15446,13 @@ async function copySelection(format = "tsv", options = {}) {
     status.textContent = localizedCopyStatus("noCells");
     return;
   }
+  const html = tabularClipboardHTML(copyMatrix, format);
   window.__opencsvLastCopiedText = text;
+  window.__opencsvLastCopiedHTML = html;
   document.body.dataset.copyPreview = text.slice(0, 500);
+  document.body.dataset.copyHTMLPreview = html.slice(0, 500);
   try {
-    await writeClipboardText(text);
+    await writeClipboardText(text, { html });
     const headerLabel = includeHeaders ? localizedCopyStatus("withHeaders") : "";
     status.textContent = localizedCopyStatus("copiedSelection", {
       cells: localizedCopyCellUnit(selectionCellCount()),
@@ -15529,6 +15532,10 @@ function copyFormatLabel(format) {
     latex: "LaTeX",
     raw: "Raw",
   }[normalizeCopyFormat(format)];
+}
+
+function tabularClipboardHTML(matrix, format) {
+  return ["csv", "tsv", "raw"].includes(normalizeCopyFormat(format)) ? matrixToHTML(matrix) : "";
 }
 
 async function copyExportViewSlice({ label, body, cellCount, format = "tsv", onCopyReady = null }) {
@@ -16113,12 +16120,32 @@ function triggerDownloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-async function writeClipboardText(text) {
+async function writeClipboardText(text, options = {}) {
+  const html = options.html || "";
+  if (html && navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": new Blob([text], { type: "text/plain" }),
+          "text/html": new Blob([html], { type: "text/html" }),
+        }),
+      ]);
+      document.body.dataset.clipboardFlavors = "text/html,text/plain";
+      return;
+    } catch {
+      // Fall back to plain text below when rich clipboard writes are unavailable.
+    }
+  }
   try {
     await navigator.clipboard.writeText(text);
+    document.body.dataset.clipboardFlavors = "text/plain";
     return;
   } catch (error) {
-    if (!fallbackCopyText(text)) throw error;
+    if (!fallbackCopyText(text)) {
+      document.body.dataset.clipboardFlavors = "unavailable";
+      throw error;
+    }
+    document.body.dataset.clipboardFlavors = "text/plain:fallback";
   }
 }
 

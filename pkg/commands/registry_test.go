@@ -628,6 +628,32 @@ func TestCopyExportLocalizationIsWired(t *testing.T) {
 	}
 }
 
+func TestTabularCopyWritesHTMLFlavorWhenAvailable(t *testing.T) {
+	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(appJS)
+	for _, snippet := range []string{
+		"function tabularClipboardHTML",
+		`["csv", "tsv", "raw"].includes(normalizeCopyFormat(format)) ? matrixToHTML(matrix) : ""`,
+		"window.__opencsvLastCopiedHTML = html",
+		"document.body.dataset.copyHTMLPreview = html.slice(0, 500)",
+		`await writeClipboardText(text, { html })`,
+		"new ClipboardItem({",
+		`"text/plain": new Blob([text], { type: "text/plain" })`,
+		`"text/html": new Blob([html], { type: "text/html" })`,
+		`document.body.dataset.clipboardFlavors = "text/html,text/plain"`,
+		`document.body.dataset.clipboardFlavors = "text/plain"`,
+		`document.body.dataset.clipboardFlavors = "text/plain:fallback"`,
+		`document.body.dataset.clipboardFlavors = "unavailable"`,
+	} {
+		if !strings.Contains(source, snippet) {
+			t.Fatalf("missing tabular copy HTML flavor wiring %q", snippet)
+		}
+	}
+}
+
 func TestSpreadsheetHTMLPasteIsWired(t *testing.T) {
 	appJS, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "app.js"))
 	if err != nil {
