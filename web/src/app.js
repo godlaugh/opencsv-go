@@ -3870,6 +3870,16 @@ const localeCatalog = {
     "command.view.filterBuilder.description": "无需编写 SQL 即可构建列筛选。",
     "command.view.editFilterBuilder.title": "在筛选构建器中编辑",
     "command.view.editFilterBuilder.description": "将当前由构建器创建的筛选重新载入可视化编辑器。",
+    "command.condition.groupAll.title": "全部分组筛选条件",
+    "command.condition.groupAll.description": "将所有筛选构建器条件包入一个显式分组。",
+    "command.condition.allAnd.title": "筛选条件全部设为且",
+    "command.condition.allAnd.description": "将筛选构建器中的所有条件连接设为且。",
+    "command.condition.allOr.title": "筛选条件全部设为或",
+    "command.condition.allOr.description": "将筛选构建器中的所有条件连接设为或。",
+    "command.condition.balanceGroups.title": "平衡筛选条件分组",
+    "command.condition.balanceGroups.description": "修复筛选构建器中的不平衡显式分组。",
+    "command.condition.clearGroups.title": "清除筛选条件分组",
+    "command.condition.clearGroups.description": "移除筛选构建器条件中的显式分组。",
     "command.view.sort.title": "排序",
     "command.view.sort.description": "排序选中的列。",
     "command.column.sortAscending.title": "按列升序排序",
@@ -6955,6 +6965,19 @@ function isCommandDisabled(command) {
   const needsSQLSelection = sqlResultSelectionCommandIDs.has(command.id);
   const needsActiveFilter = command.id === "view.saveFilter";
   const needsBuilderFilter = command.id === "view.editFilterBuilder";
+  const needsConditionBuilder =
+    command.id === "condition.groupAll" ||
+    command.id === "condition.allAnd" ||
+    command.id === "condition.allOr" ||
+    command.id === "condition.balanceGroups" ||
+    command.id === "condition.clearGroups";
+  const needsConditionBuilderRows =
+    command.id === "condition.groupAll" ||
+    command.id === "condition.allAnd" ||
+    command.id === "condition.allOr";
+  const needsConditionBuilderGroups =
+    command.id === "condition.balanceGroups" ||
+    command.id === "condition.clearGroups";
   const needsMultiSort = command.id === "view.removeLastSortKey";
   const needsCellLink = command.id === "cell.openLink";
   const needsColumnTextTransform = columnTextTransformCommands.has(command.id);
@@ -7079,6 +7102,9 @@ function isCommandDisabled(command) {
     (needsSQLSelection && !sqlSelectedResultMatrix(lastSQLResult)) ||
     (needsActiveFilter && !activeFilter) ||
     (needsBuilderFilter && normalizeConditionBuilderRows(activeFilter?.builderRows).length === 0) ||
+    (needsConditionBuilder && !conditionBuilderOpen) ||
+    (needsConditionBuilderRows && conditionBuilderRowCount() < 2) ||
+    (needsConditionBuilderGroups && conditionBuilderGroupTotal() === 0) ||
     (needsMultiSort && sortKeys.length <= 1) ||
     (needsAggregate && currentSelectionAggregateStats().count <= 1) ||
     (needsColumn && columns.length === 0) ||
@@ -11896,6 +11922,7 @@ function openConditionBuilder() {
   clearConditionPreview();
   updateConditionValueState();
   conditionPanel.hidden = false;
+  updateCommandState();
   conditionValue.focus();
   conditionValue.select();
 }
@@ -11904,6 +11931,7 @@ function closeConditionBuilder(reason = "button") {
   conditionBuilderOpen = false;
   conditionPanel.hidden = true;
   document.body.dataset.conditionBuilderClose = String(reason || "button");
+  updateCommandState();
   canvas.focus();
 }
 
@@ -12166,6 +12194,19 @@ function conditionGroupCount(value) {
   return Math.max(0, Math.min(3, Math.trunc(number)));
 }
 
+function conditionBuilderRowCount() {
+  if (!conditionBuilderOpen) return 0;
+  return conditionBuilderRowStatesFromDOM().length;
+}
+
+function conditionBuilderGroupTotal() {
+  if (!conditionBuilderOpen) return 0;
+  return conditionBuilderRowStatesFromDOM().reduce(
+    (count, row) => count + conditionGroupCount(row.groupStart) + conditionGroupCount(row.groupEnd),
+    0,
+  );
+}
+
 function updateConditionValueState() {
   updateConditionValueInput(conditionOperator, conditionValue);
   for (const row of conditionRows.querySelectorAll(".condition-row-extra")) {
@@ -12185,6 +12226,7 @@ function updateConditionValueState() {
   document.body.dataset.conditionGroupClose = groupEnds.join(",");
   document.body.dataset.conditionNestedGroupCount = String(nestedCount);
   document.body.dataset.conditionRowCount = String(1 + conditionRows.querySelectorAll(".condition-row-extra").length);
+  updateCommandState();
 }
 
 function updateConditionValueInput(operatorInput, valueInput) {
@@ -12571,16 +12613,16 @@ function balanceConditionGroups() {
 function runConditionTreeAction() {
   const action = conditionTreeActionSelect?.value || "";
   document.body.dataset.conditionTreeMenuAction = action;
-  if (action === "groupAll") {
-    groupAllConditionRows();
-  } else if (action === "allAnd") {
-    setAllConditionJoins("AND");
-  } else if (action === "allOr") {
-    setAllConditionJoins("OR");
-  } else if (action === "balance") {
-    balanceConditionGroups();
-  } else if (action === "clearGroups") {
-    clearConditionGroups();
+  const commandByAction = {
+    groupAll: "condition.groupAll",
+    allAnd: "condition.allAnd",
+    allOr: "condition.allOr",
+    balance: "condition.balanceGroups",
+    clearGroups: "condition.clearGroups",
+  };
+  const commandID = commandByAction[action];
+  if (commandID) {
+    void executeCommand(commandID);
   } else {
     status.textContent = t("condition.status.chooseTreeAction");
     conditionTreeActionSelect?.focus();
@@ -13684,6 +13726,21 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "view.editFilterBuilder":
       openActiveFilterInBuilder();
+      break;
+    case "condition.groupAll":
+      groupAllConditionRows();
+      break;
+    case "condition.allAnd":
+      setAllConditionJoins("AND");
+      break;
+    case "condition.allOr":
+      setAllConditionJoins("OR");
+      break;
+    case "condition.balanceGroups":
+      balanceConditionGroups();
+      break;
+    case "condition.clearGroups":
+      clearConditionGroups();
       break;
     case "view.saveFilter":
       saveActiveFilter();
@@ -25406,11 +25463,11 @@ conditionPrimaryCloseGroup.addEventListener("change", markConditionPreviewDirty)
 useConditionTemplateButton.addEventListener("click", useConditionTemplate);
 addConditionButton.addEventListener("click", addConditionRow);
 runConditionTreeActionButton.addEventListener("click", runConditionTreeAction);
-balanceConditionGroupsButton.addEventListener("click", balanceConditionGroups);
-clearConditionGroupsButton.addEventListener("click", clearConditionGroups);
-groupAllConditionsButton.addEventListener("click", groupAllConditionRows);
-conditionAllAndButton.addEventListener("click", () => setAllConditionJoins("AND"));
-conditionAllOrButton.addEventListener("click", () => setAllConditionJoins("OR"));
+balanceConditionGroupsButton.addEventListener("click", () => executeCommand("condition.balanceGroups"));
+clearConditionGroupsButton.addEventListener("click", () => executeCommand("condition.clearGroups"));
+groupAllConditionsButton.addEventListener("click", () => executeCommand("condition.groupAll"));
+conditionAllAndButton.addEventListener("click", () => executeCommand("condition.allAnd"));
+conditionAllOrButton.addEventListener("click", () => executeCommand("condition.allOr"));
 conditionRows.addEventListener("change", updateConditionValueState);
 conditionRows.addEventListener("change", markConditionPreviewDirty);
 conditionRows.addEventListener("input", () => {
