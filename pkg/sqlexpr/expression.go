@@ -257,9 +257,10 @@ func (expr unaryExpr) eval(ctx evalContext) (value, error) {
 }
 
 type binaryExpr struct {
-	left  expr
-	op    string
-	right expr
+	left   expr
+	op     string
+	right  expr
+	escape expr
 }
 
 func (expr binaryExpr) eval(ctx evalContext) (value, error) {
@@ -324,7 +325,18 @@ func (expr binaryExpr) eval(ctx evalContext) (value, error) {
 	case "=", "==", "!=", "<>", "<", "<=", ">", ">=":
 		return boolValue(compare(left, right, expr.op)), nil
 	case "like", "not like":
-		matched := like(left.string(), right.string())
+		escape := ""
+		if expr.escape != nil {
+			escapeValue, err := expr.escape.eval(ctx)
+			if err != nil {
+				return nullValue(), err
+			}
+			escape = escapeValue.string()
+		}
+		matched, err := likeMatch(left.string(), right.string(), escape)
+		if err != nil {
+			return nullValue(), err
+		}
 		if expr.op == "not like" {
 			matched = !matched
 		}
@@ -692,53 +704,107 @@ func compareIntervals(left value, right value) int {
 }
 
 func like(text string, pattern string) bool {
+	matched, err := likeMatch(text, pattern, "")
+	return err == nil && matched
+}
+
+type likeTokenKind int
+
+const (
+	likeLiteral likeTokenKind = iota
+	likeAny
+	likeOne
+)
+
+type likeToken struct {
+	kind likeTokenKind
+	rune rune
+}
+
+func likeMatch(text string, pattern string, escape string) (bool, error) {
+	tokens, err := compileLikePattern(pattern, escape)
+	if err != nil {
+		return false, err
+	}
 	textRunes := []rune(text)
-	patternRunes := collapseLikePercents([]rune(pattern))
-	previous := make([]bool, len(patternRunes)+1)
+	previous := make([]bool, len(tokens)+1)
 	previous[0] = true
-	for index, patternRune := range patternRunes {
-		if patternRune != '%' {
+	for index, token := range tokens {
+		if token.kind != likeAny {
 			break
 		}
 		previous[index+1] = true
 	}
 
-	current := make([]bool, len(patternRunes)+1)
+	current := make([]bool, len(tokens)+1)
 	for _, textRune := range textRunes {
 		for index := range current {
 			current[index] = false
 		}
-		for index, patternRune := range patternRunes {
-			switch patternRune {
-			case '%':
+		for index, token := range tokens {
+			switch token.kind {
+			case likeAny:
 				current[index+1] = current[index] || previous[index+1]
-			case '_':
+			case likeOne:
 				current[index+1] = previous[index]
-			default:
-				current[index+1] = previous[index] && patternRune == textRune
+			case likeLiteral:
+				current[index+1] = previous[index] && token.rune == textRune
 			}
 		}
 		previous, current = current, previous
 	}
-	return previous[len(patternRunes)]
+	return previous[len(tokens)], nil
 }
 
-func collapseLikePercents(pattern []rune) []rune {
+func compileLikePattern(pattern string, escape string) ([]likeToken, error) {
+	var escapeRune rune
+	if escape != "" {
+		escapeRunes := []rune(escape)
+		if len(escapeRunes) != 1 {
+			return nil, errors.New("like escape must be exactly one character")
+		}
+		escapeRune = escapeRunes[0]
+	}
+	patternRunes := []rune(pattern)
+	tokens := make([]likeToken, 0, len(patternRunes))
+	for index := 0; index < len(patternRunes); index++ {
+		patternRune := patternRunes[index]
+		if escapeRune != 0 && patternRune == escapeRune {
+			index++
+			if index >= len(patternRunes) {
+				return nil, errors.New("like escape cannot terminate pattern")
+			}
+			tokens = append(tokens, likeToken{kind: likeLiteral, rune: patternRunes[index]})
+			continue
+		}
+		switch patternRune {
+		case '%':
+			tokens = append(tokens, likeToken{kind: likeAny})
+		case '_':
+			tokens = append(tokens, likeToken{kind: likeOne})
+		default:
+			tokens = append(tokens, likeToken{kind: likeLiteral, rune: patternRune})
+		}
+	}
+	return collapseLikeAny(tokens), nil
+}
+
+func collapseLikeAny(pattern []likeToken) []likeToken {
 	if len(pattern) == 0 {
 		return pattern
 	}
-	collapsed := make([]rune, 0, len(pattern))
-	previousPercent := false
-	for _, patternRune := range pattern {
-		if patternRune == '%' {
-			if previousPercent {
+	collapsed := make([]likeToken, 0, len(pattern))
+	previousAny := false
+	for _, token := range pattern {
+		if token.kind == likeAny {
+			if previousAny {
 				continue
 			}
-			previousPercent = true
+			previousAny = true
 		} else {
-			previousPercent = false
+			previousAny = false
 		}
-		collapsed = append(collapsed, patternRune)
+		collapsed = append(collapsed, token)
 	}
 	return collapsed
 }
@@ -1481,7 +1547,11 @@ func (parser *parser) parseComparison() (expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			return binaryExpr{left: left, op: "not like", right: right}, nil
+			escape, err := parser.parseOptionalLikeEscape()
+			if err != nil {
+				return nil, err
+			}
+			return binaryExpr{left: left, op: "not like", right: right, escape: escape}, nil
 		}
 		if parser.matchKeyword("in") {
 			values, err := parser.parseInValues()
@@ -1505,7 +1575,11 @@ func (parser *parser) parseComparison() (expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return binaryExpr{left: left, op: "like", right: right}, nil
+		escape, err := parser.parseOptionalLikeEscape()
+		if err != nil {
+			return nil, err
+		}
+		return binaryExpr{left: left, op: "like", right: right, escape: escape}, nil
 	}
 
 	if parser.matchKeyword("in") {
@@ -1533,6 +1607,13 @@ func (parser *parser) parseComparison() (expr, error) {
 		return binaryExpr{left: left, op: strings.ToLower(op), right: right}, nil
 	}
 	return left, nil
+}
+
+func (parser *parser) parseOptionalLikeEscape() (expr, error) {
+	if !parser.matchKeyword("escape") {
+		return nil, nil
+	}
+	return parser.parseAdditive()
 }
 
 func (parser *parser) parseBetweenBounds() (expr, expr, error) {

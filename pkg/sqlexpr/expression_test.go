@@ -60,6 +60,29 @@ func TestLikeWildcardSemantics(t *testing.T) {
 	}
 }
 
+func TestLikeEscapeSemantics(t *testing.T) {
+	headers := []string{"code"}
+	tests := []struct {
+		expr   string
+		record []string
+		want   bool
+	}{
+		{expr: "code LIKE 'APAC!_%' ESCAPE '!'", record: []string{"APAC_10"}, want: true},
+		{expr: "code LIKE 'APAC!_%' ESCAPE '!'", record: []string{"APACX10"}, want: false},
+		{expr: "code NOT LIKE 'APAC!_%' ESCAPE '!'", record: []string{"APACX10"}, want: true},
+		{expr: `code LIKE '100\%%' ESCAPE '\'`, record: []string{"100% done"}, want: true},
+	}
+	for _, tt := range tests {
+		got, err := Match(tt.expr, headers, tt.record)
+		if err != nil {
+			t.Fatalf("Match(%q) returned error: %v", tt.expr, err)
+		}
+		if got != tt.want {
+			t.Fatalf("Match(%q, %#v) = %v, want %v", tt.expr, tt.record, got, tt.want)
+		}
+	}
+}
+
 func TestLikeRepeatedWildcardPatternIsBounded(t *testing.T) {
 	text := strings.Repeat("a", 512) + "c"
 	pattern := strings.Repeat("%a", 80) + "%b"
@@ -288,6 +311,12 @@ func TestMatchReportsInvalidSyntax(t *testing.T) {
 	}
 	if _, err := Match("INTERVAL '1' second(3, 2) = INTERVAL '1' second", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected interval precision scale syntax error")
+	}
+	if _, err := Match("code LIKE 'APAC!_' ESCAPE '!!'", []string{"code"}, []string{"APAC_"}); err == nil {
+		t.Fatal("expected like escape width error")
+	}
+	if _, err := Match("code LIKE 'APAC!' ESCAPE '!'", []string{"code"}, []string{"APAC!"}); err == nil {
+		t.Fatal("expected dangling like escape error")
 	}
 	if _, err := Match("amount IN ()", []string{"amount"}, []string{"10"}); err == nil {
 		t.Fatal("expected in list syntax error")

@@ -3293,6 +3293,40 @@ func TestServerSQLFilterNestedConditionGroups(t *testing.T) {
 	}
 }
 
+func TestServerSQLFilterLikeEscape(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "like-escape.csv")
+	if err := os.WriteFile(path, []byte("id,code\n1,APAC_10\n2,APACX10\n3,100% done\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := New(dir).Handler()
+	openPayload := postJSON(t, handler, "/api/open", map[string]any{
+		"path":        path,
+		"previewRows": 5,
+		"indexRows":   -1,
+	})
+	documentID := openPayload["documentId"].(string)
+
+	sqlFilterPayload := postJSON(t, handler, "/api/filter", map[string]any{
+		"documentId": documentID,
+		"mode":       "sql",
+		"expression": `code LIKE 'APAC!_%' ESCAPE '!' OR code LIKE '100\%%' ESCAPE '\'`,
+	})
+	if sqlFilterPayload["totalRows"].(float64) != 2 {
+		t.Fatalf("SQL LIKE ESCAPE filter totalRows = %#v, want 2", sqlFilterPayload["totalRows"])
+	}
+	windowPayload := getJSON(t, handler, "/api/window?id="+documentID+"&start=0&count=5")
+	rows := windowPayload["rows"].([]any)
+	if len(rows) != 2 {
+		t.Fatalf("SQL LIKE ESCAPE filtered rows = %#v, want 2 rows", rows)
+	}
+	gotIDs := []string{rows[0].([]any)[0].(string), rows[1].([]any)[0].(string)}
+	if strings.Join(gotIDs, ",") != "1,3" {
+		t.Fatalf("SQL LIKE ESCAPE filtered IDs = %#v, want 1,3", gotIDs)
+	}
+}
+
 func TestServerSQLFilterTemporalAndIntervalTypes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "temporal.csv")
