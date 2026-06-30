@@ -1508,7 +1508,9 @@ button:disabled {
 
 .profile-rule-item-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-end;
 }
 
 .sql-result table,

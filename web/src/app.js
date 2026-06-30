@@ -1979,6 +1979,8 @@ const localeCatalog = {
     "profile.rule.none": "No schema rules.",
     "profile.rule.edit": "Edit",
     "profile.rule.duplicate": "Duplicate",
+    "profile.rule.moveUp": "Up",
+    "profile.rule.moveDown": "Down",
     "profile.rule.remove": "Remove",
     "profile.rule.rule": "Rule {{index}}",
     "profile.rule.locationOnly": "location only",
@@ -2078,6 +2080,7 @@ const localeCatalog = {
     "profile.rule.notFound": "Schema rule not found.",
     "profile.rule.editing": "Editing schema rule {{index}}.",
     "profile.rule.duplicated": "Duplicated schema rule {{index}}.",
+    "profile.rule.moved": "Moved schema rule to position {{index}}.",
     "profile.rule.removed": "Removed schema rule.",
     "profile.quickFix.readOnly": "Read-only mode blocks quick fixes.",
     "profile.quickFix.noFile": "Open a file before applying fixes.",
@@ -3623,6 +3626,8 @@ const localeCatalog = {
     "profile.rule.none": "没有架构规则。",
     "profile.rule.edit": "编辑",
     "profile.rule.duplicate": "复制",
+    "profile.rule.moveUp": "上移",
+    "profile.rule.moveDown": "下移",
     "profile.rule.remove": "移除",
     "profile.rule.rule": "规则 {{index}}",
     "profile.rule.locationOnly": "仅定位",
@@ -3722,6 +3727,7 @@ const localeCatalog = {
     "profile.rule.notFound": "未找到架构规则。",
     "profile.rule.editing": "正在编辑架构规则 {{index}}。",
     "profile.rule.duplicated": "已复制架构规则 {{index}}。",
+    "profile.rule.moved": "已将架构规则移动到位置 {{index}}。",
     "profile.rule.removed": "已移除架构规则。",
     "profile.quickFix.readOnly": "只读模式会阻止快速修复。",
     "profile.quickFix.noFile": "请先打开文件再应用修复。",
@@ -3852,6 +3858,10 @@ const localeCatalog = {
     "command.profile.editRule.description": "将选中的 Profile 架构规则载入可视化规则构建器。",
     "command.profile.duplicateRule.title": "复制选中概况规则",
     "command.profile.duplicateRule.description": "在原规则下方复制选中的 Profile 架构规则。",
+    "command.profile.moveRuleUp.title": "上移选中概况规则",
+    "command.profile.moveRuleUp.description": "将选中的 Profile 架构规则向前移动一位。",
+    "command.profile.moveRuleDown.title": "下移选中概况规则",
+    "command.profile.moveRuleDown.description": "将选中的 Profile 架构规则向后移动一位。",
     "command.profile.removeRule.title": "移除选中概况规则",
     "command.profile.removeRule.description": "从当前架构移除选中的 Profile 架构规则。",
     "command.view.filter.title": "筛选",
@@ -6976,6 +6986,8 @@ function isCommandDisabled(command) {
     command.id === "profile.editRule" ||
     command.id === "profile.duplicateRule" ||
     command.id === "profile.removeRule";
+  const needsProfileRuleMoveUp = command.id === "profile.moveRuleUp";
+  const needsProfileRuleMoveDown = command.id === "profile.moveRuleDown";
   const createsSplitGroup = command.id === "workbench.splitEditor";
   const needsSplitGroup =
     command.id === "workbench.closeSplitEditor" ||
@@ -7088,6 +7100,8 @@ function isCommandDisabled(command) {
     (needsProfileSchemaExport && savedProfileSchemasState.length === 0) ||
     (needsProfileSchemaImportText && !profileSchemaImportText.value.trim()) ||
     (needsProfileRuleSelection && profileRuleCount() === 0) ||
+    (needsProfileRuleMoveUp && !profileRuleCanMove(-1)) ||
+    (needsProfileRuleMoveDown && !profileRuleCanMove(1)) ||
     (createsSplitGroup && editorGroupsSplit) ||
     (needsSplitGroup && !editorGroupsSplit) ||
     writeBlocked
@@ -13778,6 +13792,12 @@ async function executeCommand(commandID, options = {}) {
       break;
     case "profile.duplicateRule":
       duplicateProfileRule(effectiveProfileRuleIndex());
+      break;
+    case "profile.moveRuleUp":
+      moveProfileRule(effectiveProfileRuleIndex(), -1);
+      break;
+    case "profile.moveRuleDown":
+      moveProfileRule(effectiveProfileRuleIndex(), 1);
       break;
     case "profile.removeRule":
       removeProfileRule(effectiveProfileRuleIndex());
@@ -22330,6 +22350,14 @@ function setActiveProfileRuleIndex(index, rules = null) {
   return activeProfileRuleIndex;
 }
 
+function profileRuleCanMove(delta) {
+  const schema = schemaDraftFromText();
+  const rules = Array.isArray(schema.columns) ? schema.columns : [];
+  const index = normalizeProfileRuleIndex(activeProfileRuleIndex, rules);
+  const targetIndex = index + delta;
+  return index >= 0 && targetIndex >= 0 && targetIndex < rules.length;
+}
+
 function profileRuleFromBuilder() {
   const rule = {};
   const name = profileRuleNameInput.value.trim();
@@ -22535,6 +22563,34 @@ function duplicateProfileRule(index) {
   void loadProfile(true);
 }
 
+function moveProfileRule(index, delta) {
+  const schema = schemaDraftFromText();
+  const rules = Array.isArray(schema.columns) ? [...schema.columns] : [];
+  const targetIndex = normalizeProfileRuleIndex(index, rules);
+  const nextIndex = targetIndex + delta;
+  if (targetIndex < 0 || nextIndex < 0 || nextIndex >= rules.length) {
+    status.textContent = t("profile.rule.notFound");
+    return;
+  }
+  const movedRule = rules[targetIndex];
+  rules[targetIndex] = rules[nextIndex];
+  rules[nextIndex] = movedRule;
+  if (editingProfileRuleIndex === targetIndex) {
+    editingProfileRuleIndex = nextIndex;
+  } else if (editingProfileRuleIndex === nextIndex) {
+    editingProfileRuleIndex = targetIndex;
+  }
+  schema.columns = rules;
+  profileSchemaText = JSON.stringify(schema, null, 2);
+  localStorage.setItem(profileSchemaStorageKey, profileSchemaText);
+  profileData = null;
+  setActiveProfileRuleIndex(nextIndex, rules);
+  document.body.dataset.profileRuleBuilder = `move:${targetIndex}->${nextIndex}:${rules.length}`;
+  syncProfileSchemaControls();
+  status.textContent = tf("profile.rule.moved", { index: nextIndex + 1 });
+  void loadProfile(true);
+}
+
 function renderProfileRuleList(rules) {
   if (!profileRuleList) return;
   const safeRules = Array.isArray(rules) ? rules : [];
@@ -22591,6 +22647,24 @@ function renderProfileRuleList(rules) {
       setActiveProfileRuleIndex(index, safeRules);
       void executeCommand("profile.duplicateRule");
     });
+    const moveUpButton = document.createElement("button");
+    moveUpButton.type = "button";
+    moveUpButton.dataset.command = "profile.moveRuleUp";
+    moveUpButton.disabled = index === 0;
+    moveUpButton.textContent = t("profile.rule.moveUp");
+    moveUpButton.addEventListener("click", () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      void executeCommand("profile.moveRuleUp");
+    });
+    const moveDownButton = document.createElement("button");
+    moveDownButton.type = "button";
+    moveDownButton.dataset.command = "profile.moveRuleDown";
+    moveDownButton.disabled = index === safeRules.length - 1;
+    moveDownButton.textContent = t("profile.rule.moveDown");
+    moveDownButton.addEventListener("click", () => {
+      setActiveProfileRuleIndex(index, safeRules);
+      void executeCommand("profile.moveRuleDown");
+    });
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.dataset.command = "profile.removeRule";
@@ -22599,7 +22673,7 @@ function renderProfileRuleList(rules) {
       setActiveProfileRuleIndex(index, safeRules);
       void executeCommand("profile.removeRule");
     });
-    actions.append(editButton, duplicateButton, removeButton);
+    actions.append(editButton, duplicateButton, moveUpButton, moveDownButton, removeButton);
     item.append(label, detail, actions);
     profileRuleList.append(item);
   }
