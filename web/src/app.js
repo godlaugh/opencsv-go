@@ -4990,14 +4990,14 @@ function applyLocaleStrings() {
     [settingsLocaleTitle, "settings.language"],
     [localeSelectLabel, "settings.language"],
     [resetLocaleButton, "settings.resetLanguage"],
-    [settingsPanel?.querySelector('[aria-label="Saved filters and sorts"] header strong'), "settings.savedViews"],
-    [settingsPanel?.querySelector('[aria-label="Theme"] header strong'), "settings.theme"],
-    [settingsPanel?.querySelector('[aria-label="External changes"] header strong'), "settings.externalChanges"],
-    [settingsPanel?.querySelector('[aria-label="Updates"] header strong'), "settings.updates"],
-    [settingsPanel?.querySelector('[aria-label="Link protocols"] header strong'), "settings.linkProtocols"],
-    [settingsPanel?.querySelector('[aria-label="Quote policy"] header strong'), "settings.quotePolicy"],
-    [settingsPanel?.querySelector('[aria-label="Editor appearance"] header strong'), "settings.editorAppearance"],
-    [settingsPanel?.querySelector('[aria-label="File format presets"] header strong'), "settings.fileFormatPresets"],
+    [settingsPanel?.querySelector('[data-settings-section="saved-views"] header strong'), "settings.savedViews"],
+    [settingsPanel?.querySelector('[data-settings-section="theme"] header strong'), "settings.theme"],
+    [settingsPanel?.querySelector('[data-settings-section="external-changes"] header strong'), "settings.externalChanges"],
+    [settingsPanel?.querySelector('[data-settings-section="updates"] header strong'), "settings.updates"],
+    [settingsPanel?.querySelector('[data-settings-section="link-protocols"] header strong'), "settings.linkProtocols"],
+    [settingsPanel?.querySelector('[data-settings-section="quote-policy"] header strong'), "settings.quotePolicy"],
+    [settingsPanel?.querySelector('[data-settings-section="editor-appearance"] header strong'), "settings.editorAppearance"],
+    [settingsPanel?.querySelector('[data-settings-section="file-format-presets"] header strong'), "settings.fileFormatPresets"],
   ];
   for (const [element, key] of textTargets) {
     if (element) element.textContent = t(key);

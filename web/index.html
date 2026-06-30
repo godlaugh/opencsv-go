@@ -286,7 +286,7 @@
               <input id="settingsSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search settings" aria-label="Search settings" data-i18n-placeholder="settings.searchPlaceholder" data-i18n-aria-label="settings.searchPlaceholder" />
               <button id="resetFormatPresetsButton" type="button" data-i18n="settings.formats.reset">Reset Formats</button>
             </div>
-            <section class="settings-section settings-locale-section" aria-label="Language">
+            <section class="settings-section settings-locale-section" aria-label="Language" data-settings-section="language" data-i18n-aria-label="settings.language">
               <header>
                 <strong id="settingsLocaleTitle">Language</strong>
                 <span id="settingsLocaleSummary">English</span>
@@ -310,7 +310,7 @@
                 <button id="resetLocaleButton" type="button" data-i18n="settings.resetLanguage">Reset Language</button>
               </div>
             </section>
-            <section class="settings-section" aria-label="Saved filters and sorts">
+            <section class="settings-section" aria-label="Saved filters and sorts" data-settings-section="saved-views" data-i18n-aria-label="settings.savedViews">
               <header>
                 <strong data-i18n="settings.savedViews">Saved Filters, Recent & Sorts</strong>
                 <span id="settingsViewsSummary">0 filters, 0 sorts</span>
@@ -342,7 +342,7 @@
               </div>
               <div id="settingsSavedViewList" class="settings-preset-list"></div>
             </section>
-            <section class="settings-section settings-theme-section" aria-label="Theme">
+            <section class="settings-section settings-theme-section" aria-label="Theme" data-settings-section="theme" data-i18n-aria-label="settings.theme">
               <header>
                 <strong data-i18n="settings.theme">Theme</strong>
                 <span id="settingsThemeSummary">System</span>
@@ -360,7 +360,7 @@
                 <button id="resetThemePreferenceButton" type="button" data-i18n="settings.resetTheme">Reset Theme</button>
               </div>
             </section>
-            <section class="settings-section settings-refresh-section" aria-label="External changes">
+            <section class="settings-section settings-refresh-section" aria-label="External changes" data-settings-section="external-changes" data-i18n-aria-label="settings.externalChanges">
               <header>
                 <strong data-i18n="settings.externalChanges">External Changes</strong>
                 <span id="settingsRefreshSummary">Auto-refresh clean files</span>
@@ -376,7 +376,7 @@
                 <button id="resetAutoRefreshButton" type="button" data-i18n="settings.resetRefresh">Reset Refresh</button>
               </div>
             </section>
-            <section class="settings-section settings-update-section" aria-label="Updates">
+            <section class="settings-section settings-update-section" aria-label="Updates" data-settings-section="updates" data-i18n-aria-label="settings.updates">
               <header>
                 <strong data-i18n="settings.updates">Updates</strong>
                 <span id="settingsUpdateSummary">Manual only</span>
@@ -395,7 +395,7 @@
               </div>
               <div id="updateCheckResult" class="settings-update-result" aria-live="polite" data-i18n="settings.noUpdateCheck">No update check has run.</div>
             </section>
-            <section class="settings-section settings-link-section" aria-label="Link protocols">
+            <section class="settings-section settings-link-section" aria-label="Link protocols" data-settings-section="link-protocols" data-i18n-aria-label="settings.linkProtocols">
               <header>
                 <strong data-i18n="settings.linkProtocols">Link Protocols</strong>
                 <span id="settingsLinkSummary">obsidian, vscode</span>
@@ -409,7 +409,7 @@
                 <button id="resetCustomLinkProtocolsButton" type="button" data-i18n="settings.linkProtocols.reset">Reset Links</button>
               </div>
             </section>
-            <section class="settings-section settings-policy-section" aria-label="Quote policy">
+            <section class="settings-section settings-policy-section" aria-label="Quote policy" data-settings-section="quote-policy" data-i18n-aria-label="settings.quotePolicy">
               <header>
                 <strong data-i18n="settings.quotePolicy">Quote Policy</strong>
                 <span id="settingsQuoteSummary">minimal double</span>
@@ -606,7 +606,7 @@
                 </div>
               </div>
             </section>
-            <section class="settings-section settings-appearance-section" aria-label="Editor appearance">
+            <section class="settings-section settings-appearance-section" aria-label="Editor appearance" data-settings-section="editor-appearance" data-i18n-aria-label="settings.editorAppearance">
               <header>
                 <strong data-i18n="settings.editorAppearance">Editor Appearance</strong>
                 <span id="settingsAppearanceSummary">Default appearance</span>
@@ -649,7 +649,7 @@
                 <button id="resetEditorAppearanceButton" type="button" data-i18n="settings.appearance.reset">Reset Appearance</button>
               </div>
             </section>
-            <section class="settings-section" aria-label="File format presets">
+            <section class="settings-section" aria-label="File format presets" data-settings-section="file-format-presets" data-i18n-aria-label="settings.fileFormatPresets">
               <header>
                 <strong data-i18n="settings.fileFormatPresets">File Format Presets</strong>
                 <span id="settingsFormatSummary">0 presets</span>
